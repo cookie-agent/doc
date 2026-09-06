@@ -1526,11 +1526,13 @@ or recovery callback, call <code>ctx.register_producer(session_id).await</code> 
 <code>ProducerHandle</code>. Keep the handle for the lifetime of external work; it is not a
 one-shot context grant and remains usable after the triggering callback or turn.</p>
 <ul>
-<li><code>handle.send(message, ProducerDeliveryMode::{Steer, Queue}, key).await</code> returns
+<li><code>handle.send(message, description, ProducerDeliveryMode::{Steer, Queue}, key).await</code> returns
   the durable <code>ProducerMessageId</code> receipt.</li>
-<li><code>handle.steer(message, key).await</code> and <code>handle.queue(message, key).await</code> are
+<li><code>handle.steer(message, description, key).await</code> and <code>handle.queue(message, description, key).await</code> are
   per-send conveniences. Construct a validated key with
   <code>ProducerIdempotencyKey::new(stable_message_key)</code>.</li>
+<li>Every send requires a nonblank, control-free description of at most 1024 UTF-8
+  bytes for compact display. The message body remains the full model-facing input.</li>
 <li><code>handle.id()</code> and <code>handle.session_id()</code> expose the runtime registration and
   destination. Do not persist registration IDs for reuse after reconnect.</li>
 <li><code>handle.unregister().await</code> explicitly closes the registration. Zero-send
@@ -1626,7 +1628,7 @@ the live connection's ownership; senders cannot choose or impersonate an owner.<
 <tr>
 <td><code>plugin/producer/send</code></td>
 <td>Plugin to engine</td>
-<td><code>ExtensionProducerSendParams { session_id, producer_id, mode, idempotency_key, body }</code></td>
+<td><code>ExtensionProducerSendParams { session_id, producer_id, mode, idempotency_key, description, body }</code></td>
 <td><code>ExtensionProducerSendResult { message_id }</code></td>
 </tr>
 <tr>
@@ -1685,7 +1687,7 @@ already-discarded owned message succeeds. Discard never cancels a model request
 or undoes model execution or external effects.</p>
 <p>The ACK follows durable acceptance only. Identical retries scoped to
 <code>(session, stable producer owner, idempotency_key)</code> return the original message ID;
-different body or mode rejects key reuse. Missing ACKs are commit-uncertain. These
+different description, body, or mode rejects key reuse. Missing ACKs are commit-uncertain. These
 contracts make no exactly-once claim about model calls or external effects.</p>
 <p><code>PluginRecoveryStatus</code> has exactly <code>starting</code>, <code>ready</code>, <code>failed</code>, <code>disabled</code>.
 Readiness inspection is runtime-only through <code>session.producers</code>. Failed/disabled
