@@ -158,7 +158,7 @@
 <a href=#158 id=158 data-nosnippet>158</a>            .min(usize::from(area.width));
 <a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span>details_width = usize::from(area.width).saturating_sub(controls_width);
 <a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span>prefix = <span class="kw">if </span>area.width &gt;= <span class="number">12 </span>&amp;&amp; details_width &gt;= <span class="number">8 </span>{
-<a href=#161 id=161 data-nosnippet>161</a>            <span class="string">"goal: "
+<a href=#161 id=161 data-nosnippet>161</a>            <span class="string">"🎯: "
 <a href=#162 id=162 data-nosnippet>162</a>        </span>} <span class="kw">else </span>{
 <a href=#163 id=163 data-nosnippet>163</a>            <span class="string">""
 <a href=#164 id=164 data-nosnippet>164</a>        </span>};
@@ -166,7 +166,7 @@
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">if </span><span class="macro">matches!</span>(goal.status, GoalStatus::Completed | GoalStatus::Cancelled) {
 <a href=#167 id=167 data-nosnippet>167</a>            summary.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">" · {}"</span>, status_name(goal.status)));
 <a href=#168 id=168 data-nosnippet>168</a>        }
-<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>objective_width = details_width.saturating_sub(prefix.len());
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>objective_width = details_width.saturating_sub(UnicodeWidthStr::width(prefix));
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span><span class="kw-2">mut </span>details = truncate_with_ellipsis(<span class="kw-2">&amp;</span>summary, objective_width);
 <a href=#171 id=171 data-nosnippet>171</a>        details.push_str(
 <a href=#172 id=172 data-nosnippet>172</a>            <span class="kw-2">&amp;</span><span class="string">" "</span>.repeat(objective_width.saturating_sub(UnicodeWidthStr::width(details.as_str()))),
@@ -1209,195 +1209,213 @@
 <a href=#1209 id=1209 data-nosnippet>1209</a>            terminal
 <a href=#1210 id=1210 data-nosnippet>1210</a>                .draw(|frame| app.render_goal_bar(frame, frame.area()))
 <a href=#1211 id=1211 data-nosnippet>1211</a>                .unwrap();
-<a href=#1212 id=1212 data-nosnippet>1212</a>            <span class="kw">let </span>line = (<span class="number">0</span>..<span class="number">80</span>)
-<a href=#1213 id=1213 data-nosnippet>1213</a>                .map(|x| terminal.backend().buffer()[(x, <span class="number">0</span>)].symbol())
-<a href=#1214 id=1214 data-nosnippet>1214</a>                .collect::&lt;String&gt;();
-<a href=#1215 id=1215 data-nosnippet>1215</a>            <span class="macro">assert!</span>(line.starts_with(<span class="string">"goal: finish the parser"</span>), <span class="string">"{line}"</span>);
-<a href=#1216 id=1216 data-nosnippet>1216</a>            <span class="macro">assert!</span>(line.trim_end().ends_with(suffix), <span class="string">"{line}"</span>);
-<a href=#1217 id=1217 data-nosnippet>1217</a>            <span class="macro">assert!</span>(!line.contains(<span class="string">'/'</span>));
-<a href=#1218 id=1218 data-nosnippet>1218</a>            <span class="kw">for </span>x <span class="kw">in </span><span class="number">0</span>..<span class="number">23 </span>{
-<a href=#1219 id=1219 data-nosnippet>1219</a>                <span class="macro">assert!</span>(
-<a href=#1220 id=1220 data-nosnippet>1220</a>                    !terminal.backend().buffer()[(x, <span class="number">0</span>)]
-<a href=#1221 id=1221 data-nosnippet>1221</a>                        .modifier
-<a href=#1222 id=1222 data-nosnippet>1222</a>                        .contains(ratatui::style::Modifier::UNDERLINED)
-<a href=#1223 id=1223 data-nosnippet>1223</a>                );
-<a href=#1224 id=1224 data-nosnippet>1224</a>            }
-<a href=#1225 id=1225 data-nosnippet>1225</a>        }
-<a href=#1226 id=1226 data-nosnippet>1226</a>    }
-<a href=#1227 id=1227 data-nosnippet>1227</a>
-<a href=#1228 id=1228 data-nosnippet>1228</a>    <span class="attr">#[tokio::test]
-<a href=#1229 id=1229 data-nosnippet>1229</a>    </span><span class="kw">async fn </span>goal_bar_is_bounded_and_has_non_overlapping_hits_at_tiny_widths() {
-<a href=#1230 id=1230 data-nosnippet>1230</a>        <span class="kw">use </span>ratatui::{Terminal, backend::TestBackend, layout::Rect};
-<a href=#1231 id=1231 data-nosnippet>1231</a>
-<a href=#1232 id=1232 data-nosnippet>1232</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
-<a href=#1233 id=1233 data-nosnippet>1233</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
-<a href=#1234 id=1234 data-nosnippet>1234</a>        <span class="kw">let </span><span class="kw-2">mut </span>current = goal(GoalStatus::Paused);
-<a href=#1235 id=1235 data-nosnippet>1235</a>        current.objective = <span class="string">"Long objective\nwith\ttabs and a long sequence of work "</span>.repeat(<span class="number">10</span>);
-<a href=#1236 id=1236 data-nosnippet>1236</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, current);
-<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="kw">for </span>width <span class="kw">in </span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">20</span>, <span class="number">40</span>, <span class="number">80</span>] {
-<a href=#1238 id=1238 data-nosnippet>1238</a>            <span class="kw">let </span><span class="kw-2">mut </span>terminal = Terminal::new(TestBackend::new(width, <span class="number">1</span>)).unwrap();
-<a href=#1239 id=1239 data-nosnippet>1239</a>            terminal
-<a href=#1240 id=1240 data-nosnippet>1240</a>                .draw(|frame| app.render_goal_bar(frame, Rect::new(<span class="number">0</span>, <span class="number">0</span>, width, <span class="number">1</span>)))
-<a href=#1241 id=1241 data-nosnippet>1241</a>                .unwrap();
-<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="kw">let </span>line = (<span class="number">0</span>..width)
-<a href=#1243 id=1243 data-nosnippet>1243</a>                .map(|x| terminal.backend().buffer()[(x, <span class="number">0</span>)].symbol())
-<a href=#1244 id=1244 data-nosnippet>1244</a>                .collect::&lt;String&gt;();
-<a href=#1245 id=1245 data-nosnippet>1245</a>            <span class="macro">assert!</span>(UnicodeWidthStr::width(line.as_str()) &lt;= usize::from(width));
-<a href=#1246 id=1246 data-nosnippet>1246</a>            <span class="macro">assert!</span>(!line.contains([<span class="string">'\n'</span>, <span class="string">'\t'</span>]));
-<a href=#1247 id=1247 data-nosnippet>1247</a>            <span class="kw">if </span>width &gt;= <span class="number">20 </span>{
-<a href=#1248 id=1248 data-nosnippet>1248</a>                <span class="macro">assert!</span>(line.starts_with(<span class="string">"goal: Long"</span>), <span class="string">"{line}"</span>);
-<a href=#1249 id=1249 data-nosnippet>1249</a>            }
-<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="macro">assert!</span>(
-<a href=#1251 id=1251 data-nosnippet>1251</a>                app.hit_map
-<a href=#1252 id=1252 data-nosnippet>1252</a>                    .goal_actions
-<a href=#1253 id=1253 data-nosnippet>1253</a>                    .iter()
-<a href=#1254 id=1254 data-nosnippet>1254</a>                    .any(|(<span class="kw">_</span>, action)| <span class="kw-2">*</span>action == GoalBarAction::Details)
-<a href=#1255 id=1255 data-nosnippet>1255</a>            );
-<a href=#1256 id=1256 data-nosnippet>1256</a>            <span class="kw">for </span>(index, (rect, <span class="kw">_</span>)) <span class="kw">in </span>app.hit_map.goal_actions.iter().enumerate() {
-<a href=#1257 id=1257 data-nosnippet>1257</a>                <span class="macro">assert!</span>(rect.right() &lt;= width, <span class="string">"{width}: {rect:?}"</span>);
-<a href=#1258 id=1258 data-nosnippet>1258</a>                <span class="kw">for </span>(other, <span class="kw">_</span>) <span class="kw">in </span>app.hit_map.goal_actions.iter().skip(index + <span class="number">1</span>) {
-<a href=#1259 id=1259 data-nosnippet>1259</a>                    <span class="macro">assert!</span>(
-<a href=#1260 id=1260 data-nosnippet>1260</a>                        rect.intersection(<span class="kw-2">*</span>other).is_empty(),
-<a href=#1261 id=1261 data-nosnippet>1261</a>                        <span class="string">"{width}: {rect:?} {other:?}"
-<a href=#1262 id=1262 data-nosnippet>1262</a>                    </span>);
-<a href=#1263 id=1263 data-nosnippet>1263</a>                }
-<a href=#1264 id=1264 data-nosnippet>1264</a>            }
-<a href=#1265 id=1265 data-nosnippet>1265</a>        }
-<a href=#1266 id=1266 data-nosnippet>1266</a>    }
-<a href=#1267 id=1267 data-nosnippet>1267</a>
-<a href=#1268 id=1268 data-nosnippet>1268</a>    <span class="attr">#[tokio::test]
-<a href=#1269 id=1269 data-nosnippet>1269</a>    </span><span class="kw">async fn </span>terminal_and_read_only_goals_expose_no_lifecycle_buttons() {
-<a href=#1270 id=1270 data-nosnippet>1270</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
-<a href=#1271 id=1271 data-nosnippet>1271</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
-<a href=#1272 id=1272 data-nosnippet>1272</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, goal(GoalStatus::Completed));
-<a href=#1273 id=1273 data-nosnippet>1273</a>        <span class="macro">assert_eq!</span>(app.allowed_goal_actions(), <span class="macro">vec!</span>[GoalBarAction::Details]);
-<a href=#1274 id=1274 data-nosnippet>1274</a>        app.cycle_goal_focus(<span class="bool-val">false</span>);
-<a href=#1275 id=1275 data-nosnippet>1275</a>        <span class="macro">assert_eq!</span>(app.goal_focus, <span class="prelude-val">Some</span>(GoalBarAction::Details));
-<a href=#1276 id=1276 data-nosnippet>1276</a>        app.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id).unwrap().goal = <span class="prelude-val">Some</span>(goal(GoalStatus::Active));
-<a href=#1277 id=1277 data-nosnippet>1277</a>        app.read_only_sessions.insert(session_id);
-<a href=#1278 id=1278 data-nosnippet>1278</a>        <span class="macro">assert_eq!</span>(app.allowed_goal_actions(), <span class="macro">vec!</span>[GoalBarAction::Details]);
-<a href=#1279 id=1279 data-nosnippet>1279</a>        app.cycle_goal_focus(<span class="bool-val">false</span>);
-<a href=#1280 id=1280 data-nosnippet>1280</a>        <span class="macro">assert_eq!</span>(app.goal_focus, <span class="prelude-val">Some</span>(GoalBarAction::Details));
-<a href=#1281 id=1281 data-nosnippet>1281</a>        app.activate_goal_action(GoalBarAction::Pause);
-<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="macro">assert!</span>(app.status.contains(<span class="string">"read-only"</span>));
-<a href=#1283 id=1283 data-nosnippet>1283</a>        app.read_only_sessions.clear();
-<a href=#1284 id=1284 data-nosnippet>1284</a>        <span class="macro">assert_eq!</span>(
-<a href=#1285 id=1285 data-nosnippet>1285</a>            app.allowed_goal_actions(),
-<a href=#1286 id=1286 data-nosnippet>1286</a>            <span class="macro">vec!</span>[
-<a href=#1287 id=1287 data-nosnippet>1287</a>                GoalBarAction::Details,
-<a href=#1288 id=1288 data-nosnippet>1288</a>                GoalBarAction::Pause,
-<a href=#1289 id=1289 data-nosnippet>1289</a>                GoalBarAction::Cancel
-<a href=#1290 id=1290 data-nosnippet>1290</a>            ]
-<a href=#1291 id=1291 data-nosnippet>1291</a>        );
-<a href=#1292 id=1292 data-nosnippet>1292</a>        app.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id).unwrap().goal = <span class="prelude-val">Some</span>(goal(GoalStatus::Paused));
-<a href=#1293 id=1293 data-nosnippet>1293</a>        <span class="macro">assert_eq!</span>(
-<a href=#1294 id=1294 data-nosnippet>1294</a>            app.allowed_goal_actions(),
-<a href=#1295 id=1295 data-nosnippet>1295</a>            <span class="macro">vec!</span>[
-<a href=#1296 id=1296 data-nosnippet>1296</a>                GoalBarAction::Details,
-<a href=#1297 id=1297 data-nosnippet>1297</a>                GoalBarAction::Resume,
-<a href=#1298 id=1298 data-nosnippet>1298</a>                GoalBarAction::Cancel
-<a href=#1299 id=1299 data-nosnippet>1299</a>            ]
-<a href=#1300 id=1300 data-nosnippet>1300</a>        );
-<a href=#1301 id=1301 data-nosnippet>1301</a>    }
-<a href=#1302 id=1302 data-nosnippet>1302</a>
-<a href=#1303 id=1303 data-nosnippet>1303</a>    <span class="attr">#[tokio::test]
-<a href=#1304 id=1304 data-nosnippet>1304</a>    </span><span class="kw">async fn </span>detail_modal_opens_scrolls_and_closes_when_session_changes() {
-<a href=#1305 id=1305 data-nosnippet>1305</a>        <span class="kw">use </span>crossterm::event::KeyModifiers;
-<a href=#1306 id=1306 data-nosnippet>1306</a>        <span class="kw">use </span>ratatui::{Terminal, backend::TestBackend};
-<a href=#1307 id=1307 data-nosnippet>1307</a>
-<a href=#1308 id=1308 data-nosnippet>1308</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
-<a href=#1309 id=1309 data-nosnippet>1309</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
-<a href=#1310 id=1310 data-nosnippet>1310</a>        <span class="kw">let </span><span class="kw-2">mut </span>current = goal(GoalStatus::Active);
-<a href=#1311 id=1311 data-nosnippet>1311</a>        current.items = (<span class="number">0</span>..<span class="number">20</span>)
-<a href=#1312 id=1312 data-nosnippet>1312</a>            .map(|index| GoalItem {
-<a href=#1313 id=1313 data-nosnippet>1313</a>                description: <span class="macro">format!</span>(<span class="string">"ordered checklist item {index}"</span>),
-<a href=#1314 id=1314 data-nosnippet>1314</a>                finished: index % <span class="number">2 </span>== <span class="number">0</span>,
-<a href=#1315 id=1315 data-nosnippet>1315</a>            })
-<a href=#1316 id=1316 data-nosnippet>1316</a>            .collect();
-<a href=#1317 id=1317 data-nosnippet>1317</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, current);
-<a href=#1318 id=1318 data-nosnippet>1318</a>        app.open_goal_detail();
-<a href=#1319 id=1319 data-nosnippet>1319</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::GoalDetail);
-<a href=#1320 id=1320 data-nosnippet>1320</a>        <span class="kw">let </span><span class="kw-2">mut </span>terminal = Terminal::new(TestBackend::new(<span class="number">40</span>, <span class="number">10</span>)).unwrap();
-<a href=#1321 id=1321 data-nosnippet>1321</a>        terminal
-<a href=#1322 id=1322 data-nosnippet>1322</a>            .draw(|frame| app.render_goal_detail(frame))
-<a href=#1323 id=1323 data-nosnippet>1323</a>            .unwrap();
-<a href=#1324 id=1324 data-nosnippet>1324</a>        <span class="macro">assert!</span>(app.goal_detail.max_scroll &gt; <span class="number">0</span>);
-<a href=#1325 id=1325 data-nosnippet>1325</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
-<a href=#1326 id=1326 data-nosnippet>1326</a>        <span class="macro">assert!</span>(app.goal_detail.scroll &gt; <span class="number">0</span>);
-<a href=#1327 id=1327 data-nosnippet>1327</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
-<a href=#1328 id=1328 data-nosnippet>1328</a>        <span class="macro">assert_eq!</span>(app.goal_detail.scroll, <span class="number">0</span>);
-<a href=#1329 id=1329 data-nosnippet>1329</a>        <span class="kw">for </span>width <span class="kw">in </span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">20</span>, <span class="number">40</span>, <span class="number">80</span>] {
-<a href=#1330 id=1330 data-nosnippet>1330</a>            <span class="kw">let </span><span class="kw-2">mut </span>narrow = Terminal::new(TestBackend::new(width, <span class="number">10</span>)).unwrap();
-<a href=#1331 id=1331 data-nosnippet>1331</a>            narrow.draw(|frame| app.render_goal_detail(frame)).unwrap();
-<a href=#1332 id=1332 data-nosnippet>1332</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(close) = app.hit_map.goal_close {
-<a href=#1333 id=1333 data-nosnippet>1333</a>                <span class="macro">assert!</span>(close.right() &lt;= width);
-<a href=#1334 id=1334 data-nosnippet>1334</a>                <span class="macro">assert!</span>(close.bottom() &lt;= <span class="number">10</span>);
-<a href=#1335 id=1335 data-nosnippet>1335</a>            }
-<a href=#1336 id=1336 data-nosnippet>1336</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
-<a href=#1337 id=1337 data-nosnippet>1337</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-<a href=#1338 id=1338 data-nosnippet>1338</a>            <span class="macro">assert_eq!</span>(app.goal_detail.scroll, app.goal_detail.max_scroll);
-<a href=#1339 id=1339 data-nosnippet>1339</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
-<a href=#1340 id=1340 data-nosnippet>1340</a>        }
-<a href=#1341 id=1341 data-nosnippet>1341</a>
-<a href=#1342 id=1342 data-nosnippet>1342</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-<a href=#1343 id=1343 data-nosnippet>1343</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::None);
-<a href=#1344 id=1344 data-nosnippet>1344</a>        app.open_goal_detail();
-<a href=#1345 id=1345 data-nosnippet>1345</a>
-<a href=#1346 id=1346 data-nosnippet>1346</a>        app.selected = <span class="prelude-val">Some</span>(SessionId::new_v7());
-<a href=#1347 id=1347 data-nosnippet>1347</a>        terminal
-<a href=#1348 id=1348 data-nosnippet>1348</a>            .draw(|frame| app.render_goal_detail(frame))
-<a href=#1349 id=1349 data-nosnippet>1349</a>            .unwrap();
-<a href=#1350 id=1350 data-nosnippet>1350</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::None);
-<a href=#1351 id=1351 data-nosnippet>1351</a>        <span class="macro">assert_eq!</span>(app.goal_detail.session_id, <span class="prelude-val">None</span>);
-<a href=#1352 id=1352 data-nosnippet>1352</a>    }
-<a href=#1353 id=1353 data-nosnippet>1353</a>
-<a href=#1354 id=1354 data-nosnippet>1354</a>    <span class="attr">#[tokio::test]
-<a href=#1355 id=1355 data-nosnippet>1355</a>    </span><span class="kw">async fn </span>producer_reminders_never_restore_into_the_user_composer() {
-<a href=#1356 id=1356 data-nosnippet>1356</a>        <span class="kw">use </span>cookie_agent_protocol::{
-<a href=#1357 id=1357 data-nosnippet>1357</a>            EventPayload, GoalReminderIdentity, ProducerDeliveryMode, ProducerIdempotencyKey,
-<a href=#1358 id=1358 data-nosnippet>1358</a>            ProducerMessageId, ProducerOwner, RunId, StoredEvent,
-<a href=#1359 id=1359 data-nosnippet>1359</a>        };
-<a href=#1360 id=1360 data-nosnippet>1360</a>
-<a href=#1361 id=1361 data-nosnippet>1361</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
-<a href=#1362 id=1362 data-nosnippet>1362</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
-<a href=#1363 id=1363 data-nosnippet>1363</a>        <span class="kw">let </span>run_id = RunId::new_v7();
-<a href=#1364 id=1364 data-nosnippet>1364</a>        <span class="kw">let </span>goal_id = GoalId::new_v7();
-<a href=#1365 id=1365 data-nosnippet>1365</a>        app.selected = <span class="prelude-val">Some</span>(session_id);
-<a href=#1366 id=1366 data-nosnippet>1366</a>        <span class="kw">for </span>(index, payload) <span class="kw">in </span>[
-<a href=#1367 id=1367 data-nosnippet>1367</a>            EventPayload::ProducerMessageAccepted {
-<a href=#1368 id=1368 data-nosnippet>1368</a>                description: Default::default(),
-<a href=#1369 id=1369 data-nosnippet>1369</a>                message_id: ProducerMessageId::new_v7(),
-<a href=#1370 id=1370 data-nosnippet>1370</a>                producer_owner: ProducerOwner::Goal { goal_id },
-<a href=#1371 id=1371 data-nosnippet>1371</a>                mode: ProducerDeliveryMode::Queue,
-<a href=#1372 id=1372 data-nosnippet>1372</a>                idempotency_key: ProducerIdempotencyKey::new(<span class="string">"reminder"</span>).unwrap(),
-<a href=#1373 id=1373 data-nosnippet>1373</a>                body: <span class="string">"INTERNAL REMINDER"</span>.into(),
-<a href=#1374 id=1374 data-nosnippet>1374</a>                reminder: <span class="prelude-val">Some</span>(GoalReminderIdentity {
-<a href=#1375 id=1375 data-nosnippet>1375</a>                    goal_id,
-<a href=#1376 id=1376 data-nosnippet>1376</a>                    revision: <span class="number">1</span>,
-<a href=#1377 id=1377 data-nosnippet>1377</a>                    kind: cookie_agent_protocol::GoalReminderKind::Continuation,
-<a href=#1378 id=1378 data-nosnippet>1378</a>                }),
-<a href=#1379 id=1379 data-nosnippet>1379</a>            },
-<a href=#1380 id=1380 data-nosnippet>1380</a>            EventPayload::UserInputAdmitted {
-<a href=#1381 id=1381 data-nosnippet>1381</a>                input: <span class="string">"user pending text"</span>.into(),
-<a href=#1382 id=1382 data-nosnippet>1382</a>            },
-<a href=#1383 id=1383 data-nosnippet>1383</a>            EventPayload::RunInterrupted { reason: <span class="prelude-val">None </span>},
-<a href=#1384 id=1384 data-nosnippet>1384</a>        ]
-<a href=#1385 id=1385 data-nosnippet>1385</a>        .into_iter()
-<a href=#1386 id=1386 data-nosnippet>1386</a>        .enumerate()
-<a href=#1387 id=1387 data-nosnippet>1387</a>        {
-<a href=#1388 id=1388 data-nosnippet>1388</a>            <span class="macro">assert!</span>(app.store.apply_event(StoredEvent {
-<a href=#1389 id=1389 data-nosnippet>1389</a>                engine_version: <span class="prelude-val">None</span>,
-<a href=#1390 id=1390 data-nosnippet>1390</a>                origin: <span class="prelude-val">None</span>,
-<a href=#1391 id=1391 data-nosnippet>1391</a>                session_id,
-<a href=#1392 id=1392 data-nosnippet>1392</a>                run_id: <span class="prelude-val">Some</span>(run_id),
-<a href=#1393 id=1393 data-nosnippet>1393</a>                seq: index <span class="kw">as </span>u64 + <span class="number">1</span>,
-<a href=#1394 id=1394 data-nosnippet>1394</a>                timestamp: <span class="string">"2026-08-06T12:00:00Z"</span>.parse().unwrap(),
-<a href=#1395 id=1395 data-nosnippet>1395</a>                payload,
-<a href=#1396 id=1396 data-nosnippet>1396</a>            }));
-<a href=#1397 id=1397 data-nosnippet>1397</a>        }
-<a href=#1398 id=1398 data-nosnippet>1398</a>        app.restore_voided_inputs();
-<a href=#1399 id=1399 data-nosnippet>1399</a>        <span class="macro">assert_eq!</span>(app.input.as_str(), <span class="string">"user pending text"</span>);
-<a href=#1400 id=1400 data-nosnippet>1400</a>        <span class="macro">assert!</span>(app.store.sessions[<span class="kw-2">&amp;</span>session_id].voided_inputs.is_empty());
-<a href=#1401 id=1401 data-nosnippet>1401</a>    }
-<a href=#1402 id=1402 data-nosnippet>1402</a>}
+<a href=#1212 id=1212 data-nosnippet>1212</a>            <span class="comment">// Skip the continuation cell occupied by the double-width emoji.
+<a href=#1213 id=1213 data-nosnippet>1213</a>            </span><span class="kw">let </span>line = (<span class="number">0</span>..<span class="number">80</span>)
+<a href=#1214 id=1214 data-nosnippet>1214</a>                .filter(|<span class="kw-2">&amp;</span>x| x != <span class="number">1</span>)
+<a href=#1215 id=1215 data-nosnippet>1215</a>                .map(|x| terminal.backend().buffer()[(x, <span class="number">0</span>)].symbol())
+<a href=#1216 id=1216 data-nosnippet>1216</a>                .collect::&lt;String&gt;();
+<a href=#1217 id=1217 data-nosnippet>1217</a>            <span class="macro">assert!</span>(line.starts_with(<span class="string">"🎯: finish the parser"</span>), <span class="string">"{line}"</span>);
+<a href=#1218 id=1218 data-nosnippet>1218</a>            <span class="macro">assert!</span>(line.trim_end().ends_with(suffix), <span class="string">"{line}"</span>);
+<a href=#1219 id=1219 data-nosnippet>1219</a>            <span class="macro">assert!</span>(!line.contains(<span class="string">'/'</span>));
+<a href=#1220 id=1220 data-nosnippet>1220</a>            <span class="kw">for </span>x <span class="kw">in </span><span class="number">0</span>..<span class="number">21 </span>{
+<a href=#1221 id=1221 data-nosnippet>1221</a>                <span class="macro">assert!</span>(
+<a href=#1222 id=1222 data-nosnippet>1222</a>                    !terminal.backend().buffer()[(x, <span class="number">0</span>)]
+<a href=#1223 id=1223 data-nosnippet>1223</a>                        .modifier
+<a href=#1224 id=1224 data-nosnippet>1224</a>                        .contains(ratatui::style::Modifier::UNDERLINED)
+<a href=#1225 id=1225 data-nosnippet>1225</a>                );
+<a href=#1226 id=1226 data-nosnippet>1226</a>            }
+<a href=#1227 id=1227 data-nosnippet>1227</a>        }
+<a href=#1228 id=1228 data-nosnippet>1228</a>    }
+<a href=#1229 id=1229 data-nosnippet>1229</a>
+<a href=#1230 id=1230 data-nosnippet>1230</a>    <span class="attr">#[tokio::test]
+<a href=#1231 id=1231 data-nosnippet>1231</a>    </span><span class="kw">async fn </span>goal_bar_is_bounded_and_has_non_overlapping_hits_at_tiny_widths() {
+<a href=#1232 id=1232 data-nosnippet>1232</a>        <span class="kw">use </span>ratatui::{Terminal, backend::TestBackend, layout::Rect};
+<a href=#1233 id=1233 data-nosnippet>1233</a>
+<a href=#1234 id=1234 data-nosnippet>1234</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
+<a href=#1235 id=1235 data-nosnippet>1235</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
+<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="kw">let </span><span class="kw-2">mut </span>current = goal(GoalStatus::Paused);
+<a href=#1237 id=1237 data-nosnippet>1237</a>        current.objective = <span class="string">"Long objective\nwith\ttabs and a long sequence of work "</span>.repeat(<span class="number">10</span>);
+<a href=#1238 id=1238 data-nosnippet>1238</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, current);
+<a href=#1239 id=1239 data-nosnippet>1239</a>        <span class="kw">for </span>width <span class="kw">in </span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">20</span>, <span class="number">25</span>, <span class="number">26</span>, <span class="number">40</span>, <span class="number">80</span>] {
+<a href=#1240 id=1240 data-nosnippet>1240</a>            <span class="kw">let </span><span class="kw-2">mut </span>terminal = Terminal::new(TestBackend::new(width, <span class="number">1</span>)).unwrap();
+<a href=#1241 id=1241 data-nosnippet>1241</a>            terminal
+<a href=#1242 id=1242 data-nosnippet>1242</a>                .draw(|frame| app.render_goal_bar(frame, Rect::new(<span class="number">0</span>, <span class="number">0</span>, width, <span class="number">1</span>)))
+<a href=#1243 id=1243 data-nosnippet>1243</a>                .unwrap();
+<a href=#1244 id=1244 data-nosnippet>1244</a>            <span class="comment">// Skip the emoji continuation cell only while the prefix is visible.
+<a href=#1245 id=1245 data-nosnippet>1245</a>            </span><span class="kw">let </span>line = (<span class="number">0</span>..width)
+<a href=#1246 id=1246 data-nosnippet>1246</a>                .filter(|<span class="kw-2">&amp;</span>x| x != <span class="number">1 </span>|| width &lt; <span class="number">12</span>)
+<a href=#1247 id=1247 data-nosnippet>1247</a>                .map(|x| terminal.backend().buffer()[(x, <span class="number">0</span>)].symbol())
+<a href=#1248 id=1248 data-nosnippet>1248</a>                .collect::&lt;String&gt;();
+<a href=#1249 id=1249 data-nosnippet>1249</a>            <span class="macro">assert!</span>(UnicodeWidthStr::width(line.as_str()) &lt;= usize::from(width));
+<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="macro">assert!</span>(!line.contains([<span class="string">'\n'</span>, <span class="string">'\t'</span>]));
+<a href=#1251 id=1251 data-nosnippet>1251</a>            <span class="kw">if </span>width &gt;= <span class="number">12 </span>{
+<a href=#1252 id=1252 data-nosnippet>1252</a>                <span class="macro">assert!</span>(line.starts_with(<span class="string">"🎯: Lon"</span>), <span class="string">"{line}"</span>);
+<a href=#1253 id=1253 data-nosnippet>1253</a>            }
+<a href=#1254 id=1254 data-nosnippet>1254</a>            <span class="macro">assert_eq!</span>(line.starts_with(<span class="string">"🎯: "</span>), width &gt;= <span class="number">12</span>, <span class="string">"{line}"</span>);
+<a href=#1255 id=1255 data-nosnippet>1255</a>            <span class="macro">assert!</span>(
+<a href=#1256 id=1256 data-nosnippet>1256</a>                app.hit_map
+<a href=#1257 id=1257 data-nosnippet>1257</a>                    .goal_actions
+<a href=#1258 id=1258 data-nosnippet>1258</a>                    .iter()
+<a href=#1259 id=1259 data-nosnippet>1259</a>                    .any(|(<span class="kw">_</span>, action)| <span class="kw-2">*</span>action == GoalBarAction::Details)
+<a href=#1260 id=1260 data-nosnippet>1260</a>            );
+<a href=#1261 id=1261 data-nosnippet>1261</a>            <span class="kw">for </span>(index, (rect, action)) <span class="kw">in </span>app.hit_map.goal_actions.iter().enumerate() {
+<a href=#1262 id=1262 data-nosnippet>1262</a>                <span class="macro">assert!</span>(rect.right() &lt;= width, <span class="string">"{width}: {rect:?}"</span>);
+<a href=#1263 id=1263 data-nosnippet>1263</a>                <span class="kw">if </span><span class="kw-2">*</span>action != GoalBarAction::Details {
+<a href=#1264 id=1264 data-nosnippet>1264</a>                    <span class="kw">let </span>label = (rect.x..rect.right())
+<a href=#1265 id=1265 data-nosnippet>1265</a>                        .map(|x| terminal.backend().buffer()[(x, <span class="number">0</span>)].symbol())
+<a href=#1266 id=1266 data-nosnippet>1266</a>                        .collect::&lt;String&gt;();
+<a href=#1267 id=1267 data-nosnippet>1267</a>                    <span class="kw">let </span>expected = <span class="kw">match </span>(action, width &gt;= <span class="number">26</span>) {
+<a href=#1268 id=1268 data-nosnippet>1268</a>                        (GoalBarAction::Resume, <span class="bool-val">true</span>) =&gt; <span class="string">" [Resume]"</span>,
+<a href=#1269 id=1269 data-nosnippet>1269</a>                        (GoalBarAction::Resume, <span class="bool-val">false</span>) =&gt; <span class="string">" &gt;"</span>,
+<a href=#1270 id=1270 data-nosnippet>1270</a>                        (GoalBarAction::Cancel, <span class="bool-val">true</span>) =&gt; <span class="string">" [Cancel]"</span>,
+<a href=#1271 id=1271 data-nosnippet>1271</a>                        (GoalBarAction::Cancel, <span class="bool-val">false</span>) =&gt; <span class="string">" x"</span>,
+<a href=#1272 id=1272 data-nosnippet>1272</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+<a href=#1273 id=1273 data-nosnippet>1273</a>                    };
+<a href=#1274 id=1274 data-nosnippet>1274</a>                    <span class="macro">assert_eq!</span>(label, expected, <span class="string">"width {width}"</span>);
+<a href=#1275 id=1275 data-nosnippet>1275</a>                }
+<a href=#1276 id=1276 data-nosnippet>1276</a>                <span class="kw">for </span>(other, <span class="kw">_</span>) <span class="kw">in </span>app.hit_map.goal_actions.iter().skip(index + <span class="number">1</span>) {
+<a href=#1277 id=1277 data-nosnippet>1277</a>                    <span class="macro">assert!</span>(
+<a href=#1278 id=1278 data-nosnippet>1278</a>                        rect.intersection(<span class="kw-2">*</span>other).is_empty(),
+<a href=#1279 id=1279 data-nosnippet>1279</a>                        <span class="string">"{width}: {rect:?} {other:?}"
+<a href=#1280 id=1280 data-nosnippet>1280</a>                    </span>);
+<a href=#1281 id=1281 data-nosnippet>1281</a>                }
+<a href=#1282 id=1282 data-nosnippet>1282</a>            }
+<a href=#1283 id=1283 data-nosnippet>1283</a>        }
+<a href=#1284 id=1284 data-nosnippet>1284</a>    }
+<a href=#1285 id=1285 data-nosnippet>1285</a>
+<a href=#1286 id=1286 data-nosnippet>1286</a>    <span class="attr">#[tokio::test]
+<a href=#1287 id=1287 data-nosnippet>1287</a>    </span><span class="kw">async fn </span>terminal_and_read_only_goals_expose_no_lifecycle_buttons() {
+<a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
+<a href=#1289 id=1289 data-nosnippet>1289</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
+<a href=#1290 id=1290 data-nosnippet>1290</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, goal(GoalStatus::Completed));
+<a href=#1291 id=1291 data-nosnippet>1291</a>        <span class="macro">assert_eq!</span>(app.allowed_goal_actions(), <span class="macro">vec!</span>[GoalBarAction::Details]);
+<a href=#1292 id=1292 data-nosnippet>1292</a>        app.cycle_goal_focus(<span class="bool-val">false</span>);
+<a href=#1293 id=1293 data-nosnippet>1293</a>        <span class="macro">assert_eq!</span>(app.goal_focus, <span class="prelude-val">Some</span>(GoalBarAction::Details));
+<a href=#1294 id=1294 data-nosnippet>1294</a>        app.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id).unwrap().goal = <span class="prelude-val">Some</span>(goal(GoalStatus::Active));
+<a href=#1295 id=1295 data-nosnippet>1295</a>        app.read_only_sessions.insert(session_id);
+<a href=#1296 id=1296 data-nosnippet>1296</a>        <span class="macro">assert_eq!</span>(app.allowed_goal_actions(), <span class="macro">vec!</span>[GoalBarAction::Details]);
+<a href=#1297 id=1297 data-nosnippet>1297</a>        app.cycle_goal_focus(<span class="bool-val">false</span>);
+<a href=#1298 id=1298 data-nosnippet>1298</a>        <span class="macro">assert_eq!</span>(app.goal_focus, <span class="prelude-val">Some</span>(GoalBarAction::Details));
+<a href=#1299 id=1299 data-nosnippet>1299</a>        app.activate_goal_action(GoalBarAction::Pause);
+<a href=#1300 id=1300 data-nosnippet>1300</a>        <span class="macro">assert!</span>(app.status.contains(<span class="string">"read-only"</span>));
+<a href=#1301 id=1301 data-nosnippet>1301</a>        app.read_only_sessions.clear();
+<a href=#1302 id=1302 data-nosnippet>1302</a>        <span class="macro">assert_eq!</span>(
+<a href=#1303 id=1303 data-nosnippet>1303</a>            app.allowed_goal_actions(),
+<a href=#1304 id=1304 data-nosnippet>1304</a>            <span class="macro">vec!</span>[
+<a href=#1305 id=1305 data-nosnippet>1305</a>                GoalBarAction::Details,
+<a href=#1306 id=1306 data-nosnippet>1306</a>                GoalBarAction::Pause,
+<a href=#1307 id=1307 data-nosnippet>1307</a>                GoalBarAction::Cancel
+<a href=#1308 id=1308 data-nosnippet>1308</a>            ]
+<a href=#1309 id=1309 data-nosnippet>1309</a>        );
+<a href=#1310 id=1310 data-nosnippet>1310</a>        app.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id).unwrap().goal = <span class="prelude-val">Some</span>(goal(GoalStatus::Paused));
+<a href=#1311 id=1311 data-nosnippet>1311</a>        <span class="macro">assert_eq!</span>(
+<a href=#1312 id=1312 data-nosnippet>1312</a>            app.allowed_goal_actions(),
+<a href=#1313 id=1313 data-nosnippet>1313</a>            <span class="macro">vec!</span>[
+<a href=#1314 id=1314 data-nosnippet>1314</a>                GoalBarAction::Details,
+<a href=#1315 id=1315 data-nosnippet>1315</a>                GoalBarAction::Resume,
+<a href=#1316 id=1316 data-nosnippet>1316</a>                GoalBarAction::Cancel
+<a href=#1317 id=1317 data-nosnippet>1317</a>            ]
+<a href=#1318 id=1318 data-nosnippet>1318</a>        );
+<a href=#1319 id=1319 data-nosnippet>1319</a>    }
+<a href=#1320 id=1320 data-nosnippet>1320</a>
+<a href=#1321 id=1321 data-nosnippet>1321</a>    <span class="attr">#[tokio::test]
+<a href=#1322 id=1322 data-nosnippet>1322</a>    </span><span class="kw">async fn </span>detail_modal_opens_scrolls_and_closes_when_session_changes() {
+<a href=#1323 id=1323 data-nosnippet>1323</a>        <span class="kw">use </span>crossterm::event::KeyModifiers;
+<a href=#1324 id=1324 data-nosnippet>1324</a>        <span class="kw">use </span>ratatui::{Terminal, backend::TestBackend};
+<a href=#1325 id=1325 data-nosnippet>1325</a>
+<a href=#1326 id=1326 data-nosnippet>1326</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
+<a href=#1327 id=1327 data-nosnippet>1327</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
+<a href=#1328 id=1328 data-nosnippet>1328</a>        <span class="kw">let </span><span class="kw-2">mut </span>current = goal(GoalStatus::Active);
+<a href=#1329 id=1329 data-nosnippet>1329</a>        current.items = (<span class="number">0</span>..<span class="number">20</span>)
+<a href=#1330 id=1330 data-nosnippet>1330</a>            .map(|index| GoalItem {
+<a href=#1331 id=1331 data-nosnippet>1331</a>                description: <span class="macro">format!</span>(<span class="string">"ordered checklist item {index}"</span>),
+<a href=#1332 id=1332 data-nosnippet>1332</a>                finished: index % <span class="number">2 </span>== <span class="number">0</span>,
+<a href=#1333 id=1333 data-nosnippet>1333</a>            })
+<a href=#1334 id=1334 data-nosnippet>1334</a>            .collect();
+<a href=#1335 id=1335 data-nosnippet>1335</a>        mount_goal(<span class="kw-2">&amp;mut </span>app, session_id, current);
+<a href=#1336 id=1336 data-nosnippet>1336</a>        app.open_goal_detail();
+<a href=#1337 id=1337 data-nosnippet>1337</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::GoalDetail);
+<a href=#1338 id=1338 data-nosnippet>1338</a>        <span class="kw">let </span><span class="kw-2">mut </span>terminal = Terminal::new(TestBackend::new(<span class="number">40</span>, <span class="number">10</span>)).unwrap();
+<a href=#1339 id=1339 data-nosnippet>1339</a>        terminal
+<a href=#1340 id=1340 data-nosnippet>1340</a>            .draw(|frame| app.render_goal_detail(frame))
+<a href=#1341 id=1341 data-nosnippet>1341</a>            .unwrap();
+<a href=#1342 id=1342 data-nosnippet>1342</a>        <span class="macro">assert!</span>(app.goal_detail.max_scroll &gt; <span class="number">0</span>);
+<a href=#1343 id=1343 data-nosnippet>1343</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+<a href=#1344 id=1344 data-nosnippet>1344</a>        <span class="macro">assert!</span>(app.goal_detail.scroll &gt; <span class="number">0</span>);
+<a href=#1345 id=1345 data-nosnippet>1345</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+<a href=#1346 id=1346 data-nosnippet>1346</a>        <span class="macro">assert_eq!</span>(app.goal_detail.scroll, <span class="number">0</span>);
+<a href=#1347 id=1347 data-nosnippet>1347</a>        <span class="kw">for </span>width <span class="kw">in </span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">20</span>, <span class="number">40</span>, <span class="number">80</span>] {
+<a href=#1348 id=1348 data-nosnippet>1348</a>            <span class="kw">let </span><span class="kw-2">mut </span>narrow = Terminal::new(TestBackend::new(width, <span class="number">10</span>)).unwrap();
+<a href=#1349 id=1349 data-nosnippet>1349</a>            narrow.draw(|frame| app.render_goal_detail(frame)).unwrap();
+<a href=#1350 id=1350 data-nosnippet>1350</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(close) = app.hit_map.goal_close {
+<a href=#1351 id=1351 data-nosnippet>1351</a>                <span class="macro">assert!</span>(close.right() &lt;= width);
+<a href=#1352 id=1352 data-nosnippet>1352</a>                <span class="macro">assert!</span>(close.bottom() &lt;= <span class="number">10</span>);
+<a href=#1353 id=1353 data-nosnippet>1353</a>            }
+<a href=#1354 id=1354 data-nosnippet>1354</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+<a href=#1355 id=1355 data-nosnippet>1355</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+<a href=#1356 id=1356 data-nosnippet>1356</a>            <span class="macro">assert_eq!</span>(app.goal_detail.scroll, app.goal_detail.max_scroll);
+<a href=#1357 id=1357 data-nosnippet>1357</a>            app.handle_goal_detail_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+<a href=#1358 id=1358 data-nosnippet>1358</a>        }
+<a href=#1359 id=1359 data-nosnippet>1359</a>
+<a href=#1360 id=1360 data-nosnippet>1360</a>        app.handle_goal_detail_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+<a href=#1361 id=1361 data-nosnippet>1361</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::None);
+<a href=#1362 id=1362 data-nosnippet>1362</a>        app.open_goal_detail();
+<a href=#1363 id=1363 data-nosnippet>1363</a>
+<a href=#1364 id=1364 data-nosnippet>1364</a>        app.selected = <span class="prelude-val">Some</span>(SessionId::new_v7());
+<a href=#1365 id=1365 data-nosnippet>1365</a>        terminal
+<a href=#1366 id=1366 data-nosnippet>1366</a>            .draw(|frame| app.render_goal_detail(frame))
+<a href=#1367 id=1367 data-nosnippet>1367</a>            .unwrap();
+<a href=#1368 id=1368 data-nosnippet>1368</a>        <span class="macro">assert_eq!</span>(app.modal, Modal::None);
+<a href=#1369 id=1369 data-nosnippet>1369</a>        <span class="macro">assert_eq!</span>(app.goal_detail.session_id, <span class="prelude-val">None</span>);
+<a href=#1370 id=1370 data-nosnippet>1370</a>    }
+<a href=#1371 id=1371 data-nosnippet>1371</a>
+<a href=#1372 id=1372 data-nosnippet>1372</a>    <span class="attr">#[tokio::test]
+<a href=#1373 id=1373 data-nosnippet>1373</a>    </span><span class="kw">async fn </span>producer_reminders_never_restore_into_the_user_composer() {
+<a href=#1374 id=1374 data-nosnippet>1374</a>        <span class="kw">use </span>cookie_agent_protocol::{
+<a href=#1375 id=1375 data-nosnippet>1375</a>            EventPayload, GoalReminderIdentity, ProducerDeliveryMode, ProducerIdempotencyKey,
+<a href=#1376 id=1376 data-nosnippet>1376</a>            ProducerMessageId, ProducerOwner, RunId, StoredEvent,
+<a href=#1377 id=1377 data-nosnippet>1377</a>        };
+<a href=#1378 id=1378 data-nosnippet>1378</a>
+<a href=#1379 id=1379 data-nosnippet>1379</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>app, <span class="kw">_</span>) = app_with_replies(Vec::new()).<span class="kw">await</span>;
+<a href=#1380 id=1380 data-nosnippet>1380</a>        <span class="kw">let </span>session_id = SessionId::new_v7();
+<a href=#1381 id=1381 data-nosnippet>1381</a>        <span class="kw">let </span>run_id = RunId::new_v7();
+<a href=#1382 id=1382 data-nosnippet>1382</a>        <span class="kw">let </span>goal_id = GoalId::new_v7();
+<a href=#1383 id=1383 data-nosnippet>1383</a>        app.selected = <span class="prelude-val">Some</span>(session_id);
+<a href=#1384 id=1384 data-nosnippet>1384</a>        <span class="kw">for </span>(index, payload) <span class="kw">in </span>[
+<a href=#1385 id=1385 data-nosnippet>1385</a>            EventPayload::ProducerMessageAccepted {
+<a href=#1386 id=1386 data-nosnippet>1386</a>                description: Default::default(),
+<a href=#1387 id=1387 data-nosnippet>1387</a>                message_id: ProducerMessageId::new_v7(),
+<a href=#1388 id=1388 data-nosnippet>1388</a>                producer_owner: ProducerOwner::Goal { goal_id },
+<a href=#1389 id=1389 data-nosnippet>1389</a>                mode: ProducerDeliveryMode::Queue,
+<a href=#1390 id=1390 data-nosnippet>1390</a>                idempotency_key: ProducerIdempotencyKey::new(<span class="string">"reminder"</span>).unwrap(),
+<a href=#1391 id=1391 data-nosnippet>1391</a>                body: <span class="string">"INTERNAL REMINDER"</span>.into(),
+<a href=#1392 id=1392 data-nosnippet>1392</a>                reminder: <span class="prelude-val">Some</span>(GoalReminderIdentity {
+<a href=#1393 id=1393 data-nosnippet>1393</a>                    goal_id,
+<a href=#1394 id=1394 data-nosnippet>1394</a>                    revision: <span class="number">1</span>,
+<a href=#1395 id=1395 data-nosnippet>1395</a>                    kind: cookie_agent_protocol::GoalReminderKind::Continuation,
+<a href=#1396 id=1396 data-nosnippet>1396</a>                }),
+<a href=#1397 id=1397 data-nosnippet>1397</a>            },
+<a href=#1398 id=1398 data-nosnippet>1398</a>            EventPayload::UserInputAdmitted {
+<a href=#1399 id=1399 data-nosnippet>1399</a>                input: <span class="string">"user pending text"</span>.into(),
+<a href=#1400 id=1400 data-nosnippet>1400</a>            },
+<a href=#1401 id=1401 data-nosnippet>1401</a>            EventPayload::RunInterrupted { reason: <span class="prelude-val">None </span>},
+<a href=#1402 id=1402 data-nosnippet>1402</a>        ]
+<a href=#1403 id=1403 data-nosnippet>1403</a>        .into_iter()
+<a href=#1404 id=1404 data-nosnippet>1404</a>        .enumerate()
+<a href=#1405 id=1405 data-nosnippet>1405</a>        {
+<a href=#1406 id=1406 data-nosnippet>1406</a>            <span class="macro">assert!</span>(app.store.apply_event(StoredEvent {
+<a href=#1407 id=1407 data-nosnippet>1407</a>                engine_version: <span class="prelude-val">None</span>,
+<a href=#1408 id=1408 data-nosnippet>1408</a>                origin: <span class="prelude-val">None</span>,
+<a href=#1409 id=1409 data-nosnippet>1409</a>                session_id,
+<a href=#1410 id=1410 data-nosnippet>1410</a>                run_id: <span class="prelude-val">Some</span>(run_id),
+<a href=#1411 id=1411 data-nosnippet>1411</a>                seq: index <span class="kw">as </span>u64 + <span class="number">1</span>,
+<a href=#1412 id=1412 data-nosnippet>1412</a>                timestamp: <span class="string">"2026-08-06T12:00:00Z"</span>.parse().unwrap(),
+<a href=#1413 id=1413 data-nosnippet>1413</a>                payload,
+<a href=#1414 id=1414 data-nosnippet>1414</a>            }));
+<a href=#1415 id=1415 data-nosnippet>1415</a>        }
+<a href=#1416 id=1416 data-nosnippet>1416</a>        app.restore_voided_inputs();
+<a href=#1417 id=1417 data-nosnippet>1417</a>        <span class="macro">assert_eq!</span>(app.input.as_str(), <span class="string">"user pending text"</span>);
+<a href=#1418 id=1418 data-nosnippet>1418</a>        <span class="macro">assert!</span>(app.store.sessions[<span class="kw-2">&amp;</span>session_id].voided_inputs.is_empty());
+<a href=#1419 id=1419 data-nosnippet>1419</a>    }
+<a href=#1420 id=1420 data-nosnippet>1420</a>}
 </code></pre></div></section></main></body></html>
