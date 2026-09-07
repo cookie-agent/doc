@@ -1472,11 +1472,11 @@ resource-name exceptions.</p>
 <p>Tools are opt-in. A permission action must have at least one <code>allow</code>
 or <code>ask</code> rule in the agent document or session overlay before that action's
 tools are visible. Any resource pattern counts, not just <code>"*"</code>. Visibility does
-not resolve rule precedence: an overlay deny does not hide a tool if the agent
-still declares an Allow or Ask rule for that action. An action omitted from both
-layers, or with only Deny rules, has no advertised tools. The engine applies this
-gate when assembling model tool specs, across all providers. Resource patterns
-and overlay precedence still decide individual calls once tools are visible.</p>
+not resolve rule precedence: an overlay <code>deny</code> does not hide a tool if the agent
+still declares an <code>allow</code> or <code>ask</code> rule for that action. An action omitted from
+both layers, or with only <code>deny</code> rules, advertises no tools for any provider.
+Resource patterns and overlay precedence still decide individual calls once
+tools are visible.</p>
 <p>For example, this agent exposes read, write/edit, and bash with granular write
 and command policies while leaving delegation and MCP tools hidden:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>---
@@ -1526,7 +1526,8 @@ Runtime <code>delegation.max_depth</code> defaults to 3 and <code>max_concurrenc
 Old tool calls and prepared-operation grants therefore fail closed. The
 <code>delegate</code> spelling above remains the permission action, not a tool alias.</p>
 <h2 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h2>
-<p>For the rule <code>webfetch *https://*.quantumcookie.xyz/* allow</code>, use this agent map:</p>
+<p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
+requested, including its query string:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">permissions</span><span class="p">:</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
@@ -1534,14 +1535,13 @@ Old tool calls and prepared-operation grants therefore fail closed. The
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="s">"tool_result:*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
-<p><code>webfetch</code> checks permission exactly once against the initial URL, as given,
-including the query string. Redirect destinations are not checked; reqwest's
-default redirect policy allows up to 10 hops. Results include <code>final_url</code>.
-No SSRF protection, host/IP blocklist, DNS pinning, or extra userinfo restriction
-is applied. Limit rules accordingly, including access to local network services.
-Requests inherit the cookie-agent process's proxy environment and have a
-30-second overall request timeout. See the <a href="../../reference/tools/#webfetch">tool reference</a>
-for text conversion, the fixed download cap, and result paging.</p>
+<p>The <code>read</code> rule exposes <code>read_tool_result</code> so the model can page long responses.
+Permission is checked once, against the initial URL; redirect destinations are
+not checked, and there is no SSRF protection, host/IP blocklist, or DNS
+pinning, so scope patterns accordingly, including access to local network
+services. Requests inherit the cookie-agent process's proxy environment and
+have a 30-second timeout. See the <a href="../../reference/tools/#webfetch">tool reference</a>
+for the output format, HTML rendering, the download cap, and result paging.</p>
 <h2 id="live-permission-modes">Live permission modes<a class="headerlink" href="#live-permission-modes" title="Permanent link">&para;</a></h2>
 <p>Each session tree starts in <code>auto_approve</code> unless changed. The mode is runtime
 only, is keyed by the tree root, and can be changed through any session in the
