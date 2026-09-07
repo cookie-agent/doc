@@ -1147,6 +1147,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#webfetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Webfetch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#filesystem-tools" class="md-nav__link">
     <span class="md-ellipsis">
       Filesystem tools
@@ -1303,6 +1312,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#webfetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Webfetch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#filesystem-tools" class="md-nav__link">
     <span class="md-ellipsis">
       Filesystem tools
@@ -1400,7 +1418,7 @@ declaration.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>read</code>, <code>read_tool_result</code>, <code>bash</code></td>
+<td><code>read</code>, <code>read_tool_result</code>, <code>bash</code>, <code>webfetch</code></td>
 <td>Parallel</td>
 <td>Each call owns its execution and streaming state.</td>
 </tr>
@@ -1435,6 +1453,32 @@ declaration.</p>
 fan-out limit. Exclusive calls run one at a time after the parallel calls have
 finished. Results remain associated with their tool call IDs, while terminal
 events are persisted in completion order.</p>
+<h2 id="webfetch">Webfetch<a class="headerlink" href="#webfetch" title="Permanent link">&para;</a></h2>
+<p><code>webfetch</code> accepts <code>{"url":"https://docs.quantumcookie.xyz/", "raw":false}</code>.
+<code>url</code> is required; <code>raw</code> defaults to false. Only <code>http://</code> and <code>https://</code> prefixes
+are accepted; otherwise the URL is passed to reqwest unchanged. One permission
+check uses the initial URL including its query string. Without a matching rule
+the call is denied, and without any Allow or Ask rule for <code>webfetch</code> the tool is
+not advertised. Explicit <code>ask</code> rules still use the normal approval flow.</p>
+<p>The JSON output is <code>{url, final_url, status_code, content_type, text, truncated}</code>.
+HTML (<code>text/html</code> or <code>application/xhtml+xml</code>) is rendered by html2text at width
+80 unless <code>raw</code> is true. Text types, JSON, XML, JavaScript, form data, and
+<code>+json</code>/<code>+xml</code> types pass through as text; raw and non-HTML text use UTF-8 lossy
+decoding. Binary types are rejected, including in raw mode. Missing or invalid
+Content-Type is treated as <code>application/octet-stream</code> and rejected.</p>
+<p>The request has a 30-second overall timeout, inherits environment proxies, and
+uses reqwest's default redirect policy (10 hops). Redirect hops are not
+permission-checked. HTTP error statuses are returned with their text bodies.
+There are no additional SSRF, host/IP, DNS, or userinfo checks.</p>
+<p>Downloads are streamed to a fixed 16 MiB cap. Over-cap responses return the
+fetched prefix with <code>truncated: true</code>, not an error. The cap has no input or
+configuration parameter. Full results use the standard event log and result
+store; model-facing truncation and <code>read_tool_result</code> paging work as for other
+tools. Grant <code>read: {"tool_result:*": allow}</code> for result paging.</p>
+<p>Errors distinguish <code>invalid_url</code>, <code>redirect_error</code>, <code>timeout</code>,
+<code>transport_error</code>, and <code>unsupported_content_type</code> (which names the content type).
+<code>permission_denied</code> uses the standard policy-denial path and its structured
+<code>tool_denied</code> reason.</p>
 <h2 id="filesystem-tools">Filesystem tools<a class="headerlink" href="#filesystem-tools" title="Permanent link">&para;</a></h2>
 <p><code>read</code> accepts <code>filePath</code>, plus optional zero-based <code>offset</code> and positive
 <code>limit</code>. The defaults return at most 2,000 lines or directory entries. Reads are
