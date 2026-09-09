@@ -1288,6 +1288,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/tool-output-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tool output streams
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/model-configuration/" class="md-nav__link">
         
   
@@ -2005,22 +2028,26 @@ usage projections rebuild from these events after restart, revert, and fork.</p>
 <p><code>model_request_prepared</code> follows request assembly and all accepted model/provider request hooks.
 Its <code>prompt_fingerprint</code> hashes the authoritative normalized request sent to the provider, while
 <code>model_attempt_started</code> remains the earlier cancellation and lifecycle boundary.</p>
-<p><code>tool_call_progress</code> contains the existing control-free <code>message</code> plus an optional
-control-free <code>output_chunk</code>. Bash coalesces stdout and stderr for up to 50 ms or
-4 KiB before emitting chunks; each durable chunk is bounded by the 1 KiB
-<code>SafeDisplayText</code> limit. The display preview stops after 1 MiB per call and one
-progress message marks the truncation. The terminal tool result and any
-<code>tool_output_elided</code> artifact remain authoritative and retain their existing
-bounds. Historical chunks may be replayed to event consumers, but projections
-replace them when <code>tool_call_terminated</code> is reduced.</p>
-<p>Terminal <code>truncation</code> metadata and its retained artifact are emitted only for
-tools using the normal bounded result policy. Self-paginating result tools omit
-both and fail instead when a requested page exceeds the 2 MiB event output
-limit.</p>
+<p><code>tool_call_started</code> records the single/named output declaration. Raw output
+subscriptions enumerate these channels, including arbitrary named streams.
+<code>tool_call_progress</code> contains a control-free status <code>message</code> and optional UI-only
+<code>display</code>. Display deltas append; terminal <code>result.display</code> replaces them. The
+reader accepts historical <code>output_chunk</code> fields, but current writers use <code>display</code>.
+Each live message/display field is bounded at 1 KiB, their cumulative per-call
+budget is 64 KiB, and final display has an independent 64 KiB bound. TUI state is
+bounded and never reconstructs display by merging authoritative streams.</p>
+<p>Authoritative output chunks go to runtime capture before completion, not into
+unbounded event records. Terminal <code>retained_output</code> contains full artifact or
+generic manifest references, ordered per-stream byte/line counts, truncation
+offsets, and an incomplete flag. Failed/cancelled calls retain accepted output
+with their terminal status and error. Self-paginating tools omit output retention
+and fail instead when a requested page exceeds the 2 MiB result bound. Historical
+<code>truncation</code> and <code>tool_output_elided</code> records remain readable.</p>
 <p>During cancellation cleanup, a progress record is considered retained once its
 append command enters the session actor mailbox; actor FIFO then orders it before
 the later terminal command even if persistence has not completed yet. Cleanup
-deadline diagnostics count only progress records that never entered that mailbox.</p>
+deadline diagnostics count only display progress records that never entered that
+mailbox; authoritative chunks already accepted into capture remain retained.</p>
 <p>For a batch of tool calls from one model turn, <code>tool_call_started</code> events are
 written in model content order before execution begins. Calls may then execute
 in parallel, so progress and <code>tool_call_terminated</code> events from different calls
@@ -2056,10 +2083,13 @@ continues to recall the newest pending input.</p>
 <h2 id="compaction-checkpoints">Compaction checkpoints<a class="headerlink" href="#compaction-checkpoints" title="Permanent link">&para;</a></h2>
 <p><code>context_checkpoint_committed</code> carries a <code>commit</code> containing the text summary or
 opaque native checkpoint, <code>boundaries</code>, and <code>budgets</code>. Internal summaries cover
-only the discarded history prefix; retained recent messages are replayed from
-the original saved history after the summary. System and tool context comes
-first, followed by pinned <code>AGENTS.md</code>, loaded skills, the summary, and the recent
-suffix. See <a href="../../guide/compaction/">Compaction</a> for selection and fit rules.</p>
+the entire active pre-compaction history, including recent messages retained
+unchanged after the summary. Active history is the currently assembled context,
+not a reload of events replaced by earlier checkpoints. The original saved log
+is preserved; retained recent messages are replayed from it. System and tool
+context comes first, followed by pinned <code>AGENTS.md</code>, loaded skills, the summary,
+and the recent messages. See <a href="../../guide/compaction/">Compaction</a> for selection
+and fit rules.</p>
 <p>The additive retention fields are optional in saved events:</p>
 <table>
 <thead>
