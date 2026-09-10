@@ -1962,42 +1962,46 @@
 <a href=#1962 id=1962 data-nosnippet>1962</a>        <span class="kw">let </span><span class="kw-2">mut </span>parent = wrapped.spawn().expect(<span class="string">"spawn suspended job parent"</span>);
 <a href=#1963 id=1963 data-nosnippet>1963</a>        <span class="kw">let </span>leaf_pids = tokio::time::timeout(Duration::from_secs(<span class="number">5</span>), <span class="kw">async </span>{
 <a href=#1964 id=1964 data-nosnippet>1964</a>            <span class="kw">loop </span>{
-<a href=#1965 id=1965 data-nosnippet>1965</a>                <span class="kw">if let </span><span class="prelude-val">Ok</span>(pids) = std::fs::read_to_string(<span class="kw-2">&amp;</span>pid_file) {
-<a href=#1966 id=1966 data-nosnippet>1966</a>                    <span class="kw">break </span>pids
-<a href=#1967 id=1967 data-nosnippet>1967</a>                        .split(<span class="string">','</span>)
-<a href=#1968 id=1968 data-nosnippet>1968</a>                        .map(|pid| pid.parse::&lt;u32&gt;().expect(<span class="string">"leaf pid"</span>))
-<a href=#1969 id=1969 data-nosnippet>1969</a>                        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1970 id=1970 data-nosnippet>1970</a>                }
-<a href=#1971 id=1971 data-nosnippet>1971</a>                tokio::time::sleep(Duration::from_millis(<span class="number">10</span>)).<span class="kw">await</span>;
-<a href=#1972 id=1972 data-nosnippet>1972</a>            }
-<a href=#1973 id=1973 data-nosnippet>1973</a>        })
-<a href=#1974 id=1974 data-nosnippet>1974</a>        .<span class="kw">await
-<a href=#1975 id=1975 data-nosnippet>1975</a>        </span>.expect(<span class="string">"leaves started"</span>);
-<a href=#1976 id=1976 data-nosnippet>1976</a>        <span class="kw">let </span>parent_status = tokio::time::timeout(Duration::from_secs(<span class="number">2</span>), <span class="kw">async </span>{
-<a href=#1977 id=1977 data-nosnippet>1977</a>            <span class="comment">// SAFETY: the wrapper remains alive and only parent wait state changes.
-<a href=#1978 id=1978 data-nosnippet>1978</a>            </span><span class="kw">unsafe </span>{ parent.inner_child_mut() }.wait().<span class="kw">await
-<a href=#1979 id=1979 data-nosnippet>1979</a>        </span>})
-<a href=#1980 id=1980 data-nosnippet>1980</a>        .<span class="kw">await
-<a href=#1981 id=1981 data-nosnippet>1981</a>        </span>.expect(<span class="string">"parent prompt return was delayed by descendants"</span>)
-<a href=#1982 id=1982 data-nosnippet>1982</a>        .expect(<span class="string">"parent wait"</span>);
-<a href=#1983 id=1983 data-nosnippet>1983</a>        <span class="macro">assert!</span>(parent_status.success());
-<a href=#1984 id=1984 data-nosnippet>1984</a>        parent.start_kill().expect(<span class="string">"terminate job"</span>);
-<a href=#1985 id=1985 data-nosnippet>1985</a>        tokio::time::timeout(Duration::from_secs(<span class="number">5</span>), parent.wait())
-<a href=#1986 id=1986 data-nosnippet>1986</a>            .<span class="kw">await
-<a href=#1987 id=1987 data-nosnippet>1987</a>            </span>.expect(<span class="string">"parent terminated"</span>)
-<a href=#1988 id=1988 data-nosnippet>1988</a>            .expect(<span class="string">"parent wait"</span>);
-<a href=#1989 id=1989 data-nosnippet>1989</a>
-<a href=#1990 id=1990 data-nosnippet>1990</a>        <span class="kw">const </span>SYNCHRONIZE: u32 = <span class="number">0x0010_0000</span>;
-<a href=#1991 id=1991 data-nosnippet>1991</a>        <span class="kw">for </span>leaf_pid <span class="kw">in </span>leaf_pids {
-<a href=#1992 id=1992 data-nosnippet>1992</a>            <span class="kw">let </span>leaf = <span class="kw">unsafe </span>{ OpenProcess(SYNCHRONIZE, <span class="number">0</span>, leaf_pid) };
-<a href=#1993 id=1993 data-nosnippet>1993</a>            <span class="kw">if </span>!leaf.is_null() {
-<a href=#1994 id=1994 data-nosnippet>1994</a>                <span class="kw">let </span>waited = <span class="kw">unsafe </span>{ WaitForSingleObject(leaf, <span class="number">5_000</span>) };
-<a href=#1995 id=1995 data-nosnippet>1995</a>                <span class="kw">unsafe </span>{
-<a href=#1996 id=1996 data-nosnippet>1996</a>                    CloseHandle(leaf);
-<a href=#1997 id=1997 data-nosnippet>1997</a>                }
-<a href=#1998 id=1998 data-nosnippet>1998</a>                <span class="macro">assert_eq!</span>(waited, WAIT_OBJECT_0, <span class="string">"leaf survived job termination"</span>);
-<a href=#1999 id=1999 data-nosnippet>1999</a>            }
-<a href=#2000 id=2000 data-nosnippet>2000</a>        }
-<a href=#2001 id=2001 data-nosnippet>2001</a>    }
-<a href=#2002 id=2002 data-nosnippet>2002</a>}
+<a href=#1965 id=1965 data-nosnippet>1965</a>                <span class="comment">// The writer's `File::create` is observable before its
+<a href=#1966 id=1966 data-nosnippet>1966</a>                // `write_all`; retry until the pid list is fully present.
+<a href=#1967 id=1967 data-nosnippet>1967</a>                </span><span class="kw">let </span>ready = std::fs::read_to_string(<span class="kw-2">&amp;</span>pid_file).ok().and_then(|pids| {
+<a href=#1968 id=1968 data-nosnippet>1968</a>                    pids.split(<span class="string">','</span>)
+<a href=#1969 id=1969 data-nosnippet>1969</a>                        .map(|pid| pid.parse::&lt;u32&gt;().ok())
+<a href=#1970 id=1970 data-nosnippet>1970</a>                        .collect::&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
+<a href=#1971 id=1971 data-nosnippet>1971</a>                });
+<a href=#1972 id=1972 data-nosnippet>1972</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(pids) = ready {
+<a href=#1973 id=1973 data-nosnippet>1973</a>                    <span class="kw">break </span>pids;
+<a href=#1974 id=1974 data-nosnippet>1974</a>                }
+<a href=#1975 id=1975 data-nosnippet>1975</a>                tokio::time::sleep(Duration::from_millis(<span class="number">10</span>)).<span class="kw">await</span>;
+<a href=#1976 id=1976 data-nosnippet>1976</a>            }
+<a href=#1977 id=1977 data-nosnippet>1977</a>        })
+<a href=#1978 id=1978 data-nosnippet>1978</a>        .<span class="kw">await
+<a href=#1979 id=1979 data-nosnippet>1979</a>        </span>.expect(<span class="string">"leaves started"</span>);
+<a href=#1980 id=1980 data-nosnippet>1980</a>        <span class="kw">let </span>parent_status = tokio::time::timeout(Duration::from_secs(<span class="number">2</span>), <span class="kw">async </span>{
+<a href=#1981 id=1981 data-nosnippet>1981</a>            <span class="comment">// SAFETY: the wrapper remains alive and only parent wait state changes.
+<a href=#1982 id=1982 data-nosnippet>1982</a>            </span><span class="kw">unsafe </span>{ parent.inner_child_mut() }.wait().<span class="kw">await
+<a href=#1983 id=1983 data-nosnippet>1983</a>        </span>})
+<a href=#1984 id=1984 data-nosnippet>1984</a>        .<span class="kw">await
+<a href=#1985 id=1985 data-nosnippet>1985</a>        </span>.expect(<span class="string">"parent prompt return was delayed by descendants"</span>)
+<a href=#1986 id=1986 data-nosnippet>1986</a>        .expect(<span class="string">"parent wait"</span>);
+<a href=#1987 id=1987 data-nosnippet>1987</a>        <span class="macro">assert!</span>(parent_status.success());
+<a href=#1988 id=1988 data-nosnippet>1988</a>        parent.start_kill().expect(<span class="string">"terminate job"</span>);
+<a href=#1989 id=1989 data-nosnippet>1989</a>        tokio::time::timeout(Duration::from_secs(<span class="number">5</span>), parent.wait())
+<a href=#1990 id=1990 data-nosnippet>1990</a>            .<span class="kw">await
+<a href=#1991 id=1991 data-nosnippet>1991</a>            </span>.expect(<span class="string">"parent terminated"</span>)
+<a href=#1992 id=1992 data-nosnippet>1992</a>            .expect(<span class="string">"parent wait"</span>);
+<a href=#1993 id=1993 data-nosnippet>1993</a>
+<a href=#1994 id=1994 data-nosnippet>1994</a>        <span class="kw">const </span>SYNCHRONIZE: u32 = <span class="number">0x0010_0000</span>;
+<a href=#1995 id=1995 data-nosnippet>1995</a>        <span class="kw">for </span>leaf_pid <span class="kw">in </span>leaf_pids {
+<a href=#1996 id=1996 data-nosnippet>1996</a>            <span class="kw">let </span>leaf = <span class="kw">unsafe </span>{ OpenProcess(SYNCHRONIZE, <span class="number">0</span>, leaf_pid) };
+<a href=#1997 id=1997 data-nosnippet>1997</a>            <span class="kw">if </span>!leaf.is_null() {
+<a href=#1998 id=1998 data-nosnippet>1998</a>                <span class="kw">let </span>waited = <span class="kw">unsafe </span>{ WaitForSingleObject(leaf, <span class="number">5_000</span>) };
+<a href=#1999 id=1999 data-nosnippet>1999</a>                <span class="kw">unsafe </span>{
+<a href=#2000 id=2000 data-nosnippet>2000</a>                    CloseHandle(leaf);
+<a href=#2001 id=2001 data-nosnippet>2001</a>                }
+<a href=#2002 id=2002 data-nosnippet>2002</a>                <span class="macro">assert_eq!</span>(waited, WAIT_OBJECT_0, <span class="string">"leaf survived job termination"</span>);
+<a href=#2003 id=2003 data-nosnippet>2003</a>            }
+<a href=#2004 id=2004 data-nosnippet>2004</a>        }
+<a href=#2005 id=2005 data-nosnippet>2005</a>    }
+<a href=#2006 id=2006 data-nosnippet>2006</a>}
 </code></pre></div></section></main></body></html>
