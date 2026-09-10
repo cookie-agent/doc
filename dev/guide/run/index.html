@@ -557,6 +557,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#error-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error details
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#live-tool-output" class="md-nav__link">
     <span class="md-ellipsis">
       Live tool output
@@ -1809,6 +1818,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#error-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error details
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#live-tool-output" class="md-nav__link">
     <span class="md-ellipsis">
       Live tool output
@@ -2073,6 +2091,51 @@ prompts are display-bounded to 256 lines or 32 KiB of sanitized text;
 compaction, plugin-message, and media bodies are bounded to 64 lines or 8 KiB.
 Oversized content ends with a truncated-lines indicator while the complete data
 remains in session state.</p>
+<h2 id="error-details">Error details<a class="headerlink" href="#error-details" title="Permanent link">&para;</a></h2>
+<p>Run failures show a concise headline followed by available model/provider identity,
+HTTP status, provider code, request ID, and response body. The same diagnostics
+are retained in session events and shown on replay. Model fallback and internal
+agent failures also include the available response diagnostics. Error rows show
+multiline text by default; expand the tool row for its display output.
+Failed tools show their failure reason even when they supplied separate display
+text. Their bounded diagnostics prioritize exit status, source context, and
+diagnostic streams such as stderr. Each stream gets space for its beginning and
+end so loud stdout cannot hide a later failure cause. MCP connection failures
+appear in <code>/mcp</code>; plugin initialization and RPC
+failures preserve operation context and selected cause fields. Configuration
+errors identify invalid settings and, for file/parse failures, available paths
+and locations without printing configuration source lines.
+Transport failures retain send/receive context for pending calls and appear as
+connection diagnostics in the TUI. Rejected WebSocket handshakes show a bounded,
+redacted response body when supplied, without printing response headers.</p>
+<p><code>cookie run</code> writes failure diagnostics to stderr even with <code>--output none</code> and
+without <code>--verbose</code>. JSON output retains diagnostic event fields and adds an
+<code>error</code> field to the final summary (null for success). A failed tool or fallback
+can produce stderr diagnostics even if the overall run subsequently succeeds.
+This includes internal-agent fallback failures and session-scoped plugin notices
+for the selected session. Events from unrelated sessions/runs remain excluded.
+Exit codes retain their existing meanings.</p>
+<p>Response bodies are capped at 4,096 UTF-8 bytes with a truncation marker. JSON is
+formatted for reading; plaintext and HTML gateway errors remain plain text.
+Terminal controls and Unicode format controls are removed. Common credential
+fields, bearer/basic credentials, <code>sk-</code> keys, URL credentials, and known secret
+values available at the boundary are redacted in both raw and decoded JSON strings
+before truncation. Header records pairing a sensitive <code>name</code> with a sibling
+<code>value</code> are also redacted, including prefixed and incomplete JSON. Prose
+apostrophes do not prevent inspection of following JSON. Quoted credentials
+respect escapes; unfinished credential
+objects/arrays may cause the remaining diagnostic text to be omitted. Request headers
+and credential stores are not diagnostic output. Pattern matching cannot detect
+every arbitrary secret echoed by a remote service; retained diagnostics have the
+same access and persistence rules as other session events.</p>
+<p>The pinned model SDK preserves sanitized HTTP error-body text for OpenAI,
+OpenAI-compatible, Anthropic, Google, Google Vertex, Bedrock, Azure, and Cohere.
+SDK body retention is bounded to 64 KiB; the application further sanitizes and
+bounds displayed and persisted body diagnostics to 4 KiB. Redaction has the
+pattern-based limits described above. A body is available only when the provider
+returned one: validation, connection, or cancellation errors may have no HTTP
+response body. Missing detail is not reconstructed or fetched with another API
+request.</p>
 <h2 id="live-tool-output">Live tool output<a class="headerlink" href="#live-tool-output" title="Permanent link">&para;</a></h2>
 <p>Expanded bash rows show sanitized stdout and stderr while the command runs.
 The live preview is capped at 1 MiB and reports when that limit is reached. On
@@ -2166,7 +2229,8 @@ redirects text or JSON output to a file and cannot be combined with
 <code>--output none</code>.</p>
 <p>Text mode writes only the terminal <code>final_text</code> to standard output. It does not
 stream model deltas. With <code>--verbose</code>, ANSI-free progress lines are written to
-standard error; standard error stays empty for a successful non-verbose run.</p>
+standard error. Failures and model fallback diagnostics are written to standard
+error regardless of verbosity, including recovered failures in a successful run.</p>
 <p>JSON mode writes JSON Lines. Records use these stable <code>type</code> tags:</p>
 <ul>
 <li><code>event</code>: one accepted, ordered event for the active run.</li>
@@ -2174,7 +2238,7 @@ standard error; standard error stays empty for a successful non-verbose run.</p>
 <li><code>tool_output_gap</code>: a tool-output retention or delivery gap, emitted with
   <code>--verbose</code>.</li>
 <li><code>summary</code>: the final record, containing terminal status and exit code, IDs,
-  turn/rejection/recovery counts, cancellation cause, final text, and the
+   turn/rejection/recovery counts, cancellation cause, final text, error detail, and the
   session usage and estimated-cost rollup.</li>
 </ul>
 <p><code>--output none</code> suppresses command output. Diagnostics and verbose progress
