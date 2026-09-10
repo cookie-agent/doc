@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a>    PublishedTool, PublishedToolSet, ToolCallFailureCode, ToolFailure, ToolInterceptionContext,
 <a href=#18 id=18 data-nosnippet>18</a>    approval_flow::approval_expiry,
 <a href=#19 id=19 data-nosnippet>19</a>    approval_projection::denied_tool_failure,
-<a href=#20 id=20 data-nosnippet>20</a>    helpers::{safe_display, sanitize_safe_text, session_depth},
+<a href=#20 id=20 data-nosnippet>20</a>    helpers::{safe_display, session_depth},
 <a href=#21 id=21 data-nosnippet>21</a>};
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use crate</span>::{
 <a href=#23 id=23 data-nosnippet>23</a>    events::OutputHub,
@@ -1044,124 +1044,112 @@
 <a href=#1044 id=1044 data-nosnippet>1044</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tool_presentation(name: <span class="kw-2">&amp;</span>str, primary: <span class="kw-2">&amp;</span>str) -&gt; ToolCallPresentation {
 <a href=#1045 id=1045 data-nosnippet>1045</a>    ToolCallPresentation {
 <a href=#1046 id=1046 data-nosnippet>1046</a>        title: safe_display(name),
-<a href=#1047 id=1047 data-nosnippet>1047</a>        primary_argument: <span class="prelude-val">Some</span>(safe_display(<span class="kw-2">&amp;</span>redact_presentation(primary))),
+<a href=#1047 id=1047 data-nosnippet>1047</a>        primary_argument: <span class="prelude-val">Some</span>(safe_display(primary)),
 <a href=#1048 id=1048 data-nosnippet>1048</a>    }
 <a href=#1049 id=1049 data-nosnippet>1049</a>}
 <a href=#1050 id=1050 data-nosnippet>1050</a>
-<a href=#1051 id=1051 data-nosnippet>1051</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>redact_presentation(value: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#1052 id=1052 data-nosnippet>1052</a>    <span class="kw">const </span>SECRET_MARKERS: [<span class="kw-2">&amp;</span>str; <span class="number">6</span>] = [
-<a href=#1053 id=1053 data-nosnippet>1053</a>        <span class="string">"token"</span>,
-<a href=#1054 id=1054 data-nosnippet>1054</a>        <span class="string">"secret"</span>,
-<a href=#1055 id=1055 data-nosnippet>1055</a>        <span class="string">"password"</span>,
-<a href=#1056 id=1056 data-nosnippet>1056</a>        <span class="string">"api_key"</span>,
-<a href=#1057 id=1057 data-nosnippet>1057</a>        <span class="string">"apikey"</span>,
-<a href=#1058 id=1058 data-nosnippet>1058</a>        <span class="string">"authorization"</span>,
-<a href=#1059 id=1059 data-nosnippet>1059</a>    ];
-<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="kw">let </span><span class="kw-2">mut </span>sanitized = sanitize_safe_text(value, <span class="number">512</span>);
-<a href=#1061 id=1061 data-nosnippet>1061</a>    <span class="kw">let </span>lowercase = sanitized.to_ascii_lowercase();
-<a href=#1062 id=1062 data-nosnippet>1062</a>    <span class="kw">if </span>SECRET_MARKERS
-<a href=#1063 id=1063 data-nosnippet>1063</a>        .iter()
-<a href=#1064 id=1064 data-nosnippet>1064</a>        .any(|marker| lowercase.contains(marker))
-<a href=#1065 id=1065 data-nosnippet>1065</a>    {
-<a href=#1066 id=1066 data-nosnippet>1066</a>        sanitized = <span class="string">"&lt;redacted&gt;"</span>.into();
-<a href=#1067 id=1067 data-nosnippet>1067</a>    }
-<a href=#1068 id=1068 data-nosnippet>1068</a>    sanitized
-<a href=#1069 id=1069 data-nosnippet>1069</a>}
-<a href=#1070 id=1070 data-nosnippet>1070</a>
-<a href=#1071 id=1071 data-nosnippet>1071</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_attachment(
-<a href=#1072 id=1072 data-nosnippet>1072</a>    mime_type: <span class="kw-2">&amp;</span>str,
-<a href=#1073 id=1073 data-nosnippet>1073</a>    path: <span class="kw-2">&amp;</span>Path,
-<a href=#1074 id=1074 data-nosnippet>1074</a>    bytes: <span class="kw-2">&amp;</span>[u8],
-<a href=#1075 id=1075 data-nosnippet>1075</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), ToolError&gt; {
-<a href=#1076 id=1076 data-nosnippet>1076</a>    <span class="kw">let </span>max_attachment_bytes = <span class="kw">if </span>mime_type.starts_with(<span class="string">"video/"</span>) {
-<a href=#1077 id=1077 data-nosnippet>1077</a>        MAX_VIDEO_ATTACHMENT_BYTES
-<a href=#1078 id=1078 data-nosnippet>1078</a>    } <span class="kw">else </span>{
-<a href=#1079 id=1079 data-nosnippet>1079</a>        MAX_ATTACHMENT_BYTES
-<a href=#1080 id=1080 data-nosnippet>1080</a>    };
-<a href=#1081 id=1081 data-nosnippet>1081</a>    <span class="kw">if </span>bytes.len() <span class="kw">as </span>u64 &gt; max_attachment_bytes {
-<a href=#1082 id=1082 data-nosnippet>1082</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::resource_limit(<span class="macro">format!</span>(
-<a href=#1083 id=1083 data-nosnippet>1083</a>            <span class="string">"attachment is {} bytes; the limit is {max_attachment_bytes} bytes"</span>,
-<a href=#1084 id=1084 data-nosnippet>1084</a>            bytes.len()
-<a href=#1085 id=1085 data-nosnippet>1085</a>        )));
+<a href=#1051 id=1051 data-nosnippet>1051</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_attachment(
+<a href=#1052 id=1052 data-nosnippet>1052</a>    mime_type: <span class="kw-2">&amp;</span>str,
+<a href=#1053 id=1053 data-nosnippet>1053</a>    path: <span class="kw-2">&amp;</span>Path,
+<a href=#1054 id=1054 data-nosnippet>1054</a>    bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#1055 id=1055 data-nosnippet>1055</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), ToolError&gt; {
+<a href=#1056 id=1056 data-nosnippet>1056</a>    <span class="kw">let </span>max_attachment_bytes = <span class="kw">if </span>mime_type.starts_with(<span class="string">"video/"</span>) {
+<a href=#1057 id=1057 data-nosnippet>1057</a>        MAX_VIDEO_ATTACHMENT_BYTES
+<a href=#1058 id=1058 data-nosnippet>1058</a>    } <span class="kw">else </span>{
+<a href=#1059 id=1059 data-nosnippet>1059</a>        MAX_ATTACHMENT_BYTES
+<a href=#1060 id=1060 data-nosnippet>1060</a>    };
+<a href=#1061 id=1061 data-nosnippet>1061</a>    <span class="kw">if </span>bytes.len() <span class="kw">as </span>u64 &gt; max_attachment_bytes {
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::resource_limit(<span class="macro">format!</span>(
+<a href=#1063 id=1063 data-nosnippet>1063</a>            <span class="string">"attachment is {} bytes; the limit is {max_attachment_bytes} bytes"</span>,
+<a href=#1064 id=1064 data-nosnippet>1064</a>            bytes.len()
+<a href=#1065 id=1065 data-nosnippet>1065</a>        )));
+<a href=#1066 id=1066 data-nosnippet>1066</a>    }
+<a href=#1067 id=1067 data-nosnippet>1067</a>    <span class="kw">let </span>validated = approved_media_type(path, bytes)<span class="question-mark">?</span>.ok_or_else(|| {
+<a href=#1068 id=1068 data-nosnippet>1068</a>        ToolError::execution(<span class="string">"attachment is not a supported image, PDF, or video"</span>)
+<a href=#1069 id=1069 data-nosnippet>1069</a>    })<span class="question-mark">?</span>;
+<a href=#1070 id=1070 data-nosnippet>1070</a>    <span class="kw">if </span>canonical_video_mime_type(validated) != canonical_video_mime_type(mime_type) {
+<a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="macro">format!</span>(
+<a href=#1072 id=1072 data-nosnippet>1072</a>            <span class="string">"attachment MIME mismatch: declared {mime_type}, validated {validated}"
+<a href=#1073 id=1073 data-nosnippet>1073</a>        </span>)));
+<a href=#1074 id=1074 data-nosnippet>1074</a>    }
+<a href=#1075 id=1075 data-nosnippet>1075</a>    <span class="prelude-val">Ok</span>(())
+<a href=#1076 id=1076 data-nosnippet>1076</a>}
+<a href=#1077 id=1077 data-nosnippet>1077</a>
+<a href=#1078 id=1078 data-nosnippet>1078</a><span class="attr">#[cfg(test)]
+<a href=#1079 id=1079 data-nosnippet>1079</a></span><span class="kw">mod </span>tests {
+<a href=#1080 id=1080 data-nosnippet>1080</a>    <span class="attr">#[test]
+<a href=#1081 id=1081 data-nosnippet>1081</a>    </span><span class="kw">fn </span>presentation_preserves_arguments_and_strips_controls() {
+<a href=#1082 id=1082 data-nosnippet>1082</a>        <span class="kw">let </span>presentation = <span class="kw">super</span>::tool_presentation(<span class="string">"bash"</span>, <span class="string">"cat secret.txt; TOKEN=visible\u{1b}"</span>);
+<a href=#1083 id=1083 data-nosnippet>1083</a>        <span class="kw">let </span>argument = presentation.primary_argument.unwrap();
+<a href=#1084 id=1084 data-nosnippet>1084</a>        <span class="macro">assert!</span>(argument.as_str().contains(<span class="string">"cat secret.txt; TOKEN=visible"</span>));
+<a href=#1085 id=1085 data-nosnippet>1085</a>        <span class="macro">assert!</span>(!argument.as_str().contains(<span class="string">'\u{1b}'</span>));
 <a href=#1086 id=1086 data-nosnippet>1086</a>    }
-<a href=#1087 id=1087 data-nosnippet>1087</a>    <span class="kw">let </span>validated = approved_media_type(path, bytes)<span class="question-mark">?</span>.ok_or_else(|| {
-<a href=#1088 id=1088 data-nosnippet>1088</a>        ToolError::execution(<span class="string">"attachment is not a supported image, PDF, or video"</span>)
-<a href=#1089 id=1089 data-nosnippet>1089</a>    })<span class="question-mark">?</span>;
-<a href=#1090 id=1090 data-nosnippet>1090</a>    <span class="kw">if </span>canonical_video_mime_type(validated) != canonical_video_mime_type(mime_type) {
-<a href=#1091 id=1091 data-nosnippet>1091</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="macro">format!</span>(
-<a href=#1092 id=1092 data-nosnippet>1092</a>            <span class="string">"attachment MIME mismatch: declared {mime_type}, validated {validated}"
-<a href=#1093 id=1093 data-nosnippet>1093</a>        </span>)));
-<a href=#1094 id=1094 data-nosnippet>1094</a>    }
-<a href=#1095 id=1095 data-nosnippet>1095</a>    <span class="prelude-val">Ok</span>(())
-<a href=#1096 id=1096 data-nosnippet>1096</a>}
-<a href=#1097 id=1097 data-nosnippet>1097</a>
-<a href=#1098 id=1098 data-nosnippet>1098</a><span class="attr">#[cfg(test)]
-<a href=#1099 id=1099 data-nosnippet>1099</a></span><span class="kw">mod </span>tests {
-<a href=#1100 id=1100 data-nosnippet>1100</a>    <span class="kw">use </span>std::path::Path;
-<a href=#1101 id=1101 data-nosnippet>1101</a>
-<a href=#1102 id=1102 data-nosnippet>1102</a>    <span class="kw">use </span>cookie_agent_protocol::ToolCallId;
-<a href=#1103 id=1103 data-nosnippet>1103</a>
-<a href=#1104 id=1104 data-nosnippet>1104</a>    <span class="kw">use super</span>::{
-<a href=#1105 id=1105 data-nosnippet>1105</a>        MAX_VIDEO_ATTACHMENT_BYTES, ToolCall, fallback_operation_fingerprint, validate_attachment,
-<a href=#1106 id=1106 data-nosnippet>1106</a>    };
-<a href=#1107 id=1107 data-nosnippet>1107</a>
-<a href=#1108 id=1108 data-nosnippet>1108</a>    <span class="attr">#[test]
-<a href=#1109 id=1109 data-nosnippet>1109</a>    </span><span class="kw">fn </span>discovery_failure_fingerprints_keep_known_tool_actions() {
-<a href=#1110 id=1110 data-nosnippet>1110</a>        <span class="kw">for </span>(tool_name, permission_name) <span class="kw">in </span>[
-<a href=#1111 id=1111 data-nosnippet>1111</a>            (<span class="string">"write"</span>, <span class="string">"write"</span>),
-<a href=#1112 id=1112 data-nosnippet>1112</a>            (<span class="string">"edit"</span>, <span class="string">"write"</span>),
-<a href=#1113 id=1113 data-nosnippet>1113</a>            (<span class="string">"bash"</span>, <span class="string">"bash"</span>),
-<a href=#1114 id=1114 data-nosnippet>1114</a>            (<span class="string">"delegate_subagent"</span>, <span class="string">"delegate"</span>),
-<a href=#1115 id=1115 data-nosnippet>1115</a>            (<span class="string">"get_subagent_result"</span>, <span class="string">"delegate"</span>),
-<a href=#1116 id=1116 data-nosnippet>1116</a>            (<span class="string">"steer_subagent"</span>, <span class="string">"delegate"</span>),
-<a href=#1117 id=1117 data-nosnippet>1117</a>            (<span class="string">"cancel_subagent"</span>, <span class="string">"delegate"</span>),
-<a href=#1118 id=1118 data-nosnippet>1118</a>        ] {
-<a href=#1119 id=1119 data-nosnippet>1119</a>            <span class="kw">let </span>call = ToolCall {
-<a href=#1120 id=1120 data-nosnippet>1120</a>                id: ToolCallId::new_v7(),
-<a href=#1121 id=1121 data-nosnippet>1121</a>                name: tool_name.into(),
-<a href=#1122 id=1122 data-nosnippet>1122</a>                arguments: <span class="macro">serde_json::json!</span>({<span class="string">"invalid"</span>:<span class="string">"prepare failure"</span>}),
-<a href=#1123 id=1123 data-nosnippet>1123</a>            };
-<a href=#1124 id=1124 data-nosnippet>1124</a>            <span class="macro">assert_eq!</span>(
-<a href=#1125 id=1125 data-nosnippet>1125</a>                fallback_operation_fingerprint(<span class="kw-2">&amp;</span>call, <span class="prelude-val">None</span>),
-<a href=#1126 id=1126 data-nosnippet>1126</a>                fallback_operation_fingerprint(<span class="kw-2">&amp;</span>call, <span class="prelude-val">Some</span>(permission_name)),
-<a href=#1127 id=1127 data-nosnippet>1127</a>                <span class="string">"{tool_name}"
-<a href=#1128 id=1128 data-nosnippet>1128</a>            </span>);
-<a href=#1129 id=1129 data-nosnippet>1129</a>        }
-<a href=#1130 id=1130 data-nosnippet>1130</a>    }
-<a href=#1131 id=1131 data-nosnippet>1131</a>
-<a href=#1132 id=1132 data-nosnippet>1132</a>    <span class="attr">#[test]
-<a href=#1133 id=1133 data-nosnippet>1133</a>    </span><span class="kw">fn </span>video_attachment_limit_accepts_boundary_and_rejects_plus_one() {
-<a href=#1134 id=1134 data-nosnippet>1134</a>        <span class="kw">let </span>video = |size: usize| {
-<a href=#1135 id=1135 data-nosnippet>1135</a>            <span class="kw">let </span><span class="kw-2">mut </span>bytes = <span class="macro">vec!</span>[<span class="number">0_u8</span>; size];
-<a href=#1136 id=1136 data-nosnippet>1136</a>            bytes[..<span class="number">4</span>].copy_from_slice(<span class="string">b"FLV\x01"</span>);
-<a href=#1137 id=1137 data-nosnippet>1137</a>            bytes
-<a href=#1138 id=1138 data-nosnippet>1138</a>        };
-<a href=#1139 id=1139 data-nosnippet>1139</a>        <span class="kw">let </span>at_limit = video(MAX_VIDEO_ATTACHMENT_BYTES <span class="kw">as </span>usize);
-<a href=#1140 id=1140 data-nosnippet>1140</a>        validate_attachment(<span class="string">"video/x-flv"</span>, Path::new(<span class="string">"clip.flv"</span>), <span class="kw-2">&amp;</span>at_limit).unwrap();
-<a href=#1141 id=1141 data-nosnippet>1141</a>
-<a href=#1142 id=1142 data-nosnippet>1142</a>        <span class="kw">let </span>over_limit = video(MAX_VIDEO_ATTACHMENT_BYTES <span class="kw">as </span>usize + <span class="number">1</span>);
-<a href=#1143 id=1143 data-nosnippet>1143</a>        <span class="kw">let </span>error =
-<a href=#1144 id=1144 data-nosnippet>1144</a>            validate_attachment(<span class="string">"video/x-flv"</span>, Path::new(<span class="string">"clip.flv"</span>), <span class="kw-2">&amp;</span>over_limit).unwrap_err();
-<a href=#1145 id=1145 data-nosnippet>1145</a>        <span class="macro">assert!</span>(error.to_string().contains(<span class="string">"26214400"</span>));
-<a href=#1146 id=1146 data-nosnippet>1146</a>    }
-<a href=#1147 id=1147 data-nosnippet>1147</a>
-<a href=#1148 id=1148 data-nosnippet>1148</a>    <span class="attr">#[test]
-<a href=#1149 id=1149 data-nosnippet>1149</a>    </span><span class="kw">fn </span>video_mime_aliases_validate_in_alias_and_canonical_forms() {
-<a href=#1150 id=1150 data-nosnippet>1150</a>        <span class="kw">let </span><span class="kw-2">mut </span>quicktime = <span class="number">16_u32</span>.to_be_bytes().to_vec();
-<a href=#1151 id=1151 data-nosnippet>1151</a>        quicktime.extend_from_slice(<span class="string">b"ftypqt  \0\0\0\0"</span>);
-<a href=#1152 id=1152 data-nosnippet>1152</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/mov"</span>, <span class="string">"video/quicktime"</span>] {
-<a href=#1153 id=1153 data-nosnippet>1153</a>            validate_attachment(declared, Path::new(<span class="string">"clip.mov"</span>), <span class="kw-2">&amp;</span>quicktime).unwrap();
-<a href=#1154 id=1154 data-nosnippet>1154</a>        }
-<a href=#1155 id=1155 data-nosnippet>1155</a>
-<a href=#1156 id=1156 data-nosnippet>1156</a>        <span class="kw">let </span>avi = <span class="string">b"RIFF\x04\x00\x00\x00AVI "</span>;
-<a href=#1157 id=1157 data-nosnippet>1157</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/avi"</span>, <span class="string">"video/x-msvideo"</span>] {
-<a href=#1158 id=1158 data-nosnippet>1158</a>            validate_attachment(declared, Path::new(<span class="string">"clip.avi"</span>), avi).unwrap();
-<a href=#1159 id=1159 data-nosnippet>1159</a>        }
-<a href=#1160 id=1160 data-nosnippet>1160</a>
-<a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="kw">let </span>mpeg = [<span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x01</span>, <span class="number">0xba</span>];
-<a href=#1162 id=1162 data-nosnippet>1162</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/mpg"</span>, <span class="string">"video/mpeg"</span>] {
-<a href=#1163 id=1163 data-nosnippet>1163</a>            validate_attachment(declared, Path::new(<span class="string">"clip.mpg"</span>), <span class="kw-2">&amp;</span>mpeg).unwrap();
-<a href=#1164 id=1164 data-nosnippet>1164</a>        }
-<a href=#1165 id=1165 data-nosnippet>1165</a>    }
-<a href=#1166 id=1166 data-nosnippet>1166</a>}
+<a href=#1087 id=1087 data-nosnippet>1087</a>
+<a href=#1088 id=1088 data-nosnippet>1088</a>    <span class="kw">use </span>std::path::Path;
+<a href=#1089 id=1089 data-nosnippet>1089</a>
+<a href=#1090 id=1090 data-nosnippet>1090</a>    <span class="kw">use </span>cookie_agent_protocol::ToolCallId;
+<a href=#1091 id=1091 data-nosnippet>1091</a>
+<a href=#1092 id=1092 data-nosnippet>1092</a>    <span class="kw">use super</span>::{
+<a href=#1093 id=1093 data-nosnippet>1093</a>        MAX_VIDEO_ATTACHMENT_BYTES, ToolCall, fallback_operation_fingerprint, validate_attachment,
+<a href=#1094 id=1094 data-nosnippet>1094</a>    };
+<a href=#1095 id=1095 data-nosnippet>1095</a>
+<a href=#1096 id=1096 data-nosnippet>1096</a>    <span class="attr">#[test]
+<a href=#1097 id=1097 data-nosnippet>1097</a>    </span><span class="kw">fn </span>discovery_failure_fingerprints_keep_known_tool_actions() {
+<a href=#1098 id=1098 data-nosnippet>1098</a>        <span class="kw">for </span>(tool_name, permission_name) <span class="kw">in </span>[
+<a href=#1099 id=1099 data-nosnippet>1099</a>            (<span class="string">"write"</span>, <span class="string">"write"</span>),
+<a href=#1100 id=1100 data-nosnippet>1100</a>            (<span class="string">"edit"</span>, <span class="string">"write"</span>),
+<a href=#1101 id=1101 data-nosnippet>1101</a>            (<span class="string">"bash"</span>, <span class="string">"bash"</span>),
+<a href=#1102 id=1102 data-nosnippet>1102</a>            (<span class="string">"delegate_subagent"</span>, <span class="string">"delegate"</span>),
+<a href=#1103 id=1103 data-nosnippet>1103</a>            (<span class="string">"get_subagent_result"</span>, <span class="string">"delegate"</span>),
+<a href=#1104 id=1104 data-nosnippet>1104</a>            (<span class="string">"steer_subagent"</span>, <span class="string">"delegate"</span>),
+<a href=#1105 id=1105 data-nosnippet>1105</a>            (<span class="string">"cancel_subagent"</span>, <span class="string">"delegate"</span>),
+<a href=#1106 id=1106 data-nosnippet>1106</a>        ] {
+<a href=#1107 id=1107 data-nosnippet>1107</a>            <span class="kw">let </span>call = ToolCall {
+<a href=#1108 id=1108 data-nosnippet>1108</a>                id: ToolCallId::new_v7(),
+<a href=#1109 id=1109 data-nosnippet>1109</a>                name: tool_name.into(),
+<a href=#1110 id=1110 data-nosnippet>1110</a>                arguments: <span class="macro">serde_json::json!</span>({<span class="string">"invalid"</span>:<span class="string">"prepare failure"</span>}),
+<a href=#1111 id=1111 data-nosnippet>1111</a>            };
+<a href=#1112 id=1112 data-nosnippet>1112</a>            <span class="macro">assert_eq!</span>(
+<a href=#1113 id=1113 data-nosnippet>1113</a>                fallback_operation_fingerprint(<span class="kw-2">&amp;</span>call, <span class="prelude-val">None</span>),
+<a href=#1114 id=1114 data-nosnippet>1114</a>                fallback_operation_fingerprint(<span class="kw-2">&amp;</span>call, <span class="prelude-val">Some</span>(permission_name)),
+<a href=#1115 id=1115 data-nosnippet>1115</a>                <span class="string">"{tool_name}"
+<a href=#1116 id=1116 data-nosnippet>1116</a>            </span>);
+<a href=#1117 id=1117 data-nosnippet>1117</a>        }
+<a href=#1118 id=1118 data-nosnippet>1118</a>    }
+<a href=#1119 id=1119 data-nosnippet>1119</a>
+<a href=#1120 id=1120 data-nosnippet>1120</a>    <span class="attr">#[test]
+<a href=#1121 id=1121 data-nosnippet>1121</a>    </span><span class="kw">fn </span>video_attachment_limit_accepts_boundary_and_rejects_plus_one() {
+<a href=#1122 id=1122 data-nosnippet>1122</a>        <span class="kw">let </span>video = |size: usize| {
+<a href=#1123 id=1123 data-nosnippet>1123</a>            <span class="kw">let </span><span class="kw-2">mut </span>bytes = <span class="macro">vec!</span>[<span class="number">0_u8</span>; size];
+<a href=#1124 id=1124 data-nosnippet>1124</a>            bytes[..<span class="number">4</span>].copy_from_slice(<span class="string">b"FLV\x01"</span>);
+<a href=#1125 id=1125 data-nosnippet>1125</a>            bytes
+<a href=#1126 id=1126 data-nosnippet>1126</a>        };
+<a href=#1127 id=1127 data-nosnippet>1127</a>        <span class="kw">let </span>at_limit = video(MAX_VIDEO_ATTACHMENT_BYTES <span class="kw">as </span>usize);
+<a href=#1128 id=1128 data-nosnippet>1128</a>        validate_attachment(<span class="string">"video/x-flv"</span>, Path::new(<span class="string">"clip.flv"</span>), <span class="kw-2">&amp;</span>at_limit).unwrap();
+<a href=#1129 id=1129 data-nosnippet>1129</a>
+<a href=#1130 id=1130 data-nosnippet>1130</a>        <span class="kw">let </span>over_limit = video(MAX_VIDEO_ATTACHMENT_BYTES <span class="kw">as </span>usize + <span class="number">1</span>);
+<a href=#1131 id=1131 data-nosnippet>1131</a>        <span class="kw">let </span>error =
+<a href=#1132 id=1132 data-nosnippet>1132</a>            validate_attachment(<span class="string">"video/x-flv"</span>, Path::new(<span class="string">"clip.flv"</span>), <span class="kw-2">&amp;</span>over_limit).unwrap_err();
+<a href=#1133 id=1133 data-nosnippet>1133</a>        <span class="macro">assert!</span>(error.to_string().contains(<span class="string">"26214400"</span>));
+<a href=#1134 id=1134 data-nosnippet>1134</a>    }
+<a href=#1135 id=1135 data-nosnippet>1135</a>
+<a href=#1136 id=1136 data-nosnippet>1136</a>    <span class="attr">#[test]
+<a href=#1137 id=1137 data-nosnippet>1137</a>    </span><span class="kw">fn </span>video_mime_aliases_validate_in_alias_and_canonical_forms() {
+<a href=#1138 id=1138 data-nosnippet>1138</a>        <span class="kw">let </span><span class="kw-2">mut </span>quicktime = <span class="number">16_u32</span>.to_be_bytes().to_vec();
+<a href=#1139 id=1139 data-nosnippet>1139</a>        quicktime.extend_from_slice(<span class="string">b"ftypqt  \0\0\0\0"</span>);
+<a href=#1140 id=1140 data-nosnippet>1140</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/mov"</span>, <span class="string">"video/quicktime"</span>] {
+<a href=#1141 id=1141 data-nosnippet>1141</a>            validate_attachment(declared, Path::new(<span class="string">"clip.mov"</span>), <span class="kw-2">&amp;</span>quicktime).unwrap();
+<a href=#1142 id=1142 data-nosnippet>1142</a>        }
+<a href=#1143 id=1143 data-nosnippet>1143</a>
+<a href=#1144 id=1144 data-nosnippet>1144</a>        <span class="kw">let </span>avi = <span class="string">b"RIFF\x04\x00\x00\x00AVI "</span>;
+<a href=#1145 id=1145 data-nosnippet>1145</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/avi"</span>, <span class="string">"video/x-msvideo"</span>] {
+<a href=#1146 id=1146 data-nosnippet>1146</a>            validate_attachment(declared, Path::new(<span class="string">"clip.avi"</span>), avi).unwrap();
+<a href=#1147 id=1147 data-nosnippet>1147</a>        }
+<a href=#1148 id=1148 data-nosnippet>1148</a>
+<a href=#1149 id=1149 data-nosnippet>1149</a>        <span class="kw">let </span>mpeg = [<span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x01</span>, <span class="number">0xba</span>];
+<a href=#1150 id=1150 data-nosnippet>1150</a>        <span class="kw">for </span>declared <span class="kw">in </span>[<span class="string">"video/mpg"</span>, <span class="string">"video/mpeg"</span>] {
+<a href=#1151 id=1151 data-nosnippet>1151</a>            validate_attachment(declared, Path::new(<span class="string">"clip.mpg"</span>), <span class="kw-2">&amp;</span>mpeg).unwrap();
+<a href=#1152 id=1152 data-nosnippet>1152</a>        }
+<a href=#1153 id=1153 data-nosnippet>1153</a>    }
+<a href=#1154 id=1154 data-nosnippet>1154</a>}
 </code></pre></div></section></main></body></html>
