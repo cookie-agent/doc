@@ -35,7 +35,7 @@
 <a href=#35 id=35 data-nosnippet>35</a>        preset: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 <a href=#36 id=36 data-nosnippet>36</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;session::SessionProjection, EngineError&gt; {
 <a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">if </span>resume_session_id == parent_session_id {
-<a href=#38 id=38 data-nosnippet>38</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#38 id=38 data-nosnippet>38</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#39 id=39 data-nosnippet>39</a>                <span class="string">"resume_session_id cannot reference the delegating session itself"</span>.into(),
 <a href=#40 id=40 data-nosnippet>40</a>            ));
 <a href=#41 id=41 data-nosnippet>41</a>        }
@@ -50,14 +50,14 @@
 <a href=#50 id=50 data-nosnippet>50</a>                <span class="kw">break</span>;
 <a href=#51 id=51 data-nosnippet>51</a>            };
 <a href=#52 id=52 data-nosnippet>52</a>            <span class="kw">if </span>parent_session_id == resume_session_id {
-<a href=#53 id=53 data-nosnippet>53</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#53 id=53 data-nosnippet>53</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#54 id=54 data-nosnippet>54</a>                    <span class="string">"resume_session_id cannot reference an ancestor session"</span>.into(),
 <a href=#55 id=55 data-nosnippet>55</a>                ));
 <a href=#56 id=56 data-nosnippet>56</a>            }
 <a href=#57 id=57 data-nosnippet>57</a>            cursor = parent_session_id;
 <a href=#58 id=58 data-nosnippet>58</a>        }
 <a href=#59 id=59 data-nosnippet>59</a>        <span class="kw">let </span>resumed = <span class="self">self</span>.inner.store.get(resume_session_id).map_err(|<span class="kw">_</span>| {
-<a href=#60 id=60 data-nosnippet>60</a>            EngineError::MissingTool(<span class="macro">format!</span>(<span class="string">"resume session {resume_session_id} was not found"</span>))
+<a href=#60 id=60 data-nosnippet>60</a>            EngineError::ToolFailed(<span class="macro">format!</span>(<span class="string">"resume session {resume_session_id} was not found"</span>))
 <a href=#61 id=61 data-nosnippet>61</a>        })<span class="question-mark">?</span>;
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span>direct_child = <span class="macro">matches!</span>(
 <a href=#63 id=63 data-nosnippet>63</a>            resumed.meta.origin,
@@ -70,17 +70,17 @@
 <a href=#70 id=70 data-nosnippet>70</a>                &amp;&amp; entry.reservation.child_session_id == resume_session_id
 <a href=#71 id=71 data-nosnippet>71</a>        });
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">if </span>!direct_child {
-<a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#74 id=74 data-nosnippet>74</a>                <span class="string">"resume session is not a prior direct child of the delegating parent"</span>.into(),
 <a href=#75 id=75 data-nosnippet>75</a>            ));
 <a href=#76 id=76 data-nosnippet>76</a>        }
 <a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">if </span><span class="kw-2">&amp;</span>resumed.meta.creation_selection.agent != agent_type {
-<a href=#78 id=78 data-nosnippet>78</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#79 id=79 data-nosnippet>79</a>                <span class="string">"resume session agent does not match agent_type"</span>.into(),
 <a href=#80 id=80 data-nosnippet>80</a>            ));
 <a href=#81 id=81 data-nosnippet>81</a>        }
 <a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">if </span>resumed.meta.creation_selection.preset.as_deref() != preset {
-<a href=#83 id=83 data-nosnippet>83</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#83 id=83 data-nosnippet>83</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#84 id=84 data-nosnippet>84</a>                <span class="string">"resume target belongs to a different agent preset"</span>.into(),
 <a href=#85 id=85 data-nosnippet>85</a>            ));
 <a href=#86 id=86 data-nosnippet>86</a>        }
@@ -96,7 +96,7 @@
 <a href=#96 id=96 data-nosnippet>96</a>                DelegationState::Queued | DelegationState::Starting
 <a href=#97 id=97 data-nosnippet>97</a>            )
 <a href=#98 id=98 data-nosnippet>98</a>        {
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="macro">format!</span>(
+<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="macro">format!</span>(
 <a href=#100 id=100 data-nosnippet>100</a>                <span class="string">"resume session already has in-flight delegation {} in {} state"</span>,
 <a href=#101 id=101 data-nosnippet>101</a>                record.invocation_id,
 <a href=#102 id=102 data-nosnippet>102</a>                <span class="kw">if </span>record.state == DelegationState::Queued {
@@ -270,7 +270,7 @@
 <a href=#270 id=270 data-nosnippet>270</a>            .prompt
 <a href=#271 id=271 data-nosnippet>271</a>            .starts_with(<span class="kw">super</span>::skills::RESERVED_STAGED_SKILL_PREFIX)
 <a href=#272 id=272 data-nosnippet>272</a>        {
-<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#274 id=274 data-nosnippet>274</a>                <span class="string">"delegate prompt uses a reserved staged-skill prefix"</span>.into(),
 <a href=#275 id=275 data-nosnippet>275</a>            ));
 <a href=#276 id=276 data-nosnippet>276</a>        }
@@ -282,7 +282,7 @@
 <a href=#282 id=282 data-nosnippet>282</a>            .get(<span class="kw-2">&amp;</span>invocation.parent_tool_call_id)
 <a href=#283 id=283 data-nosnippet>283</a>            .map(<span class="kw">super</span>::skills::PreparedSkillInvocation::staged_payload);
 <a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">if </span>invocation.resume_session_id.is_some() &amp;&amp; invocation.inherit_context {
-<a href=#285 id=285 data-nosnippet>285</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#285 id=285 data-nosnippet>285</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#286 id=286 data-nosnippet>286</a>                <span class="string">"resume_session_id and inherit_context cannot both be set"</span>.into(),
 <a href=#287 id=287 data-nosnippet>287</a>            ));
 <a href=#288 id=288 data-nosnippet>288</a>        }
@@ -301,7 +301,7 @@
 <a href=#301 id=301 data-nosnippet>301</a>                &amp;&amp; existing.request.inherit_context == invocation.inherit_context
 <a href=#302 id=302 data-nosnippet>302</a>                &amp;&amp; existing.request.staged_skill == staged_skill;
 <a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">if </span>!request_matches {
-<a href=#304 id=304 data-nosnippet>304</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#304 id=304 data-nosnippet>304</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#305 id=305 data-nosnippet>305</a>                    <span class="string">"delegate redelivery does not match its durable reservation"</span>.into(),
 <a href=#306 id=306 data-nosnippet>306</a>                ));
 <a href=#307 id=307 data-nosnippet>307</a>            }
@@ -361,7 +361,7 @@
 <a href=#361 id=361 data-nosnippet>361</a>            .is_some_and(|run| run.status == SessionStatus::Interrupted)
 <a href=#362 id=362 data-nosnippet>362</a>            &amp;&amp; <span class="self">self</span>.delegation_event_get(invocation_id).<span class="kw">await</span><span class="question-mark">?</span>.is_none()
 <a href=#363 id=363 data-nosnippet>363</a>        {
-<a href=#364 id=364 data-nosnippet>364</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#364 id=364 data-nosnippet>364</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#365 id=365 data-nosnippet>365</a>                <span class="string">"delegate parent run is interrupted; use recovery"</span>.into(),
 <a href=#366 id=366 data-nosnippet>366</a>            ));
 <a href=#367 id=367 data-nosnippet>367</a>        }
@@ -372,17 +372,17 @@
 <a href=#372 id=372 data-nosnippet>372</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
 <a href=#373 id=373 data-nosnippet>373</a>            .get(<span class="kw-2">&amp;</span>invocation.parent_run_id)
 <a href=#374 id=374 data-nosnippet>374</a>            .cloned()
-<a href=#375 id=375 data-nosnippet>375</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"delegate parent run is not active"</span>.into()))<span class="question-mark">?</span>;
+<a href=#375 id=375 data-nosnippet>375</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"delegate parent run is not active"</span>.into()))<span class="question-mark">?</span>;
 <a href=#376 id=376 data-nosnippet>376</a>        <span class="kw">let </span>parent_policy = Arc::clone(<span class="kw-2">&amp;</span>active_parent.policy);
 <a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">let </span>parent_delegation = parent_policy
 <a href=#378 id=378 data-nosnippet>378</a>            .agent
 <a href=#379 id=379 data-nosnippet>379</a>            .delegation
 <a href=#380 id=380 data-nosnippet>380</a>            .as_ref()
-<a href=#381 id=381 data-nosnippet>381</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"delegation is disabled"</span>.into()))<span class="question-mark">?</span>;
+<a href=#381 id=381 data-nosnippet>381</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"delegation is disabled"</span>.into()))<span class="question-mark">?</span>;
 <a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">if </span>!parent_delegation.targets.contains(<span class="kw-2">&amp;</span>invocation.agent_type)
 <a href=#383 id=383 data-nosnippet>383</a>            || session_depth(<span class="kw-2">&amp;</span>parent.meta.origin) &gt;= parent_delegation.effective_depth_ceiling
 <a href=#384 id=384 data-nosnippet>384</a>        {
-<a href=#385 id=385 data-nosnippet>385</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#385 id=385 data-nosnippet>385</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#386 id=386 data-nosnippet>386</a>                <span class="string">"delegate target or depth is not allowed"</span>.into(),
 <a href=#387 id=387 data-nosnippet>387</a>            ));
 <a href=#388 id=388 data-nosnippet>388</a>        }
@@ -435,7 +435,7 @@
 <a href=#435 id=435 data-nosnippet>435</a>                    <span class="prelude-val">None
 <a href=#436 id=436 data-nosnippet>436</a>                </span>}
 <a href=#437 id=437 data-nosnippet>437</a>            })
-<a href=#438 id=438 data-nosnippet>438</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"delegate child has no model suffix"</span>.into()))<span class="question-mark">?</span>;
+<a href=#438 id=438 data-nosnippet>438</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"delegate child has no model suffix"</span>.into()))<span class="question-mark">?</span>;
 <a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">let </span>child_policy = freeze_delegated_child_policy(
 <a href=#440 id=440 data-nosnippet>440</a>            child_agent,
 <a href=#441 id=441 data-nosnippet>441</a>            <span class="kw-2">&amp;</span>parent_policy,
@@ -504,12 +504,12 @@
 <a href=#504 id=504 data-nosnippet>504</a>                )
 <a href=#505 id=505 data-nosnippet>505</a>                .copied()
 <a href=#506 id=506 data-nosnippet>506</a>                .ok_or_else(|| {
-<a href=#507 id=507 data-nosnippet>507</a>                    EngineError::MissingTool(
+<a href=#507 id=507 data-nosnippet>507</a>                    EngineError::ToolFailed(
 <a href=#508 id=508 data-nosnippet>508</a>                        <span class="string">"running resume session has no active delegation record"</span>.into(),
 <a href=#509 id=509 data-nosnippet>509</a>                    )
 <a href=#510 id=510 data-nosnippet>510</a>                })<span class="question-mark">?</span>;
 <a href=#511 id=511 data-nosnippet>511</a>            <span class="kw">let </span>run_id = record.child_run_id.ok_or_else(|| {
-<a href=#512 id=512 data-nosnippet>512</a>                EngineError::MissingTool(<span class="string">"running resume session has no active run"</span>.into())
+<a href=#512 id=512 data-nosnippet>512</a>                EngineError::ToolFailed(<span class="string">"running resume session has no active run"</span>.into())
 <a href=#513 id=513 data-nosnippet>513</a>            })<span class="question-mark">?</span>;
 <a href=#514 id=514 data-nosnippet>514</a>            <span class="prelude-val">Some</span>((run_id, record))
 <a href=#515 id=515 data-nosnippet>515</a>        } <span class="kw">else </span>{
@@ -524,7 +524,7 @@
 <a href=#524 id=524 data-nosnippet>524</a>            &amp;&amp; fresh_counts_slot
 <a href=#525 id=525 data-nosnippet>525</a>            &amp;&amp; <span class="self">self</span>.background_slot_unavailable(root_session_id)<span class="question-mark">?</span>;
 <a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">if </span>queued &amp;&amp; <span class="self">self</span>.background_queue_full(root_session_id)<span class="question-mark">? </span>{
-<a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="macro">format!</span>(
+<a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="macro">format!</span>(
 <a href=#528 id=528 data-nosnippet>528</a>                <span class="string">"delegate admission denied: background queue is full for concurrency limit {}"</span>,
 <a href=#529 id=529 data-nosnippet>529</a>                <span class="self">self</span>.inner
 <a href=#530 id=530 data-nosnippet>530</a>                    .config
@@ -580,7 +580,7 @@
 <a href=#580 id=580 data-nosnippet>580</a>        <span class="kw">let </span>entry = <span class="self">self
 <a href=#581 id=581 data-nosnippet>581</a>            </span>.delegation_event_get(invocation_id)
 <a href=#582 id=582 data-nosnippet>582</a>            .<span class="kw">await</span><span class="question-mark">?
-<a href=#583 id=583 data-nosnippet>583</a>            </span>.ok_or_else(|| EngineError::MissingTool(<span class="string">"delegate reservation disappeared"</span>.into()))<span class="question-mark">?</span>;
+<a href=#583 id=583 data-nosnippet>583</a>            </span>.ok_or_else(|| EngineError::ToolFailed(<span class="string">"delegate reservation disappeared"</span>.into()))<span class="question-mark">?</span>;
 <a href=#584 id=584 data-nosnippet>584</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(guard) = producer_guard.as_mut() {
 <a href=#585 id=585 data-nosnippet>585</a>            <span class="kw">let </span><span class="kw-2">mut </span>records = <span class="self">self
 <a href=#586 id=586 data-nosnippet>586</a>                </span>.inner
@@ -719,7 +719,7 @@
 <a href=#719 id=719 data-nosnippet>719</a>                    delegation_events.mark_finished(invocation_id, SessionStatus::Cancelled)
 <a href=#720 id=720 data-nosnippet>720</a>                })
 <a href=#721 id=721 data-nosnippet>721</a>                .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#722 id=722 data-nosnippet>722</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#722 id=722 data-nosnippet>722</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#723 id=723 data-nosnippet>723</a>                    <span class="string">"resume session stopped before its prompt was admitted"</span>.into(),
 <a href=#724 id=724 data-nosnippet>724</a>                ));
 <a href=#725 id=725 data-nosnippet>725</a>            }
@@ -733,7 +733,7 @@
 <a href=#733 id=733 data-nosnippet>733</a>                    child_run_id,
 <a href=#734 id=734 data-nosnippet>734</a>                    <span class="prelude-val">Some</span>(<span class="string">"resume admission sequence was not published"</span>.into()),
 <a href=#735 id=735 data-nosnippet>735</a>                );
-<a href=#736 id=736 data-nosnippet>736</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#736 id=736 data-nosnippet>736</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#737 id=737 data-nosnippet>737</a>                    <span class="string">"resume admission sequence is missing"</span>.into(),
 <a href=#738 id=738 data-nosnippet>738</a>                ));
 <a href=#739 id=739 data-nosnippet>739</a>            };
@@ -766,7 +766,7 @@
 <a href=#766 id=766 data-nosnippet>766</a>                    SessionStatus::Cancelled,
 <a href=#767 id=767 data-nosnippet>767</a>                )
 <a href=#768 id=768 data-nosnippet>768</a>                .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#769 id=769 data-nosnippet>769</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#769 id=769 data-nosnippet>769</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#770 id=770 data-nosnippet>770</a>                    <span class="string">"delegate admission was abandoned"</span>.into(),
 <a href=#771 id=771 data-nosnippet>771</a>                ));
 <a href=#772 id=772 data-nosnippet>772</a>            }
@@ -832,7 +832,7 @@
 <a href=#832 id=832 data-nosnippet>832</a>                    SessionStatus::Cancelled,
 <a href=#833 id=833 data-nosnippet>833</a>                )
 <a href=#834 id=834 data-nosnippet>834</a>                .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#835 id=835 data-nosnippet>835</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#835 id=835 data-nosnippet>835</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#836 id=836 data-nosnippet>836</a>                    <span class="string">"delegate admission was abandoned"</span>.into(),
 <a href=#837 id=837 data-nosnippet>837</a>                ));
 <a href=#838 id=838 data-nosnippet>838</a>            }
@@ -1239,7 +1239,7 @@
 <a href=#1239 id=1239 data-nosnippet>1239</a>        admission: <span class="prelude-ty">Option</span>&lt;(InvocationId, u64)&gt;,
 <a href=#1240 id=1240 data-nosnippet>1240</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;RunId, EngineError&gt; {
 <a href=#1241 id=1241 data-nosnippet>1241</a>        <span class="kw">if </span>entry.terminal_status.is_some() {
-<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1243 id=1243 data-nosnippet>1243</a>                <span class="string">"delegate invocation was cancelled before startup"</span>.into(),
 <a href=#1244 id=1244 data-nosnippet>1244</a>            ));
 <a href=#1245 id=1245 data-nosnippet>1245</a>        }
@@ -1253,14 +1253,14 @@
 <a href=#1253 id=1253 data-nosnippet>1253</a>            .is_ok()
 <a href=#1254 id=1254 data-nosnippet>1254</a>        {
 <a href=#1255 id=1255 data-nosnippet>1255</a>            <span class="self">self</span>.inner.delegate_start_failure_observed.notify_one();
-<a href=#1256 id=1256 data-nosnippet>1256</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1256 id=1256 data-nosnippet>1256</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1257 id=1257 data-nosnippet>1257</a>                <span class="string">"injected delegate startup failure"</span>.into(),
 <a href=#1258 id=1258 data-nosnippet>1258</a>            ));
 <a href=#1259 id=1259 data-nosnippet>1259</a>        }
 <a href=#1260 id=1260 data-nosnippet>1260</a>        <span class="kw">if </span>admission.is_some_and(|(invocation_id, generation)| {
 <a href=#1261 id=1261 data-nosnippet>1261</a>            !<span class="self">self</span>.admission_generation_live(invocation_id, generation)
 <a href=#1262 id=1262 data-nosnippet>1262</a>        }) {
-<a href=#1263 id=1263 data-nosnippet>1263</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1263 id=1263 data-nosnippet>1263</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1264 id=1264 data-nosnippet>1264</a>                <span class="string">"delegate cancelled before child start"</span>.into(),
 <a href=#1265 id=1265 data-nosnippet>1265</a>            ));
 <a href=#1266 id=1266 data-nosnippet>1266</a>        }
@@ -1284,7 +1284,7 @@
 <a href=#1284 id=1284 data-nosnippet>1284</a>                <span class="kw">if </span>!<span class="self">self</span>.admission_generation_live(invocation_id, generation) {
 <a href=#1285 id=1285 data-nosnippet>1285</a>                    <span class="self">self</span>.sweep_abandoned_admission(invocation_id, generation)
 <a href=#1286 id=1286 data-nosnippet>1286</a>                        .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#1287 id=1287 data-nosnippet>1287</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1287 id=1287 data-nosnippet>1287</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1288 id=1288 data-nosnippet>1288</a>                        <span class="string">"delegate cancelled before child start"</span>.into(),
 <a href=#1289 id=1289 data-nosnippet>1289</a>                    ));
 <a href=#1290 id=1290 data-nosnippet>1290</a>                }
@@ -1377,7 +1377,7 @@
 <a href=#1377 id=1377 data-nosnippet>1377</a>                <span class="self">self</span>.sweep_abandoned_admission(invocation_id, generation)
 <a href=#1378 id=1378 data-nosnippet>1378</a>                    .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#1379 id=1379 data-nosnippet>1379</a>            }
-<a href=#1380 id=1380 data-nosnippet>1380</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1380 id=1380 data-nosnippet>1380</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1381 id=1381 data-nosnippet>1381</a>                <span class="string">"delegate cancelled during child start"</span>.into(),
 <a href=#1382 id=1382 data-nosnippet>1382</a>            ));
 <a href=#1383 id=1383 data-nosnippet>1383</a>        }
@@ -1677,7 +1677,7 @@
 <a href=#1677 id=1677 data-nosnippet>1677</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
 <a href=#1678 id=1678 data-nosnippet>1678</a>        };
 <a href=#1679 id=1679 data-nosnippet>1679</a>        <span class="kw">if </span>entry.reservation.child_session_id != child_session_id {
-<a href=#1680 id=1680 data-nosnippet>1680</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1680 id=1680 data-nosnippet>1680</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1681 id=1681 data-nosnippet>1681</a>                <span class="string">"delegate reservation child does not match completion monitor"</span>.into(),
 <a href=#1682 id=1682 data-nosnippet>1682</a>            ));
 <a href=#1683 id=1683 data-nosnippet>1683</a>        }
@@ -1696,7 +1696,7 @@
 <a href=#1696 id=1696 data-nosnippet>1696</a>                .runs
 <a href=#1697 id=1697 data-nosnippet>1697</a>                .get(<span class="kw-2">&amp;</span>child_run_id)
 <a href=#1698 id=1698 data-nosnippet>1698</a>                .map(|run| run.status)
-<a href=#1699 id=1699 data-nosnippet>1699</a>                .ok_or_else(|| EngineError::MissingTool(<span class="string">"delegate child run is missing"</span>.into()))<span class="question-mark">?
+<a href=#1699 id=1699 data-nosnippet>1699</a>                .ok_or_else(|| EngineError::ToolFailed(<span class="string">"delegate child run is missing"</span>.into()))<span class="question-mark">?
 <a href=#1700 id=1700 data-nosnippet>1700</a>        </span>} <span class="kw">else </span>{
 <a href=#1701 id=1701 data-nosnippet>1701</a>            child.status
 <a href=#1702 id=1702 data-nosnippet>1702</a>        };
@@ -1707,7 +1707,7 @@
 <a href=#1707 id=1707 data-nosnippet>1707</a>                | SessionStatus::Interrupted
 <a href=#1708 id=1708 data-nosnippet>1708</a>                | SessionStatus::Cancelled
 <a href=#1709 id=1709 data-nosnippet>1709</a>        ) {
-<a href=#1710 id=1710 data-nosnippet>1710</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1710 id=1710 data-nosnippet>1710</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1711 id=1711 data-nosnippet>1711</a>                <span class="string">"delegate child run is not terminal"</span>.into(),
 <a href=#1712 id=1712 data-nosnippet>1712</a>            ));
 <a href=#1713 id=1713 data-nosnippet>1713</a>        }
@@ -1924,7 +1924,7 @@
 <a href=#1924 id=1924 data-nosnippet>1924</a>            })
 <a href=#1925 id=1925 data-nosnippet>1925</a>            .is_ok()
 <a href=#1926 id=1926 data-nosnippet>1926</a>        {
-<a href=#1927 id=1927 data-nosnippet>1927</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#1927 id=1927 data-nosnippet>1927</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#1928 id=1928 data-nosnippet>1928</a>                <span class="string">"injected delegate terminal append failure"</span>.into(),
 <a href=#1929 id=1929 data-nosnippet>1929</a>            ));
 <a href=#1930 id=1930 data-nosnippet>1930</a>        }
@@ -2022,13 +2022,13 @@
 <a href=#2022 id=2022 data-nosnippet>2022</a>            </span>.get(<span class="kw-2">&amp;</span>child_session_id)
 <a href=#2023 id=2023 data-nosnippet>2023</a>            .map(|record| record.invocation_id)
 <a href=#2024 id=2024 data-nosnippet>2024</a>            .ok_or_else(|| {
-<a href=#2025 id=2025 data-nosnippet>2025</a>                EngineError::MissingTool(<span class="string">"queued subagent registry entry is missing"</span>.into())
+<a href=#2025 id=2025 data-nosnippet>2025</a>                EngineError::ToolFailed(<span class="string">"queued subagent registry entry is missing"</span>.into())
 <a href=#2026 id=2026 data-nosnippet>2026</a>            })<span class="question-mark">?</span>;
 <a href=#2027 id=2027 data-nosnippet>2027</a>        <span class="kw">let </span>entry = <span class="self">self
 <a href=#2028 id=2028 data-nosnippet>2028</a>            </span>.delegation_event_get(invocation_id)
 <a href=#2029 id=2029 data-nosnippet>2029</a>            .<span class="kw">await</span><span class="question-mark">?
 <a href=#2030 id=2030 data-nosnippet>2030</a>            </span>.ok_or_else(|| {
-<a href=#2031 id=2031 data-nosnippet>2031</a>                EngineError::MissingTool(<span class="string">"queued subagent reservation is missing"</span>.into())
+<a href=#2031 id=2031 data-nosnippet>2031</a>                EngineError::ToolFailed(<span class="string">"queued subagent reservation is missing"</span>.into())
 <a href=#2032 id=2032 data-nosnippet>2032</a>            })<span class="question-mark">?</span>;
 <a href=#2033 id=2033 data-nosnippet>2033</a>        <span class="kw">let </span>child_run_id = <span class="self">self</span>.ensure_delegate_run(<span class="kw-2">&amp;</span>entry, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#2034 id=2034 data-nosnippet>2034</a>        <span class="kw">let </span>removed = {
@@ -2038,7 +2038,7 @@
 <a href=#2038 id=2038 data-nosnippet>2038</a>                .lock()
 <a href=#2039 id=2039 data-nosnippet>2039</a>                .map_err(|<span class="kw">_</span>| EngineError::ActorStopped)<span class="question-mark">?</span>;
 <a href=#2040 id=2040 data-nosnippet>2040</a>            <span class="kw">let </span>record = records.get_mut(<span class="kw-2">&amp;</span>child_session_id).ok_or_else(|| {
-<a href=#2041 id=2041 data-nosnippet>2041</a>                EngineError::MissingTool(<span class="string">"queued subagent registry entry is missing"</span>.into())
+<a href=#2041 id=2041 data-nosnippet>2041</a>                EngineError::ToolFailed(<span class="string">"queued subagent registry entry is missing"</span>.into())
 <a href=#2042 id=2042 data-nosnippet>2042</a>            })<span class="question-mark">?</span>;
 <a href=#2043 id=2043 data-nosnippet>2043</a>            record.child_run_id = <span class="prelude-val">Some</span>(child_run_id);
 <a href=#2044 id=2044 data-nosnippet>2044</a>            record.state = DelegationState::Running;
@@ -2055,7 +2055,7 @@
 <a href=#2055 id=2055 data-nosnippet>2055</a>        };
 <a href=#2056 id=2056 data-nosnippet>2056</a>        <span class="kw">if </span>!removed {
 <a href=#2057 id=2057 data-nosnippet>2057</a>            <span class="kw">let </span>error =
-<a href=#2058 id=2058 data-nosnippet>2058</a>                EngineError::MissingTool(<span class="string">"queued subagent disappeared during startup"</span>.into());
+<a href=#2058 id=2058 data-nosnippet>2058</a>                EngineError::ToolFailed(<span class="string">"queued subagent disappeared during startup"</span>.into());
 <a href=#2059 id=2059 data-nosnippet>2059</a>            <span class="kw">let _ </span>= <span class="self">self</span>.cancel_run_durably(
 <a href=#2060 id=2060 data-nosnippet>2060</a>                child_run_id,
 <a href=#2061 id=2061 data-nosnippet>2061</a>                <span class="prelude-val">Some</span>(<span class="string">"queued subagent disappeared during startup"</span>.into()),
@@ -2094,7 +2094,7 @@
 <a href=#2094 id=2094 data-nosnippet>2094</a>            } <span class="kw">if </span>parent_session_id == caller_session_id =&gt; {
 <a href=#2095 id=2095 data-nosnippet>2095</a>                <span class="prelude-val">Ok</span>(child.meta.creation_selection.agent.clone())
 <a href=#2096 id=2096 data-nosnippet>2096</a>            }
-<a href=#2097 id=2097 data-nosnippet>2097</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#2097 id=2097 data-nosnippet>2097</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#2098 id=2098 data-nosnippet>2098</a>                <span class="string">"subagent session is not owned by the caller"</span>.into(),
 <a href=#2099 id=2099 data-nosnippet>2099</a>            )),
 <a href=#2100 id=2100 data-nosnippet>2100</a>        }
@@ -2124,7 +2124,7 @@
 <a href=#2124 id=2124 data-nosnippet>2124</a>            </span>.get(<span class="kw-2">&amp;</span>child_session_id)
 <a href=#2125 id=2125 data-nosnippet>2125</a>            .copied();
 <a href=#2126 id=2126 data-nosnippet>2126</a>        <span class="kw">if </span>registry_record.is_some_and(|record| record.parent_session_id != caller_session_id) {
-<a href=#2127 id=2127 data-nosnippet>2127</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#2127 id=2127 data-nosnippet>2127</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#2128 id=2128 data-nosnippet>2128</a>                <span class="string">"subagent registry ownership does not match its parent link"</span>.into(),
 <a href=#2129 id=2129 data-nosnippet>2129</a>            ));
 <a href=#2130 id=2130 data-nosnippet>2130</a>        }
@@ -2212,7 +2212,7 @@
 <a href=#2212 id=2212 data-nosnippet>2212</a>            }
 <a href=#2213 id=2213 data-nosnippet>2213</a>            <span class="macro">tokio::select!</span> {
 <a href=#2214 id=2214 data-nosnippet>2214</a>                () = cancellation.cancelled() =&gt; {
-<a href=#2215 id=2215 data-nosnippet>2215</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="string">"subagent result wait cancelled"</span>.into()));
+<a href=#2215 id=2215 data-nosnippet>2215</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="string">"subagent result wait cancelled"</span>.into()));
 <a href=#2216 id=2216 data-nosnippet>2216</a>                }
 <a href=#2217 id=2217 data-nosnippet>2217</a>                () = tokio::time::sleep(std::time::Duration::from_millis(<span class="number">25</span>)) =&gt; {}
 <a href=#2218 id=2218 data-nosnippet>2218</a>            }
@@ -2226,7 +2226,7 @@
 <a href=#2226 id=2226 data-nosnippet>2226</a>        message: String,
 <a href=#2227 id=2227 data-nosnippet>2227</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, EngineError&gt; {
 <a href=#2228 id=2228 data-nosnippet>2228</a>        <span class="kw">if </span>message.trim().is_empty() {
-<a href=#2229 id=2229 data-nosnippet>2229</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#2229 id=2229 data-nosnippet>2229</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#2230 id=2230 data-nosnippet>2230</a>                <span class="string">"subagent steer message must not be empty"</span>.into(),
 <a href=#2231 id=2231 data-nosnippet>2231</a>            ));
 <a href=#2232 id=2232 data-nosnippet>2232</a>        }
@@ -2241,7 +2241,7 @@
 <a href=#2241 id=2241 data-nosnippet>2241</a>            .map_err(|<span class="kw">_</span>| EngineError::ActorStopped)<span class="question-mark">?
 <a href=#2242 id=2242 data-nosnippet>2242</a>            </span>.get(<span class="kw-2">&amp;</span>child_session_id)
 <a href=#2243 id=2243 data-nosnippet>2243</a>            .copied()
-<a href=#2244 id=2244 data-nosnippet>2244</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
+<a href=#2244 id=2244 data-nosnippet>2244</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
 <a href=#2245 id=2245 data-nosnippet>2245</a>        <span class="kw">let </span>child = <span class="self">self</span>.inner.store.get(child_session_id)<span class="question-mark">?</span>;
 <a href=#2246 id=2246 data-nosnippet>2246</a>        <span class="kw">match </span>record.state {
 <a href=#2247 id=2247 data-nosnippet>2247</a>            DelegationState::Queued =&gt; {
@@ -2263,14 +2263,14 @@
 <a href=#2263 id=2263 data-nosnippet>2263</a>                        | SessionStatus::Interrupted
 <a href=#2264 id=2264 data-nosnippet>2264</a>                        | SessionStatus::Cancelled
 <a href=#2265 id=2265 data-nosnippet>2265</a>                ) {
-<a href=#2266 id=2266 data-nosnippet>2266</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="macro">format!</span>(
+<a href=#2266 id=2266 data-nosnippet>2266</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="macro">format!</span>(
 <a href=#2267 id=2267 data-nosnippet>2267</a>                        <span class="string">"subagent is terminal ({}) and cannot be steered"</span>,
 <a href=#2268 id=2268 data-nosnippet>2268</a>                        session_status_name(child.status)
 <a href=#2269 id=2269 data-nosnippet>2269</a>                    )));
 <a href=#2270 id=2270 data-nosnippet>2270</a>                }
 <a href=#2271 id=2271 data-nosnippet>2271</a>                <span class="kw">let </span>child_run_id =
 <a href=#2272 id=2272 data-nosnippet>2272</a>                    record.child_run_id.or(handle.child_run_id).ok_or_else(|| {
-<a href=#2273 id=2273 data-nosnippet>2273</a>                        EngineError::MissingTool(<span class="string">"subagent has not started a run"</span>.into())
+<a href=#2273 id=2273 data-nosnippet>2273</a>                        EngineError::ToolFailed(<span class="string">"subagent has not started a run"</span>.into())
 <a href=#2274 id=2274 data-nosnippet>2274</a>                    })<span class="question-mark">?</span>;
 <a href=#2275 id=2275 data-nosnippet>2275</a>                drop(admission_guard);
 <a href=#2276 id=2276 data-nosnippet>2276</a>                <span class="kw">let </span>result = <span class="self">self
@@ -2283,13 +2283,13 @@
 <a href=#2283 id=2283 data-nosnippet>2283</a>                    })
 <a href=#2284 id=2284 data-nosnippet>2284</a>                    .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#2285 id=2285 data-nosnippet>2285</a>                <span class="kw">if </span>!result.accepted {
-<a href=#2286 id=2286 data-nosnippet>2286</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(
+<a href=#2286 id=2286 data-nosnippet>2286</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(
 <a href=#2287 id=2287 data-nosnippet>2287</a>                        <span class="string">"subagent is no longer running"</span>.into(),
 <a href=#2288 id=2288 data-nosnippet>2288</a>                    ));
 <a href=#2289 id=2289 data-nosnippet>2289</a>                }
 <a href=#2290 id=2290 data-nosnippet>2290</a>                <span class="prelude-val">Ok</span>(steered_delegate_result(child_session_id, <span class="string">"running"</span>))
 <a href=#2291 id=2291 data-nosnippet>2291</a>            }
-<a href=#2292 id=2292 data-nosnippet>2292</a>            DelegationState::Finished(status) =&gt; <span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="macro">format!</span>(
+<a href=#2292 id=2292 data-nosnippet>2292</a>            DelegationState::Finished(status) =&gt; <span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="macro">format!</span>(
 <a href=#2293 id=2293 data-nosnippet>2293</a>                <span class="string">"subagent is terminal ({}) and cannot be steered"</span>,
 <a href=#2294 id=2294 data-nosnippet>2294</a>                session_status_name(status)
 <a href=#2295 id=2295 data-nosnippet>2295</a>            ))),
@@ -2313,7 +2313,7 @@
 <a href=#2313 id=2313 data-nosnippet>2313</a>            .map_err(|<span class="kw">_</span>| EngineError::ActorStopped)<span class="question-mark">?
 <a href=#2314 id=2314 data-nosnippet>2314</a>            </span>.get(<span class="kw-2">&amp;</span>child_session_id)
 <a href=#2315 id=2315 data-nosnippet>2315</a>            .copied()
-<a href=#2316 id=2316 data-nosnippet>2316</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
+<a href=#2316 id=2316 data-nosnippet>2316</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
 <a href=#2317 id=2317 data-nosnippet>2317</a>        <span class="kw">if </span>record.state == DelegationState::Queued {
 <a href=#2318 id=2318 data-nosnippet>2318</a>            <span class="self">self</span>.inner
 <a href=#2319 id=2319 data-nosnippet>2319</a>                .delegations_by_session
@@ -2323,7 +2323,7 @@
 <a href=#2323 id=2323 data-nosnippet>2323</a>                .filter(|record| record.state == DelegationState::Queued)
 <a href=#2324 id=2324 data-nosnippet>2324</a>                .map(|<span class="kw">_</span>| ())
 <a href=#2325 id=2325 data-nosnippet>2325</a>                .ok_or_else(|| {
-<a href=#2326 id=2326 data-nosnippet>2326</a>                    EngineError::MissingTool(<span class="string">"subagent is not queued for cancellation"</span>.into())
+<a href=#2326 id=2326 data-nosnippet>2326</a>                    EngineError::ToolFailed(<span class="string">"subagent is not queued for cancellation"</span>.into())
 <a href=#2327 id=2327 data-nosnippet>2327</a>                })<span class="question-mark">?</span>;
 <a href=#2328 id=2328 data-nosnippet>2328</a>            <span class="kw">let </span>cancellation_reason = reason
 <a href=#2329 id=2329 data-nosnippet>2329</a>                .as_deref()
@@ -2368,7 +2368,7 @@
 <a href=#2368 id=2368 data-nosnippet>2368</a>                    .get(handle.invocation_id)
 <a href=#2369 id=2369 data-nosnippet>2369</a>                    .and_then(|entry| entry.child_run_id)
 <a href=#2370 id=2370 data-nosnippet>2370</a>            })
-<a href=#2371 id=2371 data-nosnippet>2371</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"subagent has not started a run"</span>.into()))<span class="question-mark">?</span>;
+<a href=#2371 id=2371 data-nosnippet>2371</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"subagent has not started a run"</span>.into()))<span class="question-mark">?</span>;
 <a href=#2372 id=2372 data-nosnippet>2372</a>        drop(admission_guard);
 <a href=#2373 id=2373 data-nosnippet>2373</a>        <span class="kw">let </span>child = <span class="self">self</span>.inner.store.get(child_session_id)<span class="question-mark">?</span>;
 <a href=#2374 id=2374 data-nosnippet>2374</a>        <span class="kw">if </span><span class="macro">matches!</span>(child.status, SessionStatus::Running | SessionStatus::Idle) {
@@ -2434,7 +2434,7 @@
 <a href=#2434 id=2434 data-nosnippet>2434</a>                    record.counts_slot,
 <a href=#2435 id=2435 data-nosnippet>2435</a>                )
 <a href=#2436 id=2436 data-nosnippet>2436</a>            })
-<a href=#2437 id=2437 data-nosnippet>2437</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"subagent registry entry is missing"</span>.into()))
+<a href=#2437 id=2437 data-nosnippet>2437</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"subagent registry entry is missing"</span>.into()))
 <a href=#2438 id=2438 data-nosnippet>2438</a>    }
 <a href=#2439 id=2439 data-nosnippet>2439</a>
 <a href=#2440 id=2440 data-nosnippet>2440</a>    <span class="attr">#[cfg(test)]
@@ -2553,7 +2553,7 @@
 <a href=#2553 id=2553 data-nosnippet>2553</a>            .map_err(|<span class="kw">_</span>| EngineError::ActorStopped)<span class="question-mark">?</span>;
 <a href=#2554 id=2554 data-nosnippet>2554</a>        <span class="kw">let </span>record = records
 <a href=#2555 id=2555 data-nosnippet>2555</a>            .get_mut(<span class="kw-2">&amp;</span>child_session_id)
-<a href=#2556 id=2556 data-nosnippet>2556</a>            .ok_or_else(|| EngineError::MissingTool(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
+<a href=#2556 id=2556 data-nosnippet>2556</a>            .ok_or_else(|| EngineError::ToolFailed(<span class="string">"subagent registry entry is missing"</span>.into()))<span class="question-mark">?</span>;
 <a href=#2557 id=2557 data-nosnippet>2557</a>        record.background = background;
 <a href=#2558 id=2558 data-nosnippet>2558</a>        record.counts_slot = counts_slot;
 <a href=#2559 id=2559 data-nosnippet>2559</a>        <span class="prelude-val">Ok</span>(())
@@ -2899,7 +2899,7 @@
 <a href=#2899 id=2899 data-nosnippet>2899</a>                        })<span class="question-mark">?
 <a href=#2900 id=2900 data-nosnippet>2900</a>                        </span>.ok_or_else(|| {
 <a href=#2901 id=2901 data-nosnippet>2901</a>                            <span class="self">self</span>.release_recovered_monitor(child_session_id, record.invocation_id);
-<a href=#2902 id=2902 data-nosnippet>2902</a>                            EngineError::MissingTool(
+<a href=#2902 id=2902 data-nosnippet>2902</a>                            EngineError::ToolFailed(
 <a href=#2903 id=2903 data-nosnippet>2903</a>                                <span class="string">"recovered subagent reservation is missing"</span>.into(),
 <a href=#2904 id=2904 data-nosnippet>2904</a>                            )
 <a href=#2905 id=2905 data-nosnippet>2905</a>                        })<span class="question-mark">?</span>;
@@ -3380,7 +3380,7 @@
 <a href=#3380 id=3380 data-nosnippet>3380</a>        </span>} <span class="kw">else </span>{
 <a href=#3381 id=3381 data-nosnippet>3381</a>            <span class="string">"foreground"
 <a href=#3382 id=3382 data-nosnippet>3382</a>        </span>};
-<a href=#3383 id=3383 data-nosnippet>3383</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::MissingTool(<span class="macro">format!</span>(
+<a href=#3383 id=3383 data-nosnippet>3383</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::ToolFailed(<span class="macro">format!</span>(
 <a href=#3384 id=3384 data-nosnippet>3384</a>            <span class="string">"delegate redelivery execution mode conflict: durable invocation is {durable}, redelivery requested {redelivery}"
 <a href=#3385 id=3385 data-nosnippet>3385</a>        </span>)));
 <a href=#3386 id=3386 data-nosnippet>3386</a>    }

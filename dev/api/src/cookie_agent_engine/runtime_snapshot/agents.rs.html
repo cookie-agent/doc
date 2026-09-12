@@ -439,145 +439,174 @@
 <a href=#439 id=439 data-nosnippet>439</a>
 <a href=#440 id=440 data-nosnippet>440</a>    <span class="kw">use </span>std::collections::BTreeMap;
 <a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>    <span class="kw">use super</span>::{ResolvedAgent, built_in_internal_documents, delegation_targets, fingerprint};
-<a href=#443 id=443 data-nosnippet>443</a>    <span class="kw">use </span>cookie_agent_config::{
-<a href=#444 id=444 data-nosnippet>444</a>        AgentDocument, AgentDocumentSource, AgentFrontmatter, AgentLimits, AgentMode,
-<a href=#445 id=445 data-nosnippet>445</a>        AgentModelFallback, AgentModelRef, BUILT_IN_COMPACTION_AGENT_ID,
-<a href=#446 id=446 data-nosnippet>446</a>    };
-<a href=#447 id=447 data-nosnippet>447</a>    <span class="kw">use </span>cookie_agent_identity::AgentId <span class="kw">as </span>IdentityAgentId;
-<a href=#448 id=448 data-nosnippet>448</a>
-<a href=#449 id=449 data-nosnippet>449</a>    <span class="attr">#[test]
-<a href=#450 id=450 data-nosnippet>450</a>    </span><span class="kw">fn </span>delegation_targets_require_named_non_deny_permissions() {
-<a href=#451 id=451 data-nosnippet>451</a>        <span class="kw">let </span>known = BTreeMap::new();
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="macro">assert!</span>(delegation_targets(<span class="kw-2">&amp;</span>IndexMap::new(), <span class="kw-2">&amp;</span>known).is_empty());
-<a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">let </span><span class="kw-2">mut </span>resources = IndexMap::new();
-<a href=#455 id=455 data-nosnippet>455</a>        resources.insert(WildcardPattern::new(<span class="string">"*"</span>).unwrap(), PermissionEffect::Deny);
-<a href=#456 id=456 data-nosnippet>456</a>        resources.insert(
-<a href=#457 id=457 data-nosnippet>457</a>            WildcardPattern::new(<span class="string">"reviewer"</span>).unwrap(),
-<a href=#458 id=458 data-nosnippet>458</a>            PermissionEffect::Ask,
-<a href=#459 id=459 data-nosnippet>459</a>        );
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="kw">let </span>permissions = IndexMap::from([(
-<a href=#461 id=461 data-nosnippet>461</a>            PermissionAction::Delegate,
-<a href=#462 id=462 data-nosnippet>462</a>            PermissionValue::Resources(resources),
-<a href=#463 id=463 data-nosnippet>463</a>        )]);
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="macro">assert_eq!</span>(
-<a href=#465 id=465 data-nosnippet>465</a>            delegation_targets(<span class="kw-2">&amp;</span>permissions, <span class="kw-2">&amp;</span>known),
-<a href=#466 id=466 data-nosnippet>466</a>            [cookie_agent_protocol::AgentId::new(<span class="string">"reviewer"</span>).unwrap()]
-<a href=#467 id=467 data-nosnippet>467</a>        );
-<a href=#468 id=468 data-nosnippet>468</a>    }
-<a href=#469 id=469 data-nosnippet>469</a>
-<a href=#470 id=470 data-nosnippet>470</a>    <span class="attr">#[test]
-<a href=#471 id=471 data-nosnippet>471</a>    </span><span class="kw">fn </span>built_in_compaction_output_limit_does_not_change_authored_internal_default() {
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="kw">let </span>authored: AgentFrontmatter = serde_json::from_value(<span class="macro">serde_json::json!</span>({
-<a href=#473 id=473 data-nosnippet>473</a>            <span class="string">"description"</span>: <span class="string">"Authored internal"</span>,
-<a href=#474 id=474 data-nosnippet>474</a>            <span class="string">"mode"</span>: <span class="string">"internal"</span>,
-<a href=#475 id=475 data-nosnippet>475</a>            <span class="string">"enabled"</span>: <span class="bool-val">true</span>,
-<a href=#476 id=476 data-nosnippet>476</a>            <span class="string">"models"</span>: [{ <span class="string">"model"</span>: <span class="string">"${parent_model}" </span>}]
-<a href=#477 id=477 data-nosnippet>477</a>        }))
-<a href=#478 id=478 data-nosnippet>478</a>        .expect(<span class="string">"authored internal frontmatter"</span>);
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="macro">assert_eq!</span>(authored.limits.max_output_tokens, <span class="number">2_048</span>);
-<a href=#480 id=480 data-nosnippet>480</a>
-<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">let </span>documents = built_in_internal_documents().expect(<span class="string">"built-in internal documents"</span>);
-<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>compaction = documents
-<a href=#483 id=483 data-nosnippet>483</a>            .values()
-<a href=#484 id=484 data-nosnippet>484</a>            .find(|document| document.id.as_str() == BUILT_IN_COMPACTION_AGENT_ID)
-<a href=#485 id=485 data-nosnippet>485</a>            .expect(<span class="string">"built-in compaction document"</span>);
-<a href=#486 id=486 data-nosnippet>486</a>        <span class="macro">assert_eq!</span>(compaction.frontmatter.limits.max_output_tokens, <span class="number">4_096</span>);
-<a href=#487 id=487 data-nosnippet>487</a>    }
-<a href=#488 id=488 data-nosnippet>488</a>
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">fn </span>test_agent(id: <span class="kw-2">&amp;</span>str, mode: AgentMode, enabled: bool) -&gt; ResolvedAgent {
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>id = IdentityAgentId::new(id).expect(<span class="string">"agent ID"</span>);
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>body = <span class="string">"Test agent.\n"</span>.to_owned();
-<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">let </span>frontmatter = AgentFrontmatter {
-<a href=#493 id=493 data-nosnippet>493</a>            description: <span class="string">"Test agent"</span>.to_owned(),
-<a href=#494 id=494 data-nosnippet>494</a>            mode,
-<a href=#495 id=495 data-nosnippet>495</a>            enabled,
-<a href=#496 id=496 data-nosnippet>496</a>            models: <span class="macro">vec!</span>[AgentModelFallback {
-<a href=#497 id=497 data-nosnippet>497</a>                model: AgentModelRef::ParentModel,
-<a href=#498 id=498 data-nosnippet>498</a>                variant: <span class="prelude-val">None</span>,
-<a href=#499 id=499 data-nosnippet>499</a>                cache: <span class="prelude-val">None</span>,
-<a href=#500 id=500 data-nosnippet>500</a>            }],
-<a href=#501 id=501 data-nosnippet>501</a>            limits: AgentLimits {
-<a href=#502 id=502 data-nosnippet>502</a>                timeout_ms: <span class="number">0</span>,
-<a href=#503 id=503 data-nosnippet>503</a>                max_output_tokens: <span class="number">1_024</span>,
-<a href=#504 id=504 data-nosnippet>504</a>            },
-<a href=#505 id=505 data-nosnippet>505</a>            permissions: IndexMap::new(),
-<a href=#506 id=506 data-nosnippet>506</a>        };
-<a href=#507 id=507 data-nosnippet>507</a>        <span class="kw">let </span>document_fingerprint = fingerprint(
-<a href=#508 id=508 data-nosnippet>508</a>            <span class="string">"cookie-agent/test-agent-document/v1"</span>,
-<a href=#509 id=509 data-nosnippet>509</a>            <span class="kw-2">&amp;</span>(id.as_str(), <span class="kw-2">&amp;</span>frontmatter, <span class="kw-2">&amp;</span>body),
-<a href=#510 id=510 data-nosnippet>510</a>        )
-<a href=#511 id=511 data-nosnippet>511</a>        .expect(<span class="string">"fingerprint"</span>);
-<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">let </span>prompt_fingerprint =
-<a href=#513 id=513 data-nosnippet>513</a>            fingerprint(<span class="string">"cookie-agent/system-prompt/v1"</span>, <span class="kw-2">&amp;</span>body).expect(<span class="string">"fingerprint"</span>);
-<a href=#514 id=514 data-nosnippet>514</a>        ResolvedAgent {
-<a href=#515 id=515 data-nosnippet>515</a>            document: AgentDocument {
-<a href=#516 id=516 data-nosnippet>516</a>                id,
-<a href=#517 id=517 data-nosnippet>517</a>                frontmatter,
-<a href=#518 id=518 data-nosnippet>518</a>                body,
-<a href=#519 id=519 data-nosnippet>519</a>                source: AgentDocumentSource::BuiltIn,
-<a href=#520 id=520 data-nosnippet>520</a>                document_fingerprint,
-<a href=#521 id=521 data-nosnippet>521</a>                prompt_fingerprint,
-<a href=#522 id=522 data-nosnippet>522</a>            },
-<a href=#523 id=523 data-nosnippet>523</a>            resolved_fallback: Vec::new(),
-<a href=#524 id=524 data-nosnippet>524</a>            runnable_as_root: <span class="bool-val">false</span>,
-<a href=#525 id=525 data-nosnippet>525</a>        }
-<a href=#526 id=526 data-nosnippet>526</a>    }
-<a href=#527 id=527 data-nosnippet>527</a>
-<a href=#528 id=528 data-nosnippet>528</a>    <span class="attr">#[test]
-<a href=#529 id=529 data-nosnippet>529</a>    </span><span class="kw">fn </span>wildcard_delegation_expands_to_matching_eligible_subagents() {
-<a href=#530 id=530 data-nosnippet>530</a>        <span class="kw">let </span><span class="kw-2">mut </span>known = BTreeMap::new();
-<a href=#531 id=531 data-nosnippet>531</a>        <span class="kw">for </span>(id, mode, enabled) <span class="kw">in </span>[
-<a href=#532 id=532 data-nosnippet>532</a>            (<span class="string">"sub-worker"</span>, AgentMode::Subagent, <span class="bool-val">true</span>),
-<a href=#533 id=533 data-nosnippet>533</a>            (<span class="string">"sub-disabled"</span>, AgentMode::Subagent, <span class="bool-val">false</span>),
-<a href=#534 id=534 data-nosnippet>534</a>            (<span class="string">"sub-primary"</span>, AgentMode::Primary, <span class="bool-val">true</span>),
-<a href=#535 id=535 data-nosnippet>535</a>            (<span class="string">"explore"</span>, AgentMode::Subagent, <span class="bool-val">true</span>),
-<a href=#536 id=536 data-nosnippet>536</a>        ] {
-<a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">let </span>agent = test_agent(id, mode, enabled);
-<a href=#538 id=538 data-nosnippet>538</a>            known.insert(agent.document.id.clone(), agent);
-<a href=#539 id=539 data-nosnippet>539</a>        }
-<a href=#540 id=540 data-nosnippet>540</a>        <span class="kw">let </span><span class="kw-2">mut </span>resources = IndexMap::new();
-<a href=#541 id=541 data-nosnippet>541</a>        resources.insert(
-<a href=#542 id=542 data-nosnippet>542</a>            WildcardPattern::new(<span class="string">"sub-*"</span>).unwrap(),
-<a href=#543 id=543 data-nosnippet>543</a>            PermissionEffect::Allow,
-<a href=#544 id=544 data-nosnippet>544</a>        );
-<a href=#545 id=545 data-nosnippet>545</a>        resources.insert(
-<a href=#546 id=546 data-nosnippet>546</a>            WildcardPattern::new(<span class="string">"explore"</span>).unwrap(),
-<a href=#547 id=547 data-nosnippet>547</a>            PermissionEffect::Allow,
-<a href=#548 id=548 data-nosnippet>548</a>        );
-<a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>permissions = IndexMap::from([(
-<a href=#550 id=550 data-nosnippet>550</a>            PermissionAction::Delegate,
-<a href=#551 id=551 data-nosnippet>551</a>            PermissionValue::Resources(resources),
-<a href=#552 id=552 data-nosnippet>552</a>        )]);
-<a href=#553 id=553 data-nosnippet>553</a>        <span class="comment">// Disabled and non-subagent matches are excluded; concrete and
-<a href=#554 id=554 data-nosnippet>554</a>        // wildcard targets merge and dedupe.
-<a href=#555 id=555 data-nosnippet>555</a>        </span><span class="macro">assert_eq!</span>(
-<a href=#556 id=556 data-nosnippet>556</a>            delegation_targets(<span class="kw-2">&amp;</span>permissions, <span class="kw-2">&amp;</span>known),
-<a href=#557 id=557 data-nosnippet>557</a>            [
-<a href=#558 id=558 data-nosnippet>558</a>                cookie_agent_protocol::AgentId::new(<span class="string">"explore"</span>).unwrap(),
-<a href=#559 id=559 data-nosnippet>559</a>                cookie_agent_protocol::AgentId::new(<span class="string">"sub-worker"</span>).unwrap(),
-<a href=#560 id=560 data-nosnippet>560</a>            ]
-<a href=#561 id=561 data-nosnippet>561</a>        );
-<a href=#562 id=562 data-nosnippet>562</a>
-<a href=#563 id=563 data-nosnippet>563</a>        <span class="comment">// A scalar `delegate: allow` is equivalent to a `"*"` mapping and
-<a href=#564 id=564 data-nosnippet>564</a>        // expands over every eligible subagent.
-<a href=#565 id=565 data-nosnippet>565</a>        </span><span class="kw">let </span>scalar = IndexMap::from([(
-<a href=#566 id=566 data-nosnippet>566</a>            PermissionAction::Delegate,
-<a href=#567 id=567 data-nosnippet>567</a>            PermissionValue::Effect(PermissionEffect::Allow),
-<a href=#568 id=568 data-nosnippet>568</a>        )]);
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="macro">assert_eq!</span>(
-<a href=#570 id=570 data-nosnippet>570</a>            delegation_targets(<span class="kw-2">&amp;</span>scalar, <span class="kw-2">&amp;</span>known),
-<a href=#571 id=571 data-nosnippet>571</a>            [
-<a href=#572 id=572 data-nosnippet>572</a>                cookie_agent_protocol::AgentId::new(<span class="string">"explore"</span>).unwrap(),
-<a href=#573 id=573 data-nosnippet>573</a>                cookie_agent_protocol::AgentId::new(<span class="string">"sub-worker"</span>).unwrap(),
-<a href=#574 id=574 data-nosnippet>574</a>            ]
-<a href=#575 id=575 data-nosnippet>575</a>        );
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">let </span>scalar_deny = IndexMap::from([(
-<a href=#577 id=577 data-nosnippet>577</a>            PermissionAction::Delegate,
-<a href=#578 id=578 data-nosnippet>578</a>            PermissionValue::Effect(PermissionEffect::Deny),
-<a href=#579 id=579 data-nosnippet>579</a>        )]);
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="macro">assert!</span>(delegation_targets(<span class="kw-2">&amp;</span>scalar_deny, <span class="kw-2">&amp;</span>known).is_empty());
-<a href=#581 id=581 data-nosnippet>581</a>    }
-<a href=#582 id=582 data-nosnippet>582</a>}
+<a href=#442 id=442 data-nosnippet>442</a>    <span class="kw">use super</span>::{
+<a href=#443 id=443 data-nosnippet>443</a>        ResolvedAgent, built_in_default_permissions, built_in_internal_documents,
+<a href=#444 id=444 data-nosnippet>444</a>        delegation_targets, fingerprint,
+<a href=#445 id=445 data-nosnippet>445</a>    };
+<a href=#446 id=446 data-nosnippet>446</a>    <span class="kw">use </span>cookie_agent_config::{
+<a href=#447 id=447 data-nosnippet>447</a>        AgentDocument, AgentDocumentSource, AgentFrontmatter, AgentLimits, AgentMode,
+<a href=#448 id=448 data-nosnippet>448</a>        AgentModelFallback, AgentModelRef, BUILT_IN_COMPACTION_AGENT_ID,
+<a href=#449 id=449 data-nosnippet>449</a>    };
+<a href=#450 id=450 data-nosnippet>450</a>    <span class="kw">use </span>cookie_agent_identity::AgentId <span class="kw">as </span>IdentityAgentId;
+<a href=#451 id=451 data-nosnippet>451</a>
+<a href=#452 id=452 data-nosnippet>452</a>    <span class="attr">#[test]
+<a href=#453 id=453 data-nosnippet>453</a>    </span><span class="kw">fn </span>delegation_targets_require_named_non_deny_permissions() {
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">let </span>known = BTreeMap::new();
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="macro">assert!</span>(delegation_targets(<span class="kw-2">&amp;</span>IndexMap::new(), <span class="kw-2">&amp;</span>known).is_empty());
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span><span class="kw-2">mut </span>resources = IndexMap::new();
+<a href=#458 id=458 data-nosnippet>458</a>        resources.insert(WildcardPattern::new(<span class="string">"*"</span>).unwrap(), PermissionEffect::Deny);
+<a href=#459 id=459 data-nosnippet>459</a>        resources.insert(
+<a href=#460 id=460 data-nosnippet>460</a>            WildcardPattern::new(<span class="string">"reviewer"</span>).unwrap(),
+<a href=#461 id=461 data-nosnippet>461</a>            PermissionEffect::Ask,
+<a href=#462 id=462 data-nosnippet>462</a>        );
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw">let </span>permissions = IndexMap::from([(
+<a href=#464 id=464 data-nosnippet>464</a>            PermissionAction::Delegate,
+<a href=#465 id=465 data-nosnippet>465</a>            PermissionValue::Resources(resources),
+<a href=#466 id=466 data-nosnippet>466</a>        )]);
+<a href=#467 id=467 data-nosnippet>467</a>        <span class="macro">assert_eq!</span>(
+<a href=#468 id=468 data-nosnippet>468</a>            delegation_targets(<span class="kw-2">&amp;</span>permissions, <span class="kw-2">&amp;</span>known),
+<a href=#469 id=469 data-nosnippet>469</a>            [cookie_agent_protocol::AgentId::new(<span class="string">"reviewer"</span>).unwrap()]
+<a href=#470 id=470 data-nosnippet>470</a>        );
+<a href=#471 id=471 data-nosnippet>471</a>    }
+<a href=#472 id=472 data-nosnippet>472</a>
+<a href=#473 id=473 data-nosnippet>473</a>    <span class="attr">#[test]
+<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">fn </span>built_in_agents_ship_without_message_rules() {
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>default_permissions =
+<a href=#476 id=476 data-nosnippet>476</a>            built_in_default_permissions().expect(<span class="string">"built-in default permissions"</span>);
+<a href=#477 id=477 data-nosnippet>477</a>        <span class="macro">assert!</span>(
+<a href=#478 id=478 data-nosnippet>478</a>            default_permissions
+<a href=#479 id=479 data-nosnippet>479</a>                .get(<span class="kw-2">&amp;</span>PermissionAction::Message)
+<a href=#480 id=480 data-nosnippet>480</a>                .is_none(),
+<a href=#481 id=481 data-nosnippet>481</a>            <span class="string">"built-in default agent must not grant message authority"
+<a href=#482 id=482 data-nosnippet>482</a>        </span>);
+<a href=#483 id=483 data-nosnippet>483</a>        <span class="kw">for </span>document <span class="kw">in </span>built_in_internal_documents()
+<a href=#484 id=484 data-nosnippet>484</a>            .expect(<span class="string">"built-in internal documents"</span>)
+<a href=#485 id=485 data-nosnippet>485</a>            .values()
+<a href=#486 id=486 data-nosnippet>486</a>        {
+<a href=#487 id=487 data-nosnippet>487</a>            <span class="macro">assert!</span>(
+<a href=#488 id=488 data-nosnippet>488</a>                document
+<a href=#489 id=489 data-nosnippet>489</a>                    .frontmatter
+<a href=#490 id=490 data-nosnippet>490</a>                    .permissions
+<a href=#491 id=491 data-nosnippet>491</a>                    .get(<span class="kw-2">&amp;</span>PermissionAction::Message)
+<a href=#492 id=492 data-nosnippet>492</a>                    .is_none(),
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="string">"internal agent `{}` must not grant message authority"</span>,
+<a href=#494 id=494 data-nosnippet>494</a>                document.id
+<a href=#495 id=495 data-nosnippet>495</a>            );
+<a href=#496 id=496 data-nosnippet>496</a>        }
+<a href=#497 id=497 data-nosnippet>497</a>    }
+<a href=#498 id=498 data-nosnippet>498</a>
+<a href=#499 id=499 data-nosnippet>499</a>    <span class="attr">#[test]
+<a href=#500 id=500 data-nosnippet>500</a>    </span><span class="kw">fn </span>built_in_compaction_output_limit_does_not_change_authored_internal_default() {
+<a href=#501 id=501 data-nosnippet>501</a>        <span class="kw">let </span>authored: AgentFrontmatter = serde_json::from_value(<span class="macro">serde_json::json!</span>({
+<a href=#502 id=502 data-nosnippet>502</a>            <span class="string">"description"</span>: <span class="string">"Authored internal"</span>,
+<a href=#503 id=503 data-nosnippet>503</a>            <span class="string">"mode"</span>: <span class="string">"internal"</span>,
+<a href=#504 id=504 data-nosnippet>504</a>            <span class="string">"enabled"</span>: <span class="bool-val">true</span>,
+<a href=#505 id=505 data-nosnippet>505</a>            <span class="string">"models"</span>: [{ <span class="string">"model"</span>: <span class="string">"${parent_model}" </span>}]
+<a href=#506 id=506 data-nosnippet>506</a>        }))
+<a href=#507 id=507 data-nosnippet>507</a>        .expect(<span class="string">"authored internal frontmatter"</span>);
+<a href=#508 id=508 data-nosnippet>508</a>        <span class="macro">assert_eq!</span>(authored.limits.max_output_tokens, <span class="number">2_048</span>);
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>documents = built_in_internal_documents().expect(<span class="string">"built-in internal documents"</span>);
+<a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>compaction = documents
+<a href=#512 id=512 data-nosnippet>512</a>            .values()
+<a href=#513 id=513 data-nosnippet>513</a>            .find(|document| document.id.as_str() == BUILT_IN_COMPACTION_AGENT_ID)
+<a href=#514 id=514 data-nosnippet>514</a>            .expect(<span class="string">"built-in compaction document"</span>);
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="macro">assert_eq!</span>(compaction.frontmatter.limits.max_output_tokens, <span class="number">4_096</span>);
+<a href=#516 id=516 data-nosnippet>516</a>    }
+<a href=#517 id=517 data-nosnippet>517</a>
+<a href=#518 id=518 data-nosnippet>518</a>    <span class="kw">fn </span>test_agent(id: <span class="kw-2">&amp;</span>str, mode: AgentMode, enabled: bool) -&gt; ResolvedAgent {
+<a href=#519 id=519 data-nosnippet>519</a>        <span class="kw">let </span>id = IdentityAgentId::new(id).expect(<span class="string">"agent ID"</span>);
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>body = <span class="string">"Test agent.\n"</span>.to_owned();
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">let </span>frontmatter = AgentFrontmatter {
+<a href=#522 id=522 data-nosnippet>522</a>            description: <span class="string">"Test agent"</span>.to_owned(),
+<a href=#523 id=523 data-nosnippet>523</a>            mode,
+<a href=#524 id=524 data-nosnippet>524</a>            enabled,
+<a href=#525 id=525 data-nosnippet>525</a>            models: <span class="macro">vec!</span>[AgentModelFallback {
+<a href=#526 id=526 data-nosnippet>526</a>                model: AgentModelRef::ParentModel,
+<a href=#527 id=527 data-nosnippet>527</a>                variant: <span class="prelude-val">None</span>,
+<a href=#528 id=528 data-nosnippet>528</a>                cache: <span class="prelude-val">None</span>,
+<a href=#529 id=529 data-nosnippet>529</a>            }],
+<a href=#530 id=530 data-nosnippet>530</a>            limits: AgentLimits {
+<a href=#531 id=531 data-nosnippet>531</a>                timeout_ms: <span class="number">0</span>,
+<a href=#532 id=532 data-nosnippet>532</a>                max_output_tokens: <span class="number">1_024</span>,
+<a href=#533 id=533 data-nosnippet>533</a>            },
+<a href=#534 id=534 data-nosnippet>534</a>            permissions: IndexMap::new(),
+<a href=#535 id=535 data-nosnippet>535</a>        };
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="kw">let </span>document_fingerprint = fingerprint(
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="string">"cookie-agent/test-agent-document/v1"</span>,
+<a href=#538 id=538 data-nosnippet>538</a>            <span class="kw-2">&amp;</span>(id.as_str(), <span class="kw-2">&amp;</span>frontmatter, <span class="kw-2">&amp;</span>body),
+<a href=#539 id=539 data-nosnippet>539</a>        )
+<a href=#540 id=540 data-nosnippet>540</a>        .expect(<span class="string">"fingerprint"</span>);
+<a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">let </span>prompt_fingerprint =
+<a href=#542 id=542 data-nosnippet>542</a>            fingerprint(<span class="string">"cookie-agent/system-prompt/v1"</span>, <span class="kw-2">&amp;</span>body).expect(<span class="string">"fingerprint"</span>);
+<a href=#543 id=543 data-nosnippet>543</a>        ResolvedAgent {
+<a href=#544 id=544 data-nosnippet>544</a>            document: AgentDocument {
+<a href=#545 id=545 data-nosnippet>545</a>                id,
+<a href=#546 id=546 data-nosnippet>546</a>                frontmatter,
+<a href=#547 id=547 data-nosnippet>547</a>                body,
+<a href=#548 id=548 data-nosnippet>548</a>                source: AgentDocumentSource::BuiltIn,
+<a href=#549 id=549 data-nosnippet>549</a>                document_fingerprint,
+<a href=#550 id=550 data-nosnippet>550</a>                prompt_fingerprint,
+<a href=#551 id=551 data-nosnippet>551</a>            },
+<a href=#552 id=552 data-nosnippet>552</a>            resolved_fallback: Vec::new(),
+<a href=#553 id=553 data-nosnippet>553</a>            runnable_as_root: <span class="bool-val">false</span>,
+<a href=#554 id=554 data-nosnippet>554</a>        }
+<a href=#555 id=555 data-nosnippet>555</a>    }
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a>    <span class="attr">#[test]
+<a href=#558 id=558 data-nosnippet>558</a>    </span><span class="kw">fn </span>wildcard_delegation_expands_to_matching_eligible_subagents() {
+<a href=#559 id=559 data-nosnippet>559</a>        <span class="kw">let </span><span class="kw-2">mut </span>known = BTreeMap::new();
+<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">for </span>(id, mode, enabled) <span class="kw">in </span>[
+<a href=#561 id=561 data-nosnippet>561</a>            (<span class="string">"sub-worker"</span>, AgentMode::Subagent, <span class="bool-val">true</span>),
+<a href=#562 id=562 data-nosnippet>562</a>            (<span class="string">"sub-disabled"</span>, AgentMode::Subagent, <span class="bool-val">false</span>),
+<a href=#563 id=563 data-nosnippet>563</a>            (<span class="string">"sub-primary"</span>, AgentMode::Primary, <span class="bool-val">true</span>),
+<a href=#564 id=564 data-nosnippet>564</a>            (<span class="string">"explore"</span>, AgentMode::Subagent, <span class="bool-val">true</span>),
+<a href=#565 id=565 data-nosnippet>565</a>        ] {
+<a href=#566 id=566 data-nosnippet>566</a>            <span class="kw">let </span>agent = test_agent(id, mode, enabled);
+<a href=#567 id=567 data-nosnippet>567</a>            known.insert(agent.document.id.clone(), agent);
+<a href=#568 id=568 data-nosnippet>568</a>        }
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw">let </span><span class="kw-2">mut </span>resources = IndexMap::new();
+<a href=#570 id=570 data-nosnippet>570</a>        resources.insert(
+<a href=#571 id=571 data-nosnippet>571</a>            WildcardPattern::new(<span class="string">"sub-*"</span>).unwrap(),
+<a href=#572 id=572 data-nosnippet>572</a>            PermissionEffect::Allow,
+<a href=#573 id=573 data-nosnippet>573</a>        );
+<a href=#574 id=574 data-nosnippet>574</a>        resources.insert(
+<a href=#575 id=575 data-nosnippet>575</a>            WildcardPattern::new(<span class="string">"explore"</span>).unwrap(),
+<a href=#576 id=576 data-nosnippet>576</a>            PermissionEffect::Allow,
+<a href=#577 id=577 data-nosnippet>577</a>        );
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let </span>permissions = IndexMap::from([(
+<a href=#579 id=579 data-nosnippet>579</a>            PermissionAction::Delegate,
+<a href=#580 id=580 data-nosnippet>580</a>            PermissionValue::Resources(resources),
+<a href=#581 id=581 data-nosnippet>581</a>        )]);
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="comment">// Disabled and non-subagent matches are excluded; concrete and
+<a href=#583 id=583 data-nosnippet>583</a>        // wildcard targets merge and dedupe.
+<a href=#584 id=584 data-nosnippet>584</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#585 id=585 data-nosnippet>585</a>            delegation_targets(<span class="kw-2">&amp;</span>permissions, <span class="kw-2">&amp;</span>known),
+<a href=#586 id=586 data-nosnippet>586</a>            [
+<a href=#587 id=587 data-nosnippet>587</a>                cookie_agent_protocol::AgentId::new(<span class="string">"explore"</span>).unwrap(),
+<a href=#588 id=588 data-nosnippet>588</a>                cookie_agent_protocol::AgentId::new(<span class="string">"sub-worker"</span>).unwrap(),
+<a href=#589 id=589 data-nosnippet>589</a>            ]
+<a href=#590 id=590 data-nosnippet>590</a>        );
+<a href=#591 id=591 data-nosnippet>591</a>
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="comment">// A scalar `delegate: allow` is equivalent to a `"*"` mapping and
+<a href=#593 id=593 data-nosnippet>593</a>        // expands over every eligible subagent.
+<a href=#594 id=594 data-nosnippet>594</a>        </span><span class="kw">let </span>scalar = IndexMap::from([(
+<a href=#595 id=595 data-nosnippet>595</a>            PermissionAction::Delegate,
+<a href=#596 id=596 data-nosnippet>596</a>            PermissionValue::Effect(PermissionEffect::Allow),
+<a href=#597 id=597 data-nosnippet>597</a>        )]);
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="macro">assert_eq!</span>(
+<a href=#599 id=599 data-nosnippet>599</a>            delegation_targets(<span class="kw-2">&amp;</span>scalar, <span class="kw-2">&amp;</span>known),
+<a href=#600 id=600 data-nosnippet>600</a>            [
+<a href=#601 id=601 data-nosnippet>601</a>                cookie_agent_protocol::AgentId::new(<span class="string">"explore"</span>).unwrap(),
+<a href=#602 id=602 data-nosnippet>602</a>                cookie_agent_protocol::AgentId::new(<span class="string">"sub-worker"</span>).unwrap(),
+<a href=#603 id=603 data-nosnippet>603</a>            ]
+<a href=#604 id=604 data-nosnippet>604</a>        );
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">let </span>scalar_deny = IndexMap::from([(
+<a href=#606 id=606 data-nosnippet>606</a>            PermissionAction::Delegate,
+<a href=#607 id=607 data-nosnippet>607</a>            PermissionValue::Effect(PermissionEffect::Deny),
+<a href=#608 id=608 data-nosnippet>608</a>        )]);
+<a href=#609 id=609 data-nosnippet>609</a>        <span class="macro">assert!</span>(delegation_targets(<span class="kw-2">&amp;</span>scalar_deny, <span class="kw-2">&amp;</span>known).is_empty());
+<a href=#610 id=610 data-nosnippet>610</a>    }
+<a href=#611 id=611 data-nosnippet>611</a>}
 </code></pre></div></section></main></body></html>
