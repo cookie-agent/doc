@@ -2121,8 +2121,8 @@ titles; invalid title text rejects the delegation.</p>
 created by this same parent session. Top-level, unknown, foreign, self, and
 ancestor sessions are rejected. A terminal child starts a new run with the new
 prompt; an active child receives the prompt through its pending-input FIFO. The
-current delegation link is refreshed, so result, steer, cancel, queue, slot, and
-completion-notification behavior applies to the resumed work. The existing
+current delegation link is refreshed, so result, messaging, cancel, queue, slot,
+and completion-notification behavior applies to the resumed work. The existing
 session title is never replaced by the new description; the description remains
 only the delegation call's display argument. A child that already has a queued
 or starting delegation cannot be resumed again until that invocation starts or
@@ -2139,14 +2139,14 @@ into the child agent's model context and must be appropriate for that child.
 parent event containing the session ID, status, first 20 result lines (at most 2
 KiB), and total line count. Use <code>get_subagent_result</code> with <code>session_id</code>, optional
 <code>wait</code>, and zero-based <code>offset</code>/<code>limit</code> to retrieve the full result in pages. Use
-<code>steer_subagent</code> with the owned <code>session_id</code> and a non-empty <code>message</code> to add a
-user turn to a running or queued child. Running children promote steer messages
-FIFO after the current tool batch or at the next completion boundary. A queued
-child persists the message before it has a run and promotes it after its initial
-model response when the queue starts it. Use <code>cancel_subagent</code> with the owned
-<code>session_id</code> and optional <code>reason</code> to cancel it. Result, steer, and cancellation
-operations reject sessions that are not direct children of the caller, and
-steering rejects terminal children.</p>
+<code>cancel_subagent</code> with the owned <code>session_id</code> and optional <code>reason</code> to cancel
+it. Result and cancellation operations reject sessions that are not direct
+children of the caller.</p>
+<p>The former <code>steer_subagent</code> tool is removed. Agents reach children and other
+same-tree peers with <code>send_message</code>, which is governed by the dedicated
+<code>message</code> permission action (deny by default) and can also wake finished
+sessions. See the <a href="../../reference/tools/#agent-messaging">tool reference</a> and
+the <a href="../../specs/agent-messaging/#migration-notes">messaging migration notes</a>.</p>
 <p>Terminal delegated sessions are paged out of memory when resident child count
 exceeds <code>delegation.max_resident_subagents</code> and their last run has been idle for
 longer than <code>delegation.idle_eviction_after</code>. This is a soft trigger: running,
@@ -2156,8 +2156,8 @@ never evicted. Eligible children are selected oldest-idle first.</p>
 <p>Paging happens only after event appends have been synced and, for background
 work, after the parent completion teaser is durable. Session listings retain
 lightweight metadata for paged children. Opening one in the TUI, reading its
-result, steering it, or using <code>resume_session_id</code> transparently reopens its event
-log and rebuilds the in-memory projection and actor.</p>
+result, sending it a message, or using <code>resume_session_id</code> transparently
+reopens its event log and rebuilds the in-memory projection and actor.</p>
 <h2 id="layering-and-replacement">Layering and replacement<a class="headerlink" href="#layering-and-replacement" title="Permanent link">&para;</a></h2>
 <p>User-layer and workspace-layer agent directories merge into one registry by
 agent ID. A same-ID workspace agent replaces the user agent completely. The IDs
@@ -2293,7 +2293,7 @@ with at least one available model). If none are runnable, that effective set's
 built-in <code>default</code> agent is used.</p>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>Agent documents define an ordered permission map for <code>read</code>, <code>write</code>, <code>bash</code>,
-<code>delegate</code>, <code>mcp</code>, <code>plugin</code>, <code>skill</code>, and <code>webfetch</code>. Each action is either one bare effect or a resource-pattern map:</p>
+<code>delegate</code>, <code>message</code>, <code>mcp</code>, <code>plugin</code>, <code>skill</code>, and <code>webfetch</code>. Each action is either one bare effect or a resource-pattern map:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">permissions</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
@@ -2346,9 +2346,14 @@ matching calls through the existing approval flow; it is never an implicit fallb
 <td>Target <code>agent_type</code></td>
 </tr>
 <tr>
-<td><code>get_subagent_result</code>, <code>steer_subagent</code>, <code>cancel_subagent</code></td>
+<td><code>get_subagent_result</code>, <code>cancel_subagent</code></td>
 <td><code>delegate</code></td>
 <td>Owned subagent's <code>agent_type</code></td>
+</tr>
+<tr>
+<td><code>send_message</code></td>
+<td><code>message</code></td>
+<td>Recipient's relationship to the sender: <code>parent</code>, <code>child</code>, <code>sibling</code>, or <code>*</code></td>
 </tr>
 <tr>
 <td><code>&lt;server&gt;_&lt;tool&gt;</code></td>
@@ -2459,22 +2464,32 @@ equivalent to code: a repository can ship both a server definition and an agent
 that permits it. Review them and work only in repositories you trust.</p>
 <p>Delegation targets come from the keys in the <code>delegate</code> permission map and must
 resolve to enabled <code>subagent</code> or <code>all</code> agents. This action controls
-<code>delegate_subagent</code>, <code>get_subagent_result</code>, <code>steer_subagent</code>, and
-<code>cancel_subagent</code>. All four tools use the target subagent's agent type as their
+<code>delegate_subagent</code>, <code>get_subagent_result</code>, and
+<code>cancel_subagent</code>. All three tools use the target subagent's agent type as their
 permission resource.
-Result, steer, and cancel retain their existing ownership and argument
+Result and cancel retain their existing ownership and argument
 validation, and permission evaluation uses that agent type. Their approval
 display still shows the owned <code>session_id</code>; display text is independent of the
 permission resource.</p>
 <p>This changes existing mapped delegation policies. For example,
 <code>delegate: {reviewer: allow, "*": deny}</code> allows <code>delegate_subagent</code> targeting
-<code>reviewer</code>, but denies <code>get_subagent_result</code>, <code>steer_subagent</code>, and
+<code>reviewer</code>, but denies <code>get_subagent_result</code> and
 <code>cancel_subagent</code> for other agent types. Existing tree grants issued for their
 former identities do not carry over.
 Runtime <code>delegation.max_depth</code> defaults to 3 and <code>max_concurrency</code> defaults to 4.</p>
 <p><code>delegate_subagent</code> replaces the former <code>delegate</code> tool name without an alias.
 Old tool calls and prepared-operation grants therefore fail closed. The
 <code>delegate</code> spelling above remains the permission action, not a tool alias.</p>
+<p>Agent-to-agent messaging is separate from delegation. The removed
+<code>steer_subagent</code> tool is replaced by <code>send_message</code>, which uses the <code>message</code>
+action with relationship labels (<code>parent</code>, <code>child</code>, <code>sibling</code>, <code>*</code>) rather than
+agent types, so a <code>delegate</code> grant no longer authorizes steering. The tool is
+hidden until a <code>message</code> rule allows or asks; agents that previously steered
+children need an explicit rule such as <code>message: { "child": allow }</code>. The
+recipient argument is <code>to</code>; the earlier <code>recipient_session_id</code> spelling has no
+alias, and prepared-operation grants issued under the old argument identity
+fail closed. See the
+<a href="../../specs/agent-messaging/#migration-notes">messaging migration notes</a>.</p>
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>

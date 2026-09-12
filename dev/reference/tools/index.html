@@ -1631,6 +1631,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#agent-messaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent messaging
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1806,6 +1815,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#agent-messaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent messaging
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1859,12 +1877,17 @@ declaration.</p>
 <td>Delegate admission serializes durable child reservation and session creation internally.</td>
 </tr>
 <tr>
+<td><code>send_message</code></td>
+<td>Parallel</td>
+<td>Message acceptance serializes guard checks and the durable append inside the recipient actor.</td>
+</tr>
+<tr>
 <td>MCP tools</td>
 <td>Parallel</td>
 <td>Each MCP server's service mutex serializes calls to that server; different servers can overlap.</td>
 </tr>
 <tr>
-<td><code>skill</code>, <code>get_subagent_result</code>, <code>steer_subagent</code>, <code>cancel_subagent</code></td>
+<td><code>skill</code>, <code>get_subagent_result</code>, <code>cancel_subagent</code></td>
 <td>Exclusive</td>
 <td>These calls interact with session-scoped state.</td>
 </tr>
@@ -2171,14 +2194,98 @@ return the full state without display truncation. Their existing permission
 actions are <code>read</code> and <code>write</code>, respectively, both with resource <code>goal:current</code>.
 Ordinary permission matching, deny/ask rules, and the unmatched default still apply.</p>
 <h2 id="delegation-and-skills">Delegation and skills<a class="headerlink" href="#delegation-and-skills" title="Permanent link">&para;</a></h2>
-<p>Delegation tools start, inspect, steer, and cancel owned subagent sessions.
-Skill tools load configured skill instructions for the current turn. Their
+<p>Delegation tools start, inspect, and cancel owned subagent sessions. Skill
+tools load configured skill instructions for the current turn. Their
 availability and targets are derived from the frozen agent policy.</p>
 <p>When delegation is available, its provider also freezes the currently eligible
 target IDs and agent descriptions into the run's system prompt under
 <code>&lt;tool_instructions provider="builtin.delegate"&gt;</code>. The list uses the same depth
 ceiling and enabled-target filtering as <code>delegate_subagent</code>; no section is added
 when no target is available.</p>
+<h2 id="agent-messaging">Agent messaging<a class="headerlink" href="#agent-messaging" title="Permanent link">&para;</a></h2>
+<p><code>send_message</code> delivers a durable message to another session in the same
+delegation tree. It replaces the removed <code>steer_subagent</code> tool; see the
+<a href="../../specs/agent-messaging/#migration-notes">migration notes</a>. Its argument
+object is strict: <code>to</code> is the recipient session ID, <code>body</code> is the markdown
+message text, and optional <code>mode</code> is <code>steer</code> (default) or <code>queue</code>. The
+recipient argument is named <code>to</code>; the earlier <code>recipient_session_id</code> spelling
+is not an alias and fails with <code>send_message:invalid_arguments</code>.</p>
+<p>Calls use the <code>message</code> permission action. The resource label is the
+recipient's relationship to the sender — <code>parent</code>, <code>child</code>, <code>sibling</code>, or <code>*</code>
+for any other same-tree peer — derived from stored session-origin metadata.
+Messaging is deny-by-default and the tool is hidden until an agent document or
+session overlay declares a <code>message</code> <code>allow</code> or <code>ask</code> rule. Denied calls use
+the standard policy-denial path and <code>ask</code> rules use the normal approval flow;
+there is no messaging-specific permission error.</p>
+<p>A successful result means <strong>durably accepted</strong>: the message is persisted in
+the recipient's event log and survives a daemon restart. It does not mean the
+recipient has seen or consumed the message. The result carries <code>message_id</code>,
+the effective <code>mode</code>, and <code>recipient_state</code> (<code>running</code>, <code>queued</code>, or
+<code>waking_finished</code>). A <code>steer</code> send joins a running recipient's next safe
+model-request boundary; a <code>queue</code> send is claimed into the recipient's prompt
+at the next safe boundary. Idle and finished recipients are woken through the
+producer reconcile path, resuming the session with the message as input.
+There is no inbox tool.</p>
+<p>Failures are explicit tool errors with stable codes:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>send_message:disabled</code></td>
+<td><code>[runtime.messaging] enabled = false</code></td>
+</tr>
+<tr>
+<td><code>send_message:invalid_arguments</code></td>
+<td>Missing, unknown, or wrongly typed arguments, including the removed <code>recipient_session_id</code> spelling</td>
+</tr>
+<tr>
+<td><code>send_message:invalid_body</code></td>
+<td>Empty body or body over <code>max_body_bytes</code></td>
+</tr>
+<tr>
+<td><code>send_message:unknown_session</code></td>
+<td>Malformed or nonexistent recipient session ID</td>
+</tr>
+<tr>
+<td><code>send_message:not_tree_peer</code></td>
+<td>Recipient exists but belongs to a different delegation tree</td>
+</tr>
+<tr>
+<td><code>send_message:self_send</code></td>
+<td>Sender targeted its own session</td>
+</tr>
+<tr>
+<td><code>send_message:inbox_full</code></td>
+<td>Recipient has <code>max_pending_per_session</code> pending agent messages; nothing was admitted</td>
+</tr>
+<tr>
+<td><code>send_message:max_hops_exceeded</code></td>
+<td>The message chain exceeded <code>max_hops</code></td>
+</tr>
+<tr>
+<td><code>send_message:inflight_full</code></td>
+<td>The directed pair already has <code>max_inflight_per_pair</code> unacknowledged messages</td>
+</tr>
+<tr>
+<td><code>send_message:engine_shutdown</code></td>
+<td>The send raced daemon shutdown</td>
+</tr>
+</tbody>
+</table>
+<p>Retries are safe: the idempotency key derives from the sender session, run,
+and tool call, so a retried call returns the original <code>message_id</code> and
+delivers once. Two loop-safety guards reject sends, and each can be disabled:
+<code>max_hops &lt;= 0</code> turns off hop counting (hop metadata is internal and never
+appears in the delivered envelope), and <code>max_inflight_per_pair = 0</code> turns off
+the per-pair window. A pair message counts as unacknowledged while accepted,
+admitted, claimed, or released, and is acknowledged once consumed or
+discarded. See <a href="../../engine/messaging/">Agent Messaging</a> for the settings and
+the <a href="../../specs/agent-messaging/">agent messaging spec</a> for the full contract.</p>
 
 
 

@@ -1627,6 +1627,9 @@ feature is enabled. See <a href="../../specs/agent-messaging/">Agent Messaging</
 omitted table inherits; an authored table replaces the lower table and uses
 defaults for omitted fields. Unknown fields fail; see
 <a href="../../guide/configuration/">config.toml</a>.</p>
+<p>All delivery is producer-backed: running recipients receive mail at their next
+safe model-request boundary, and idle or finished recipients wake through the
+producer reconcile path rather than user-steering machinery.</p>
 <table>
 <thead>
 <tr>
@@ -1647,7 +1650,7 @@ defaults for omitted fields. Unknown fields fail; see
 <td><code>max_hops</code></td>
 <td>integer</td>
 <td><code>0</code></td>
-<td>Chain-length guard for message hops. Values <code>&lt;= 0</code> mean unlimited. Parsed but not enforced in Phase 1; hop counting and rejection rules arrive with the Phase 2 guard.</td>
+<td>Chain-length guard for message hops. Hop counting is internal producer metadata and never appears in the delivered envelope. A send that would exceed the limit fails with <code>send_message:max_hops_exceeded</code>. Values <code>&lt;= 0</code> disable the guard.</td>
 </tr>
 <tr>
 <td><code>max_body_bytes</code></td>
@@ -1665,14 +1668,15 @@ defaults for omitted fields. Unknown fields fail; see
 <td><code>max_inflight_per_pair</code></td>
 <td>integer</td>
 <td><code>4</code></td>
-<td>Per-directed-pair in-flight window to stop ping-pong storms. Parsed but not enforced in Phase 1.</td>
+<td>Per-directed-pair window of unacknowledged messages, to stop ping-pong storms. A pair message is unacknowledged while accepted, admitted, claimed, or released, and acknowledged once it is consumed or discarded. A full window fails the send with <code>send_message:inflight_full</code>. A value of <code>0</code> disables the guard.</td>
 </tr>
 </tbody>
 </table>
-<p><code>max_hops</code> and <code>max_inflight_per_pair</code> are intentionally parsed but unenforced
-in Phase 1 so operators can author final-shaped configuration today.
-<code>max_body_bytes</code> and <code>max_pending_per_session</code> boundaries are enforced at send
-time; no value here is validated at load time beyond its type.</p>
+<p><code>max_hops</code> and <code>max_inflight_per_pair</code> are enforced at send time and disabled
+by non-positive and zero values respectively, so operators can opt out of each
+guard independently. <code>max_body_bytes</code> and <code>max_pending_per_session</code> boundaries
+are enforced at send time; no value here is validated at load time beyond its
+type.</p>
 
 
 
