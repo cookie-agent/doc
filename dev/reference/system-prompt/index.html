@@ -1786,6 +1786,9 @@ agent but is not copied into prompt text.</p>
 <p>For a root or delegated run, the engine composes the model request in this order:</p>
 <ol>
 <li>The selected agent document body becomes <code>AgentSnapshot.composed_prompt</code>.</li>
+<li>The session working directory is appended as a single
+   <code>&lt;working_directory&gt;</code> block so the model knows where relative paths resolve.
+   The prompt and document fingerprints are updated.</li>
 <li>Trusted in-process tool providers may append bounded behavioral-policy
    sections. Sections retain provider provenance and update both prompt and
    document fingerprints.</li>
@@ -1807,8 +1810,9 @@ for the first attempt and refreshes session events only when a later attempt
 needs current history.</p>
 <h2 id="fingerprints">Fingerprints<a class="headerlink" href="#fingerprints" title="Permanent link">&para;</a></h2>
 <p>The document fingerprint covers the agent identity, strict frontmatter, and
-body. The prompt fingerprint covers prompt text only. Tool-provider sections,
-skill listings, and plugin composition update the effective fingerprints before
+body. The prompt fingerprint covers prompt text only. The working-directory
+block, tool-provider sections, skill listings, and plugin composition update the
+effective fingerprints before
 <code>run_started</code> is persisted. Model-attempt events record the prompt fingerprint,
 and replay validation rejects attempt attribution that contradicts the frozen
 run snapshot.</p>
@@ -1884,12 +1888,12 @@ cached prefix rather than using an isolated cache namespace. See the
 <tbody>
 <tr>
 <td>Root</td>
-<td>Selected authored agent body, or the concise built-in default coding prompt; optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Selected authored agent body, or the concise built-in default coding prompt; working-directory block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>Root-only AGENTS.md context turn, loaded skill bodies, then session history</td>
 </tr>
 <tr>
 <td>Delegated</td>
-<td>Frozen delegated agent body; optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Frozen delegated agent body; working-directory block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>No filesystem AGENTS.md context load. Explicit inherited user/assistant text and ordinary child history remain separate turns.</td>
 </tr>
 <tr>
@@ -1908,10 +1912,13 @@ the built-in backend while retaining the same isolated invocation contract.</p>
 server instructions, filesystem inventories, or generic operational boilerplate.
 Tools and MCP capabilities are represented by typed request definitions and
 permission policy. Runtime state belongs in events or request fields. The narrow
-exception is the bounded set of authored behavioral-policy sections from trusted
-local providers: reviewed local code supplies them, fingerprints cover them, and
-the admitted run freezes them. Changing, externally controlled, or redundant
-information remains in typed fields or explicit context turns.</p>
+exceptions are the frozen session working directory, which is needed to resolve
+relative paths, and the bounded set of authored behavioral-policy sections from
+trusted local providers: reviewed local code supplies them, fingerprints cover
+them, and the admitted run freezes them. Working-directory text is XML-escaped
+and skipped rather than truncated if the composed prompt is already at the byte
+limit. Changing, externally controlled, or redundant information remains in
+typed fields or explicit context turns.</p>
 <p>See <a href="../../guide/agents/">Agents</a>, <a href="../events/">Events</a>, and
 <a href="../../guide/configuration/">Configuration</a>.</p>
 
