@@ -20,8 +20,8 @@
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">impl </span>Engine {
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reconcile_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session_id: SessionId) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
 <a href=#22 id=22 data-nosnippet>22</a>        <span class="self">self</span>.release_recovered_producer_claims(session_id)<span class="question-mark">?</span>;
-<a href=#23 id=23 data-nosnippet>23</a>        <span class="self">self</span>.reconcile_consumed_producers(session_id, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
-<a href=#24 id=24 data-nosnippet>24</a>        <span class="self">self</span>.repair_goal_completion(session_id, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+<a href=#23 id=23 data-nosnippet>23</a>        <span class="self">self</span>.reconcile_consumed_producers(session_id, <span class="bool-val">true</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+<a href=#24 id=24 data-nosnippet>24</a>        <span class="self">self</span>.repair_goal_completion(session_id, <span class="bool-val">true</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 <a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">let </span>session = <span class="self">self</span>.inner.store.get(session_id)<span class="question-mark">?</span>;
 <a href=#26 id=26 data-nosnippet>26</a>        <span class="kw">let </span>events = session.log.event_snapshot();
 <a href=#27 id=27 data-nosnippet>27</a>        <span class="kw">let </span>interrupted_runs = session
@@ -496,41 +496,45 @@
 <a href=#496 id=496 data-nosnippet>496</a>        <span class="prelude-val">Ok</span>(())
 <a href=#497 id=497 data-nosnippet>497</a>    }
 <a href=#498 id=498 data-nosnippet>498</a>
-<a href=#499 id=499 data-nosnippet>499</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>rebuild_approvals(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">for </span>session <span class="kw">in </span><span class="self">self</span>.inner.store.all_snapshots() {
-<a href=#501 id=501 data-nosnippet>501</a>            <span class="kw">for </span>envelope <span class="kw">in </span>session.log.event_snapshot().iter() {
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="kw">if let </span>Event::TreeApprovalGrantCommitted { grant } = <span class="kw-2">&amp;</span>envelope.payload
-<a href=#503 id=503 data-nosnippet>503</a>                    &amp;&amp; !grant.resources.is_empty()
-<a href=#504 id=504 data-nosnippet>504</a>                    &amp;&amp; grant.resources.iter().all(|resource| {
-<a href=#505 id=505 data-nosnippet>505</a>                        resource.binding_lifetime
-<a href=#506 id=506 data-nosnippet>506</a>                            == cookie_agent_protocol::PreparedBindingLifetime::RestartStable
-<a href=#507 id=507 data-nosnippet>507</a>                    })
-<a href=#508 id=508 data-nosnippet>508</a>                {
-<a href=#509 id=509 data-nosnippet>509</a>                    <span class="self">self</span>.inner.approvals.grant(grant.clone());
-<a href=#510 id=510 data-nosnippet>510</a>                }
-<a href=#511 id=511 data-nosnippet>511</a>            }
-<a href=#512 id=512 data-nosnippet>512</a>        }
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="self">self</span>.inner
-<a href=#514 id=514 data-nosnippet>514</a>            .approvals
-<a href=#515 id=515 data-nosnippet>515</a>            .invalidate_grants(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.grant_journal.invalidated_ids());
-<a href=#516 id=516 data-nosnippet>516</a>    }
-<a href=#517 id=517 data-nosnippet>517</a>}
-<a href=#518 id=518 data-nosnippet>518</a>
-<a href=#519 id=519 data-nosnippet>519</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>restart_approval_decision() -&gt; ApprovalFinalDecision {
-<a href=#520 id=520 data-nosnippet>520</a>    ApprovalFinalDecision {
-<a href=#521 id=521 data-nosnippet>521</a>        outcome: ApprovalFinalOutcome::Cancelled,
-<a href=#522 id=522 data-nosnippet>522</a>        source: ApprovalDecisionSource::System,
-<a href=#523 id=523 data-nosnippet>523</a>        reason_code: ApprovalReasonCode::PreparedCapabilityLost,
-<a href=#524 id=524 data-nosnippet>524</a>        feedback: <span class="prelude-val">None</span>,
-<a href=#525 id=525 data-nosnippet>525</a>        tree_grant_id: <span class="prelude-val">None</span>,
-<a href=#526 id=526 data-nosnippet>526</a>    }
-<a href=#527 id=527 data-nosnippet>527</a>}
-<a href=#528 id=528 data-nosnippet>528</a>
-<a href=#529 id=529 data-nosnippet>529</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>restart_tool_failure() -&gt; ToolFailure {
-<a href=#530 id=530 data-nosnippet>530</a>    ToolFailure {
-<a href=#531 id=531 data-nosnippet>531</a>        partial_output: <span class="prelude-val">None</span>,
-<a href=#532 id=532 data-nosnippet>532</a>        code: ToolCallFailureCode::PreparedCapabilityLost,
-<a href=#533 id=533 data-nosnippet>533</a>        message: <span class="string">"prepared capability lost during daemon restart"</span>.into(),
-<a href=#534 id=534 data-nosnippet>534</a>    }
-<a href=#535 id=535 data-nosnippet>535</a>}
+<a href=#499 id=499 data-nosnippet>499</a>    <span class="doccomment">/// Re-installs restart-stable tree grants. Startup scans root logs only; a
+<a href=#500 id=500 data-nosnippet>500</a>    /// grant committed in a child log arrives with its tree load (§4.3), and a
+<a href=#501 id=501 data-nosnippet>501</a>    /// tree loaded earlier in this process contributes its cached grant set.
+<a href=#502 id=502 data-nosnippet>502</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>rebuild_approvals(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#503 id=503 data-nosnippet>503</a>        <span class="kw">for </span>session <span class="kw">in </span><span class="self">self</span>.inner.store.root_snapshots() {
+<a href=#504 id=504 data-nosnippet>504</a>            <span class="kw">for </span>envelope <span class="kw">in </span>session.log.event_snapshot().iter() {
+<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">if let </span>Event::TreeApprovalGrantCommitted { grant } = <span class="kw-2">&amp;</span>envelope.payload
+<a href=#506 id=506 data-nosnippet>506</a>                    &amp;&amp; <span class="kw">crate</span>::session::restart_stable_grant(grant)
+<a href=#507 id=507 data-nosnippet>507</a>                {
+<a href=#508 id=508 data-nosnippet>508</a>                    <span class="self">self</span>.inner.approvals.grant(grant.clone());
+<a href=#509 id=509 data-nosnippet>509</a>                }
+<a href=#510 id=510 data-nosnippet>510</a>            }
+<a href=#511 id=511 data-nosnippet>511</a>        }
+<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">for </span>grant <span class="kw">in </span><span class="self">self</span>.inner.store.loaded_tree_grants() {
+<a href=#513 id=513 data-nosnippet>513</a>            <span class="kw">if </span><span class="kw">crate</span>::session::restart_stable_grant(<span class="kw-2">&amp;</span>grant) {
+<a href=#514 id=514 data-nosnippet>514</a>                <span class="self">self</span>.inner.approvals.grant(grant);
+<a href=#515 id=515 data-nosnippet>515</a>            }
+<a href=#516 id=516 data-nosnippet>516</a>        }
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="self">self</span>.inner
+<a href=#518 id=518 data-nosnippet>518</a>            .approvals
+<a href=#519 id=519 data-nosnippet>519</a>            .invalidate_grants(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.grant_journal.invalidated_ids());
+<a href=#520 id=520 data-nosnippet>520</a>    }
+<a href=#521 id=521 data-nosnippet>521</a>}
+<a href=#522 id=522 data-nosnippet>522</a>
+<a href=#523 id=523 data-nosnippet>523</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>restart_approval_decision() -&gt; ApprovalFinalDecision {
+<a href=#524 id=524 data-nosnippet>524</a>    ApprovalFinalDecision {
+<a href=#525 id=525 data-nosnippet>525</a>        outcome: ApprovalFinalOutcome::Cancelled,
+<a href=#526 id=526 data-nosnippet>526</a>        source: ApprovalDecisionSource::System,
+<a href=#527 id=527 data-nosnippet>527</a>        reason_code: ApprovalReasonCode::PreparedCapabilityLost,
+<a href=#528 id=528 data-nosnippet>528</a>        feedback: <span class="prelude-val">None</span>,
+<a href=#529 id=529 data-nosnippet>529</a>        tree_grant_id: <span class="prelude-val">None</span>,
+<a href=#530 id=530 data-nosnippet>530</a>    }
+<a href=#531 id=531 data-nosnippet>531</a>}
+<a href=#532 id=532 data-nosnippet>532</a>
+<a href=#533 id=533 data-nosnippet>533</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>restart_tool_failure() -&gt; ToolFailure {
+<a href=#534 id=534 data-nosnippet>534</a>    ToolFailure {
+<a href=#535 id=535 data-nosnippet>535</a>        partial_output: <span class="prelude-val">None</span>,
+<a href=#536 id=536 data-nosnippet>536</a>        code: ToolCallFailureCode::PreparedCapabilityLost,
+<a href=#537 id=537 data-nosnippet>537</a>        message: <span class="string">"prepared capability lost during daemon restart"</span>.into(),
+<a href=#538 id=538 data-nosnippet>538</a>    }
+<a href=#539 id=539 data-nosnippet>539</a>}
 </code></pre></div></section></main></body></html>
