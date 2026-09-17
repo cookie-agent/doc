@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>    ToolCallId,
 <a href=#8 id=8 data-nosnippet>8</a>};
 <a href=#9 id=9 data-nosnippet>9</a>
-<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use super</span>::{ActiveRun, Engine, EngineError};
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use super</span>::{ActiveRun, Engine, EngineError, prompt_blocks::push_prompt_block};
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use crate</span>::{ToolCall, TurnAgentContext};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use crate</span>::{permissions, policy::FrozenRunPolicy};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub const </span>RESERVED_STAGED_SKILL_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">"\0cookie-staged-skill:"</span>;
@@ -636,155 +636,153 @@
 <a href=#636 id=636 data-nosnippet>636</a>            .unwrap_or(<span class="number">8_192</span>);
 <a href=#637 id=637 data-nosnippet>637</a>        <span class="kw">let </span>listing = cookie_agent_config::render_available_skills(visible, context_tokens)
 <a href=#638 id=638 data-nosnippet>638</a>            .map_err(|error| EngineError::Config(Box::new(error)))<span class="question-mark">?</span>;
-<a href=#639 id=639 data-nosnippet>639</a>        policy.agent.composed_prompt.push(<span class="string">'\n'</span>);
-<a href=#640 id=640 data-nosnippet>640</a>        policy.agent.composed_prompt.push_str(<span class="kw-2">&amp;</span>listing);
-<a href=#641 id=641 data-nosnippet>641</a>        policy.agent.composed_prompt.push(<span class="string">'\n'</span>);
-<a href=#642 id=642 data-nosnippet>642</a>        policy.agent.prompt_fingerprint =
-<a href=#643 id=643 data-nosnippet>643</a>            Sha256Digest::of_bytes(policy.agent.composed_prompt.as_bytes());
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span><span class="kw-2">mut </span>document_fingerprint = policy
-<a href=#645 id=645 data-nosnippet>645</a>            .agent
-<a href=#646 id=646 data-nosnippet>646</a>            .document_fingerprint
-<a href=#647 id=647 data-nosnippet>647</a>            .as_str()
-<a href=#648 id=648 data-nosnippet>648</a>            .as_bytes()
-<a href=#649 id=649 data-nosnippet>649</a>            .to_vec();
-<a href=#650 id=650 data-nosnippet>650</a>        document_fingerprint.extend_from_slice(listing.as_bytes());
-<a href=#651 id=651 data-nosnippet>651</a>        policy.agent.document_fingerprint = Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>document_fingerprint);
-<a href=#652 id=652 data-nosnippet>652</a>        <span class="prelude-val">Ok</span>(())
-<a href=#653 id=653 data-nosnippet>653</a>    }
-<a href=#654 id=654 data-nosnippet>654</a>}
-<a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a><span class="kw">fn </span>skill_descriptor(
-<a href=#657 id=657 data-nosnippet>657</a>    skill: <span class="kw-2">&amp;</span>SkillDocument,
-<a href=#658 id=658 data-nosnippet>658</a>    precedence_winner: bool,
-<a href=#659 id=659 data-nosnippet>659</a>    permission_effect: PermissionEffect,
-<a href=#660 id=660 data-nosnippet>660</a>    visible: bool,
-<a href=#661 id=661 data-nosnippet>661</a>) -&gt; SkillDescriptor {
-<a href=#662 id=662 data-nosnippet>662</a>    SkillDescriptor {
-<a href=#663 id=663 data-nosnippet>663</a>        name: skill.frontmatter.name.clone(),
-<a href=#664 id=664 data-nosnippet>664</a>        description: skill.frontmatter.description.clone(),
-<a href=#665 id=665 data-nosnippet>665</a>        when_to_use: skill.frontmatter.when_to_use.clone(),
-<a href=#666 id=666 data-nosnippet>666</a>        location: skill.path.to_string_lossy().into_owned(),
-<a href=#667 id=667 data-nosnippet>667</a>        source: skill.source,
-<a href=#668 id=668 data-nosnippet>668</a>        precedence_winner,
-<a href=#669 id=669 data-nosnippet>669</a>        permission_effect,
-<a href=#670 id=670 data-nosnippet>670</a>        visible,
-<a href=#671 id=671 data-nosnippet>671</a>        user_invocable: skill.frontmatter.user_invocable,
-<a href=#672 id=672 data-nosnippet>672</a>        argument_hint: skill.frontmatter.argument_hint.clone(),
-<a href=#673 id=673 data-nosnippet>673</a>    }
-<a href=#674 id=674 data-nosnippet>674</a>}
-<a href=#675 id=675 data-nosnippet>675</a>
-<a href=#676 id=676 data-nosnippet>676</a><span class="kw">fn </span>model_skill_visibility(
-<a href=#677 id=677 data-nosnippet>677</a>    policy: <span class="kw-2">&amp;</span>cookie_agent_protocol::AgentSnapshot,
-<a href=#678 id=678 data-nosnippet>678</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
-<a href=#679 id=679 data-nosnippet>679</a>    grants: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>SessionPermissionOverlay&gt;,
-<a href=#680 id=680 data-nosnippet>680</a>    workspace: <span class="kw-2">&amp;</span>Path,
-<a href=#681 id=681 data-nosnippet>681</a>    name: <span class="kw-2">&amp;</span>str,
-<a href=#682 id=682 data-nosnippet>682</a>    skill: <span class="kw-2">&amp;</span>SkillDocument,
-<a href=#683 id=683 data-nosnippet>683</a>) -&gt; (PermissionEffect, bool) {
-<a href=#684 id=684 data-nosnippet>684</a>    <span class="kw">let </span>effect = permissions::effective_permission_with_overlay(
-<a href=#685 id=685 data-nosnippet>685</a>        policy,
-<a href=#686 id=686 data-nosnippet>686</a>        <span class="prelude-val">Some</span>(overlay),
-<a href=#687 id=687 data-nosnippet>687</a>        PermissionAction::Skill,
-<a href=#688 id=688 data-nosnippet>688</a>        name,
-<a href=#689 id=689 data-nosnippet>689</a>        workspace,
-<a href=#690 id=690 data-nosnippet>690</a>    )
-<a href=#691 id=691 data-nosnippet>691</a>    .<span class="number">0</span>;
-<a href=#692 id=692 data-nosnippet>692</a>    <span class="kw">let </span>action_visible = permissions::PermissionPipeline::tool_visible_with_grants(
-<a href=#693 id=693 data-nosnippet>693</a>        policy,
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="prelude-val">Some</span>(overlay),
-<a href=#695 id=695 data-nosnippet>695</a>        grants,
-<a href=#696 id=696 data-nosnippet>696</a>        <span class="string">"skill"</span>,
-<a href=#697 id=697 data-nosnippet>697</a>        workspace,
-<a href=#698 id=698 data-nosnippet>698</a>    );
-<a href=#699 id=699 data-nosnippet>699</a>    (
-<a href=#700 id=700 data-nosnippet>700</a>        effect,
-<a href=#701 id=701 data-nosnippet>701</a>        action_visible
-<a href=#702 id=702 data-nosnippet>702</a>            &amp;&amp; effect != PermissionEffect::Deny
-<a href=#703 id=703 data-nosnippet>703</a>            &amp;&amp; !skill.frontmatter.disable_model_invocation,
-<a href=#704 id=704 data-nosnippet>704</a>    )
-<a href=#705 id=705 data-nosnippet>705</a>}
-<a href=#706 id=706 data-nosnippet>706</a>
-<a href=#707 id=707 data-nosnippet>707</a><span class="kw">fn </span>prepared_skill_invocation(skill: <span class="kw-2">&amp;</span>SkillDocument, args: <span class="kw-2">&amp;</span>str) -&gt; PreparedSkillInvocation {
-<a href=#708 id=708 data-nosnippet>708</a>    PreparedSkillInvocation {
-<a href=#709 id=709 data-nosnippet>709</a>        name: skill.frontmatter.name.clone(),
-<a href=#710 id=710 data-nosnippet>710</a>        args: args.to_owned(),
-<a href=#711 id=711 data-nosnippet>711</a>        rendered: render_skill(skill, args),
-<a href=#712 id=712 data-nosnippet>712</a>        source_path: skill.path.to_string_lossy().into_owned(),
-<a href=#713 id=713 data-nosnippet>713</a>        base_dir: skill.base_dir.to_string_lossy().into_owned(),
-<a href=#714 id=714 data-nosnippet>714</a>        supporting_files: skill
-<a href=#715 id=715 data-nosnippet>715</a>            .supporting_files
-<a href=#716 id=716 data-nosnippet>716</a>            .iter()
-<a href=#717 id=717 data-nosnippet>717</a>            .map(|path| path.to_string_lossy().into_owned())
-<a href=#718 id=718 data-nosnippet>718</a>            .collect(),
-<a href=#719 id=719 data-nosnippet>719</a>        grants: skill
-<a href=#720 id=720 data-nosnippet>720</a>            .frontmatter
-<a href=#721 id=721 data-nosnippet>721</a>            .allowed_tools
-<a href=#722 id=722 data-nosnippet>722</a>            .iter()
-<a href=#723 id=723 data-nosnippet>723</a>            .map(|grant| PermissionRule {
-<a href=#724 id=724 data-nosnippet>724</a>                action: grant.action,
-<a href=#725 id=725 data-nosnippet>725</a>                resource: grant.pattern.clone(),
-<a href=#726 id=726 data-nosnippet>726</a>                effect: PermissionEffect::Allow,
-<a href=#727 id=727 data-nosnippet>727</a>            })
-<a href=#728 id=728 data-nosnippet>728</a>            .collect(),
-<a href=#729 id=729 data-nosnippet>729</a>        model: skill.frontmatter.model.clone(),
-<a href=#730 id=730 data-nosnippet>730</a>        context: skill.frontmatter.context,
-<a href=#731 id=731 data-nosnippet>731</a>    }
-<a href=#732 id=732 data-nosnippet>732</a>}
-<a href=#733 id=733 data-nosnippet>733</a>
-<a href=#734 id=734 data-nosnippet>734</a><span class="kw">fn </span>prepared_skill_from_payload(
-<a href=#735 id=735 data-nosnippet>735</a>    payload: <span class="kw-2">&amp;</span>cookie_agent_protocol::StagedSkillPayload,
-<a href=#736 id=736 data-nosnippet>736</a>) -&gt; PreparedSkillInvocation {
-<a href=#737 id=737 data-nosnippet>737</a>    PreparedSkillInvocation {
-<a href=#738 id=738 data-nosnippet>738</a>        name: payload.name.clone(),
-<a href=#739 id=739 data-nosnippet>739</a>        args: payload.args.clone(),
-<a href=#740 id=740 data-nosnippet>740</a>        rendered: payload.rendered_body.clone(),
-<a href=#741 id=741 data-nosnippet>741</a>        source_path: payload.source_path.clone(),
-<a href=#742 id=742 data-nosnippet>742</a>        base_dir: payload.base_dir.clone(),
-<a href=#743 id=743 data-nosnippet>743</a>        supporting_files: payload.supporting_files.clone(),
-<a href=#744 id=744 data-nosnippet>744</a>        grants: payload.grants.clone(),
-<a href=#745 id=745 data-nosnippet>745</a>        model: payload.model.clone(),
-<a href=#746 id=746 data-nosnippet>746</a>        context: <span class="prelude-val">Some</span>(SkillContext::Fork),
-<a href=#747 id=747 data-nosnippet>747</a>    }
-<a href=#748 id=748 data-nosnippet>748</a>}
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a><span class="kw">fn </span>render_skill(skill: <span class="kw-2">&amp;</span>SkillDocument, args: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">let </span>positional = args.split_whitespace().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#752 id=752 data-nosnippet>752</a>    <span class="kw">let </span><span class="kw-2">mut </span>variables = BTreeMap::new();
-<a href=#753 id=753 data-nosnippet>753</a>    variables.insert(<span class="string">"ARGUMENTS"</span>.to_owned(), args.to_owned());
-<a href=#754 id=754 data-nosnippet>754</a>    variables.insert(
-<a href=#755 id=755 data-nosnippet>755</a>        <span class="string">"{COOKIE_SKILL_DIR}"</span>.to_owned(),
-<a href=#756 id=756 data-nosnippet>756</a>        skill.base_dir.to_string_lossy().into_owned(),
-<a href=#757 id=757 data-nosnippet>757</a>    );
-<a href=#758 id=758 data-nosnippet>758</a>    <span class="kw">for </span>(index, value) <span class="kw">in </span>positional.into_iter().enumerate() {
-<a href=#759 id=759 data-nosnippet>759</a>        variables.insert((index + <span class="number">1</span>).to_string(), value.to_owned());
-<a href=#760 id=760 data-nosnippet>760</a>    }
-<a href=#761 id=761 data-nosnippet>761</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
-<a href=#762 id=762 data-nosnippet>762</a>    <span class="kw">let </span>bytes = skill.body.as_bytes();
-<a href=#763 id=763 data-nosnippet>763</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
-<a href=#764 id=764 data-nosnippet>764</a>    <span class="kw">while </span>index &lt; bytes.len() {
-<a href=#765 id=765 data-nosnippet>765</a>        <span class="kw">if </span>bytes[index] == <span class="string">b'$' </span>{
-<a href=#766 id=766 data-nosnippet>766</a>            <span class="kw">let </span>rest = <span class="kw-2">&amp;</span>skill.body[index + <span class="number">1</span>..];
-<a href=#767 id=767 data-nosnippet>767</a>            <span class="kw">let </span>key = <span class="kw">if </span>rest.starts_with(<span class="string">"{COOKIE_SKILL_DIR}"</span>) {
-<a href=#768 id=768 data-nosnippet>768</a>                <span class="prelude-val">Some</span>(<span class="string">"{COOKIE_SKILL_DIR}"</span>)
-<a href=#769 id=769 data-nosnippet>769</a>            } <span class="kw">else if </span>rest.starts_with(<span class="string">"ARGUMENTS"</span>) {
-<a href=#770 id=770 data-nosnippet>770</a>                <span class="prelude-val">Some</span>(<span class="string">"ARGUMENTS"</span>)
-<a href=#771 id=771 data-nosnippet>771</a>            } <span class="kw">else </span>{
-<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">let </span>digits = rest.bytes().take_while(u8::is_ascii_digit).count();
-<a href=#773 id=773 data-nosnippet>773</a>                (digits &gt; <span class="number">0</span>).then_some(<span class="kw-2">&amp;</span>rest[..digits])
-<a href=#774 id=774 data-nosnippet>774</a>            };
-<a href=#775 id=775 data-nosnippet>775</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(key) = key {
-<a href=#776 id=776 data-nosnippet>776</a>                output.push_str(variables.get(key).map_or(<span class="string">""</span>, String::as_str));
-<a href=#777 id=777 data-nosnippet>777</a>                index += <span class="number">1 </span>+ key.len();
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="kw">continue</span>;
-<a href=#779 id=779 data-nosnippet>779</a>            }
-<a href=#780 id=780 data-nosnippet>780</a>        }
-<a href=#781 id=781 data-nosnippet>781</a>        <span class="kw">let </span>character = skill.body[index..]
-<a href=#782 id=782 data-nosnippet>782</a>            .chars()
-<a href=#783 id=783 data-nosnippet>783</a>            .next()
-<a href=#784 id=784 data-nosnippet>784</a>            .expect(<span class="string">"character boundary"</span>);
-<a href=#785 id=785 data-nosnippet>785</a>        output.push(character);
-<a href=#786 id=786 data-nosnippet>786</a>        index += character.len_utf8();
-<a href=#787 id=787 data-nosnippet>787</a>    }
-<a href=#788 id=788 data-nosnippet>788</a>    output
-<a href=#789 id=789 data-nosnippet>789</a>}
+<a href=#639 id=639 data-nosnippet>639</a>        push_prompt_block(<span class="kw-2">&amp;mut </span>policy.agent.composed_prompt, <span class="kw-2">&amp;</span>listing);
+<a href=#640 id=640 data-nosnippet>640</a>        policy.agent.prompt_fingerprint =
+<a href=#641 id=641 data-nosnippet>641</a>            Sha256Digest::of_bytes(policy.agent.composed_prompt.as_bytes());
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span><span class="kw-2">mut </span>document_fingerprint = policy
+<a href=#643 id=643 data-nosnippet>643</a>            .agent
+<a href=#644 id=644 data-nosnippet>644</a>            .document_fingerprint
+<a href=#645 id=645 data-nosnippet>645</a>            .as_str()
+<a href=#646 id=646 data-nosnippet>646</a>            .as_bytes()
+<a href=#647 id=647 data-nosnippet>647</a>            .to_vec();
+<a href=#648 id=648 data-nosnippet>648</a>        document_fingerprint.extend_from_slice(listing.as_bytes());
+<a href=#649 id=649 data-nosnippet>649</a>        policy.agent.document_fingerprint = Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>document_fingerprint);
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="prelude-val">Ok</span>(())
+<a href=#651 id=651 data-nosnippet>651</a>    }
+<a href=#652 id=652 data-nosnippet>652</a>}
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a><span class="kw">fn </span>skill_descriptor(
+<a href=#655 id=655 data-nosnippet>655</a>    skill: <span class="kw-2">&amp;</span>SkillDocument,
+<a href=#656 id=656 data-nosnippet>656</a>    precedence_winner: bool,
+<a href=#657 id=657 data-nosnippet>657</a>    permission_effect: PermissionEffect,
+<a href=#658 id=658 data-nosnippet>658</a>    visible: bool,
+<a href=#659 id=659 data-nosnippet>659</a>) -&gt; SkillDescriptor {
+<a href=#660 id=660 data-nosnippet>660</a>    SkillDescriptor {
+<a href=#661 id=661 data-nosnippet>661</a>        name: skill.frontmatter.name.clone(),
+<a href=#662 id=662 data-nosnippet>662</a>        description: skill.frontmatter.description.clone(),
+<a href=#663 id=663 data-nosnippet>663</a>        when_to_use: skill.frontmatter.when_to_use.clone(),
+<a href=#664 id=664 data-nosnippet>664</a>        location: skill.path.to_string_lossy().into_owned(),
+<a href=#665 id=665 data-nosnippet>665</a>        source: skill.source,
+<a href=#666 id=666 data-nosnippet>666</a>        precedence_winner,
+<a href=#667 id=667 data-nosnippet>667</a>        permission_effect,
+<a href=#668 id=668 data-nosnippet>668</a>        visible,
+<a href=#669 id=669 data-nosnippet>669</a>        user_invocable: skill.frontmatter.user_invocable,
+<a href=#670 id=670 data-nosnippet>670</a>        argument_hint: skill.frontmatter.argument_hint.clone(),
+<a href=#671 id=671 data-nosnippet>671</a>    }
+<a href=#672 id=672 data-nosnippet>672</a>}
+<a href=#673 id=673 data-nosnippet>673</a>
+<a href=#674 id=674 data-nosnippet>674</a><span class="kw">fn </span>model_skill_visibility(
+<a href=#675 id=675 data-nosnippet>675</a>    policy: <span class="kw-2">&amp;</span>cookie_agent_protocol::AgentSnapshot,
+<a href=#676 id=676 data-nosnippet>676</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
+<a href=#677 id=677 data-nosnippet>677</a>    grants: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>SessionPermissionOverlay&gt;,
+<a href=#678 id=678 data-nosnippet>678</a>    workspace: <span class="kw-2">&amp;</span>Path,
+<a href=#679 id=679 data-nosnippet>679</a>    name: <span class="kw-2">&amp;</span>str,
+<a href=#680 id=680 data-nosnippet>680</a>    skill: <span class="kw-2">&amp;</span>SkillDocument,
+<a href=#681 id=681 data-nosnippet>681</a>) -&gt; (PermissionEffect, bool) {
+<a href=#682 id=682 data-nosnippet>682</a>    <span class="kw">let </span>effect = permissions::effective_permission_with_overlay(
+<a href=#683 id=683 data-nosnippet>683</a>        policy,
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="prelude-val">Some</span>(overlay),
+<a href=#685 id=685 data-nosnippet>685</a>        PermissionAction::Skill,
+<a href=#686 id=686 data-nosnippet>686</a>        name,
+<a href=#687 id=687 data-nosnippet>687</a>        workspace,
+<a href=#688 id=688 data-nosnippet>688</a>    )
+<a href=#689 id=689 data-nosnippet>689</a>    .<span class="number">0</span>;
+<a href=#690 id=690 data-nosnippet>690</a>    <span class="kw">let </span>action_visible = permissions::PermissionPipeline::tool_visible_with_grants(
+<a href=#691 id=691 data-nosnippet>691</a>        policy,
+<a href=#692 id=692 data-nosnippet>692</a>        <span class="prelude-val">Some</span>(overlay),
+<a href=#693 id=693 data-nosnippet>693</a>        grants,
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="string">"skill"</span>,
+<a href=#695 id=695 data-nosnippet>695</a>        workspace,
+<a href=#696 id=696 data-nosnippet>696</a>    );
+<a href=#697 id=697 data-nosnippet>697</a>    (
+<a href=#698 id=698 data-nosnippet>698</a>        effect,
+<a href=#699 id=699 data-nosnippet>699</a>        action_visible
+<a href=#700 id=700 data-nosnippet>700</a>            &amp;&amp; effect != PermissionEffect::Deny
+<a href=#701 id=701 data-nosnippet>701</a>            &amp;&amp; !skill.frontmatter.disable_model_invocation,
+<a href=#702 id=702 data-nosnippet>702</a>    )
+<a href=#703 id=703 data-nosnippet>703</a>}
+<a href=#704 id=704 data-nosnippet>704</a>
+<a href=#705 id=705 data-nosnippet>705</a><span class="kw">fn </span>prepared_skill_invocation(skill: <span class="kw-2">&amp;</span>SkillDocument, args: <span class="kw-2">&amp;</span>str) -&gt; PreparedSkillInvocation {
+<a href=#706 id=706 data-nosnippet>706</a>    PreparedSkillInvocation {
+<a href=#707 id=707 data-nosnippet>707</a>        name: skill.frontmatter.name.clone(),
+<a href=#708 id=708 data-nosnippet>708</a>        args: args.to_owned(),
+<a href=#709 id=709 data-nosnippet>709</a>        rendered: render_skill(skill, args),
+<a href=#710 id=710 data-nosnippet>710</a>        source_path: skill.path.to_string_lossy().into_owned(),
+<a href=#711 id=711 data-nosnippet>711</a>        base_dir: skill.base_dir.to_string_lossy().into_owned(),
+<a href=#712 id=712 data-nosnippet>712</a>        supporting_files: skill
+<a href=#713 id=713 data-nosnippet>713</a>            .supporting_files
+<a href=#714 id=714 data-nosnippet>714</a>            .iter()
+<a href=#715 id=715 data-nosnippet>715</a>            .map(|path| path.to_string_lossy().into_owned())
+<a href=#716 id=716 data-nosnippet>716</a>            .collect(),
+<a href=#717 id=717 data-nosnippet>717</a>        grants: skill
+<a href=#718 id=718 data-nosnippet>718</a>            .frontmatter
+<a href=#719 id=719 data-nosnippet>719</a>            .allowed_tools
+<a href=#720 id=720 data-nosnippet>720</a>            .iter()
+<a href=#721 id=721 data-nosnippet>721</a>            .map(|grant| PermissionRule {
+<a href=#722 id=722 data-nosnippet>722</a>                action: grant.action,
+<a href=#723 id=723 data-nosnippet>723</a>                resource: grant.pattern.clone(),
+<a href=#724 id=724 data-nosnippet>724</a>                effect: PermissionEffect::Allow,
+<a href=#725 id=725 data-nosnippet>725</a>            })
+<a href=#726 id=726 data-nosnippet>726</a>            .collect(),
+<a href=#727 id=727 data-nosnippet>727</a>        model: skill.frontmatter.model.clone(),
+<a href=#728 id=728 data-nosnippet>728</a>        context: skill.frontmatter.context,
+<a href=#729 id=729 data-nosnippet>729</a>    }
+<a href=#730 id=730 data-nosnippet>730</a>}
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a><span class="kw">fn </span>prepared_skill_from_payload(
+<a href=#733 id=733 data-nosnippet>733</a>    payload: <span class="kw-2">&amp;</span>cookie_agent_protocol::StagedSkillPayload,
+<a href=#734 id=734 data-nosnippet>734</a>) -&gt; PreparedSkillInvocation {
+<a href=#735 id=735 data-nosnippet>735</a>    PreparedSkillInvocation {
+<a href=#736 id=736 data-nosnippet>736</a>        name: payload.name.clone(),
+<a href=#737 id=737 data-nosnippet>737</a>        args: payload.args.clone(),
+<a href=#738 id=738 data-nosnippet>738</a>        rendered: payload.rendered_body.clone(),
+<a href=#739 id=739 data-nosnippet>739</a>        source_path: payload.source_path.clone(),
+<a href=#740 id=740 data-nosnippet>740</a>        base_dir: payload.base_dir.clone(),
+<a href=#741 id=741 data-nosnippet>741</a>        supporting_files: payload.supporting_files.clone(),
+<a href=#742 id=742 data-nosnippet>742</a>        grants: payload.grants.clone(),
+<a href=#743 id=743 data-nosnippet>743</a>        model: payload.model.clone(),
+<a href=#744 id=744 data-nosnippet>744</a>        context: <span class="prelude-val">Some</span>(SkillContext::Fork),
+<a href=#745 id=745 data-nosnippet>745</a>    }
+<a href=#746 id=746 data-nosnippet>746</a>}
+<a href=#747 id=747 data-nosnippet>747</a>
+<a href=#748 id=748 data-nosnippet>748</a><span class="kw">fn </span>render_skill(skill: <span class="kw-2">&amp;</span>SkillDocument, args: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#749 id=749 data-nosnippet>749</a>    <span class="kw">let </span>positional = args.split_whitespace().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#750 id=750 data-nosnippet>750</a>    <span class="kw">let </span><span class="kw-2">mut </span>variables = BTreeMap::new();
+<a href=#751 id=751 data-nosnippet>751</a>    variables.insert(<span class="string">"ARGUMENTS"</span>.to_owned(), args.to_owned());
+<a href=#752 id=752 data-nosnippet>752</a>    variables.insert(
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="string">"{COOKIE_SKILL_DIR}"</span>.to_owned(),
+<a href=#754 id=754 data-nosnippet>754</a>        skill.base_dir.to_string_lossy().into_owned(),
+<a href=#755 id=755 data-nosnippet>755</a>    );
+<a href=#756 id=756 data-nosnippet>756</a>    <span class="kw">for </span>(index, value) <span class="kw">in </span>positional.into_iter().enumerate() {
+<a href=#757 id=757 data-nosnippet>757</a>        variables.insert((index + <span class="number">1</span>).to_string(), value.to_owned());
+<a href=#758 id=758 data-nosnippet>758</a>    }
+<a href=#759 id=759 data-nosnippet>759</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
+<a href=#760 id=760 data-nosnippet>760</a>    <span class="kw">let </span>bytes = skill.body.as_bytes();
+<a href=#761 id=761 data-nosnippet>761</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+<a href=#762 id=762 data-nosnippet>762</a>    <span class="kw">while </span>index &lt; bytes.len() {
+<a href=#763 id=763 data-nosnippet>763</a>        <span class="kw">if </span>bytes[index] == <span class="string">b'$' </span>{
+<a href=#764 id=764 data-nosnippet>764</a>            <span class="kw">let </span>rest = <span class="kw-2">&amp;</span>skill.body[index + <span class="number">1</span>..];
+<a href=#765 id=765 data-nosnippet>765</a>            <span class="kw">let </span>key = <span class="kw">if </span>rest.starts_with(<span class="string">"{COOKIE_SKILL_DIR}"</span>) {
+<a href=#766 id=766 data-nosnippet>766</a>                <span class="prelude-val">Some</span>(<span class="string">"{COOKIE_SKILL_DIR}"</span>)
+<a href=#767 id=767 data-nosnippet>767</a>            } <span class="kw">else if </span>rest.starts_with(<span class="string">"ARGUMENTS"</span>) {
+<a href=#768 id=768 data-nosnippet>768</a>                <span class="prelude-val">Some</span>(<span class="string">"ARGUMENTS"</span>)
+<a href=#769 id=769 data-nosnippet>769</a>            } <span class="kw">else </span>{
+<a href=#770 id=770 data-nosnippet>770</a>                <span class="kw">let </span>digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+<a href=#771 id=771 data-nosnippet>771</a>                (digits &gt; <span class="number">0</span>).then_some(<span class="kw-2">&amp;</span>rest[..digits])
+<a href=#772 id=772 data-nosnippet>772</a>            };
+<a href=#773 id=773 data-nosnippet>773</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(key) = key {
+<a href=#774 id=774 data-nosnippet>774</a>                output.push_str(variables.get(key).map_or(<span class="string">""</span>, String::as_str));
+<a href=#775 id=775 data-nosnippet>775</a>                index += <span class="number">1 </span>+ key.len();
+<a href=#776 id=776 data-nosnippet>776</a>                <span class="kw">continue</span>;
+<a href=#777 id=777 data-nosnippet>777</a>            }
+<a href=#778 id=778 data-nosnippet>778</a>        }
+<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">let </span>character = skill.body[index..]
+<a href=#780 id=780 data-nosnippet>780</a>            .chars()
+<a href=#781 id=781 data-nosnippet>781</a>            .next()
+<a href=#782 id=782 data-nosnippet>782</a>            .expect(<span class="string">"character boundary"</span>);
+<a href=#783 id=783 data-nosnippet>783</a>        output.push(character);
+<a href=#784 id=784 data-nosnippet>784</a>        index += character.len_utf8();
+<a href=#785 id=785 data-nosnippet>785</a>    }
+<a href=#786 id=786 data-nosnippet>786</a>    output
+<a href=#787 id=787 data-nosnippet>787</a>}
 </code></pre></div></section></main></body></html>
