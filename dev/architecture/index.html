@@ -1335,9 +1335,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#migration" class="md-nav__link">
+  <a href="#delegation-and-ownership" class="md-nav__link">
     <span class="md-ellipsis">
-      Migration
+      Delegation and ownership
     </span>
   </a>
   
@@ -1943,9 +1943,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#migration" class="md-nav__link">
+  <a href="#delegation-and-ownership" class="md-nav__link">
     <span class="md-ellipsis">
-      Migration
+      Delegation and ownership
     </span>
   </a>
   
@@ -2295,7 +2295,7 @@ working directory:</p>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  providers/store-v3.json          # durable managed connections
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  catalog/                         # validated models.dev cache
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  sessions/&lt;workdirkey&gt;/           # one store per canonical cwd
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    layout.json                    # {"version":2}; "migration" while migrating
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    layout.json                    # {"version":2}
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    cwd                            # canonical work-dir path
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    grant-invalidations.jsonl      # tree-grant invalidation journal
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    runtime-revisions-v8.jsonl     # runtime revision index
@@ -2311,7 +2311,6 @@ working directory:</p>
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>        index.json                 # child-summary cache, {"version":1,...}
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        &lt;child-session-id&gt;/        # metadata, events.jsonl, owner.lock
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>        &lt;child-session-id&gt;.owner.lock # Windows sidecar for a child
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>  projects/&lt;16-hex-cwd-hash&gt;/      # legacy flat store, see "Migration"
 </code></pre></div>
 <p><code>&lt;workdirkey&gt;</code> is <code>&lt;16-hex-hash&gt;-&lt;sanitized-basename&gt;</code>, where the hash is the
 <code>DefaultHasher</code> of the canonical path string and the suffix is the lowercased
@@ -2349,28 +2348,7 @@ it — the root log, the log of any child in a loaded tree, or the
 Unloaded trees are never collected, which keeps an unread child log from
 looking unreferenced. Expired, unreferenced digests are unlinked after a grace
 period that protects newly published files.</p>
-<h3 id="migration">Migration<a class="headerlink" href="#migration" title="Permanent link">&para;</a></h3>
-<p>A store that still has the flat v1 shape (<code>projects/&lt;hash&gt;/sessions/&lt;id&gt;/</code>) is
-migrated once, on the first open, before the store is constructed; progress
-prints one <code>cookie-agent:</code> line per phase to stderr. Nothing runs concurrently
-with it: migration takes a <code>migration.lock</code> for the work dir and aborts with a
-loud error if any legacy session is owned by a live process, so no session can
-be appending while it moves. Every move is a rename — session directories,
-<code>meta.json</code> → <code>metadata</code>, project-level files, and Windows sidecars — so a
-large store migrates at directory-entry speed rather than by copying bytes.</p>
-<p>The steps are journal-driven and existence-checked, so an interrupted migration
-resumes rather than repeating or skipping work: plan, scaffold the v2 work dir,
-move roots, move children under their root's <code>subagents/</code>, place artifacts, then
-verify. Verification runs before completion and checks session counts, that
-every <code>metadata</code> parses and names its own directory, that each child appears in
-exactly one root's <code>subagents/</code>, and that the artifact inventory is conserved.
-<code>.migrating</code> is the resume journal, <code>.migrated</code> and a <code>layout.json</code> carrying
-<code>"migration":"complete"</code> mark the store done, and <code>projects/&lt;hash&gt;/MIGRATED</code>
-is left as a tombstone pointing at the new location. A store is never served
-half-migrated: only a <code>complete</code> marker licenses the v2 layout. An older binary
-pointed at a migrated store sees the tombstone and creates a fresh empty legacy
-project rather than corrupting the new store, so run one current version per
-data directory.</p>
+<h3 id="delegation-and-ownership">Delegation and ownership<a class="headerlink" href="#delegation-and-ownership" title="Permanent link">&para;</a></h3>
 <p>Delegation reservations, child publication, run start/attachment, and terminal
 state use the parent session's <code>events.jsonl</code>. On open, the engine projects
 these records from root logs while it recovers nonterminal delegations, and
@@ -2389,8 +2367,7 @@ idle session is evicted from memory. On Unix the lock is
 directory renames. New-session and fork publication acquire the Windows sidecar
 derived from the final directory path before renaming the temporary directory.
 Session discovery ignores the sidecar because it scans only directories.
-Session listing reads <code>metadata</code> without locking, falling back to the legacy
-<code>meta.json</code> name. Opening an existing session
+Session listing reads <code>metadata</code> without locking. Opening an existing session
 for mutation attempts the lock; success enters a non-writable adoption state,
 reconciles only that session's interrupted work, and then publishes ownership.
 Reconciliation failure revokes the log's write capability and releases the lock
