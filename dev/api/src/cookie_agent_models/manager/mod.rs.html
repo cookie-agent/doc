@@ -1152,7 +1152,7 @@
 <a href=#1152 id=1152 data-nosnippet>1152</a>                <span class="kw">let </span>publication = prepare_publication(<span class="kw-2">&amp;</span>candidate, <span class="kw-2">&amp;</span>mutation)<span class="question-mark">?</span>;
 <a href=#1153 id=1153 data-nosnippet>1153</a>                <span class="kw">let </span>retained = prepared_retained(<span class="kw-2">&amp;</span><span class="self">self</span>.retained.load_full(), <span class="kw-2">&amp;</span>candidate);
 <a href=#1154 id=1154 data-nosnippet>1154</a>                <span class="kw">let </span>effective_auth = effective_auth_for(<span class="kw-2">&amp;</span>candidate, mutation_provider(<span class="kw-2">&amp;</span>mutation));
-<a href=#1155 id=1155 data-nosnippet>1155</a>                transaction.commit(<span class="kw-2">*</span>proposal)<span class="question-mark">?</span>;
+<a href=#1155 id=1155 data-nosnippet>1155</a>                transaction.commit(<span class="kw-2">*</span>proposal).map_err(map_commit_error)<span class="question-mark">?</span>;
 <a href=#1156 id=1156 data-nosnippet>1156</a>                <span class="self">self</span>.retained.store(retained);
 <a href=#1157 id=1157 data-nosnippet>1157</a>                <span class="self">self</span>.current.store(Arc::clone(<span class="kw-2">&amp;</span>candidate));
 <a href=#1158 id=1158 data-nosnippet>1158</a>                <span class="prelude-val">Ok</span>(ModelMutationResult {
@@ -1215,7 +1215,7 @@
 <a href=#1215 id=1215 data-nosnippet>1215</a>                <span class="kw">let </span>publication = prepare_publication(<span class="kw-2">&amp;</span>candidate, <span class="kw-2">&amp;</span>mutation)<span class="question-mark">?</span>;
 <a href=#1216 id=1216 data-nosnippet>1216</a>                <span class="kw">let </span>retained = prepared_retained(<span class="kw-2">&amp;</span><span class="self">self</span>.retained.load_full(), <span class="kw-2">&amp;</span>candidate);
 <a href=#1217 id=1217 data-nosnippet>1217</a>                <span class="kw">let </span>effective_auth = effective_auth_for(<span class="kw-2">&amp;</span>candidate, mutation_provider(<span class="kw-2">&amp;</span>mutation));
-<a href=#1218 id=1218 data-nosnippet>1218</a>                transaction.commit(<span class="kw-2">*</span>proposal)<span class="question-mark">?</span>;
+<a href=#1218 id=1218 data-nosnippet>1218</a>                transaction.commit(<span class="kw-2">*</span>proposal).map_err(map_commit_error)<span class="question-mark">?</span>;
 <a href=#1219 id=1219 data-nosnippet>1219</a>                <span class="self">self</span>.retained.store(retained);
 <a href=#1220 id=1220 data-nosnippet>1220</a>                <span class="self">self</span>.current.store(Arc::clone(<span class="kw-2">&amp;</span>candidate));
 <a href=#1221 id=1221 data-nosnippet>1221</a>                <span class="prelude-val">Ok</span>(ModelMutationResult {
@@ -3818,61 +3818,73 @@
 <a href=#3818 id=3818 data-nosnippet>3818</a>    }
 <a href=#3819 id=3819 data-nosnippet>3819</a>}
 <a href=#3820 id=3820 data-nosnippet>3820</a>
-<a href=#3821 id=3821 data-nosnippet>3821</a><span class="kw">fn </span>effective_auth_for(
-<a href=#3822 id=3822 data-nosnippet>3822</a>    runtime: <span class="kw-2">&amp;</span>CompiledModelRuntime,
-<a href=#3823 id=3823 data-nosnippet>3823</a>    provider_id: <span class="kw-2">&amp;</span>ProviderId,
-<a href=#3824 id=3824 data-nosnippet>3824</a>) -&gt; EffectiveCredentialSource {
-<a href=#3825 id=3825 data-nosnippet>3825</a>    runtime
-<a href=#3826 id=3826 data-nosnippet>3826</a>        .providers
-<a href=#3827 id=3827 data-nosnippet>3827</a>        .iter()
-<a href=#3828 id=3828 data-nosnippet>3828</a>        .find(|provider| <span class="kw-2">&amp;</span>provider.id == provider_id)
-<a href=#3829 id=3829 data-nosnippet>3829</a>        .map_or(EffectiveCredentialSource::Unavailable, |provider| {
-<a href=#3830 id=3830 data-nosnippet>3830</a>            provider.effective_auth
-<a href=#3831 id=3831 data-nosnippet>3831</a>        })
-<a href=#3832 id=3832 data-nosnippet>3832</a>}
-<a href=#3833 id=3833 data-nosnippet>3833</a>
-<a href=#3834 id=3834 data-nosnippet>3834</a><span class="kw">fn </span>lock&lt;T&gt;(mutex: <span class="kw-2">&amp;</span>Mutex&lt;T&gt;) -&gt; std::sync::MutexGuard&lt;<span class="lifetime">'_</span>, T&gt; {
-<a href=#3835 id=3835 data-nosnippet>3835</a>    mutex.lock().unwrap_or_else(|error| error.into_inner())
-<a href=#3836 id=3836 data-nosnippet>3836</a>}
-<a href=#3837 id=3837 data-nosnippet>3837</a>
-<a href=#3838 id=3838 data-nosnippet>3838</a><span class="attr">#[derive(Debug, Error)]
-<a href=#3839 id=3839 data-nosnippet>3839</a></span><span class="kw">pub enum </span>ModelManagerError {
-<a href=#3840 id=3840 data-nosnippet>3840</a>    <span class="attr">#[error(<span class="string">"unknown_provider"</span>)]
-<a href=#3841 id=3841 data-nosnippet>3841</a>    </span>UnknownProvider,
-<a href=#3842 id=3842 data-nosnippet>3842</a>    <span class="attr">#[error(<span class="string">"unsupported_provider"</span>)]
-<a href=#3843 id=3843 data-nosnippet>3843</a>    </span>UnsupportedProvider,
-<a href=#3844 id=3844 data-nosnippet>3844</a>    <span class="attr">#[error(<span class="string">"removed_without_retained_recipe_match"</span>)]
-<a href=#3845 id=3845 data-nosnippet>3845</a>    </span>RemovedWithoutRetainedRecipeMatch,
-<a href=#3846 id=3846 data-nosnippet>3846</a>    <span class="attr">#[error(<span class="string">"custom_provider_not_store_backed"</span>)]
-<a href=#3847 id=3847 data-nosnippet>3847</a>    </span>CustomProviderNotStoreBacked,
-<a href=#3848 id=3848 data-nosnippet>3848</a>    <span class="attr">#[error(<span class="string">"invalid_setup"</span>)]
-<a href=#3849 id=3849 data-nosnippet>3849</a>    </span>InvalidSetup,
-<a href=#3850 id=3850 data-nosnippet>3850</a>    <span class="attr">#[error(<span class="string">"unsupported_auth_method"</span>)]
-<a href=#3851 id=3851 data-nosnippet>3851</a>    </span>UnsupportedAuthMethod,
-<a href=#3852 id=3852 data-nosnippet>3852</a>    <span class="attr">#[error(<span class="string">"invalid_credentials"</span>)]
-<a href=#3853 id=3853 data-nosnippet>3853</a>    </span>InvalidCredentials,
-<a href=#3854 id=3854 data-nosnippet>3854</a>    <span class="attr">#[error(<span class="string">"runtime_compile_failed"</span>)]
-<a href=#3855 id=3855 data-nosnippet>3855</a>    </span>RuntimeCompileFailed,
-<a href=#3856 id=3856 data-nosnippet>3856</a>    <span class="attr">#[error(<span class="string">"unknown_model"</span>)]
-<a href=#3857 id=3857 data-nosnippet>3857</a>    </span>UnknownModel(ModelKey),
-<a href=#3858 id=3858 data-nosnippet>3858</a>    <span class="attr">#[error(<span class="string">"unknown_variant"</span>)]
-<a href=#3859 id=3859 data-nosnippet>3859</a>    </span>UnknownVariant(ModelSelection),
-<a href=#3860 id=3860 data-nosnippet>3860</a>    <span class="attr">#[error(<span class="string">"model_unavailable"</span>)]
-<a href=#3861 id=3861 data-nosnippet>3861</a>    </span>ModelUnavailable(ModelKey),
-<a href=#3862 id=3862 data-nosnippet>3862</a>    <span class="attr">#[error(<span class="string">"duplicate model `{0}`"</span>)]
-<a href=#3863 id=3863 data-nosnippet>3863</a>    </span>DuplicateModel(ModelKey),
-<a href=#3864 id=3864 data-nosnippet>3864</a>    <span class="attr">#[error(<span class="string">"dynamic model compilation failed: {0}"</span>)]
-<a href=#3865 id=3865 data-nosnippet>3865</a>    </span>DynamicCompile(<span class="attr">#[from] </span>DynamicCompileError),
-<a href=#3866 id=3866 data-nosnippet>3866</a>    <span class="attr">#[error(<span class="string">"invalid cache config for provider `{provider}`: {reason}"</span>)]
-<a href=#3867 id=3867 data-nosnippet>3867</a>    </span>ProviderCache {
-<a href=#3868 id=3868 data-nosnippet>3868</a>        provider: ProviderId,
-<a href=#3869 id=3869 data-nosnippet>3869</a>        reason: String,
-<a href=#3870 id=3870 data-nosnippet>3870</a>    },
-<a href=#3871 id=3871 data-nosnippet>3871</a>    <span class="attr">#[error(<span class="string">"runtime_compile_failed"</span>)]
-<a href=#3872 id=3872 data-nosnippet>3872</a>    </span>ExecutableBuild(<span class="attr">#[from] </span>ModelBuildError),
-<a href=#3873 id=3873 data-nosnippet>3873</a>    <span class="attr">#[error(<span class="string">"provider_store_reload_failed"</span>)]
-<a href=#3874 id=3874 data-nosnippet>3874</a>    </span>ProviderStore(<span class="attr">#[from] </span>ProviderStoreError),
-<a href=#3875 id=3875 data-nosnippet>3875</a>    <span class="attr">#[error(<span class="string">"model manifest construction failed"</span>)]
-<a href=#3876 id=3876 data-nosnippet>3876</a>    </span>Manifest(<span class="attr">#[from] </span><span class="kw">crate</span>::manifests::ManifestError),
-<a href=#3877 id=3877 data-nosnippet>3877</a>}
+<a href=#3821 id=3821 data-nosnippet>3821</a><span class="doccomment">/// Maps a failed commit to a manager error. A lost commit-time compare-and-swap
+<a href=#3822 id=3822 data-nosnippet>3822</a>/// is a distinct retryable outcome; the client layer resubmits the identical
+<a href=#3823 id=3823 data-nosnippet>3823</a>/// request (same id) exactly once. The manager never replays it internally.
+<a href=#3824 id=3824 data-nosnippet>3824</a></span><span class="kw">fn </span>map_commit_error(error: ProviderStoreError) -&gt; ModelManagerError {
+<a href=#3825 id=3825 data-nosnippet>3825</a>    <span class="kw">match </span>error {
+<a href=#3826 id=3826 data-nosnippet>3826</a>        ProviderStoreError::Stale =&gt; ModelManagerError::Contention,
+<a href=#3827 id=3827 data-nosnippet>3827</a>        error =&gt; ModelManagerError::ProviderStore(error),
+<a href=#3828 id=3828 data-nosnippet>3828</a>    }
+<a href=#3829 id=3829 data-nosnippet>3829</a>}
+<a href=#3830 id=3830 data-nosnippet>3830</a>
+<a href=#3831 id=3831 data-nosnippet>3831</a><span class="kw">fn </span>effective_auth_for(
+<a href=#3832 id=3832 data-nosnippet>3832</a>    runtime: <span class="kw-2">&amp;</span>CompiledModelRuntime,
+<a href=#3833 id=3833 data-nosnippet>3833</a>    provider_id: <span class="kw-2">&amp;</span>ProviderId,
+<a href=#3834 id=3834 data-nosnippet>3834</a>) -&gt; EffectiveCredentialSource {
+<a href=#3835 id=3835 data-nosnippet>3835</a>    runtime
+<a href=#3836 id=3836 data-nosnippet>3836</a>        .providers
+<a href=#3837 id=3837 data-nosnippet>3837</a>        .iter()
+<a href=#3838 id=3838 data-nosnippet>3838</a>        .find(|provider| <span class="kw-2">&amp;</span>provider.id == provider_id)
+<a href=#3839 id=3839 data-nosnippet>3839</a>        .map_or(EffectiveCredentialSource::Unavailable, |provider| {
+<a href=#3840 id=3840 data-nosnippet>3840</a>            provider.effective_auth
+<a href=#3841 id=3841 data-nosnippet>3841</a>        })
+<a href=#3842 id=3842 data-nosnippet>3842</a>}
+<a href=#3843 id=3843 data-nosnippet>3843</a>
+<a href=#3844 id=3844 data-nosnippet>3844</a><span class="kw">fn </span>lock&lt;T&gt;(mutex: <span class="kw-2">&amp;</span>Mutex&lt;T&gt;) -&gt; std::sync::MutexGuard&lt;<span class="lifetime">'_</span>, T&gt; {
+<a href=#3845 id=3845 data-nosnippet>3845</a>    mutex.lock().unwrap_or_else(|error| error.into_inner())
+<a href=#3846 id=3846 data-nosnippet>3846</a>}
+<a href=#3847 id=3847 data-nosnippet>3847</a>
+<a href=#3848 id=3848 data-nosnippet>3848</a><span class="attr">#[derive(Debug, Error)]
+<a href=#3849 id=3849 data-nosnippet>3849</a></span><span class="kw">pub enum </span>ModelManagerError {
+<a href=#3850 id=3850 data-nosnippet>3850</a>    <span class="attr">#[error(<span class="string">"unknown_provider"</span>)]
+<a href=#3851 id=3851 data-nosnippet>3851</a>    </span>UnknownProvider,
+<a href=#3852 id=3852 data-nosnippet>3852</a>    <span class="attr">#[error(<span class="string">"unsupported_provider"</span>)]
+<a href=#3853 id=3853 data-nosnippet>3853</a>    </span>UnsupportedProvider,
+<a href=#3854 id=3854 data-nosnippet>3854</a>    <span class="attr">#[error(<span class="string">"removed_without_retained_recipe_match"</span>)]
+<a href=#3855 id=3855 data-nosnippet>3855</a>    </span>RemovedWithoutRetainedRecipeMatch,
+<a href=#3856 id=3856 data-nosnippet>3856</a>    <span class="attr">#[error(<span class="string">"custom_provider_not_store_backed"</span>)]
+<a href=#3857 id=3857 data-nosnippet>3857</a>    </span>CustomProviderNotStoreBacked,
+<a href=#3858 id=3858 data-nosnippet>3858</a>    <span class="attr">#[error(<span class="string">"invalid_setup"</span>)]
+<a href=#3859 id=3859 data-nosnippet>3859</a>    </span>InvalidSetup,
+<a href=#3860 id=3860 data-nosnippet>3860</a>    <span class="attr">#[error(<span class="string">"unsupported_auth_method"</span>)]
+<a href=#3861 id=3861 data-nosnippet>3861</a>    </span>UnsupportedAuthMethod,
+<a href=#3862 id=3862 data-nosnippet>3862</a>    <span class="attr">#[error(<span class="string">"invalid_credentials"</span>)]
+<a href=#3863 id=3863 data-nosnippet>3863</a>    </span>InvalidCredentials,
+<a href=#3864 id=3864 data-nosnippet>3864</a>    <span class="attr">#[error(<span class="string">"runtime_compile_failed"</span>)]
+<a href=#3865 id=3865 data-nosnippet>3865</a>    </span>RuntimeCompileFailed,
+<a href=#3866 id=3866 data-nosnippet>3866</a>    <span class="attr">#[error(<span class="string">"unknown_model"</span>)]
+<a href=#3867 id=3867 data-nosnippet>3867</a>    </span>UnknownModel(ModelKey),
+<a href=#3868 id=3868 data-nosnippet>3868</a>    <span class="attr">#[error(<span class="string">"unknown_variant"</span>)]
+<a href=#3869 id=3869 data-nosnippet>3869</a>    </span>UnknownVariant(ModelSelection),
+<a href=#3870 id=3870 data-nosnippet>3870</a>    <span class="attr">#[error(<span class="string">"model_unavailable"</span>)]
+<a href=#3871 id=3871 data-nosnippet>3871</a>    </span>ModelUnavailable(ModelKey),
+<a href=#3872 id=3872 data-nosnippet>3872</a>    <span class="attr">#[error(<span class="string">"duplicate model `{0}`"</span>)]
+<a href=#3873 id=3873 data-nosnippet>3873</a>    </span>DuplicateModel(ModelKey),
+<a href=#3874 id=3874 data-nosnippet>3874</a>    <span class="attr">#[error(<span class="string">"dynamic model compilation failed: {0}"</span>)]
+<a href=#3875 id=3875 data-nosnippet>3875</a>    </span>DynamicCompile(<span class="attr">#[from] </span>DynamicCompileError),
+<a href=#3876 id=3876 data-nosnippet>3876</a>    <span class="attr">#[error(<span class="string">"invalid cache config for provider `{provider}`: {reason}"</span>)]
+<a href=#3877 id=3877 data-nosnippet>3877</a>    </span>ProviderCache {
+<a href=#3878 id=3878 data-nosnippet>3878</a>        provider: ProviderId,
+<a href=#3879 id=3879 data-nosnippet>3879</a>        reason: String,
+<a href=#3880 id=3880 data-nosnippet>3880</a>    },
+<a href=#3881 id=3881 data-nosnippet>3881</a>    <span class="attr">#[error(<span class="string">"runtime_compile_failed"</span>)]
+<a href=#3882 id=3882 data-nosnippet>3882</a>    </span>ExecutableBuild(<span class="attr">#[from] </span>ModelBuildError),
+<a href=#3883 id=3883 data-nosnippet>3883</a>    <span class="attr">#[error(<span class="string">"provider_store_reload_failed"</span>)]
+<a href=#3884 id=3884 data-nosnippet>3884</a>    </span>ProviderStore(<span class="attr">#[from] </span>ProviderStoreError),
+<a href=#3885 id=3885 data-nosnippet>3885</a>    <span class="attr">#[error(<span class="string">"provider store contention"</span>)]
+<a href=#3886 id=3886 data-nosnippet>3886</a>    </span>Contention,
+<a href=#3887 id=3887 data-nosnippet>3887</a>    <span class="attr">#[error(<span class="string">"model manifest construction failed"</span>)]
+<a href=#3888 id=3888 data-nosnippet>3888</a>    </span>Manifest(<span class="attr">#[from] </span><span class="kw">crate</span>::manifests::ManifestError),
+<a href=#3889 id=3889 data-nosnippet>3889</a>}
 </code></pre></div></section></main></body></html>
