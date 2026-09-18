@@ -2040,18 +2040,21 @@ summarized in the <a href="../../reference/tools/#agent-messaging">tool referenc
 </ul>
 <h2 id="concepts">Concepts<a class="headerlink" href="#concepts" title="Permanent link">&para;</a></h2>
 <h3 id="addressing">Addressing<a class="headerlink" href="#addressing" title="Permanent link">&para;</a></h3>
-<p><code>send_message</code> targets a <strong>raw <code>session_id</code> only</strong> — the same raw-session
-addressing model the removed <code>steer_subagent</code> tool used. No labels, aliases, or
-special targets (<code>parent</code>, <code>root</code>).</p>
+<p><code>send_message</code> accepts either a <strong>full session UUID or the recipient's short
+handle</strong> (<code>explore_1a2b3c4d</code>) — the same raw-session addressing model the
+removed <code>steer_subagent</code> tool used. A non-UUID reference is resolved as a
+handle against the sender's tree only; if it matches no live tree peer the
+send fails with a self-repairing candidate list, and a handle from another tree
+never resolves. No labels, aliases, or special targets (<code>parent</code>, <code>root</code>).</p>
 <p>There is <strong>no discovery mechanism</strong>. An agent learns a peer's session ID only
 because the parent disclosed it — in the delegation prompt, in a steering
 message, or via delegation tool results (a parent naturally knows its
 children's IDs from <code>delegate_subagent</code>). The parent therefore controls the
 communication graph: siblings can only talk if the parent chose to introduce
 them, and an agent cannot enumerate the tree to find targets on its own.</p>
-<p>Every inbound message envelope carries <code>message_id</code> and <code>from.session_id</code>, so
-a recipient can reply by sending to <code>from.session_id</code> even if the parent never
-introduced it to the sender.</p>
+<p>Every inbound message envelope carries <code>message_id</code> and the sender's
+<code>from.session_id</code> plus its <code>from.handle</code>, so a recipient can reply by sending
+to either form even if the parent never introduced it to the sender.</p>
 <h3 id="message-envelope">Message Envelope<a class="headerlink" href="#message-envelope" title="Permanent link">&para;</a></h3>
 <p>The durable body (<code>ProducerMessageAccepted.body</code>) is JSON, rendered into the
 recipient prompt as a user-turn materialization (repo convention: tool-emitted
@@ -2059,13 +2062,14 @@ system input materializes as a user turn):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">&lt;agent_message&gt;</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>{
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>"message_id":<span class="w"> </span>"...",<span class="w">          </span>//<span class="w"> </span>ProducerMessage<span class="w"> </span>id
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>"from":<span class="w"> </span>{<span class="w"> </span>"session_id":<span class="w"> </span>"...",<span class="w"> </span>"agent_type":<span class="w"> </span>"explore"<span class="w"> </span>},
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>"from":<span class="w"> </span>{<span class="w"> </span>"session_id":<span class="w"> </span>"...",<span class="w"> </span>"agent_type":<span class="w"> </span>"explore",<span class="w"> </span>"handle":<span class="w"> </span>"explore_1a2b3c4d"<span class="w"> </span>},
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>"body":<span class="w"> </span>"…markdown<span class="w"> </span>text…"
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>}
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nt">&lt;/agent_message&gt;</span>
 </code></pre></div>
 <p>The recipient is implicit — the envelope only ever appears in the session it
-was delivered to. Hop metadata (the loop-safety chain count described under
+was delivered to. <code>from.handle</code> is <code>null</code> for senders created before handles
+existed. Hop metadata (the loop-safety chain count described under
 <a href="#guards">Guards</a>) is internal producer metadata and is <strong>not</strong> rendered in the
 envelope.</p>
 <h2 id="tool-surface">Tool Surface<a class="headerlink" href="#tool-surface" title="Permanent link">&para;</a></h2>
@@ -2083,8 +2087,8 @@ envelope.</p>
 <tbody>
 <tr>
 <td><code>send_message</code></td>
-<td><code>to: &lt;session_id&gt;, body, mode?</code> (<code>steer</code>/<code>queue</code>, default <code>steer</code>)</td>
-<td>Resolve the recipient session, check permission, register/find the sender's agent-producer on the recipient session, send with idempotency key derived from <code>(sender session, run, tool_call)</code> (same derivation pattern as <code>invocation_id</code>)</td>
+<td><code>to: &lt;handle or session_id&gt;, body, mode?</code> (<code>steer</code>/<code>queue</code>, default <code>steer</code>)</td>
+<td>Resolve the recipient reference (UUID, or handle within the sender's tree), check permission, register/find the sender's agent-producer on the recipient session, send with idempotency key derived from <code>(sender session, run, tool_call)</code> (same derivation pattern as <code>invocation_id</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -2116,8 +2120,15 @@ give up, or report to its parent):</p>
 <li><code>send_message:invalid_arguments</code> — missing, unknown, or wrongly typed
   arguments, including the removed <code>recipient_session_id</code> spelling,</li>
 <li><code>send_message:invalid_body</code> — empty or over <code>max_body_bytes</code>,</li>
-<li><code>send_message:unknown_session</code> — malformed or nonexistent session ID,</li>
-<li><code>send_message:not_tree_peer</code> — session exists but <code>root_session_id</code> differs,</li>
+<li><code>send_message:unknown_session</code> — a well-formed session UUID that names no
+  session,</li>
+<li><code>send_message:not_tree_peer</code> — a well-formed session UUID whose
+  <code>root_session_id</code> differs from the sender's,</li>
+<li>a <strong>non-UUID recipient</strong> is treated as a subagent handle: a handle that
+  matches no live peer in the sender's tree fails with the self-repairing
+  <code>unknown subagent reference …</code> tool error, whose candidate list renders each
+  addressable peer as <code>handle — description — status (session_id &lt;uuid&gt;)</code>
+  (pre-handle peers print their UUID once),</li>
 <li><code>send_message:self_send</code> — sender targeted its own session,</li>
 <li><code>send_message:inbox_full</code> — recipient has <code>max_pending_per_session</code> pending
   agent messages (see Configuration),</li>

@@ -2112,14 +2112,18 @@ the <a href="../security/#agentsmd-context-files">security guidance</a>. Configu
 <p><code>delegate_subagent</code> requires a short <code>description</code>, a self-contained <code>prompt</code>,
 an allowed <code>agent_type</code>, and accepts optional <code>background</code>, <code>resume_session_id</code>,
 and <code>inherit_context</code> arguments. Foreground calls block and return a concise
-result teaser. Background calls return immediately with only the child
-<code>session_id</code>; admission still waits for any required permission approval. For a
+result teaser. Background calls return immediately with the child's handle;
+admission still waits for any required permission approval. A child is
+addressed everywhere by its short tree-unique handle
+(<code>&lt;agent_type&gt;_&lt;8 hex&gt;</code>, e.g. <code>explore_1a2b3c4d</code>) or a full session UUID; a
+partial, foreign-tree, or fabricated reference is rejected with a
+self-repairing error listing the live candidates. For a
 new child, the description becomes the delegated session title. It is truncated
 to <code>session_title.max_chars</code> using the same Unicode-character limit as generated
 titles; invalid title text rejects the delegation.</p>
-<p><code>resume_session_id</code> attaches an existing direct child that was previously
-created by this same parent session. Top-level, unknown, foreign, self, and
-ancestor sessions are rejected. A terminal child starts a new run with the new
+<p><code>resume_session_id</code> accepts the handle or full UUID of an existing direct child
+that was previously created by this same parent session. Top-level, unknown,
+foreign, self, and ancestor sessions are rejected. A terminal child starts a new run with the new
 prompt; an active child receives the prompt through its pending-input FIFO. The
 current delegation link is refreshed, so result, messaging, cancel, queue, slot,
 and completion-notification behavior applies to the resumed work. The existing
@@ -2136,10 +2140,13 @@ into the child agent's model context and must be appropriate for that child.
 <code>inherit_context</code> and <code>resume_session_id</code> cannot both be set.</p>
 <p>Background sessions move through <code>queued</code>, <code>running</code>, and a terminal
 <code>completed</code>, <code>failed</code>, <code>interrupted</code>, or <code>cancelled</code> state. Completion appends a
-parent event containing the session ID, status, first 20 result lines (at most 2
-KiB), and total line count. Use <code>get_subagent_result</code> with <code>session_id</code>, optional
-<code>wait</code>, and zero-based <code>offset</code>/<code>limit</code> to retrieve the full result in pages. Use
-<code>cancel_subagent</code> with the owned <code>session_id</code> and optional <code>reason</code> to cancel
+parent event containing the session ID and handle, status, first 20 result lines
+(at most 2 KiB), and total line count. Use <code>get_subagent_result</code> with the
+child's handle or UUID, optional <code>wait</code>, and zero-based <code>offset</code>/<code>limit</code> to
+retrieve the last assistant message of the child's most recent turn in pages; a
+running child (including one just woken by <code>send_message</code>) reports as running
+and returns no text, and <code>wait = true</code> blocks until its turn ends. Use
+<code>cancel_subagent</code> with the owned handle or UUID and optional <code>reason</code> to cancel
 it. Result and cancellation operations reject sessions that are not direct
 children of the caller.</p>
 <p>The former <code>steer_subagent</code> tool is removed. Agents reach children and other
