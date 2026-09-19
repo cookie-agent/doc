@@ -2019,34 +2019,36 @@ has six top-level subcommands plus a default mode:</p>
 <td>Run one prompt headlessly through the local engine</td>
 </tr>
 <tr>
-<td><code>daemon</code></td>
-<td>Run only the daemon, listening on <code>ws://127.0.0.1:7419/ws</code> by default</td>
+<td><code>daemon [--port]</code></td>
+<td>Run only the daemon, listening on <code>ws://127.0.0.1:7419/ws</code> by default; <code>--port 0</code> picks an ephemeral port</td>
 </tr>
 <tr>
-<td><code>attach [--url]</code></td>
+<td><code>attach [--url] --token</code></td>
 <td>Attach the TUI to an existing daemon WebSocket</td>
 </tr>
 <tr>
-<td><code>connect [provider_id]</code></td>
+<td><code>connect [provider_id] --token</code></td>
 <td>Interactive durable managed-provider connection (TTY only)</td>
 </tr>
 <tr>
-<td><code>disconnect [provider_id]</code></td>
+<td><code>disconnect [provider_id] --token</code></td>
 <td>Interactive durable managed-provider disconnection (TTY only)</td>
 </tr>
 <tr>
-<td><code>mcp list</code></td>
+<td><code>mcp --token list</code></td>
 <td>List configured MCP servers</td>
 </tr>
 <tr>
-<td><code>mcp auth &lt;server&gt;</code></td>
+<td><code>mcp --token auth &lt;server&gt;</code></td>
 <td>Start OAuth authorization for a remote MCP server</td>
 </tr>
 </tbody>
 </table>
 <p>The daemon binds only to the configured port and authenticates every WebSocket
-with a bearer token stored at <code>~/.cookie-agent/daemon/token-v1</code>.
-<code>attach</code>, <code>connect</code>, <code>disconnect</code>, and <code>mcp</code> accept only loopback <code>ws</code>/<code>wss</code>
+with a fresh per-run bearer token. It generates the token at startup, keeps it
+only in memory, and prints it once as its first stdout line, so there is no
+token file on disk. <code>attach</code>, <code>connect</code>, <code>disconnect</code>, and <code>mcp</code> require the
+token via <code>--token</code> or <code>COOKIE_DAEMON_TOKEN</code> and accept only loopback <code>ws</code>/<code>wss</code>
 URLs whose path is exactly <code>/ws</code>. They use the same shared protocol client as
 the TUI, so the CLI keeps working even when built without the <code>tui</code> feature.</p>
 <h2 id="crate-layering">Crate layering<a class="headerlink" href="#crate-layering" title="Permanent link">&para;</a></h2>
@@ -2100,7 +2102,7 @@ the TUI, so the CLI keeps working even when built without the <code>tui</code> f
 </tr>
 <tr>
 <td><code>server</code></td>
-<td>The <code>ServerProtocol</code> implementation over <code>Engine</code>, concrete transports (WebSocket + <code>InProcessStream</code>), a thin connection wrapper, and the public <code>load_auth_token</code> / <code>validate_websocket_url</code> APIs.</td>
+<td>The <code>ServerProtocol</code> implementation over <code>Engine</code>, concrete transports (WebSocket + <code>InProcessStream</code>), a thin connection wrapper, and the public per-run token / <code>validate_websocket_url</code> APIs.</td>
 </tr>
 <tr>
 <td><code>tui</code></td>
@@ -2291,26 +2293,25 @@ session ID; neither truncates physical events.</p>
 <p>Session data lives under the user data directory in one store per canonical
 working directory:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>~/.cookie-agent/
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  daemon/token-v1                  # daemon bearer token
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  providers/store-v3.json          # durable managed connections
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  catalog/                         # validated models.dev cache
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  sessions/&lt;workdirkey&gt;/           # one store per canonical cwd
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    layout.json                    # {"version":2}
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    cwd                            # canonical work-dir path
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    grant-invalidations.jsonl      # tree-grant invalidation journal
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    runtime-revisions-v8.jsonl     # runtime revision index
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    artifacts.shared/              # cross-tree and orphaned tool output
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    cross-refs.jsonl               # cross-tree artifact reference ledger
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    &lt;root-session-id&gt;/             # root sessions live directly inside
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>      metadata                     # derived session cache
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>      events.jsonl                 # append-only root log
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>      owner.lock                   # Unix in-directory ownership lock
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>      artifacts/                   # artifacts owned by this root's tree
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>      &lt;root-session-id&gt;.owner.lock # Windows sidecar for a root
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>      subagents/
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>        index.json                 # child-summary cache, {"version":1,...}
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        &lt;child-session-id&gt;/        # metadata, events.jsonl, owner.lock
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>        &lt;child-session-id&gt;.owner.lock # Windows sidecar for a child
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  providers/store-v3.json          # durable managed connections
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  catalog/                         # validated models.dev cache
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  sessions/&lt;workdirkey&gt;/           # one store per canonical cwd
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    layout.json                    # {"version":2}
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    cwd                            # canonical work-dir path
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    grant-invalidations.jsonl      # tree-grant invalidation journal
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    runtime-revisions-v8.jsonl     # runtime revision index
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    artifacts.shared/              # cross-tree and orphaned tool output
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    cross-refs.jsonl               # cross-tree artifact reference ledger
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    &lt;root-session-id&gt;/             # root sessions live directly inside
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>      metadata                     # derived session cache
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>      events.jsonl                 # append-only root log
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>      owner.lock                   # Unix in-directory ownership lock
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>      artifacts/                   # artifacts owned by this root's tree
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>      &lt;root-session-id&gt;.owner.lock # Windows sidecar for a root
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>      subagents/
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>        index.json                 # child-summary cache, {"version":1,...}
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>        &lt;child-session-id&gt;/        # metadata, events.jsonl, owner.lock
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        &lt;child-session-id&gt;.owner.lock # Windows sidecar for a child
 </code></pre></div>
 <p><code>&lt;workdirkey&gt;</code> is <code>&lt;16-hex-hash&gt;-&lt;sanitized-basename&gt;</code>, where the hash is the
 <code>DefaultHasher</code> of the canonical path string and the suffix is the lowercased

@@ -2014,12 +2014,24 @@ files and previous runs' frozen chains are never rewritten.</p>
 <p>The daemon binds to <code>127.0.0.1:7419</code> by default:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cookie<span class="w"> </span>daemon
 </code></pre></div>
-<p>Attach from another terminal:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cookie<span class="w"> </span>attach
+<p>Its first stdout line is the machine-readable ready frame; everything the
+daemon prints afterward is human logging. A supervisor writes the daemon's
+stdout to a pipe, reads exactly that one line, and ignores the rest:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>daemon-ready {"url":"ws://127.0.0.1:7419/ws","token":"&lt;43-char base64url&gt;"}
 </code></pre></div>
-<p>The attach URL defaults to <code>ws://127.0.0.1:7419/ws</code> and may be changed with
-<code>--url</code>. Only loopback WebSocket URLs with the exact <code>/ws</code> path are accepted.
-The client uses the local daemon token; see <a href="../../engine/server/">Server</a>.
+<p>The token is generated fresh for each run, kept only in daemon memory, and dies
+with the process. Treat the ready line as a secret: do not archive or log it.
+Pass <code>--port 0</code> to let the OS pick an ephemeral port; the ready line then
+carries the real port, and clients must use that URL rather than guessing 7419.</p>
+<p>Attach from another terminal with the token from the ready line:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cookie<span class="w"> </span>attach<span class="w"> </span>--token<span class="w"> </span><span class="s1">'&lt;43-char base64url&gt;'</span>
+</code></pre></div>
+<p><code>attach</code>, <code>connect</code>, <code>disconnect</code>, and <code>mcp</code> require <code>--token</code> (or the
+<code>COOKIE_DAEMON_TOKEN</code> environment variable). There is no file to read and no
+interactive prompt, so a missing token is clap's standard required-argument
+error. The URL defaults to <code>ws://127.0.0.1:7419/ws</code> and may be changed with
+<code>--url</code>; only loopback WebSocket URLs with the exact <code>/ws</code> path are accepted.
+See <a href="../../engine/server/">Server</a>.
 Only open trusted workspaces: configured plugins and eager MCP servers can
 start during engine initialization, before a model tool call is approved.
 Allowed shell commands run without a filesystem sandbox; see the
@@ -2240,11 +2252,11 @@ this panel.</p>
 TUI, daemon, or an in-process protocol server. It is intended for CI and scripts.</p>
 <h3 id="prompt-input">Prompt input<a class="headerlink" href="#prompt-input" title="Permanent link">&para;</a></h3>
 <p>Provide exactly one prompt source:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="go">cookie run "Review this workspace"</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">cookie run -p "Review this workspace"</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="go">cookie run -f request.txt</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -p -</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="go">cookie run "Review this workspace"</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="go">cookie run -p "Review this workspace"</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="go">cookie run -f request.txt</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -p -</span>
 </code></pre></div>
 <p>The positional prompt, <code>-p/--prompt</code>, and <code>-f/--prompt-file</code> conflict with each
 other. <code>-</code> reads standard input for any of them.</p>

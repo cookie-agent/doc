@@ -1641,6 +1641,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#daemon-authentication-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon authentication token
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agentsmd-context-files" class="md-nav__link">
     <span class="md-ellipsis">
       AGENTS.md context files
@@ -1783,6 +1792,15 @@
   
     <nav class="md-nav" aria-label="Private state">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#daemon-authentication-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon authentication token
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#agentsmd-context-files" class="md-nav__link">
@@ -1951,6 +1969,25 @@ writes through a symlink or provide loose/foreign-owned storage; cookie agent
 will use that path. Treat the parent storage location as trusted and remove
 unexpected state before starting the daemon. Neither platform protects secrets
 from privileged code such as <code>root</code>, <code>SYSTEM</code>, or an elevated administrator.</p>
+<h3 id="daemon-authentication-token">Daemon authentication token<a class="headerlink" href="#daemon-authentication-token" title="Permanent link">&para;</a></h3>
+<p>The daemon binds only to IPv4 loopback and validates every WebSocket handshake
+with a constant-time compare of a bearer token. There is no token file: at
+startup the daemon draws a fresh 32-byte token from the operating system,
+keeps it only in process memory, and dies with it. It prints the token exactly
+once, inside the first stdout line:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>daemon-ready {"url":"ws://127.0.0.1:&lt;port&gt;/ws","token":"&lt;43-char base64url&gt;"}
+</code></pre></div>
+<p>Clients receive the secret through a private stdout/pipe handoff or a human
+copying it to <code>--token</code> / <code>COOKIE_DAEMON_TOKEN</code>; the four WebSocket subcommands
+(<code>attach</code>, <code>connect</code>, <code>disconnect</code>, <code>mcp</code>) require it and have no readable
+fallback. This is stronger than a shared file: nothing persists on disk, two
+daemons can never share a stale secret, and a leaked token cannot outlive the
+run. The residual boundary is unchanged for a same-user process that can
+inspect the daemon's memory or the pipe; the removed class is a same-user
+process that could simply read a durable token file. Two caveats are documented
+rather than solved: a supervisor that logs daemon stdout verbatim persists the
+token in its logs, and a token pasted on a shell command line is visible in
+shell history. Treat the ready line as secret and do not archive it.</p>
 <h3 id="agentsmd-context-files">AGENTS.md context files<a class="headerlink" href="#agentsmd-context-files" title="Permanent link">&para;</a></h3>
 <p>For root runs, repository-controlled <code>AGENTS.md</code> files are read automatically and
 their text enters model context. They are instructions, not trusted policy, and
