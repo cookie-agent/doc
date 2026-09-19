@@ -2052,26 +2052,26 @@ message, or via delegation tool results (a parent naturally knows its
 children's IDs from <code>delegate_subagent</code>). The parent therefore controls the
 communication graph: siblings can only talk if the parent chose to introduce
 them, and an agent cannot enumerate the tree to find targets on its own.</p>
-<p>Every inbound message envelope carries <code>message_id</code> and the sender's
-<code>from.session_id</code> plus its <code>from.handle</code>, so a recipient can reply by sending
-to either form even if the parent never introduced it to the sender.</p>
+<p>Every inbound message envelope carries the sender's handle when one exists,
+so a recipient can reply directly with <code>send_message</code>. Older sessions without
+a handle use the full sender UUID in the reply hint.</p>
 <h3 id="message-envelope">Message Envelope<a class="headerlink" href="#message-envelope" title="Permanent link">&para;</a></h3>
-<p>The durable body (<code>ProducerMessageAccepted.body</code>) is JSON, rendered into the
-recipient prompt as a user-turn materialization (repo convention: tool-emitted
-system input materializes as a user turn):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">&lt;agent_message&gt;</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>{
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>"message_id":<span class="w"> </span>"...",<span class="w">          </span>//<span class="w"> </span>ProducerMessage<span class="w"> </span>id
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>"from":<span class="w"> </span>{<span class="w"> </span>"session_id":<span class="w"> </span>"...",<span class="w"> </span>"agent_type":<span class="w"> </span>"explore",<span class="w"> </span>"handle":<span class="w"> </span>"explore_1a2b3c4d"<span class="w"> </span>},
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>"body":<span class="w"> </span>"…markdown<span class="w"> </span>text…"
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>}
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nt">&lt;/agent_message&gt;</span>
+<p>The durable body (<code>ProducerMessageAccepted.body</code>) is readable text rendered
+into the recipient prompt as a user-turn materialization (repo convention:
+tool-emitted system input materializes as a user turn):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">&lt;agent_message</span><span class="w"> </span><span class="na">from=</span><span class="s">"explore_1a2b3c4d"</span><span class="nt">&gt;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Message<span class="w"> </span>written<span class="w"> </span>by<span class="w"> </span>the<span class="w"> </span>sending<span class="w"> </span>agent
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[use<span class="w"> </span>`send_message(to="explore_1a2b3c4d",<span class="w"> </span>...)`<span class="w"> </span>to<span class="w"> </span>reply]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">&lt;/agent_message&gt;</span>
 </code></pre></div>
-<p>The recipient is implicit — the envelope only ever appears in the session it
-was delivered to. <code>from.handle</code> is <code>null</code> for senders created before handles
-existed. Hop metadata (the loop-safety chain count described under
-<a href="#guards">Guards</a>) is internal producer metadata and is <strong>not</strong> rendered in the
-envelope.</p>
+<p>The <code>from</code> attribute identifies the sender in both variants. The reply hint
+appears only when the recipient's <code>send_message</code> tool is exposed. The original
+body is preserved as written; the engine adds only the envelope and optional
+hint. The recipient is implicit — the envelope only ever
+appears in the session it was delivered to. Message IDs, sender UUIDs, agent
+hop counts, and other delivery metadata remain in the durable event record and
+are not rendered into the model-facing body.</p>
 <h2 id="tool-surface">Tool Surface<a class="headerlink" href="#tool-surface" title="Permanent link">&para;</a></h2>
 <p><code>MessageToolProvider</code> (provider id <code>builtin.message</code>), modeled on
 <code>DelegateToolProvider</code>, is registered via <code>try_register_tool_provider</code> in
