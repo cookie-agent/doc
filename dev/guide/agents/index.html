@@ -2102,11 +2102,19 @@ wrong type, or malformed YAML construct is also rejected.</p>
 </tr>
 </tbody>
 </table>
-<p><code>max_output_tokens</code> applies in every mode. A nonzero value caps each request at
-the smaller of the document value and the model's own output limit. It defaults
-to no document cap for the non-internal <code>primary</code>, <code>subagent</code>, and <code>all</code> modes.
-Authored internal agents retain a 2,048-token default; setting it explicitly to zero
-removes that document cap.
+<p><code>max_output_tokens</code> applies in every mode and defaults to <code>0</code> in all of them. A
+nonzero value caps each request at the smaller of the document value and the
+model's own output limit. For the non-internal <code>primary</code>, <code>subagent</code>, and <code>all</code>
+modes, <code>0</code> means no document cap.</p>
+<p>Internal agents run on <code>${parent_model}</code> by default, so <code>0</code> there means they
+inherit the owner run's output cap the same way they inherit its model. The
+effective cap for an internal request is the smaller of the model's own output
+limit and the first nonzero value of the internal document's
+<code>max_output_tokens</code> and the owner run's <code>max_output_tokens</code>; a request is left
+uncapped only when the model's output limit is unknown and neither document
+sets one. An explicit nonzero value in the internal document therefore still
+wins over inheritance, subject to that model minimum. All three built-in
+internal documents declare <code>0</code> and inherit.
 <code>timeout_ms</code> applies only to internal agents. For other modes, a nonzero value is
 a hard error. Internal agents use the configured timeout exactly; zero or an
 omitted value uses the 30-second default. The built-in <code>compaction</code> agent has a
@@ -2316,19 +2324,19 @@ family (<code>internal_agent_started</code>, <code>internal_agent_completed</cod
 <td><code>approval</code></td>
 <td>Stateless approval classifier for <code>auto_approve</code> mode</td>
 <td><code>${parent_model}</code></td>
-<td>30 s timeout; model-derived input budget; 2,048 max output tokens</td>
+<td>30 s timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
 </tr>
 <tr>
 <td><code>compaction</code></td>
 <td>Summarizes context into a checkpoint</td>
 <td><code>${parent_model}</code></td>
-<td>3 min timeout; model-derived input budget; 4,096 max output tokens</td>
+<td>3 min timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
 </tr>
 <tr>
 <td><code>title</code></td>
 <td>Generates a concise session title from the opening user messages (the first <code>session_title.max_input_messages</code>, default 4)</td>
 <td><code>${parent_model}</code></td>
-<td>10 s timeout; model-derived input budget; 128 max output tokens</td>
+<td>30 s timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
 </tr>
 </tbody>
 </table>
