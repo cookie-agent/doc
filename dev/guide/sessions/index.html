@@ -1458,6 +1458,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/tree-ownership-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tree-scoped session ownership lock
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/documentation-overhaul/" class="md-nav__link">
         
   
@@ -1824,6 +1847,15 @@ again.</p>
 between sessions. Delegated sessions form a tree beneath the root that created
 them. Accepted runs retain their frozen model binding even if catalog,
 configuration, or provider-store state changes later.</p>
+<p>Several cookie processes may share one project directory, but a root session
+and every delegated session beneath it are written by one process at a time:
+ownership is taken for the whole tree, not for a single session. Reopening any
+session of a tree another process still has open reports <code>session is owned by
+another cookie process</code>, for the root and its subagents alike. Such a session
+is still readable — the TUI shows it as a read-only snapshot with input
+disabled — and becomes writable once the process holding the tree exits.
+Adopting one session of a free tree claims the tree, while each session in it
+still reconciles its own interrupted work the first time it is written.</p>
 <h2 id="titles">Titles<a class="headerlink" href="#titles" title="Permanent link">&para;</a></h2>
 <p>Root sessions may generate a title from their opening user messages according to
 the <a href="../../engine/session_title/">Session Title</a> configuration. A delegated session is titled immediately
@@ -1845,6 +1877,11 @@ into a new independent session. It may read an active source session. Copied
 events retain their sequence numbers, timestamps, run IDs, and payloads, while
 their envelope is rebound to the new session ID. Shared content-addressed
 artifacts remain resolvable without copying their bytes.</p>
+<p>A fork of a root session is a new root, with a tree of its own, and may be taken
+from a session another process owns. A fork of a delegated session stays inside
+its source's tree, so it is published into that root's directory and needs that
+tree's ownership: forking a subagent of a tree another process holds reports
+<code>session is owned by another cookie process</code>.</p>
 <p>In the TUI, choose <strong>Fork</strong> from a user message. That message is included in the
 copied prefix, the new title receives <code>(fork)</code>, and the new session is selected.</p>
 
