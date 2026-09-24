@@ -2289,10 +2289,13 @@ The TUI additionally reads an independent <code>~/.cookie-agent/tui.toml</code>.
 <h2 id="provider-and-model-runtime">Provider and model runtime<a class="headerlink" href="#provider-and-model-runtime" title="Permanent link">&para;</a></h2>
 <p><code>crates/models</code> owns the full dynamic provider pipeline:</p>
 <ol>
-<li><strong>Catalog.</strong> The daemon refreshes the fixed models.dev catalog
-   (<code>https://models.dev/catalog.json</code>) hourly, with a validated ETag cache and a
-   bundled integrity-checked bootstrap as fallbacks. Catalog selection is network,
-   cache, or bootstrap.</li>
+<li><strong>Catalog.</strong> The daemon starts from the validated catalog cache, or the
+   bundled integrity-checked bootstrap when there is none, without waiting on the
+   network. It then refreshes the fixed models.dev catalog
+   (<code>https://models.dev/catalog.json</code>) in the background: once right away, then
+   hourly, with an ETag. A <code>304 Not Modified</code> rewrites only the cache metadata,
+   and models are recompiled only when the catalog revision or availability
+   changes. Catalog selection is network, cache, or bootstrap.</li>
 <li><strong>Family registry.</strong> A code-owned recipe registry (schema 1) maps the catalog's
    npm package names to protocol families: OpenAI, OpenAI-compatible chat,
    Anthropic, Google, Vertex, Bedrock, Azure, and Cohere. Each recipe declares a
@@ -2311,10 +2314,14 @@ The TUI additionally reads an independent <code>~/.cookie-agent/tui.toml</code>.
    store (<code>~/.cookie-agent/providers/store-v3.json</code>) and are shared
    across workspaces. Credentials are checked on first use, not at connect time.</li>
 </ol>
-<p>Each accepted run freezes its model selection into a global user manifest under
-<code>~/.cookie-agent/model-snapshots/</code>, so later catalog, configuration, or store
-changes cannot silently change an accepted run's model behavior. The manifests
-are shared across workspaces.</p>
+<p>Each accepted run freezes its model bindings against the runtime it was admitted
+with and keeps that runtime in memory until it ends, so configuration, catalog,
+or store changes cannot change a run's model behavior midway. Nothing is
+persisted beyond the run's events, which record the bindings as a description
+of what ran. A later turn resolves afresh and best-effort: a history-derived
+selection whose agent, model, or variant is gone falls back to the default
+agent (<code>primary</code>, else the first root-runnable one) or the agent's default
+model, while earlier turns keep showing what they actually used.</p>
 <p>Local selection/pricing identity is distinct from the effective provider wire
 model ID. Model and variant overrides resolve before execution; frozen bindings
 retain the selected wire ID and endpoint. Concrete SDK constructors provide
@@ -2518,8 +2525,6 @@ for this directory because they cannot guarantee single-writer ownership.</p>
 <p>Legacy project-level <code>delegations.jsonl</code> files are ignored. In-flight
 delegations that existed only in that pre-release journal are not recovered;
 their child directories remain ordinary sessions available for inspection.</p>
-<p>Model-snapshot manifests live in the global user directory at
-<code>~/.cookie-agent/model-snapshots/</code> and are shared across workspaces.</p>
 <h3 id="event-bus">Event bus<a class="headerlink" href="#event-bus" title="Permanent link">&para;</a></h3>
 <p>The durable session append path publishes raw events to independent bounded
 plugin streams only after the JSONL append and projection publication complete.
