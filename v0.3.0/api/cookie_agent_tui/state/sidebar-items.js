@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EMPTY_RUNTIME_GUIDANCE"],"enum":["AssistantChild","DeliveryOutcome","EventLevel","ProducerMessageStatus","RuntimePhase","ToolStatus","TranscriptItem"],"struct":["ApprovalState","FrozenAssistantAttribution","PendingInput","RuntimeState","SessionState","StateStore","ToolCallState"]};

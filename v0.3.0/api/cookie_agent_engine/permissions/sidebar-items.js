@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PermissionError"],"fn":["tool_visible"],"struct":["ApprovalStore","PermissionDecision","PermissionPipeline"]};

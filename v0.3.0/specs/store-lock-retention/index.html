@@ -1,0 +1,2407 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the cookie agent coding harness">
+      
+      
+      
+        <link rel="canonical" href="https://cookie-agent.github.io/doc/v0.3.0/specs/store-lock-retention/">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+    
+    
+      
+        <title>Store Lock Retention and Contention Policy - cookie agent</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Instrument+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Instrument Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/cookie.css">
+    
+    <script>__md_scope=new URL("/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#store-lock-retention-and-contention-policy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      <header class="md-header md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title cookie-title">
+      <div class="md-header__topic">
+        <a class="cookie-brand" href="https://cookie-agent.github.io/">
+          <img src="../../assets/logo.svg" alt="" width="32" height="32">
+          <span>cookie agent</span>
+        </a>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    <div class="cookie-nav" aria-label="Primary">
+      <a href="../.." aria-current="page">Docs</a>
+      <a href="https://github.com/cookie-agent/cookie-agent">GitHub</a>
+    </div>
+  </nav>
+  
+    
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../install/" class="md-tabs__link">
+          
+  
+  
+  Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guide/agents/" class="md-tabs__link">
+          
+  
+  
+  Engine Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tui/configuration/" class="md-tabs__link">
+          
+  
+  
+  TUI Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Specs
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="https://cookie-agent.github.io/" title="cookie agent" class="md-nav__button md-logo" aria-label="cookie agent" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    cookie agent
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cookie-agent/cookie-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cookie-agent/cookie-agent
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Run
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/goals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Goal Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Usage and Cost
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Engine Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Engine Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Skill
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    config.toml
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Server [server]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/tool_output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tool Output [tool_output]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/agent_md/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AGENTS.md Context [agent_md]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/approval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval [approval]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/model_retry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model Retry [model_retry]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/context_compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Context Compaction [context_compaction]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/session_title/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session Title [session_title]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegation [delegation]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/messaging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent Messaging [messaging]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Request Header [headers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Providers [providers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP [mcp]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins [plugins]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    TUI Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            TUI Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    tui.toml
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/minimum_event_level/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Minimum Event Level [minimum_event_level]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Theme [theme]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Development
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/building/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Building and testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugin development
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Rust API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Specs
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Specs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Status and scope
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tool-output-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tool output streams
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-messaging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent messaging
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tree-ownership-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tree-scoped session ownership lock
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../documentation-overhaul/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Documentation overhaul
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-1-test-layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 1 (test layout)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-2-dependencies-ci/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 2 (dependencies, CI)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-3-module-splits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 3 (module splits)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/goal-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Goal mode and producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/system-prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    System prompt
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/schemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Schemas
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security boundaries
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      Problem
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decisions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#locked-classes-current-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Locked classes (current inventory)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d1-delete-the-snapshot-manifest-locks" class="md-nav__link">
+    <span class="md-ellipsis">
+      D1 — Delete the snapshot-manifest locks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-keep-the-artifact-locks-and-document-why-do-not-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      D2 — Keep the artifact locks and document why (do not delete)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-bounded-acquisition-primitive-lock_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      D3 — Bounded acquisition primitive: lock_within
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d4-provider-store-retention-shrink-via-commit-time-compare-and-swap" class="md-nav__link">
+    <span class="md-ellipsis">
+      D4 — Provider-store retention: shrink via commit-time compare-and-swap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d5-contention-becomes-a-typed-retryable-surfaced-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      D5 — Contention becomes a typed, retryable, surfaced outcome
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d6-oauth-store-lock-free-reads-refresh-discipline" class="md-nav__link">
+    <span class="md-ellipsis">
+      D6 — OAuth store: lock-free reads + refresh discipline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d7-keep-lock-taking-store-calls-off-async-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      D7 — Keep lock-taking store calls off async workers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d8-ephemeral-per-run-daemon-token-handed-over-stdout-delete-the-token-file-and-its-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      D8 — Ephemeral per-run daemon token handed over stdout; delete the token file and its lock
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d9-delete-the-one-shot-v1v2-session-store-migration-subsystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      D9 — Delete the one-shot v1→v2 session-store migration subsystem
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-goals
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollout-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout order
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resolved-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved questions
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="store-lock-retention-and-contention-policy">Store Lock Retention and Contention Policy<a class="headerlink" href="#store-lock-retention-and-contention-policy" title="Permanent link">&para;</a></h1>
+<p>Status: implemented (D1-D9 with D6-correctness, landed across commits
+53cfbfbc..12c1f30b). This document records design decisions
+for how cookie-agent acquires and retains the cross-process advisory locks that
+guard its <code>~/.cookie-agent</code> secure stores, and for the deprecation of the
+localhost daemon bearer token. It amends the platform trust model described in
+<a href="../../guide/security/">Security boundaries</a>. All file references cite the
+current tree and were verified against source at the time of writing.</p>
+<h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
+<p>cookie-agent coordinates cross-process writes to several files under
+<code>~/.cookie-agent</code> (provider store, model catalog cache, snapshot manifests,
+OAuth credential store, daemon bearer token, artifact temporaries) using
+advisory OS locks — <code>flock(2)</code> on unix and <code>LockFileEx</code> on Windows, reached
+through <code>SecureDirectory::lock</code> (<code>models/src/secure_store/mod.rs:116</code>,
+<code>models/src/secure_store/windows.rs:626</code>) or directly via <code>fs2</code>/<code>rustix</code>.</p>
+<p>These locks are correct for mutual exclusion but the acquisition and retention
+<em>policies</em> are inconsistent across the tree, and two of them create real
+failure modes:</p>
+<ol>
+<li>
+<p><strong>Unbounded blocking acquisition.</strong> Several stores acquire the lock in
+   blocking mode with no timeout (<code>directory.lock(..)</code>,
+   <code>fs2::FileExt::lock_exclusive(..)</code>). <code>LockFileEx</code> has no OS-level timeout, so
+   a Windows acquisition that meets a held lock parks the calling thread
+   forever. Because the lock-taking store calls are synchronous and reached from
+   async server routes, the thread that parks is a tokio worker — a permanent
+   reduction in the async runtime's parallelism, not a slow request. This is a
+   leading suspect for the Windows CI whole-process freeze (four delegated tests
+   each parked one worker on a four-vCPU runner).</p>
+</li>
+<li>
+<p><strong>Wide retention where it is load-bearing.</strong> The provider-store transaction
+   acquires the lock in <code>begin_transaction</code> (<code>store.rs:169</code>) and holds it across
+   <code>propose_connect</code>, <code>compile_runtime</code>, and the caller's
+   <code>prepare_publication</code> callback, releasing only after <code>commit</code>
+   (<code>manager/mod.rs:1130-1155</code>). <code>commit</code> checks <code>base_generation</code> /
+   <code>base_revision</code> only against the state captured at <code>begin</code>
+   (<code>store.rs:395-412</code>), never against disk — so the <em>correctness</em> of the
+   transaction currently depends on the wide hold. Shortening the hold without
+   adding a commit-time re-read would break that.</p>
+</li>
+</ol>
+<p>Contrast the lock that is already correct: session ownership
+(<code>engine/src/ownership.rs:124</code>) uses <strong>non-blocking</strong> <code>try_lock_exclusive</code> and
+returns a typed result — ownership yields
+<code>SessionOwnership::Foreign</code> → <code>SessionError::SessionLocked</code> (<code>session.rs:1355</code>)
+with no wait, because the lock is a <em>claim</em> held for an unbounded lifetime and
+waiting would gain nothing.</p>
+<p>A separate, cleaner design emerges from comparing the two reference products:</p>
+<ul>
+<li><strong>Claude Code</strong> uses <code>proper-lockfile</code> (mkdir + mtime-stale + heartbeat +
+  bounded 5–10 attempt retry). Its refresh lock is held <em>across</em> the OAuth
+  network call, protected by a 5 s heartbeat and a post-acquire token-compare
+  that skips a refresh another process already did. All acquisition is bounded.
+  Its stale/heartbeat/PID machinery exists <strong>only</strong> because a mkdir lock survives
+  a process crash and must be detected as dead.</li>
+<li><strong>opencode</strong> moved hot relational state to SQLite (WAL, <code>busy_timeout=5000</code> →
+  retryable error) and keeps a mkdir <code>Flock</code> (heartbeat + 5-min acquisition
+  ceiling) for shared stores. Its <code>busy_timeout</code> history shows SQLite does not
+  remove the waiter-hang class, only reshapes it.</li>
+</ul>
+<p>Neither uses <code>flock</code>/<code>LockFileEx</code>. cookie-agent's choice of OS advisory locks is
+<strong>superior</strong> on the axis that forces their complexity: an OS advisory lock is
+released by the kernel when the holding file descriptor closes, including on
+crash. We therefore must <strong>not</strong> imitate their stale-detection / heartbeat /
+PID-liveness / release-token apparatus — it would be pure liability solving a
+problem we do not have. Our locks' remaining problems are narrower: unbounded
+acquisition, overly wide retention, and one genuine lost-update hole in the
+OAuth refresh path.</p>
+<h2 id="decisions">Decisions<a class="headerlink" href="#decisions" title="Permanent link">&para;</a></h2>
+<h3 id="locked-classes-current-inventory">Locked classes (current inventory)<a class="headerlink" href="#locked-classes-current-inventory" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Lock site(s)</th>
+<th>Today</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider store</td>
+<td><code>store.rs:169</code></td>
+<td>blocking, wide retention</td>
+<td>D3 primitive + D4 commit-CAS</td>
+</tr>
+<tr>
+<td>Model catalog cache</td>
+<td><code>catalog/manager.rs:299,330</code></td>
+<td>blocking, short sections</td>
+<td>D3 primitive only</td>
+</tr>
+<tr>
+<td>Snapshot manifests</td>
+<td><code>manifests/mod.rs:71,108</code></td>
+<td>blocking, short sections</td>
+<td>D1 — delete both locks</td>
+</tr>
+<tr>
+<td>OAuth credential store</td>
+<td><code>mcp.rs:592,605,622,634,908,954</code></td>
+<td>blocking; reads take the exclusive lock; refresh = 3 lock episodes</td>
+<td>D6 — lock-free reads + bounded write RMW + D3 + CAS/claim</td>
+</tr>
+<tr>
+<td>Daemon bearer token</td>
+<td><code>auth_token.rs:67</code></td>
+<td>blocking (Windows)</td>
+<td><strong>D8 — delete token file; per-run token via stdout</strong></td>
+</tr>
+<tr>
+<td>Artifact temporaries</td>
+<td><code>artifacts.rs:459,710,1296</code> (create); <code>:605,1317</code> (sweep)</td>
+<td>blocking on O_EXCL-unique paths; sweep is <code>try_lock</code></td>
+<td>D2 — keep + document</td>
+</tr>
+<tr>
+<td>Session ownership</td>
+<td><code>ownership.rs:124</code></td>
+<td>non-blocking try → typed <code>Foreign</code></td>
+<td>reference pattern; unchanged</td>
+</tr>
+<tr>
+<td>Session-store migration (v1→v2)</td>
+<td><code>migration.rs:1226</code> (lock), <code>:1095</code> (batch owner claim)</td>
+<td>non-blocking try → loud typed error</td>
+<td><strong>D9 — delete whole subsystem; v1 treated as nonexistent</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="d1-delete-the-snapshot-manifest-locks">D1 — Delete the snapshot-manifest locks<a class="headerlink" href="#d1-delete-the-snapshot-manifest-locks" title="Permanent link">&para;</a></h3>
+<p>Both <code>scan</code> (<code>manifests/mod.rs:71</code>) and the write path (<code>manifests/mod.rs:108</code>)
+acquire <code>MODEL_SNAPSHOT_LOCK_FILE</code> only to (a) enumerate files and (b)
+check-digest-then-install. Neither needs a cross-process lock:</p>
+<ul>
+<li>Snapshot manifests are <strong>content-addressed</strong> (filename is the manifest's
+  digest) and installed via atomic rename. Two processes installing the same
+  digest write byte-identical content to the same name; last-writer-wins is a
+  no-op. The existing digest-collision guard (equal digest ⇒ equal content, else
+  <code>ModelSnapshotDigestMismatch</code>) is a content-addressing invariant, not a
+  mutual-exclusion concern; it is enforced by reading the installed file back,
+  which is safe without a lock.</li>
+<li><code>scan</code> enumerates a directory and reads manifest files; a concurrent install
+  mid-scan yields a torn-but-consistent view only in the sense that a
+  just-installed file may or may not appear this scan — acceptable, since the
+  next scan sees it, and the index is rebuilt from files present on disk.</li>
+<li>Retention/GC already runs against unique per-operation paths and atomic
+  replaces, so removing these two locks does not expose GC to a partial write.</li>
+</ul>
+<p>Remove both <code>self.directory.lock(MODEL_SNAPSHOT_LOCK_FILE)</code> acquisitions; the
+<code>MODEL_SNAPSHOT_LOCK_FILE</code> constant is deleted. Keep all validation, size caps,
+and the <code>create_new</code> + rename install sequence. This is the single largest
+reduction in blocking acquisitions.</p>
+<h3 id="d2-keep-the-artifact-locks-and-document-why-do-not-delete">D2 — Keep the artifact locks and document why (do not delete)<a class="headerlink" href="#d2-keep-the-artifact-locks-and-document-why-do-not-delete" title="Permanent link">&para;</a></h3>
+<p>Investigation reversed the initial assumption that artifact locks are removable
+telemetry. The <code>lock_exclusive</code> at <code>artifacts.rs:459,710,1296</code> is taken on a
+freshly <code>O_EXCL</code>-created, operation-unique temporary, so it can never contend
+(see D2 invariant below) — but the <em>sweep</em> paths (<code>artifacts.rs:605,1317</code>)
+deliberately use non-blocking <code>try_lock_exclusive</code> and skip any temporary whose
+lock is currently held. The create-lock is thus a genuine <strong>in-use marker</strong>:
+the exclusive lock held by a live writer is what tells a concurrent GC/capture
+sweep "this stale-by-mtime temporary is still owned, do not unlink it." Deleting
+the create lock would let a sweep delete a temporary another process is still
+writing.</p>
+<p>Documented invariant, added as a comment at the create sites and the sweep:</p>
+<blockquote>
+<p>Artifact locks are taken <strong>only</strong> on operation-unique paths created with
+<code>O_EXCL</code> (<code>.&lt;uuid&gt;.&lt;nanos&gt;.&lt;rand&gt;.tmp</code>). A lock on such a path is an
+in-use marker, not a mutual-exclusion point: no other process ever opens the
+same name, so <code>lock_exclusive</code> here never waits. Sweeps use non-blocking
+<code>try_lock_exclusive</code> and skip a locked temporary as still-owned.</p>
+</blockquote>
+<p>Consequence: the artifact class contributes <strong>zero</strong> unbounded-wait risk and
+needs no D3 bounding. (The content-addressed blob rename at
+<code>artifact_store/retain.rs</code> and the per-operation retain/capture paths are
+process-exclusive by construction and stay unchanged.)</p>
+<h3 id="d3-bounded-acquisition-primitive-lock_within">D3 — Bounded acquisition primitive: <code>lock_within</code><a class="headerlink" href="#d3-bounded-acquisition-primitive-lock_within" title="Permanent link">&para;</a></h3>
+<p>Add a bounded-timeout acquisition to the secure-store layer and route all
+blocking store acquisitions through it. No new third-party dependency
+(<code>fs4</code> was evaluated and rejected — it exposes no timeout API and its
+<code>AsyncFileExt</code> methods are documented-synchronous; see Non-goals).</p>
+<ul>
+<li>API: <code>SecureDirectory::lock_within(&amp;self, name, budget: Duration) -&gt;
+  Result&lt;SecureDirectoryLock&lt;'_&gt;, SecureStoreError&gt;</code>, with a new
+  <code>SecureStoreError::LockContention { .. }</code> variant (D5). The existing
+  <code>lock()</code> becomes an alias for <code>lock_within(name, DEFAULT_BUDGET)</code>; no lock site
+  uses the unbounded form.</li>
+<li>unix: loop <code>flock(LOCK_EX | LOCK_NB)</code>; on <code>WouldBlock</code> back off and retry until
+  the budget elapses, then return <code>LockContention</code>.</li>
+<li>windows: loop <code>LockFileEx(LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)</code>;
+  on <code>ERROR_LOCK_VIOLATION</code> back off and retry until budget elapses. This reuses
+  the shape already proven in <code>replace_windows_path_with_retry</code>
+  (<code>session.rs:4527</code>), promoting it to a shared primitive.</li>
+<li>Backoff: exponential with jitter, starting ~2 ms, capped ~50 ms, until budget.</li>
+<li>Budget default: <strong>5 s</strong> (comfortably above healthy contention between
+  co-operating local processes, far below the point where a user perceives a
+  hang). Windows CI benefits directly: a bounded 5 s acquisition cannot park a
+  worker past the test watchdog.</li>
+</ul>
+<p>Sites migrated to <code>lock_within</code>: provider store <code>store.rs:169</code>, catalog
+<code>catalog/manager.rs:299,330</code>, OAuth <code>mcp.rs:592,622,908</code> (via the
+<code>SecureDirectory</code> path) and the unix <code>OAuthStoreLock::acquire</code>
+<code>mcp.rs:954</code> (replace its <code>lock_exclusive</code> with a bounded <code>LOCK_NB</code> retry loop of
+the same shape).</p>
+<h3 id="d4-provider-store-retention-shrink-via-commit-time-compare-and-swap">D4 — Provider-store retention: shrink via commit-time compare-and-swap<a class="headerlink" href="#d4-provider-store-retention-shrink-via-commit-time-compare-and-swap" title="Permanent link">&para;</a></h3>
+<p>Shorten the provider-store lock so it does not span compile or the publication
+callback, while preserving the atomicity the current wide hold was masking:</p>
+<ol>
+<li><code>begin_transaction</code> keeps the lock only for its own re-read (already does),
+   releases at end of read, and returns <code>{ state, transaction_id, base_generation,
+   base_revision }</code> <strong>plus the current on-disk stamp</strong> it read.</li>
+<li>Proposal compilation, <code>compile_runtime</code>, and <code>prepare_publication</code> run <strong>with
+   no file lock held</strong>.</li>
+<li><code>commit(proposal)</code> re-acquires <code>lock_within</code>, <strong>re-reads the on-disk state</strong>,
+   and compares the live <code>generation</code> / <code>store_revision</code> against the proposal's
+   recorded <code>base_generation</code> / <code>base_revision</code>. Equal → atomic replace. Not
+   equal → drop the lock and return <code>ProviderStoreError::Stale</code> (retryable; the
+   caller re-begins).</li>
+</ol>
+<p><code>ProviderStoreTransaction</code> loses its held-<code>lock</code> field and gains a base stamp;
+<code>commit</code> gains the re-read + compare. This removes the "compile under lock"
+retention entirely. <code>ProposedProviderStore</code> already carries
+<code>base_generation</code> / <code>base_revision</code> (<code>store.rs:395-412</code>), so no new proposal
+fields are required.</p>
+<p><strong>Stale handling (resolved).</strong> A <code>Stale</code> commit surfaces as a retryable error
+and is <strong>never replayed inside the manager</strong>. Rationale, recorded because it
+was the open design question:</p>
+<ul>
+<li>The store already implements the idempotent-retry protocol one layer up:
+  mutations carry a <code>client_request_id</code> and <code>propose_*</code> returns <code>Replay(...)</code>
+  for an id already landed (<code>manager/mod.rs:1134</code>). A manager-internal retry
+  would duplicate that protocol unseen and, worse, re-enter with the stale
+  in-memory <code>current</code> Arc (its non-store halves — <code>authored</code>,
+  <code>global_headers</code> — predate the race), double-invoking the caller's
+  <code>prepare_publication</code> closure with no idempotency contract.</li>
+<li>The retry-on-lost-response case (commit succeeded, caller never saw it) is
+  answered by the replay path only when the retry carries the <strong>same</strong>
+  <code>client_request_id</code> — so the retry must originate at the request layer.</li>
+</ul>
+<p>Contract: <code>ModelManager::connect/disconnect</code> map <code>Stale</code> to a distinct
+retryable <code>ModelManagerError::Contention</code>; the client layer (TUI/RPC caller)
+resubmits the identical request (same <code>client_request_id</code>) <strong>exactly once</strong>;
+a second consecutive <code>Stale</code> surfaces to the user as contention while the
+pending payload (e.g. the filled connect form) stays held. Post-D4 the race
+window is the CAS + atomic rename (milliseconds), so the human-visible
+re-click path should be near-unreachable.</p>
+<h3 id="d5-contention-becomes-a-typed-retryable-surfaced-outcome">D5 — Contention becomes a typed, retryable, surfaced outcome<a class="headerlink" href="#d5-contention-becomes-a-typed-retryable-surfaced-outcome" title="Permanent link">&para;</a></h3>
+<ul>
+<li>New <code>SecureStoreError::LockContention { path, waited_ms }</code>.</li>
+<li>Store/manager/callers map it to a distinct retryable error
+  (<code>ProviderStoreError::Contention</code>, catalog equivalent, OAuth <code>AuthError</code>
+  transient variant) rather than a generic I/O failure.</li>
+<li>RPC wire code: <strong><code>"lock_contention"</code></strong> — snake_case, matching the existing
+  <code>SessionError::SessionLocked(_) =&gt; "session_locked"</code> mapping
+  (<code>server/src/rpc.rs:302</code>); added to the same <code>error_code</code> classifier.</li>
+<li>TUI copy: <strong>"Another cookie-agent process is writing the {store} — try
+  again."</strong> where <code>{store}</code> is a human noun from the error site
+  (providers / model catalog / credentials). No auto-retry in the TUI for
+  store contention (unlike D4's client-layer resubmit, which is request-id
+  idempotent; a raw store write has no such idempotency handle).</li>
+</ul>
+<h3 id="d6-oauth-store-lock-free-reads-refresh-discipline">D6 — OAuth store: lock-free reads + refresh discipline<a class="headerlink" href="#d6-oauth-store-lock-free-reads-refresh-discipline" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Reads (<code>get</code>/<code>load</code>) drop the lock entirely — both platforms.</strong> A read is
+  not a read-modify-write, and the store is mutated only via temp-file +
+  atomic replace, so a reader always observes a complete old-or-new document:
+  there is no torn state to guard. This is correct on Windows too because the
+  general data reader (<code>windows.rs:486-491</code>) opens with
+  <code>FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE</code>; the <code>FILE_SHARE_DELETE</code>
+  is load-bearing — it means a lock-free reader does not block the writer's
+  replace, so the reader sees the old bytes to close and the next reader sees
+  the new file. (This analysis assumed <code>MoveFileExW(REPLACE_EXISTING)</code> was
+  atomic for a reader that already holds a handle. It is — but a reader that
+  opens the name <em>during</em> the replace could find it absent, so <code>replace_path</code>
+  now prefers the superseding POSIX rename and keeps <code>MoveFileExW</code> only as a
+  fallback.) Unix already reads this way
+  (<code>load_oauth_store</code>, no lock) via <code>SecureDirectory::read</code> (<code>mod.rs:102</code>). So
+  no shared-lock primitive is introduced. The <code>R | W</code>-only share mode is kept
+  <strong>solely for lock files</strong> (the ownership deny-delete guard), untouched.</li>
+<li><strong>Writes (<code>update</code>/<code>save</code>) keep the bounded exclusive lock</strong> (<code>lock_within</code>,
+  D3) because the RMW read→compare→replace must be atomic across processes;
+  that is the only place the lock earns its keep. Network token refresh stays
+  <strong>outside</strong> every lock (unchanged — <code>load</code>/<code>save</code> are separate
+  <code>CredentialStore</code> calls, and refreshes are rare).</li>
+<li><strong>Refresh-transaction correctness (D6-correctness, resolved).</strong> rmcp 3.1.2
+  issues refresh as <code>load</code> → token-endpoint HTTP → <code>save</code> with the network call
+  unbracketed between two store episodes (<code>rmcp/src/transport/auth.rs:2168,
+  :2189-2194, :2226</code>). <strong>In-process it is already serialized</strong> by <code>AuthClient</code>'s
+  manager mutex (<code>transport/common/auth/streamable_http_client.rs:51</code>), so the race
+  is purely <strong>cross-process</strong> (TUI + daemon sharing <code>mcp-auth.json</code>). Two
+  cooperating mechanisms close it, neither holding a lock across network I/O:</li>
+<li><strong>Compare-before-write CAS in <code>save</code></strong> (<code>mcp.rs:657</code>): under the existing
+     bounded <code>lock_within</code> episode, skip the write (return <code>Ok(())</code>) when the
+     on-disk entry is strictly newer by <code>token_received_at</code>, or same-timestamp
+     with a <em>different</em> refresh token; allow equal-token idempotent writes and
+     <code>token_response: None</code> administrative downgrades. Persisted state can never
+     regress to a rotated-away refresh token.</li>
+<li><strong>Pre-flight refresh claim in <code>McpOAuthHttpClient::execute</code></strong>
+     (<code>mcp.rs:815</code>): for token-endpoint requests carrying
+     <code>grant_type=refresh_token</code> (visible in the form body we already parse at
+     <code>mcp.rs:782-812</code>), take a bounded lock, compare the request's refresh token
+     against disk, and if disk has rotated, <strong>short-circuit with a synthesized
+     200 adopting the disk credentials</strong> — no second IdP call, no spurious
+     <code>NeedsAuth</code>. On a 400 <code>invalid_grant</code>, one bounded disk re-check adopts a
+     concurrently-landed rotation the same way; unchanged disk passes the
+     rejection through to rmcp's <code>TokenRefreshRejected</code> → re-login. Lock
+     contention on the pre-flight <strong>skips the check</strong> (never fails the refresh);
+     CAS remains the correctness layer.
+  Residual race — both processes inside the token-endpoint window — costs at
+  most one <code>invalid_grant</code>, recovered by disk-adoption; persistence corruption
+  is eliminated in all interleavings. <code>McpOAuthHttpClient</code> gains a reference to
+  the <code>OAuthCredentialFile</code> + key/binding (available at construction from
+  <code>authorization_manager</code>, <code>mcp.rs:1796-1817</code>); rmcp stays a stock <code>=3.1.2</code>
+  dependency. The request-sniffing (<code>grant_type=refresh_token</code> parse) is the
+  most fragile element and carries a debug test that fails loudly if a future
+  rmcp stops routing refresh through our client.</li>
+</ul>
+<h3 id="d7-keep-lock-taking-store-calls-off-async-workers">D7 — Keep lock-taking store calls off async workers<a class="headerlink" href="#d7-keep-lock-taking-store-calls-off-async-workers" title="Permanent link">&para;</a></h3>
+<p>Even bounded, a 5 s lock retry should not spin a tokio worker. Route the
+synchronous store-mutating calls reached from async server routes (provider
+connect/update/disconnect, catalog refresh commit, OAuth store writes) through
+<code>spawn_blocking</code>, matching what the artifact store already does. This is
+orthogonal to D3 and independently safe.</p>
+<h3 id="d8-ephemeral-per-run-daemon-token-handed-over-stdout-delete-the-token-file-and-its-lock">D8 — Ephemeral per-run daemon token handed over stdout; delete the token file and its lock<a class="headerlink" href="#d8-ephemeral-per-run-daemon-token-handed-over-stdout-delete-the-token-file-and-its-lock" title="Permanent link">&para;</a></h3>
+<p>The daemon bearer token is currently persisted at <code>daemon/token-v1</code> with a
+load-or-create path whose Windows branch takes the only remaining
+blocking lock in this class (<code>auth_token.rs:67</code>). The file exists for exactly
+one reason: an <em>unrelated</em> client process needs to discover the same secret.</p>
+<p>Decision: replace persistence with <strong>per-run generation plus stdout handoff</strong>.
+The daemon generates a fresh random 32-byte token at startup, keeps it only in
+memory (<code>Zeroizing&lt;String&gt;</code>), and prints it once on stdout for its supervisor;
+the token file, <code>standard_token_path</code>, <code>load_or_create_token</code>, and
+<code>.token-v1.lock</code> are deleted. The <code>auth_token</code> module is removed.</p>
+<p>Mechanics:</p>
+<ol>
+<li><strong>Ready line.</strong> As the first stdout line, the daemon emits exactly one
+   machine-readable frame:
+   <code>daemon-ready {"url":"ws://127.0.0.1:&lt;port&gt;/ws","token":"&lt;43-char base64url&gt;"}</code>
+   followed by the existing human banner. Parsers match the literal
+   <code>daemon-ready</code> prefix and ignore all other lines. The token is never
+   echoed to stderr or logged after startup.</li>
+<li><strong>Server validation is unchanged in kind.</strong> The WebSocket handshake keeps
+   the constant-time compare (<code>authorized(...)</code> / <code>ct_eq</code> in
+   <code>service/websocket.rs</code>); only the token's <em>source</em> changes — a value passed
+   into <code>WebSocketService</code> at construction instead of a file read at startup.
+   The listener stays loopback-bound.</li>
+<li><strong>Supervised clients</strong> (the intended primary attach mode) receive the token
+   over the private stdout/pipe channel from the spawner and connect via the
+   existing <code>WebSocketTransport::connect_with_token</code> /
+   <code>Client::connect_with_token</code> (already public today, used by tests). A pipe
+   is readable only by its two endpoints, so this handoff is strictly stronger
+   than the shared file: unrelated same-machine processes cannot observe it.</li>
+<li><strong>Manual attach</strong> (<code>cookie connect</code>, <code>cookie --attach</code> in another terminal)
+   can no longer discover the secret <em>implicitly</em> — no file remains to read,
+   and only a cooperating reader of the daemon's stdout can obtain the token.
+   Token supply is a <strong>required parameter with env fallback</strong>, on every
+   WS-attaching subcommand (<code>attach</code>, <code>connect</code>, <code>disconnect</code>, <code>mcp</code> — the
+   four that currently build <code>Client::connect_websocket</code> with a <code>url</code>):
+   <code>#[arg(long, env = "COOKIE_DAEMON_TOKEN")] token: String</code>. The <code>url</code> arg
+   keeps its <code>default_value</code> (7419); the token gets no default, so clap's
+   standard "required argument not provided" error is the missing-token UX —
+   no bespoke prompt. Three legitimate delivery channels: (a) the daemon's
+   parent reads the pipe; (b) a human reads the ready line on the terminal
+   and pastes <code>--token</code> or exports <code>COOKIE_DAEMON_TOKEN</code>; (c) a launcher
+   script captures stdout and relays it to clients it spawns.
+   <code>WebSocketTransport::connect</code> (the file-reading default) is removed;
+   tokenless <code>connect(url)</code> becomes <code>connect_with_token</code> only. Accepted
+   consequence: a fully unattended client attaching to a daemon it did not
+   start (e.g. a cron job) must carry the token in its own launch config; no
+   global readable fallback exists any more.</li>
+<li><strong>Port selection: static and ephemeral both supported (resolved).</strong>
+   <code>serve(port)</code> already binds any supplied port and reports the actual
+   <code>local_addr()</code> (<code>service/websocket.rs:70</code>, banner at
+   <code>cookie_agent/src/main.rs:1006</code>), so no mechanism is needed — only a
+   policy:</li>
+<li><code>--port &lt;N&gt;</code> / <code>[server] port = N</code> → static bind (unchanged behavior).</li>
+<li><code>--port 0</code> / <code>port = 0</code> → ephemeral bind; the ready line carries the
+     real port; this is the supported mode for supervisors, CI, and
+     concurrent daemons.</li>
+<li><strong>No configuration → default 7419 (unchanged).</strong> Keeping the static
+     default preserves (a) the bind collision as the sole "a daemon is
+     already running" signal, and (b) argument-less <code>cookie connect</code>, which
+     requires a predictable port; with the per-run token already imposing
+     one paste step (the token), an ephemeral default would force a second
+     mandatory paste (the URL).</li>
+<li>Clients must never guess an ephemeral port: the ready-line URL is
+     authoritative whenever it is used.</li>
+</ol>
+<p>Security posture, stated honestly against <a href="../../guide/security/">Security
+boundaries</a>:</p>
+<ul>
+<li><strong>Stronger than the file:</strong> nothing on disk; the secret dies with the run;
+  a leaked token cannot outlive the daemon; two daemons can never share a
+  stale secret (today's file means one daemon's accepted client could
+  authenticate to any other daemon started since the file was created).</li>
+<li><strong>Same residual boundary as today, minus one class:</strong> a same-user process
+  that can ptrace/inspect the daemon still wins (unchanged — that threat was
+  never file-vs-pipe addressable); a same-user process that could simply
+  <em>read the token file</em> can no longer get a durable secret unless it also
+  captures the parent's pipe or the terminal output.</li>
+<li><strong>New, smaller caveats:</strong> supervisors that log daemon stdout verbatim
+  persist the token in logs — the ready line must be treated as secret by
+  supervisors (spec: supervisors pipe stdout, capture one line, and do not
+  archive it); a human pasting <code>--token</code> into shell history is a
+  same-user-visible copy. Both are documented, not solved, here.</li>
+</ul>
+<p>Effect on this spec's lock inventory: the daemon-token class <strong>leaves the
+locking problem entirely</strong> — it contributes zero locks to D3 migration and
+retires the last <code>directory.lock</code> call site outside the provider/catalog/
+OAuth/snapshot set.</p>
+<h3 id="d9-delete-the-one-shot-v1v2-session-store-migration-subsystem">D9 — Delete the one-shot v1→v2 session-store migration subsystem<a class="headerlink" href="#d9-delete-the-one-shot-v1v2-session-store-migration-subsystem" title="Permanent link">&para;</a></h3>
+<p>Product decision: the hierarchical (v2) store was shipped under an explicit
+no-backward-compatibility directive; the flat (<code>projects/&lt;hash&gt;</code>) layout is
+not supported. The one-shot promotion machinery therefore retires in full —
+<strong>no migration code and no migration lock at all</strong> — superseding the earlier
+design question of whether the migration lock merges with the session
+ownership lock (neither survives as a concern: the ownership lock stays;
+the migration subsystem goes).</p>
+<p>Deletion surface (verified):</p>
+<ul>
+<li><code>crates/engine/src/migration.rs</code> — entire file and module declaration
+  (2,698 lines: production body <code>:1-1176</code>, the rest tests). Includes the
+  <code>MigrationLock</code> (<code>:1220-1253</code>), <code>OwnerLocks</code> batch claim/release with the
+  Windows sidecar-move handling (<code>:1095-1169</code>, <code>d08d3292</code> era), the
+  journal/resume machinery, verification passes, and the <code>MIGRATED</code>
+  tombstone writer.</li>
+<li>One production call site: <code>session.rs:772</code>
+  (<code>migration::run_if_needed</code> in <code>open_with_layout</code>, reached only via
+  <code>LayoutChoice::PreferV2</code>, which is what <code>SessionStore::open</code> (<code>:742</code>) uses).</li>
+<li><code>LayoutChoice</code> itself: with no promotion path, <code>PreferV2</code> collapses to
+  "v2 always"; <code>ForceFlat</code> (<code>:752</code>) and its <code>flat_layout</code> branch
+  (<code>session.rs:779-790</code>) exist only for migration fixtures — deleted, with
+  their uses migrated to direct v2 paths in tests.</li>
+<li><code>SessionError::Migration</code> variant: deleted outright. No replacement error
+  is introduced — v1 is not detected, so it cannot be reported (see
+  replacement behavior below).</li>
+<li><code>layout.json</code>'s embedded <code>"migration": "complete"</code> field and the
+  <code>.migrated</code> / <code>.migrating</code> marker semantics: new code neither reads nor
+  writes them. The v2 <code>LAYOUT_MARKER_FILE</code> version marker <strong>stays</strong> — it is
+  how a directory is identified as a v2 store.</li>
+<li>Existing migrated stores carry inert leftovers (<code>layout.json</code> migration
+  field, possibly empty <code>projects/</code> parents). Not touched — no cleanup pass
+  reintroduces migration-era filesystem dancing.</li>
+<li>Docs: <code>architecture.md</code> migration paragraphs (lock/journal/tombstone
+  contract, the "first open promotes" description) are deleted, not replaced
+  — no v1/v2 migration language remains anywhere in the site.</li>
+</ul>
+<p>Replacement behavior: <strong>none — v1 is treated as if it never existed</strong>.
+<code>SessionStore::open</code> unconditionally opens the v2 hierarchical store
+(<code>sessions/&lt;workdirkey&gt;</code>). There is no legacy detection, no legacy error
+variant, no tombstone, no read of <code>projects/</code> from any v2 code path.
+<code>SessionStore::project_dir</code> (the <code>projects/&lt;hash&gt;</code> builder,
+<code>session.rs:696</code>) and the <code>legacy_root</code>/<code>legacy_dir</code> computations in
+<code>open_with_layout</code> (<code>:775-791</code>) are deleted; <code>project_hash</code> stays because v2
+directory naming uses it. A leftover <code>projects/</code> directory on some disk is
+simply another directory: ignored, never inspected, never mentioned in
+docs. The consequence of that stance is recorded here for honesty: any
+store that was never promoted now surfaces as an empty session list for
+that work dir — accepted by directive.</p>
+<p>Ripened side-effects:</p>
+<ul>
+<li>Windows CI: the migration test suite (which exercised deny-delete
+  sidecars, resume journals, and long-watchdog paths) disappears, removing
+  a whole class of the thread-parking suspects from the hang investigation.
+  D3's bounded <code>lock_within</code> still lands for the stores that remain.
+  (Separately: the <code>test_timeout</code> ×10 Windows multiplier has been removed in
+  favor of the same 60 s budget as unix — the earlier "600 s watchdog"
+  framing no longer applies.)</li>
+<li><code>replace_windows_path_with_retry</code> (<code>session.rs:4527</code>) stays — it is used
+  by regular session writes (<code>:4349,:4429,:4511,:4646</code>), independent of
+  migration.</li>
+<li>The shared <code>AdvisoryClaim</code> primitive: with migration gone, two hand-rolled
+  try-lock sites remain (<code>ownership.rs:124</code>, the artifact sweeps at
+  <code>artifacts.rs:605,1317</code>) that duplicate the open + <code>try_lock_exclusive</code> +
+  <code>Drop</code>-unlock + typed-<code>WouldBlock</code> shape. <strong>Committed (Q5): consolidate.</strong>
+  Extract one helper with the two canonical forms — <code>try_lock_once()</code> (claim,
+  no wait) and <code>lock_within(budget)</code> (D3's bounded retry) — into a shared home
+  (next to <code>SecureDirectory</code>); <code>ownership.rs</code> layers <code>WriteAuthority</code> + the
+  Windows deny-delete sidecar policy on top, artifact sweeps use
+  <code>try_lock_once()</code> unchanged. Behavior-neutral: same paths, same share modes,
+  same error classification. Lands inside the D3 PR.</li>
+</ul>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Adopting fs4.</strong> Rejected: fs4 1.1.0 has no timeout API
+  (<code>lock_for</code>/<code>lock_timeout</code> do not exist) and its <code>AsyncFileExt::lock</code> is
+  documented-synchronous — a pure API-modernization migration with zero benefit
+  to the hang or retention problems.</li>
+<li><strong>Adopting <code>filelock</code> (aisk).</strong> Rejected for this pass: it is the only crate
+  offering tokio-native async acquisition, but it is a very new, single-author,
+  low-adoption dependency on a credential path, and its async acquisition still
+  polls. D3 + D7 give the same reactor-safety with no new dependency.</li>
+<li><strong>Heartbeat / mtime-stale / PID-liveness / release-token / TTL files.</strong>
+  Rejected outright: our OS advisory locks auto-release on fd close and on crash,
+  so these mechanisms — which exist only because <code>mkdir</code>-style locks survive
+  crashes — would be dead weight.</li>
+<li><strong>SQLite migration.</strong> Rejected: it does not remove the waiter-hang class
+  (opencode's <code>busy_timeout</code> history) and it forfeits the filesystem trust model.</li>
+<li><strong>Shared lock modes.</strong> Obsoleted by D6: reads are lock-free, so there is no
+  reader to make shared; the lock exists only for writers' RMW atomicity.</li>
+<li><strong><code>fcntl</code>/OFD locks.</strong> Any lock we add must be <code>flock</code>-family so it
+  interoperates with the existing locks on the same files. Do not mix lock
+  families on one file.</li>
+</ul>
+<h2 id="rollout-order">Rollout order<a class="headerlink" href="#rollout-order" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>D9</strong> — delete the session-store migration subsystem + <code>architecture.md</code>
+   cleanup (independent; unblocks the largest Windows-CI thread-parking
+   class; no replacement code). Land first.</li>
+<li><strong>D1</strong> — delete snapshot-manifest locks (self-contained, largest lock
+   win, lowest risk).</li>
+<li><strong>D3 + D5 + D9-claim</strong> — <code>lock_within</code> + <code>try_lock_once</code> shared primitive,
+   contention error type + wire code; migrate provider-store (with a
+   temporary wide hold retained), catalog, OAuth write sites; consolidate the
+   ownership/artifact try-lock callers. Independent of Windows CI logs; safe
+   to land alongside D9.</li>
+<li><strong>D7</strong> — <code>spawn_blocking</code> for store mutations from async routes.</li>
+<li><strong>D4</strong> — provider-store commit-CAS (depends on D3/D5 landing).</li>
+<li><strong>D8</strong> — per-run stdout token + delete <code>token-v1</code>/<code>auth_token.rs</code>/
+   <code>.token-v1.lock</code> + update <code>security.md</code> and <code>run.md</code>/<code>server.md</code> (independent;
+   product decision already made).</li>
+<li><strong>D6-correctness</strong> (CAS save + pre-flight refresh claim) — designed
+   (above); lands with or just after the D3 OAuth migration since both touch
+   <code>mcp.rs</code> store paths. Test plan: cross-process child-process race harness
+   with a single-use-rotating fake IdP (extends <code>OAuthFixture</code>,
+   <code>mcp/oauth_tests.rs:277-341</code>), plus in-process CAS unit tests.</li>
+</ol>
+<h2 id="resolved-questions">Resolved questions<a class="headerlink" href="#resolved-questions" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>D4 stale replay vs surface</strong> — resolved: surface as retryable
+  <code>Contention</code>, single automatic same-<code>client_request_id</code> resubmission at the
+  client layer, no manager-internal replay. Rationale in D4.</li>
+<li><strong>D8 port policy</strong> — resolved: default 7419 unchanged, <code>--port 0</code> as the
+  supported ephemeral opt-in, ready-line URL authoritative. Rationale in D8.</li>
+<li><strong>D8 token UX</strong> — resolved: <code>--token</code> required with <code>env</code> fallback on the
+  four WS subcommands, no default, no interactive prompt. Mechanics in D8 §4.</li>
+<li><strong>Test watchdog</strong> — resolved: the Windows <code>test_timeout</code> ×10 multiplier is
+  removed; Windows and unix share the same 60 s budget.</li>
+<li>The earlier "authorization-less daemon" question is superseded by the
+  per-run token design: authentication is <strong>kept</strong> (constant-time bearer
+  compare, loopback bind), only the token's persistence and handoff change.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.instant", "navigation.instant.progress", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
