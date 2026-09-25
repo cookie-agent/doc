@@ -785,140 +785,142 @@
 <a href=#785 id=785 data-nosnippet>785</a>            .filter(|resource| resource.capability == action)
 <a href=#786 id=786 data-nosnippet>786</a>            .map(|resource| resource.binding_digest.digest().clone())
 <a href=#787 id=787 data-nosnippet>787</a>            .collect();
-<a href=#788 id=788 data-nosnippet>788</a>        <span class="self">self</span>.inner
-<a href=#789 id=789 data-nosnippet>789</a>            .grant_journal
-<a href=#790 id=790 data-nosnippet>790</a>            .invalidate(root, ids.iter().copied().collect(), digests)<span class="question-mark">?</span>;
-<a href=#791 id=791 data-nosnippet>791</a>        <span class="self">self</span>.inner.approvals.store.invalidate_grants(<span class="kw-2">&amp;</span>ids);
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="prelude-val">Ok</span>(())
-<a href=#793 id=793 data-nosnippet>793</a>    }
-<a href=#794 id=794 data-nosnippet>794</a>}
-<a href=#795 id=795 data-nosnippet>795</a>
-<a href=#796 id=796 data-nosnippet>796</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>governing_agent_for_skills(
-<a href=#797 id=797 data-nosnippet>797</a>    session: <span class="kw-2">&amp;</span><span class="kw">crate</span>::session::SessionProjection,
-<a href=#798 id=798 data-nosnippet>798</a>) -&gt; AgentSnapshot {
-<a href=#799 id=799 data-nosnippet>799</a>    governing_agent(session)
-<a href=#800 id=800 data-nosnippet>800</a>}
-<a href=#801 id=801 data-nosnippet>801</a>
-<a href=#802 id=802 data-nosnippet>802</a><span class="kw">fn </span>governing_agent(session: <span class="kw-2">&amp;</span><span class="kw">crate</span>::session::SessionProjection) -&gt; AgentSnapshot {
-<a href=#803 id=803 data-nosnippet>803</a>    <span class="kw">let </span>latest_run =
-<a href=#804 id=804 data-nosnippet>804</a>        session
-<a href=#805 id=805 data-nosnippet>805</a>            .log
-<a href=#806 id=806 data-nosnippet>806</a>            .event_snapshot()
-<a href=#807 id=807 data-nosnippet>807</a>            .iter()
-<a href=#808 id=808 data-nosnippet>808</a>            .rev()
-<a href=#809 id=809 data-nosnippet>809</a>            .find_map(|event| <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#810 id=810 data-nosnippet>810</a>                EventPayload::RunStarted { agent, .. } =&gt; <span class="prelude-val">Some</span>(agent.as_ref().clone()),
-<a href=#811 id=811 data-nosnippet>811</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#812 id=812 data-nosnippet>812</a>            });
-<a href=#813 id=813 data-nosnippet>813</a>    select_governing_agent(<span class="kw-2">&amp;</span>session.creation_agent, latest_run.as_ref())
-<a href=#814 id=814 data-nosnippet>814</a>}
-<a href=#815 id=815 data-nosnippet>815</a>
-<a href=#816 id=816 data-nosnippet>816</a><span class="kw">fn </span>select_governing_agent(
-<a href=#817 id=817 data-nosnippet>817</a>    creation_agent: <span class="kw-2">&amp;</span>AgentSnapshot,
-<a href=#818 id=818 data-nosnippet>818</a>    latest_run_agent: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>AgentSnapshot&gt;,
-<a href=#819 id=819 data-nosnippet>819</a>) -&gt; AgentSnapshot {
-<a href=#820 id=820 data-nosnippet>820</a>    latest_run_agent.unwrap_or(creation_agent).clone()
-<a href=#821 id=821 data-nosnippet>821</a>}
-<a href=#822 id=822 data-nosnippet>822</a>
-<a href=#823 id=823 data-nosnippet>823</a><span class="kw">fn </span>effect_rank(effect: PermissionEffect) -&gt; u8 {
-<a href=#824 id=824 data-nosnippet>824</a>    <span class="kw">match </span>effect {
-<a href=#825 id=825 data-nosnippet>825</a>        PermissionEffect::Allow =&gt; <span class="number">0</span>,
-<a href=#826 id=826 data-nosnippet>826</a>        PermissionEffect::Ask =&gt; <span class="number">1</span>,
-<a href=#827 id=827 data-nosnippet>827</a>        PermissionEffect::Deny =&gt; <span class="number">2</span>,
-<a href=#828 id=828 data-nosnippet>828</a>    }
-<a href=#829 id=829 data-nosnippet>829</a>}
-<a href=#830 id=830 data-nosnippet>830</a>
-<a href=#831 id=831 data-nosnippet>831</a><span class="kw">fn </span>rule_effect(
-<a href=#832 id=832 data-nosnippet>832</a>    policy: <span class="kw-2">&amp;</span>AgentSnapshot,
-<a href=#833 id=833 data-nosnippet>833</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
-<a href=#834 id=834 data-nosnippet>834</a>    action: PermissionAction,
-<a href=#835 id=835 data-nosnippet>835</a>    resource: <span class="kw-2">&amp;</span>str,
-<a href=#836 id=836 data-nosnippet>836</a>    workspace: <span class="kw-2">&amp;</span>Path,
-<a href=#837 id=837 data-nosnippet>837</a>) -&gt; PermissionEffect {
-<a href=#838 id=838 data-nosnippet>838</a>    <span class="kw">if </span>resource == <span class="string">"*" </span>{
-<a href=#839 id=839 data-nosnippet>839</a>        effective_loose_permission_with_overlay(policy, <span class="prelude-val">Some</span>(overlay), action).<span class="number">0
-<a href=#840 id=840 data-nosnippet>840</a>    </span>} <span class="kw">else </span>{
-<a href=#841 id=841 data-nosnippet>841</a>        effective_permission_with_overlay(policy, <span class="prelude-val">Some</span>(overlay), action, resource, workspace).<span class="number">0
-<a href=#842 id=842 data-nosnippet>842</a>    </span>}
-<a href=#843 id=843 data-nosnippet>843</a>}
-<a href=#844 id=844 data-nosnippet>844</a>
-<a href=#845 id=845 data-nosnippet>845</a><span class="kw">fn </span>effective_permission_view(
-<a href=#846 id=846 data-nosnippet>846</a>    policy: <span class="kw-2">&amp;</span>AgentSnapshot,
-<a href=#847 id=847 data-nosnippet>847</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
-<a href=#848 id=848 data-nosnippet>848</a>) -&gt; Vec&lt;EffectivePermissionAction&gt; {
-<a href=#849 id=849 data-nosnippet>849</a>    [
-<a href=#850 id=850 data-nosnippet>850</a>        PermissionAction::Read,
-<a href=#851 id=851 data-nosnippet>851</a>        PermissionAction::Write,
-<a href=#852 id=852 data-nosnippet>852</a>        PermissionAction::Bash,
-<a href=#853 id=853 data-nosnippet>853</a>        PermissionAction::Delegate,
-<a href=#854 id=854 data-nosnippet>854</a>        PermissionAction::Message,
-<a href=#855 id=855 data-nosnippet>855</a>        PermissionAction::Mcp,
-<a href=#856 id=856 data-nosnippet>856</a>        PermissionAction::Plugin,
-<a href=#857 id=857 data-nosnippet>857</a>        PermissionAction::Skill,
-<a href=#858 id=858 data-nosnippet>858</a>        PermissionAction::Webfetch,
-<a href=#859 id=859 data-nosnippet>859</a>    ]
-<a href=#860 id=860 data-nosnippet>860</a>    .into_iter()
-<a href=#861 id=861 data-nosnippet>861</a>    .map(|action| {
-<a href=#862 id=862 data-nosnippet>862</a>        <span class="kw">let </span>overlay_wildcard = overlay
-<a href=#863 id=863 data-nosnippet>863</a>            .rules
-<a href=#864 id=864 data-nosnippet>864</a>            .iter()
-<a href=#865 id=865 data-nosnippet>865</a>            .rev()
-<a href=#866 id=866 data-nosnippet>866</a>            .find(|rule| rule.action == action &amp;&amp; rule.resource.as_str() == <span class="string">"*"</span>);
-<a href=#867 id=867 data-nosnippet>867</a>        <span class="kw">let </span>agent_wildcard = policy
-<a href=#868 id=868 data-nosnippet>868</a>            .permissions
-<a href=#869 id=869 data-nosnippet>869</a>            .iter()
-<a href=#870 id=870 data-nosnippet>870</a>            .rev()
-<a href=#871 id=871 data-nosnippet>871</a>            .find(|rule| rule.action == action &amp;&amp; rule.resource.as_str() == <span class="string">"*"</span>);
-<a href=#872 id=872 data-nosnippet>872</a>        <span class="kw">let </span>(effect, source) = overlay_wildcard.map_or_else(
-<a href=#873 id=873 data-nosnippet>873</a>            || {
-<a href=#874 id=874 data-nosnippet>874</a>                agent_wildcard.map_or(
-<a href=#875 id=875 data-nosnippet>875</a>                    (PermissionEffect::Deny, PermissionRuleSource::Default),
-<a href=#876 id=876 data-nosnippet>876</a>                    |rule| (rule.effect, PermissionRuleSource::AgentDocument),
-<a href=#877 id=877 data-nosnippet>877</a>                )
-<a href=#878 id=878 data-nosnippet>878</a>            },
-<a href=#879 id=879 data-nosnippet>879</a>            |rule| (rule.effect, PermissionRuleSource::SessionOverlay),
-<a href=#880 id=880 data-nosnippet>880</a>        );
-<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span><span class="kw-2">mut </span>patterns = BTreeMap::new();
-<a href=#882 id=882 data-nosnippet>882</a>        <span class="kw">if </span>overlay_wildcard.is_none() {
-<a href=#883 id=883 data-nosnippet>883</a>            <span class="kw">for </span>rule <span class="kw">in </span>policy
-<a href=#884 id=884 data-nosnippet>884</a>                .permissions
-<a href=#885 id=885 data-nosnippet>885</a>                .iter()
-<a href=#886 id=886 data-nosnippet>886</a>                .filter(|rule| rule.action == action &amp;&amp; rule.resource.as_str() != <span class="string">"*"</span>)
-<a href=#887 id=887 data-nosnippet>887</a>            {
-<a href=#888 id=888 data-nosnippet>888</a>                patterns.insert(
-<a href=#889 id=889 data-nosnippet>889</a>                    rule.resource.as_str().to_owned(),
-<a href=#890 id=890 data-nosnippet>890</a>                    EffectivePermissionRule {
-<a href=#891 id=891 data-nosnippet>891</a>                        resource: rule.resource.clone(),
-<a href=#892 id=892 data-nosnippet>892</a>                        effect: rule.effect,
-<a href=#893 id=893 data-nosnippet>893</a>                        source: PermissionRuleSource::AgentDocument,
-<a href=#894 id=894 data-nosnippet>894</a>                    },
-<a href=#895 id=895 data-nosnippet>895</a>                );
-<a href=#896 id=896 data-nosnippet>896</a>            }
-<a href=#897 id=897 data-nosnippet>897</a>        }
-<a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">for </span>rule <span class="kw">in </span>overlay
-<a href=#899 id=899 data-nosnippet>899</a>            .rules
-<a href=#900 id=900 data-nosnippet>900</a>            .iter()
-<a href=#901 id=901 data-nosnippet>901</a>            .filter(|rule| rule.action == action &amp;&amp; rule.resource.as_str() != <span class="string">"*"</span>)
-<a href=#902 id=902 data-nosnippet>902</a>        {
-<a href=#903 id=903 data-nosnippet>903</a>            patterns.insert(
-<a href=#904 id=904 data-nosnippet>904</a>                rule.resource.as_str().to_owned(),
-<a href=#905 id=905 data-nosnippet>905</a>                EffectivePermissionRule {
-<a href=#906 id=906 data-nosnippet>906</a>                    resource: rule.resource.clone(),
-<a href=#907 id=907 data-nosnippet>907</a>                    effect: rule.effect,
-<a href=#908 id=908 data-nosnippet>908</a>                    source: PermissionRuleSource::SessionOverlay,
-<a href=#909 id=909 data-nosnippet>909</a>                },
-<a href=#910 id=910 data-nosnippet>910</a>            );
-<a href=#911 id=911 data-nosnippet>911</a>        }
-<a href=#912 id=912 data-nosnippet>912</a>        EffectivePermissionAction {
-<a href=#913 id=913 data-nosnippet>913</a>            action,
-<a href=#914 id=914 data-nosnippet>914</a>            effect,
-<a href=#915 id=915 data-nosnippet>915</a>            source,
-<a href=#916 id=916 data-nosnippet>916</a>            patterns: patterns.into_values().collect(),
-<a href=#917 id=917 data-nosnippet>917</a>        }
-<a href=#918 id=918 data-nosnippet>918</a>    })
-<a href=#919 id=919 data-nosnippet>919</a>    .collect()
-<a href=#920 id=920 data-nosnippet>920</a>}
-<a href=#921 id=921 data-nosnippet>921</a>
-<a href=#922 id=922 data-nosnippet>922</a><span class="attr">#[cfg(test)]
-<a href=#923 id=923 data-nosnippet>923</a></span><span class="kw">mod </span>tests;
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="self">self</span>.inner.grant_journals.for_root(root)<span class="question-mark">?</span>.invalidate(
+<a href=#789 id=789 data-nosnippet>789</a>            root,
+<a href=#790 id=790 data-nosnippet>790</a>            ids.iter().copied().collect(),
+<a href=#791 id=791 data-nosnippet>791</a>            digests,
+<a href=#792 id=792 data-nosnippet>792</a>        )<span class="question-mark">?</span>;
+<a href=#793 id=793 data-nosnippet>793</a>        <span class="self">self</span>.inner.approvals.store.invalidate_grants(<span class="kw-2">&amp;</span>ids);
+<a href=#794 id=794 data-nosnippet>794</a>        <span class="prelude-val">Ok</span>(())
+<a href=#795 id=795 data-nosnippet>795</a>    }
+<a href=#796 id=796 data-nosnippet>796</a>}
+<a href=#797 id=797 data-nosnippet>797</a>
+<a href=#798 id=798 data-nosnippet>798</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>governing_agent_for_skills(
+<a href=#799 id=799 data-nosnippet>799</a>    session: <span class="kw-2">&amp;</span><span class="kw">crate</span>::session::SessionProjection,
+<a href=#800 id=800 data-nosnippet>800</a>) -&gt; AgentSnapshot {
+<a href=#801 id=801 data-nosnippet>801</a>    governing_agent(session)
+<a href=#802 id=802 data-nosnippet>802</a>}
+<a href=#803 id=803 data-nosnippet>803</a>
+<a href=#804 id=804 data-nosnippet>804</a><span class="kw">fn </span>governing_agent(session: <span class="kw-2">&amp;</span><span class="kw">crate</span>::session::SessionProjection) -&gt; AgentSnapshot {
+<a href=#805 id=805 data-nosnippet>805</a>    <span class="kw">let </span>latest_run =
+<a href=#806 id=806 data-nosnippet>806</a>        session
+<a href=#807 id=807 data-nosnippet>807</a>            .log
+<a href=#808 id=808 data-nosnippet>808</a>            .event_snapshot()
+<a href=#809 id=809 data-nosnippet>809</a>            .iter()
+<a href=#810 id=810 data-nosnippet>810</a>            .rev()
+<a href=#811 id=811 data-nosnippet>811</a>            .find_map(|event| <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#812 id=812 data-nosnippet>812</a>                EventPayload::RunStarted { agent, .. } =&gt; <span class="prelude-val">Some</span>(agent.as_ref().clone()),
+<a href=#813 id=813 data-nosnippet>813</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#814 id=814 data-nosnippet>814</a>            });
+<a href=#815 id=815 data-nosnippet>815</a>    select_governing_agent(<span class="kw-2">&amp;</span>session.creation_agent, latest_run.as_ref())
+<a href=#816 id=816 data-nosnippet>816</a>}
+<a href=#817 id=817 data-nosnippet>817</a>
+<a href=#818 id=818 data-nosnippet>818</a><span class="kw">fn </span>select_governing_agent(
+<a href=#819 id=819 data-nosnippet>819</a>    creation_agent: <span class="kw-2">&amp;</span>AgentSnapshot,
+<a href=#820 id=820 data-nosnippet>820</a>    latest_run_agent: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>AgentSnapshot&gt;,
+<a href=#821 id=821 data-nosnippet>821</a>) -&gt; AgentSnapshot {
+<a href=#822 id=822 data-nosnippet>822</a>    latest_run_agent.unwrap_or(creation_agent).clone()
+<a href=#823 id=823 data-nosnippet>823</a>}
+<a href=#824 id=824 data-nosnippet>824</a>
+<a href=#825 id=825 data-nosnippet>825</a><span class="kw">fn </span>effect_rank(effect: PermissionEffect) -&gt; u8 {
+<a href=#826 id=826 data-nosnippet>826</a>    <span class="kw">match </span>effect {
+<a href=#827 id=827 data-nosnippet>827</a>        PermissionEffect::Allow =&gt; <span class="number">0</span>,
+<a href=#828 id=828 data-nosnippet>828</a>        PermissionEffect::Ask =&gt; <span class="number">1</span>,
+<a href=#829 id=829 data-nosnippet>829</a>        PermissionEffect::Deny =&gt; <span class="number">2</span>,
+<a href=#830 id=830 data-nosnippet>830</a>    }
+<a href=#831 id=831 data-nosnippet>831</a>}
+<a href=#832 id=832 data-nosnippet>832</a>
+<a href=#833 id=833 data-nosnippet>833</a><span class="kw">fn </span>rule_effect(
+<a href=#834 id=834 data-nosnippet>834</a>    policy: <span class="kw-2">&amp;</span>AgentSnapshot,
+<a href=#835 id=835 data-nosnippet>835</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
+<a href=#836 id=836 data-nosnippet>836</a>    action: PermissionAction,
+<a href=#837 id=837 data-nosnippet>837</a>    resource: <span class="kw-2">&amp;</span>str,
+<a href=#838 id=838 data-nosnippet>838</a>    workspace: <span class="kw-2">&amp;</span>Path,
+<a href=#839 id=839 data-nosnippet>839</a>) -&gt; PermissionEffect {
+<a href=#840 id=840 data-nosnippet>840</a>    <span class="kw">if </span>resource == <span class="string">"*" </span>{
+<a href=#841 id=841 data-nosnippet>841</a>        effective_loose_permission_with_overlay(policy, <span class="prelude-val">Some</span>(overlay), action).<span class="number">0
+<a href=#842 id=842 data-nosnippet>842</a>    </span>} <span class="kw">else </span>{
+<a href=#843 id=843 data-nosnippet>843</a>        effective_permission_with_overlay(policy, <span class="prelude-val">Some</span>(overlay), action, resource, workspace).<span class="number">0
+<a href=#844 id=844 data-nosnippet>844</a>    </span>}
+<a href=#845 id=845 data-nosnippet>845</a>}
+<a href=#846 id=846 data-nosnippet>846</a>
+<a href=#847 id=847 data-nosnippet>847</a><span class="kw">fn </span>effective_permission_view(
+<a href=#848 id=848 data-nosnippet>848</a>    policy: <span class="kw-2">&amp;</span>AgentSnapshot,
+<a href=#849 id=849 data-nosnippet>849</a>    overlay: <span class="kw-2">&amp;</span>SessionPermissionOverlay,
+<a href=#850 id=850 data-nosnippet>850</a>) -&gt; Vec&lt;EffectivePermissionAction&gt; {
+<a href=#851 id=851 data-nosnippet>851</a>    [
+<a href=#852 id=852 data-nosnippet>852</a>        PermissionAction::Read,
+<a href=#853 id=853 data-nosnippet>853</a>        PermissionAction::Write,
+<a href=#854 id=854 data-nosnippet>854</a>        PermissionAction::Bash,
+<a href=#855 id=855 data-nosnippet>855</a>        PermissionAction::Delegate,
+<a href=#856 id=856 data-nosnippet>856</a>        PermissionAction::Message,
+<a href=#857 id=857 data-nosnippet>857</a>        PermissionAction::Mcp,
+<a href=#858 id=858 data-nosnippet>858</a>        PermissionAction::Plugin,
+<a href=#859 id=859 data-nosnippet>859</a>        PermissionAction::Skill,
+<a href=#860 id=860 data-nosnippet>860</a>        PermissionAction::Webfetch,
+<a href=#861 id=861 data-nosnippet>861</a>    ]
+<a href=#862 id=862 data-nosnippet>862</a>    .into_iter()
+<a href=#863 id=863 data-nosnippet>863</a>    .map(|action| {
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>overlay_wildcard = overlay
+<a href=#865 id=865 data-nosnippet>865</a>            .rules
+<a href=#866 id=866 data-nosnippet>866</a>            .iter()
+<a href=#867 id=867 data-nosnippet>867</a>            .rev()
+<a href=#868 id=868 data-nosnippet>868</a>            .find(|rule| rule.action == action &amp;&amp; rule.resource.as_str() == <span class="string">"*"</span>);
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">let </span>agent_wildcard = policy
+<a href=#870 id=870 data-nosnippet>870</a>            .permissions
+<a href=#871 id=871 data-nosnippet>871</a>            .iter()
+<a href=#872 id=872 data-nosnippet>872</a>            .rev()
+<a href=#873 id=873 data-nosnippet>873</a>            .find(|rule| rule.action == action &amp;&amp; rule.resource.as_str() == <span class="string">"*"</span>);
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span>(effect, source) = overlay_wildcard.map_or_else(
+<a href=#875 id=875 data-nosnippet>875</a>            || {
+<a href=#876 id=876 data-nosnippet>876</a>                agent_wildcard.map_or(
+<a href=#877 id=877 data-nosnippet>877</a>                    (PermissionEffect::Deny, PermissionRuleSource::Default),
+<a href=#878 id=878 data-nosnippet>878</a>                    |rule| (rule.effect, PermissionRuleSource::AgentDocument),
+<a href=#879 id=879 data-nosnippet>879</a>                )
+<a href=#880 id=880 data-nosnippet>880</a>            },
+<a href=#881 id=881 data-nosnippet>881</a>            |rule| (rule.effect, PermissionRuleSource::SessionOverlay),
+<a href=#882 id=882 data-nosnippet>882</a>        );
+<a href=#883 id=883 data-nosnippet>883</a>        <span class="kw">let </span><span class="kw-2">mut </span>patterns = BTreeMap::new();
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">if </span>overlay_wildcard.is_none() {
+<a href=#885 id=885 data-nosnippet>885</a>            <span class="kw">for </span>rule <span class="kw">in </span>policy
+<a href=#886 id=886 data-nosnippet>886</a>                .permissions
+<a href=#887 id=887 data-nosnippet>887</a>                .iter()
+<a href=#888 id=888 data-nosnippet>888</a>                .filter(|rule| rule.action == action &amp;&amp; rule.resource.as_str() != <span class="string">"*"</span>)
+<a href=#889 id=889 data-nosnippet>889</a>            {
+<a href=#890 id=890 data-nosnippet>890</a>                patterns.insert(
+<a href=#891 id=891 data-nosnippet>891</a>                    rule.resource.as_str().to_owned(),
+<a href=#892 id=892 data-nosnippet>892</a>                    EffectivePermissionRule {
+<a href=#893 id=893 data-nosnippet>893</a>                        resource: rule.resource.clone(),
+<a href=#894 id=894 data-nosnippet>894</a>                        effect: rule.effect,
+<a href=#895 id=895 data-nosnippet>895</a>                        source: PermissionRuleSource::AgentDocument,
+<a href=#896 id=896 data-nosnippet>896</a>                    },
+<a href=#897 id=897 data-nosnippet>897</a>                );
+<a href=#898 id=898 data-nosnippet>898</a>            }
+<a href=#899 id=899 data-nosnippet>899</a>        }
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">for </span>rule <span class="kw">in </span>overlay
+<a href=#901 id=901 data-nosnippet>901</a>            .rules
+<a href=#902 id=902 data-nosnippet>902</a>            .iter()
+<a href=#903 id=903 data-nosnippet>903</a>            .filter(|rule| rule.action == action &amp;&amp; rule.resource.as_str() != <span class="string">"*"</span>)
+<a href=#904 id=904 data-nosnippet>904</a>        {
+<a href=#905 id=905 data-nosnippet>905</a>            patterns.insert(
+<a href=#906 id=906 data-nosnippet>906</a>                rule.resource.as_str().to_owned(),
+<a href=#907 id=907 data-nosnippet>907</a>                EffectivePermissionRule {
+<a href=#908 id=908 data-nosnippet>908</a>                    resource: rule.resource.clone(),
+<a href=#909 id=909 data-nosnippet>909</a>                    effect: rule.effect,
+<a href=#910 id=910 data-nosnippet>910</a>                    source: PermissionRuleSource::SessionOverlay,
+<a href=#911 id=911 data-nosnippet>911</a>                },
+<a href=#912 id=912 data-nosnippet>912</a>            );
+<a href=#913 id=913 data-nosnippet>913</a>        }
+<a href=#914 id=914 data-nosnippet>914</a>        EffectivePermissionAction {
+<a href=#915 id=915 data-nosnippet>915</a>            action,
+<a href=#916 id=916 data-nosnippet>916</a>            effect,
+<a href=#917 id=917 data-nosnippet>917</a>            source,
+<a href=#918 id=918 data-nosnippet>918</a>            patterns: patterns.into_values().collect(),
+<a href=#919 id=919 data-nosnippet>919</a>        }
+<a href=#920 id=920 data-nosnippet>920</a>    })
+<a href=#921 id=921 data-nosnippet>921</a>    .collect()
+<a href=#922 id=922 data-nosnippet>922</a>}
+<a href=#923 id=923 data-nosnippet>923</a>
+<a href=#924 id=924 data-nosnippet>924</a><span class="attr">#[cfg(test)]
+<a href=#925 id=925 data-nosnippet>925</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["GrantJournalError"],"struct":["GrantInvalidationJournal"]};
+window.SIDEBAR_ITEMS = {"constant":["GRANT_JOURNAL_FILE"],"enum":["GrantJournalError"],"struct":["GrantInvalidationJournal","GrantJournals"]};
