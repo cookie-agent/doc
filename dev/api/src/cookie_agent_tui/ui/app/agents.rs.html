@@ -807,51 +807,67 @@
 <a href=#807 id=807 data-nosnippet>807</a>        <span class="self">self</span>.set_draft_agent(selectable[next].clone());
 <a href=#808 id=808 data-nosnippet>808</a>    }
 <a href=#809 id=809 data-nosnippet>809</a>
-<a href=#810 id=810 data-nosnippet>810</a>    <span class="doccomment">/// Warning rows from strict descendants of the viewed session, attributed
-<a href=#811 id=811 data-nosnippet>811</a>    /// to their owning session. Ownership stays durable in the child's own
-<a href=#812 id=812 data-nosnippet>812</a>    /// projection; this is a read-only aggregate for the current view.
-<a href=#813 id=813 data-nosnippet>813</a>    /// Warning rows from descendant sessions paired with the durable time of
-<a href=#814 id=814 data-nosnippet>814</a>    /// the event so the transcript can splice them at their chronological
-<a href=#815 id=815 data-nosnippet>815</a>    /// position in the viewed conversation.
-<a href=#816 id=816 data-nosnippet>816</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>descendant_warnings(
-<a href=#817 id=817 data-nosnippet>817</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#818 id=818 data-nosnippet>818</a>        viewed: SessionId,
-<a href=#819 id=819 data-nosnippet>819</a>    ) -&gt; Vec&lt;(jiff::Timestamp, String)&gt; {
-<a href=#820 id=820 data-nosnippet>820</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(tree) = <span class="kw-2">&amp;</span><span class="self">self</span>.tree <span class="kw">else </span>{
-<a href=#821 id=821 data-nosnippet>821</a>            <span class="kw">return </span>Vec::new();
-<a href=#822 id=822 data-nosnippet>822</a>        };
-<a href=#823 id=823 data-nosnippet>823</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(node) = find_node(tree, viewed) <span class="kw">else </span>{
+<a href=#810 id=810 data-nosnippet>810</a>    <span class="doccomment">/// Warning and error rows from strict descendants of the viewed session
+<a href=#811 id=811 data-nosnippet>811</a>    /// at or above `minimum_level`, attributed to their owning session and
+<a href=#812 id=812 data-nosnippet>812</a>    /// paired with the durable time of the row, oldest first, so the
+<a href=#813 id=813 data-nosnippet>813</a>    /// transcript can splice them at their chronological position in the
+<a href=#814 id=814 data-nosnippet>814</a>    /// viewed conversation. Ownership stays durable in the child's own
+<a href=#815 id=815 data-nosnippet>815</a>    /// projection; this is a read-only aggregate for the current view.
+<a href=#816 id=816 data-nosnippet>816</a>    /// Debug and Info rows stay in the child: they are its own lifecycle
+<a href=#817 id=817 data-nosnippet>817</a>    /// chatter.
+<a href=#818 id=818 data-nosnippet>818</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>descendant_events(
+<a href=#819 id=819 data-nosnippet>819</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#820 id=820 data-nosnippet>820</a>        viewed: SessionId,
+<a href=#821 id=821 data-nosnippet>821</a>        minimum_level: EventLevel,
+<a href=#822 id=822 data-nosnippet>822</a>    ) -&gt; Vec&lt;DescendantEvent&gt; {
+<a href=#823 id=823 data-nosnippet>823</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(tree) = <span class="kw-2">&amp;</span><span class="self">self</span>.tree <span class="kw">else </span>{
 <a href=#824 id=824 data-nosnippet>824</a>            <span class="kw">return </span>Vec::new();
 <a href=#825 id=825 data-nosnippet>825</a>        };
-<a href=#826 id=826 data-nosnippet>826</a>        <span class="kw">let </span><span class="kw-2">mut </span>members = Vec::new();
-<a href=#827 id=827 data-nosnippet>827</a>        collect_subtree_sessions(node, <span class="kw-2">&amp;mut </span>members);
-<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span><span class="kw-2">mut </span>warnings = Vec::new();
-<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">for </span>meta <span class="kw">in </span>members.into_iter().filter(|meta| meta.session_id != viewed) {
-<a href=#830 id=830 data-nosnippet>830</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>meta.session_id) <span class="kw">else </span>{
-<a href=#831 id=831 data-nosnippet>831</a>                <span class="kw">continue</span>;
-<a href=#832 id=832 data-nosnippet>832</a>            };
-<a href=#833 id=833 data-nosnippet>833</a>            <span class="kw">let </span>source = meta
-<a href=#834 id=834 data-nosnippet>834</a>                .title
-<a href=#835 id=835 data-nosnippet>835</a>                .as_ref()
-<a href=#836 id=836 data-nosnippet>836</a>                .map(SessionTitle::to_string)
-<a href=#837 id=837 data-nosnippet>837</a>                .unwrap_or_else(|| meta.creation_selection.agent.to_string());
-<a href=#838 id=838 data-nosnippet>838</a>            <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>state.transcript {
-<a href=#839 id=839 data-nosnippet>839</a>                <span class="kw">if let </span>TranscriptItem::Event {
-<a href=#840 id=840 data-nosnippet>840</a>                    level: <span class="kw">crate</span>::state::EventLevel::Warning,
-<a href=#841 id=841 data-nosnippet>841</a>                    text,
-<a href=#842 id=842 data-nosnippet>842</a>                    ..
-<a href=#843 id=843 data-nosnippet>843</a>                } = item
-<a href=#844 id=844 data-nosnippet>844</a>                {
-<a href=#845 id=845 data-nosnippet>845</a>                    <span class="comment">// Pre-date rows (from before insertion times were tracked)
-<a href=#846 id=846 data-nosnippet>846</a>                    // keep their historical bottom-of-transcript position by
-<a href=#847 id=847 data-nosnippet>847</a>                    // sorting after every anchored item.
-<a href=#848 id=848 data-nosnippet>848</a>                    </span><span class="kw">let </span>time = state.item_time(item.id()).unwrap_or(jiff::Timestamp::MAX);
-<a href=#849 id=849 data-nosnippet>849</a>                    warnings.push((time, <span class="macro">format!</span>(<span class="string">"from {source} ({}): {text}"</span>, short_id(<span class="kw-2">&amp;</span>meta))));
-<a href=#850 id=850 data-nosnippet>850</a>                }
-<a href=#851 id=851 data-nosnippet>851</a>            }
-<a href=#852 id=852 data-nosnippet>852</a>        }
-<a href=#853 id=853 data-nosnippet>853</a>        warnings.sort_by_key(|(time, <span class="kw">_</span>)| <span class="kw-2">*</span>time);
-<a href=#854 id=854 data-nosnippet>854</a>        warnings
-<a href=#855 id=855 data-nosnippet>855</a>    }
-<a href=#856 id=856 data-nosnippet>856</a>}
+<a href=#826 id=826 data-nosnippet>826</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(node) = find_node(tree, viewed) <span class="kw">else </span>{
+<a href=#827 id=827 data-nosnippet>827</a>            <span class="kw">return </span>Vec::new();
+<a href=#828 id=828 data-nosnippet>828</a>        };
+<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>minimum_level = minimum_level.max(EventLevel::Warning);
+<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">let </span><span class="kw-2">mut </span>members = Vec::new();
+<a href=#831 id=831 data-nosnippet>831</a>        collect_subtree_sessions(node, <span class="kw-2">&amp;mut </span>members);
+<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">let </span><span class="kw-2">mut </span>events = Vec::new();
+<a href=#833 id=833 data-nosnippet>833</a>        <span class="kw">for </span>meta <span class="kw">in </span>members.into_iter().filter(|meta| meta.session_id != viewed) {
+<a href=#834 id=834 data-nosnippet>834</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>meta.session_id) <span class="kw">else </span>{
+<a href=#835 id=835 data-nosnippet>835</a>                <span class="kw">continue</span>;
+<a href=#836 id=836 data-nosnippet>836</a>            };
+<a href=#837 id=837 data-nosnippet>837</a>            <span class="kw">let </span>source = meta
+<a href=#838 id=838 data-nosnippet>838</a>                .title
+<a href=#839 id=839 data-nosnippet>839</a>                .as_ref()
+<a href=#840 id=840 data-nosnippet>840</a>                .map(SessionTitle::to_string)
+<a href=#841 id=841 data-nosnippet>841</a>                .unwrap_or_else(|| meta.creation_selection.agent.to_string());
+<a href=#842 id=842 data-nosnippet>842</a>            <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>state.transcript {
+<a href=#843 id=843 data-nosnippet>843</a>                <span class="kw">if let </span>TranscriptItem::Event { level, text, .. } = item
+<a href=#844 id=844 data-nosnippet>844</a>                    &amp;&amp; <span class="kw-2">*</span>level &gt;= minimum_level
+<a href=#845 id=845 data-nosnippet>845</a>                {
+<a href=#846 id=846 data-nosnippet>846</a>                    <span class="comment">// Pre-date rows (from before insertion times were tracked)
+<a href=#847 id=847 data-nosnippet>847</a>                    // keep their historical bottom-of-transcript position by
+<a href=#848 id=848 data-nosnippet>848</a>                    // sorting after every anchored item.
+<a href=#849 id=849 data-nosnippet>849</a>                    </span>events.push(DescendantEvent {
+<a href=#850 id=850 data-nosnippet>850</a>                        time: state.item_time(item.id()).unwrap_or(jiff::Timestamp::MAX),
+<a href=#851 id=851 data-nosnippet>851</a>                        level: <span class="kw-2">*</span>level,
+<a href=#852 id=852 data-nosnippet>852</a>                        text: <span class="macro">format!</span>(<span class="string">"from {source} ({}): {text}"</span>, short_id(<span class="kw-2">&amp;</span>meta)),
+<a href=#853 id=853 data-nosnippet>853</a>                    });
+<a href=#854 id=854 data-nosnippet>854</a>                }
+<a href=#855 id=855 data-nosnippet>855</a>            }
+<a href=#856 id=856 data-nosnippet>856</a>        }
+<a href=#857 id=857 data-nosnippet>857</a>        <span class="comment">// Stable, so one session's rows with equal times keep their order.
+<a href=#858 id=858 data-nosnippet>858</a>        </span>events.sort_by_key(|event| event.time);
+<a href=#859 id=859 data-nosnippet>859</a>        events
+<a href=#860 id=860 data-nosnippet>860</a>    }
+<a href=#861 id=861 data-nosnippet>861</a>}
+<a href=#862 id=862 data-nosnippet>862</a>
+<a href=#863 id=863 data-nosnippet>863</a><span class="doccomment">/// One descendant session's warning or error row, aggregated into the view
+<a href=#864 id=864 data-nosnippet>864</a>/// of an ancestor.
+<a href=#865 id=865 data-nosnippet>865</a></span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
+<a href=#866 id=866 data-nosnippet>866</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>DescendantEvent {
+<a href=#867 id=867 data-nosnippet>867</a>    <span class="doccomment">/// Durable time of the row in its own session.
+<a href=#868 id=868 data-nosnippet>868</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) time: jiff::Timestamp,
+<a href=#869 id=869 data-nosnippet>869</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) level: EventLevel,
+<a href=#870 id=870 data-nosnippet>870</a>    <span class="doccomment">/// Row text, prefixed with its source session.
+<a href=#871 id=871 data-nosnippet>871</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) text: String,
+<a href=#872 id=872 data-nosnippet>872</a>}
 </code></pre></div></section></main></body></html>
