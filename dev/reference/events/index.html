@@ -2097,6 +2097,18 @@ branch data, never registrations; revert reconciles only the visible branch.
 Failed/disabled recovery notices use the additive <code>PluginDiagnosticKind</code> values
 <code>recovery_failed</code> and <code>recovery_disabled</code>, not persisted readiness/registration records.</p>
 <h3 id="existing-event-behavior">Existing event behavior<a class="headerlink" href="#existing-event-behavior" title="Permanent link">&para;</a></h3>
+<p><code>model_replay_evaluated</code> records, for one model attempt, the replay decision
+for each history entry of its request. Every attempt re-evaluates the whole
+history, so a long run would otherwise write a list that grows with every
+turn. When <code>base_attempt_id</code> is present, the event names an earlier attempt of
+the same run, with the same <code>resolved_model</code>, whose full list is an exact prefix
+of this attempt's list; <code>ordered_decisions</code> then holds only the decisions after
+that prefix. The full list is the base's full list followed by
+<code>ordered_decisions</code>. Without <code>base_attempt_id</code>, <code>ordered_decisions</code> is the full
+list, which is what a run's first evaluation writes, as does any attempt whose
+model changed or whose earlier decisions changed (compaction, a pinned turn,
+a late tool result). Readers that ignore the field see only new decisions for
+such an attempt.</p>
 <p><code>agent_md_loaded</code> is a run-scoped root-session event stamped
 <code>engine:agent-md</code>. It contains one or two discovered <code>AGENTS.md</code> entries,
 each with a bounded display source, retained content, truncation flag, and
@@ -2267,8 +2279,16 @@ new file rereads or emits <code>context_rehydrated</code>. That legacy payload
 (<code>ContextRehydrated</code> in Rust) remains decodable and renderable for saved logs;
 its persisted contents do not require a new filesystem read.</p>
 <h2 id="subscriptions">Subscriptions<a class="headerlink" href="#subscriptions" title="Permanent link">&para;</a></h2>
-<p><code>events.subscribe</code> returns all retained events after the optional cursor and
-starts <code>events.subscription</code> notifications. A notification is tagged as either:</p>
+<p><code>events.subscribe</code> returns retained events after the optional cursor and
+starts <code>events.subscription</code> notifications. With <code>limit</code>, it returns at most
+that many events; when more remain it sets <code>has_more: true</code> and starts no
+notifications, and the client asks again with the last returned <code>seq</code> as the
+cursor. Only the final page (no <code>has_more</code>) subscribes, atomically with its
+snapshot, so events appended between pages arrive in a later page and none are
+missed. Without <code>limit</code> the first response is the final page. Paging a session
+this process does not own parses its log once and serves later pages from
+memory while the file is unchanged.</p>
+<p>A notification is tagged as either:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"event"</span><span class="p">,</span><span class="w"> </span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"engine_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.1.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">43</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>or a gap indicating that the subscriber must rebuild its disposable projection:</p>

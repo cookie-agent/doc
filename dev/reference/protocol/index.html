@@ -1915,11 +1915,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 21 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 21 }</code> before any other method.</p>
+Protocol 22 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 22 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 21.</p>
+members of protocol 22.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -1937,7 +1937,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 21 alongside independent display and output references. The
+preserved in protocol 22 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -1972,11 +1972,17 @@ and the CLI share one implementation of the protocol mechanics.</p>
   drives one complete session over a transport: it rejects every method before
   the exact-version handshake with error code <code>-32001</code>, correlates requests by
   id, dispatches to the implementation, and delivers notifications through a
-  <code>ServerContext</code>.</li>
+  <code>ServerContext</code>. After the handshake, requests on one connection run
+  concurrently (at most 64 in flight) and each response is written when it is
+  ready, so responses can arrive out of request order. Notifications from work
+  a request started, such as the live tail of <code>events.subscribe</code>, are written
+  only after that request's response.</li>
 <li><strong>ClientProtocol.</strong> The client contract is implemented by the shared
   <code>protocol::Client</code>. Its connection task correlates requests by id, demuxes
   notifications into an ordered <code>ClientDelivery</code> stream, injects cursor replays
-  and gap recovery before buffered live notifications, wipes secret-bearing
+  and gap recovery before buffered live notifications, fetches replays in pages
+  of 2,000 events and delivers each replay whole once its final page arrives,
+  wipes secret-bearing
   serialized frames, and fails outstanding calls on shutdown.</li>
 <li><strong>TUI and CLI.</strong> The TUI client is a thin adapter re-exporting the server's
   <code>Client</code> wrapper; the CLI uses the same client through the <code>ClientProtocol</code>
@@ -2136,8 +2142,8 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>events.subscribe</code></td>
-<td>Session ID, optional cursor</td>
-<td>Initial stored events; starts notifications</td>
+<td>Session ID, optional cursor, optional <code>limit</code></td>
+<td>Stored events after the cursor; starts notifications on the final page (see <a href="../events/#subscriptions">Subscriptions</a>)</td>
 </tr>
 <tr>
 <td><code>approval.list</code></td>
