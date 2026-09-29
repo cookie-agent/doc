@@ -1945,11 +1945,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 24 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 24 }</code> before any other method.</p>
+Protocol 25 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 25 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 24.</p>
+members of protocol 25.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -1967,7 +1967,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 24 alongside independent display and output references. The
+preserved in protocol 25 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2336,7 +2336,7 @@ the title, and continues with new physical sequences.</p>
 </tr>
 <tr>
 <td><code>events.subscription</code></td>
-<td>One stored event or a session sequence gap</td>
+<td>One stored event, live-only stream output, or a session sequence gap</td>
 </tr>
 <tr>
 <td><code>events.plugin</code></td>
@@ -2348,9 +2348,15 @@ the title, and continues with new physical sequences.</p>
 deliveries, <code>PluginEvent</code>, <code>RuntimeChanged</code>, <code>RecoveryFailed</code>), so a UI
 consumes one ordered stream and never parses raw JSON-RPC frames.</p>
 <p>Protocol 23 removed the <code>events.tool_output_snapshot</code>, <code>events.tool_output_delta</code>,
-and <code>events.tool_output_gap</code> notifications. Tool display comes from durable
+and <code>events.tool_output_gap</code> notifications. Tool display comes from
 <code>tool_call_progress</code> and <code>tool_call_terminated</code> events; retained output is read
 through its artifact references.</p>
+<p>Protocol 25 makes <code>text_delta</code>, <code>reasoning_delta</code>, and <code>tool_call_progress</code>
+live-only: <code>events.subscription</code> delivers them as <code>transient</code> messages carrying
+the durable <code>after_seq</code> they follow instead of a sequence of their own, and they
+are never stored or replayed. <code>model_output_started</code> durably marks where each
+streamed part began. See
+<a href="../events/#live-only-stream-output">live-only stream output</a>.</p>
 <p>Session metadata includes additive <code>skipped_events</code> entries with the physical
 sequence (or source line number when no sequence was readable) and a safe reason.
 An empty array means the event log loaded without skipped records. Optional-field

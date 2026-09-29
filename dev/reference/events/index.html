@@ -1620,6 +1620,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#live-only-stream-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Live-only stream output
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#goal-and-producer-contracts" class="md-nav__link">
     <span class="md-ellipsis">
       Goal and producer contracts
@@ -1782,6 +1791,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#live-only-stream-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Live-only stream output
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#goal-and-producer-contracts" class="md-nav__link">
     <span class="md-ellipsis">
       Goal and producer contracts
@@ -1922,11 +1940,11 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 </tr>
 <tr>
 <td>Model</td>
-<td><code>model_attempt_started</code>, <code>model_request_prepared</code>, <code>text_delta</code>, <code>reasoning_delta</code>, <code>attempt_abandoned</code>, <code>model_replay_evaluated</code>, <code>model_turn_committed</code>, <code>model_usage_recorded</code>, <code>model_fallback</code></td>
+<td><code>model_attempt_started</code>, <code>model_request_prepared</code>, <code>model_output_started</code>, <code>attempt_abandoned</code>, <code>model_replay_evaluated</code>, <code>model_turn_committed</code>, <code>model_usage_recorded</code>, <code>model_fallback</code>; live-only: <code>text_delta</code>, <code>reasoning_delta</code></td>
 </tr>
 <tr>
 <td>Tools</td>
-<td><code>tool_call_started</code>, <code>tool_call_progress</code>, <code>tool_call_terminated</code>, <code>tool_output_elided</code>, <code>tool_stdin_submitted</code>, <code>tool_call_linked</code>, <code>delegate_queued</code>, <code>delegate_finished</code>, <code>delegate_finished_v2</code>, <code>delegate_child_terminated</code></td>
+<td><code>tool_call_started</code>, <code>tool_call_terminated</code>, <code>tool_output_elided</code>, <code>tool_stdin_submitted</code>, <code>tool_call_linked</code>, <code>delegate_queued</code>, <code>delegate_finished</code>, <code>delegate_finished_v2</code>, <code>delegate_child_terminated</code>; live-only: <code>tool_call_progress</code></td>
 </tr>
 <tr>
 <td>Delegation durability</td>
@@ -1946,6 +1964,25 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 </tr>
 </tbody>
 </table>
+<h3 id="live-only-stream-output">Live-only stream output<a class="headerlink" href="#live-only-stream-output" title="Permanent link">&para;</a></h3>
+<p><code>text_delta</code>, <code>reasoning_delta</code>, and <code>tool_call_progress</code> are live-only. The
+engine delivers them to event subscribers and plugins as they stream but never
+appends them to <code>events.jsonl</code> or to a session's in-memory log, and a stored
+record carrying one fails validation. Their durable record is the committed
+turn (<code>model_turn_committed</code>) and the tool termination (<code>tool_call_terminated</code>,
+with its retained output). A replay, a reload, or a view that attaches while a
+reply streams therefore sees finished turns only; the in-flight reply appears
+from the first live delta after attach, and its commit replaces it.</p>
+<p><code>model_output_started</code> (<code>attempt_id</code>, <code>kind</code>: <code>text</code> or <code>reasoning</code>) is the
+durable trace of streaming. The engine appends it before the first delta of each
+streamed part: an attempt's first output and every switch between text and
+reasoning. Views use it to keep an attempt that is already streaming ahead of
+inputs admitted meanwhile, and to time thinking identically live and on replay
+(each reasoning part runs from its mark to the next mark or the commit).</p>
+<p>Logs written by older engines contain stored deltas and progress records. The
+reader drops them without a diagnostic or a validation taint: their sequences
+still order the log (no gap is reported), and new appends continue after the
+physical tip. The loaded history therefore has sequence gaps where they were.</p>
 <h3 id="goal-and-producer-contracts">Goal and producer contracts<a class="headerlink" href="#goal-and-producer-contracts" title="Permanent link">&para;</a></h3>
 <p>Goal and producer state is projected independently from model summaries. The engine
 serializes mutations, message acceptance, and admission through the session actor.
@@ -2184,9 +2221,10 @@ Its <code>prompt_fingerprint</code> hashes the authoritative normalized request 
 <code>model_attempt_started</code> remains the earlier cancellation and lifecycle boundary.</p>
 <p><code>tool_call_started</code> records the single/named output declaration, including
 arbitrary named streams.
-<code>tool_call_progress</code> contains a control-free status <code>message</code> and optional UI-only
-<code>display</code>. Display deltas append; terminal <code>result.display</code> replaces them. The
-reader accepts historical <code>output_chunk</code> fields, but current writers use <code>display</code>.
+<code>tool_call_progress</code> is live-only. It contains a control-free status <code>message</code>
+and optional UI-only <code>display</code>. Display deltas append; terminal <code>result.display</code>
+replaces them. Historical <code>output_chunk</code> fields still decode, but current
+writers use <code>display</code>.
 Each live message/display field is bounded at 1 KiB, their cumulative per-call
 budget is 64 KiB, and final display has an independent 64 KiB bound. TUI state is
 bounded and never reconstructs display by merging authoritative streams.</p>
@@ -2290,23 +2328,45 @@ snapshot, so events appended between pages arrive in a later page and none are
 missed. Without <code>limit</code> the first response is the final page. Paging a session
 this process does not own parses its log once and serves later pages from
 memory while the file is unchanged.</p>
-<p>A notification is tagged as either:</p>
+<p>A notification is tagged as a stored event:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"event"</span><span class="p">,</span><span class="w"> </span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"engine_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.1.0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">43</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
-<p>or a gap indicating that the subscriber must rebuild its disposable projection:</p>
+<p>live-only stream output, which has no sequence of its own:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gap"</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"last_delivered_seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"transient"</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"event"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">"run_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">"after_seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">43</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">"timestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"text_delta"</span><span class="p">,</span><span class="w"> </span><span class="nt">"attempt_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span><span class="w"> </span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">}</span>
 </code></pre></div>
+<p>or a gap indicating that the subscriber must rebuild its disposable projection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gap"</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">"last_delivered_seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Stored sequences stay gap-free across a streamed turn, so replay cursors only
+ever point at durable events. A transient event belongs right after the durable
+event <code>after_seq</code>: it never advances the cursor, is never replayed, and is
+never a reason to recover. The shared client delivers one only when its
+<code>after_seq</code> equals the subscription cursor, including output buffered while a
+replay is in flight; anything else is stale or outruns a durable event the view
+has not seen, and is dropped. The engine drops transient output for a
+subscriber whose queue is nearly full rather than spending the slot reserved
+for a gap.</p>
 <p>Revert markers are delivered like every other physical event. Clients should
 rebuild branch-derived state when one arrives; they must not assume sequence
 numbers were truncated or reused.</p>
 <p>Tool stdout and stderr use separate snapshot, delta, and gap notifications.
 Offsets are byte offsets, and clients use a snapshot after a gap before applying
-later deltas. The ordinary event subscription also includes durable
-<code>tool_call_progress</code> output chunks and terminal events without a separate filter.</p>
+later deltas. The ordinary event subscription also includes live-only
+<code>tool_call_progress</code> output chunks and the durable terminal events without a
+separate filter.</p>
 
 
 
