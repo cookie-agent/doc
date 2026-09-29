@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["run"]};
+window.SIDEBAR_ITEMS = {"mod":["availability","run"]};

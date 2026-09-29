@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a>
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>anyhow::Context <span class="kw">as _</span>;
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>clap::{Parser, Subcommand};
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>cookie_agent::run;
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>cookie_agent::{availability, run};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>cookie_agent_engine::{Engine, EngineOptions};
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>cookie_agent_models::{
 <a href=#15 id=15 data-nosnippet>15</a>    ModelManager,
@@ -97,7 +97,7 @@
 <a href=#97 id=97 data-nosnippet>97</a>        <span class="attr">#[command(flatten)]
 <a href=#98 id=98 data-nosnippet>98</a>        </span>args: Box&lt;run::RunArgs&gt;,
 <a href=#99 id=99 data-nosnippet>99</a>    },
-<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Serve the exact cookie-agent protocol 23 JSON-RPC WebSocket daemon on localhost.
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Serve the exact cookie-agent protocol 24 JSON-RPC WebSocket daemon on localhost.
 <a href=#101 id=101 data-nosnippet>101</a>    </span>Daemon {
 <a href=#102 id=102 data-nosnippet>102</a>        <span class="doccomment">/// Localhost port to bind. `0` selects an ephemeral port; the ready line
 <a href=#103 id=103 data-nosnippet>103</a>        /// reports the real one.
@@ -900,179 +900,197 @@
 <a href=#900 id=900 data-nosnippet>900</a>            |reason| <span class="macro">format!</span>(<span class="string">"{:?}: {}"</span>, provider.support.state, reason).to_ascii_lowercase(),
 <a href=#901 id=901 data-nosnippet>901</a>        );
 <a href=#902 id=902 data-nosnippet>902</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-<a href=#903 id=903 data-nosnippet>903</a>            <span class="string">"  {}. {} ({}) — {}"</span>,
+<a href=#903 id=903 data-nosnippet>903</a>            <span class="string">"  {}. {} ({}) — {} · models: {}"</span>,
 <a href=#904 id=904 data-nosnippet>904</a>            index + <span class="number">1</span>,
 <a href=#905 id=905 data-nosnippet>905</a>            provider.display_name,
 <a href=#906 id=906 data-nosnippet>906</a>            provider.id,
-<a href=#907 id=907 data-nosnippet>907</a>            support
-<a href=#908 id=908 data-nosnippet>908</a>        ))<span class="question-mark">?</span>;
-<a href=#909 id=909 data-nosnippet>909</a>    }
-<a href=#910 id=910 data-nosnippet>910</a>    <span class="kw">let </span>answer = io.read_public(<span class="string">"Provider number or ID: "</span>)<span class="question-mark">?</span>;
-<a href=#911 id=911 data-nosnippet>911</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(index) = answer.parse::&lt;usize&gt;()
-<a href=#912 id=912 data-nosnippet>912</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(provider) = index.checked_sub(<span class="number">1</span>).and_then(|index| providers.get(index))
-<a href=#913 id=913 data-nosnippet>913</a>    {
-<a href=#914 id=914 data-nosnippet>914</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(provider);
-<a href=#915 id=915 data-nosnippet>915</a>    }
-<a href=#916 id=916 data-nosnippet>916</a>    providers
-<a href=#917 id=917 data-nosnippet>917</a>        .iter()
-<a href=#918 id=918 data-nosnippet>918</a>        .find(|provider| provider.id.as_str() == answer)
-<a href=#919 id=919 data-nosnippet>919</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"runtime provider `{answer}` was not found"</span>))
-<a href=#920 id=920 data-nosnippet>920</a>}
-<a href=#921 id=921 data-nosnippet>921</a>
-<a href=#922 id=922 data-nosnippet>922</a><span class="kw">fn </span>print_provider_details(
-<a href=#923 id=923 data-nosnippet>923</a>    provider: <span class="kw-2">&amp;</span>ProviderDescriptor,
-<a href=#924 id=924 data-nosnippet>924</a>    revision: <span class="kw-2">&amp;</span>str,
-<a href=#925 id=925 data-nosnippet>925</a>    io: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ConnectIo,
-<a href=#926 id=926 data-nosnippet>926</a>) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#927 id=927 data-nosnippet>927</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Provider ID: {}"</span>, provider.id))<span class="question-mark">?</span>;
-<a href=#928 id=928 data-nosnippet>928</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Name: {}"</span>, provider.display_name))<span class="question-mark">?</span>;
-<a href=#929 id=929 data-nosnippet>929</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Catalog revision: {revision}"</span>))<span class="question-mark">?</span>;
-<a href=#930 id=930 data-nosnippet>930</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Presence: {:?}"</span>, provider.presence))<span class="question-mark">?</span>;
-<a href=#931 id=931 data-nosnippet>931</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Support: {:?}"</span>, provider.support.state))<span class="question-mark">?</span>;
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(reason) = <span class="kw-2">&amp;</span>provider.support.reason {
-<a href=#933 id=933 data-nosnippet>933</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Support reason: {reason}"</span>))<span class="question-mark">?</span>;
-<a href=#934 id=934 data-nosnippet>934</a>    }
-<a href=#935 id=935 data-nosnippet>935</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Configuration: {:?}"</span>, provider.configuration))<span class="question-mark">?</span>;
-<a href=#936 id=936 data-nosnippet>936</a>    <span class="prelude-val">Ok</span>(())
-<a href=#937 id=937 data-nosnippet>937</a>}
-<a href=#938 id=938 data-nosnippet>938</a>
-<a href=#939 id=939 data-nosnippet>939</a><span class="kw">fn </span>read_public_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;String&gt; {
-<a href=#940 id=940 data-nosnippet>940</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
-<a href=#941 id=941 data-nosnippet>941</a>    io::stdout().flush().context(<span class="string">"flush prompt"</span>)<span class="question-mark">?</span>;
-<a href=#942 id=942 data-nosnippet>942</a>    <span class="kw">let </span><span class="kw-2">mut </span>answer = String::new();
-<a href=#943 id=943 data-nosnippet>943</a>    io::stdin().read_line(<span class="kw-2">&amp;mut </span>answer).context(<span class="string">"read input"</span>)<span class="question-mark">?</span>;
-<a href=#944 id=944 data-nosnippet>944</a>    <span class="prelude-val">Ok</span>(answer.trim().to_owned())
-<a href=#945 id=945 data-nosnippet>945</a>}
-<a href=#946 id=946 data-nosnippet>946</a>
-<a href=#947 id=947 data-nosnippet>947</a><span class="kw">fn </span>prompt_confirmation(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;bool&gt; {
-<a href=#948 id=948 data-nosnippet>948</a>    <span class="prelude-val">Ok</span>(<span class="macro">matches!</span>(
-<a href=#949 id=949 data-nosnippet>949</a>        read_public_line(prompt)<span class="question-mark">?</span>.to_ascii_lowercase().as_str(),
-<a href=#950 id=950 data-nosnippet>950</a>        <span class="string">"y" </span>| <span class="string">"yes"
-<a href=#951 id=951 data-nosnippet>951</a>    </span>))
-<a href=#952 id=952 data-nosnippet>952</a>}
-<a href=#953 id=953 data-nosnippet>953</a>
-<a href=#954 id=954 data-nosnippet>954</a><span class="attr">#[cfg(unix)]
-<a href=#955 id=955 data-nosnippet>955</a></span><span class="kw">fn </span>read_secret_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
-<a href=#956 id=956 data-nosnippet>956</a>    <span class="kw">struct </span>EchoGuard(libc::termios);
-<a href=#957 id=957 data-nosnippet>957</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>EchoGuard {
-<a href=#958 id=958 data-nosnippet>958</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#959 id=959 data-nosnippet>959</a>            <span class="comment">// SAFETY: stdin remains a valid process file descriptor.
-<a href=#960 id=960 data-nosnippet>960</a>            </span><span class="kw">unsafe </span>{
-<a href=#961 id=961 data-nosnippet>961</a>                libc::tcsetattr(libc::STDIN_FILENO, libc::TCSAFLUSH, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>);
-<a href=#962 id=962 data-nosnippet>962</a>            }
-<a href=#963 id=963 data-nosnippet>963</a>        }
-<a href=#964 id=964 data-nosnippet>964</a>    }
-<a href=#965 id=965 data-nosnippet>965</a>
-<a href=#966 id=966 data-nosnippet>966</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
-<a href=#967 id=967 data-nosnippet>967</a>    io::stdout().flush().context(<span class="string">"flush credential prompt"</span>)<span class="question-mark">?</span>;
-<a href=#968 id=968 data-nosnippet>968</a>    <span class="comment">// SAFETY: initialized by tcgetattr before use.
-<a href=#969 id=969 data-nosnippet>969</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>original = <span class="kw">unsafe </span>{ std::mem::zeroed::&lt;libc::termios&gt;() };
-<a href=#970 id=970 data-nosnippet>970</a>    <span class="comment">// SAFETY: connect verifies stdin is a TTY.
-<a href=#971 id=971 data-nosnippet>971</a>    </span><span class="kw">if unsafe </span>{ libc::tcgetattr(libc::STDIN_FILENO, <span class="kw-2">&amp;mut </span>original) } != <span class="number">0 </span>{
-<a href=#972 id=972 data-nosnippet>972</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
-<a href=#973 id=973 data-nosnippet>973</a>    }
-<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">let </span>guard = EchoGuard(original);
-<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">let </span><span class="kw-2">mut </span>hidden = original;
-<a href=#976 id=976 data-nosnippet>976</a>    hidden.c_lflag &amp;= !libc::ECHO;
-<a href=#977 id=977 data-nosnippet>977</a>    <span class="comment">// SAFETY: both termios values are initialized.
-<a href=#978 id=978 data-nosnippet>978</a>    </span><span class="kw">if unsafe </span>{ libc::tcsetattr(libc::STDIN_FILENO, libc::TCSAFLUSH, <span class="kw-2">&amp;</span>hidden) } != <span class="number">0 </span>{
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
-<a href=#980 id=980 data-nosnippet>980</a>    }
-<a href=#981 id=981 data-nosnippet>981</a>    <span class="kw">let </span><span class="kw-2">mut </span>value = String::new();
-<a href=#982 id=982 data-nosnippet>982</a>    <span class="kw">let </span>read = io::stdin().read_line(<span class="kw-2">&amp;mut </span>value).context(<span class="string">"read credential"</span>);
-<a href=#983 id=983 data-nosnippet>983</a>    drop(guard);
-<a href=#984 id=984 data-nosnippet>984</a>    <span class="macro">println!</span>();
-<a href=#985 id=985 data-nosnippet>985</a>    read<span class="question-mark">?</span>;
-<a href=#986 id=986 data-nosnippet>986</a>    <span class="kw">while </span><span class="macro">matches!</span>(value.as_bytes().last(), <span class="prelude-val">Some</span>(<span class="string">b'\n' </span>| <span class="string">b'\r'</span>)) {
-<a href=#987 id=987 data-nosnippet>987</a>        value.pop();
-<a href=#988 id=988 data-nosnippet>988</a>    }
-<a href=#989 id=989 data-nosnippet>989</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(value))
-<a href=#990 id=990 data-nosnippet>990</a>}
-<a href=#991 id=991 data-nosnippet>991</a>
-<a href=#992 id=992 data-nosnippet>992</a><span class="attr">#[cfg(windows)]
-<a href=#993 id=993 data-nosnippet>993</a></span><span class="kw">fn </span>read_secret_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
-<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">use </span>windows_sys::Win32::{
-<a href=#995 id=995 data-nosnippet>995</a>        Foundation::{HANDLE, INVALID_HANDLE_VALUE},
-<a href=#996 id=996 data-nosnippet>996</a>        System::Console::{
-<a href=#997 id=997 data-nosnippet>997</a>            ENABLE_ECHO_INPUT, GetConsoleMode, GetStdHandle, STD_INPUT_HANDLE, SetConsoleMode,
-<a href=#998 id=998 data-nosnippet>998</a>        },
-<a href=#999 id=999 data-nosnippet>999</a>    };
-<a href=#1000 id=1000 data-nosnippet>1000</a>
-<a href=#1001 id=1001 data-nosnippet>1001</a>    <span class="kw">struct </span>ConsoleModeGuard {
-<a href=#1002 id=1002 data-nosnippet>1002</a>        handle: HANDLE,
-<a href=#1003 id=1003 data-nosnippet>1003</a>        mode: u32,
-<a href=#1004 id=1004 data-nosnippet>1004</a>    }
-<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>ConsoleModeGuard {
-<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#1007 id=1007 data-nosnippet>1007</a>            <span class="comment">// SAFETY: the console handle and original mode remain valid for this process.
-<a href=#1008 id=1008 data-nosnippet>1008</a>            </span><span class="kw">unsafe </span>{
-<a href=#1009 id=1009 data-nosnippet>1009</a>                SetConsoleMode(<span class="self">self</span>.handle, <span class="self">self</span>.mode);
-<a href=#1010 id=1010 data-nosnippet>1010</a>            }
-<a href=#1011 id=1011 data-nosnippet>1011</a>        }
-<a href=#1012 id=1012 data-nosnippet>1012</a>    }
-<a href=#1013 id=1013 data-nosnippet>1013</a>
-<a href=#1014 id=1014 data-nosnippet>1014</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
-<a href=#1015 id=1015 data-nosnippet>1015</a>    io::stdout().flush().context(<span class="string">"flush credential prompt"</span>)<span class="question-mark">?</span>;
-<a href=#1016 id=1016 data-nosnippet>1016</a>    <span class="comment">// SAFETY: GetStdHandle requires no caller-owned pointers.
-<a href=#1017 id=1017 data-nosnippet>1017</a>    </span><span class="kw">let </span>handle = <span class="kw">unsafe </span>{ GetStdHandle(STD_INPUT_HANDLE) };
-<a href=#1018 id=1018 data-nosnippet>1018</a>    <span class="kw">if </span>handle.is_null() || handle == INVALID_HANDLE_VALUE {
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"open credential console"</span>);
-<a href=#1020 id=1020 data-nosnippet>1020</a>    }
-<a href=#1021 id=1021 data-nosnippet>1021</a>    <span class="kw">let </span><span class="kw-2">mut </span>original = <span class="number">0</span>;
-<a href=#1022 id=1022 data-nosnippet>1022</a>    <span class="comment">// SAFETY: original points to writable mode storage.
-<a href=#1023 id=1023 data-nosnippet>1023</a>    </span><span class="kw">if unsafe </span>{ GetConsoleMode(handle, <span class="kw-2">&amp;mut </span>original) } == <span class="number">0 </span>{
-<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"read credential console mode"</span>);
-<a href=#1025 id=1025 data-nosnippet>1025</a>    }
-<a href=#1026 id=1026 data-nosnippet>1026</a>    <span class="comment">// SAFETY: handle is a console input handle and the mode only disables echo.
-<a href=#1027 id=1027 data-nosnippet>1027</a>    </span><span class="kw">if unsafe </span>{ SetConsoleMode(handle, original &amp; !ENABLE_ECHO_INPUT) } == <span class="number">0 </span>{
-<a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
-<a href=#1029 id=1029 data-nosnippet>1029</a>    }
-<a href=#1030 id=1030 data-nosnippet>1030</a>    <span class="kw">let </span>guard = ConsoleModeGuard {
-<a href=#1031 id=1031 data-nosnippet>1031</a>        handle,
-<a href=#1032 id=1032 data-nosnippet>1032</a>        mode: original,
-<a href=#1033 id=1033 data-nosnippet>1033</a>    };
-<a href=#1034 id=1034 data-nosnippet>1034</a>    <span class="kw">let </span><span class="kw-2">mut </span>value = String::new();
-<a href=#1035 id=1035 data-nosnippet>1035</a>    <span class="kw">let </span>read = io::stdin().read_line(<span class="kw-2">&amp;mut </span>value).context(<span class="string">"read credential"</span>);
-<a href=#1036 id=1036 data-nosnippet>1036</a>    drop(guard);
-<a href=#1037 id=1037 data-nosnippet>1037</a>    <span class="macro">println!</span>();
-<a href=#1038 id=1038 data-nosnippet>1038</a>    read<span class="question-mark">?</span>;
-<a href=#1039 id=1039 data-nosnippet>1039</a>    <span class="kw">while </span><span class="macro">matches!</span>(value.as_bytes().last(), <span class="prelude-val">Some</span>(<span class="string">b'\n' </span>| <span class="string">b'\r'</span>)) {
-<a href=#1040 id=1040 data-nosnippet>1040</a>        value.pop();
-<a href=#1041 id=1041 data-nosnippet>1041</a>    }
-<a href=#1042 id=1042 data-nosnippet>1042</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(value))
-<a href=#1043 id=1043 data-nosnippet>1043</a>}
-<a href=#1044 id=1044 data-nosnippet>1044</a>
-<a href=#1045 id=1045 data-nosnippet>1045</a><span class="kw">async fn </span>run_daemon(<span class="kw-2">mut </span>runtime: Runtime, port_override: <span class="prelude-ty">Option</span>&lt;u16&gt;) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#1046 id=1046 data-nosnippet>1046</a>    <span class="kw">let </span>token = generate_token().context(<span class="string">"generate daemon authentication token"</span>)<span class="question-mark">?</span>;
-<a href=#1047 id=1047 data-nosnippet>1047</a>    <span class="kw">let </span>port = port_override.unwrap_or(runtime.port);
-<a href=#1048 id=1048 data-nosnippet>1048</a>    <span class="kw">let </span>listener = <span class="kw">match </span>runtime.server.clone().serve(port, token.clone()).<span class="kw">await </span>{
-<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="prelude-val">Ok</span>(listener) =&gt; listener,
-<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#1051 id=1051 data-nosnippet>1051</a>            runtime.server.shutdown();
-<a href=#1052 id=1052 data-nosnippet>1052</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#1053 id=1053 data-nosnippet>1053</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#1054 id=1054 data-nosnippet>1054</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(anyhow::Error::new(error).context(<span class="string">"start WebSocket daemon"</span>));
-<a href=#1055 id=1055 data-nosnippet>1055</a>        }
-<a href=#1056 id=1056 data-nosnippet>1056</a>    };
-<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"ws://{}/ws"</span>, listener.address());
-<a href=#1058 id=1058 data-nosnippet>1058</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, ready_line(<span class="kw-2">&amp;</span>url, token.as_str()));
-<a href=#1059 id=1059 data-nosnippet>1059</a>    drop(token);
-<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="macro">println!</span>(
-<a href=#1061 id=1061 data-nosnippet>1061</a>        <span class="string">"cookie daemon listening on {url} (protocol {})"</span>,
-<a href=#1062 id=1062 data-nosnippet>1062</a>        cookie_agent_protocol::PROTOCOL_VERSION
-<a href=#1063 id=1063 data-nosnippet>1063</a>    );
-<a href=#1064 id=1064 data-nosnippet>1064</a>    <span class="kw">let </span>signal = tokio::signal::ctrl_c().<span class="kw">await</span>;
-<a href=#1065 id=1065 data-nosnippet>1065</a>    runtime.server.shutdown();
-<a href=#1066 id=1066 data-nosnippet>1066</a>    runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#1067 id=1067 data-nosnippet>1067</a>    listener.wait().<span class="kw">await</span>;
-<a href=#1068 id=1068 data-nosnippet>1068</a>    runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#1069 id=1069 data-nosnippet>1069</a>    signal.context(<span class="string">"wait for daemon shutdown signal"</span>)
-<a href=#1070 id=1070 data-nosnippet>1070</a>}
-<a href=#1071 id=1071 data-nosnippet>1071</a>
-<a href=#1072 id=1072 data-nosnippet>1072</a><span class="attr">#[cfg(test)]
-<a href=#1073 id=1073 data-nosnippet>1073</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
-<a href=#1074 id=1074 data-nosnippet>1074</a></span><span class="kw">mod </span>config_harness;
-<a href=#1075 id=1075 data-nosnippet>1075</a>
-<a href=#1076 id=1076 data-nosnippet>1076</a><span class="attr">#[cfg(all(test, unix))]
-<a href=#1077 id=1077 data-nosnippet>1077</a></span><span class="kw">mod </span>tests;
+<a href=#907 id=907 data-nosnippet>907</a>            support,
+<a href=#908 id=908 data-nosnippet>908</a>            availability::model_counts_text(<span class="kw-2">&amp;</span>provider.model_counts)
+<a href=#909 id=909 data-nosnippet>909</a>        ))<span class="question-mark">?</span>;
+<a href=#910 id=910 data-nosnippet>910</a>    }
+<a href=#911 id=911 data-nosnippet>911</a>    <span class="kw">let </span>answer = io.read_public(<span class="string">"Provider number or ID: "</span>)<span class="question-mark">?</span>;
+<a href=#912 id=912 data-nosnippet>912</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(index) = answer.parse::&lt;usize&gt;()
+<a href=#913 id=913 data-nosnippet>913</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(provider) = index.checked_sub(<span class="number">1</span>).and_then(|index| providers.get(index))
+<a href=#914 id=914 data-nosnippet>914</a>    {
+<a href=#915 id=915 data-nosnippet>915</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(provider);
+<a href=#916 id=916 data-nosnippet>916</a>    }
+<a href=#917 id=917 data-nosnippet>917</a>    providers
+<a href=#918 id=918 data-nosnippet>918</a>        .iter()
+<a href=#919 id=919 data-nosnippet>919</a>        .find(|provider| provider.id.as_str() == answer)
+<a href=#920 id=920 data-nosnippet>920</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"runtime provider `{answer}` was not found"</span>))
+<a href=#921 id=921 data-nosnippet>921</a>}
+<a href=#922 id=922 data-nosnippet>922</a>
+<a href=#923 id=923 data-nosnippet>923</a><span class="kw">fn </span>print_provider_details(
+<a href=#924 id=924 data-nosnippet>924</a>    provider: <span class="kw-2">&amp;</span>ProviderDescriptor,
+<a href=#925 id=925 data-nosnippet>925</a>    revision: <span class="kw-2">&amp;</span>str,
+<a href=#926 id=926 data-nosnippet>926</a>    io: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ConnectIo,
+<a href=#927 id=927 data-nosnippet>927</a>) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#928 id=928 data-nosnippet>928</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Provider ID: {}"</span>, provider.id))<span class="question-mark">?</span>;
+<a href=#929 id=929 data-nosnippet>929</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Name: {}"</span>, provider.display_name))<span class="question-mark">?</span>;
+<a href=#930 id=930 data-nosnippet>930</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Catalog revision: {revision}"</span>))<span class="question-mark">?</span>;
+<a href=#931 id=931 data-nosnippet>931</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Presence: {:?}"</span>, provider.presence))<span class="question-mark">?</span>;
+<a href=#932 id=932 data-nosnippet>932</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Support: {:?}"</span>, provider.support.state))<span class="question-mark">?</span>;
+<a href=#933 id=933 data-nosnippet>933</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(reason) = <span class="kw-2">&amp;</span>provider.support.reason {
+<a href=#934 id=934 data-nosnippet>934</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Support reason: {reason}"</span>))<span class="question-mark">?</span>;
+<a href=#935 id=935 data-nosnippet>935</a>    }
+<a href=#936 id=936 data-nosnippet>936</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Configuration: {:?}"</span>, provider.configuration))<span class="question-mark">?</span>;
+<a href=#937 id=937 data-nosnippet>937</a>    io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#938 id=938 data-nosnippet>938</a>        <span class="string">"Models: {}"</span>,
+<a href=#939 id=939 data-nosnippet>939</a>        availability::model_counts_text(<span class="kw-2">&amp;</span>provider.model_counts)
+<a href=#940 id=940 data-nosnippet>940</a>    ))<span class="question-mark">?</span>;
+<a href=#941 id=941 data-nosnippet>941</a>    <span class="kw">for </span>model <span class="kw">in </span><span class="kw-2">&amp;</span>provider.unavailable_models {
+<a href=#942 id=942 data-nosnippet>942</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#943 id=943 data-nosnippet>943</a>            <span class="string">"  {} — {}"</span>,
+<a href=#944 id=944 data-nosnippet>944</a>            model.id,
+<a href=#945 id=945 data-nosnippet>945</a>            availability::unavailable_model_text(model)
+<a href=#946 id=946 data-nosnippet>946</a>        ))<span class="question-mark">?</span>;
+<a href=#947 id=947 data-nosnippet>947</a>    }
+<a href=#948 id=948 data-nosnippet>948</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(url) = <span class="kw-2">&amp;</span>provider.documentation_url {
+<a href=#949 id=949 data-nosnippet>949</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Docs: {url}"</span>))<span class="question-mark">?</span>;
+<a href=#950 id=950 data-nosnippet>950</a>    }
+<a href=#951 id=951 data-nosnippet>951</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(hint) = availability::env_config_hint(provider) {
+<a href=#952 id=952 data-nosnippet>952</a>        io.write_line(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Config alternative: {hint}"</span>))<span class="question-mark">?</span>;
+<a href=#953 id=953 data-nosnippet>953</a>    }
+<a href=#954 id=954 data-nosnippet>954</a>    <span class="prelude-val">Ok</span>(())
+<a href=#955 id=955 data-nosnippet>955</a>}
+<a href=#956 id=956 data-nosnippet>956</a>
+<a href=#957 id=957 data-nosnippet>957</a><span class="kw">fn </span>read_public_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;String&gt; {
+<a href=#958 id=958 data-nosnippet>958</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
+<a href=#959 id=959 data-nosnippet>959</a>    io::stdout().flush().context(<span class="string">"flush prompt"</span>)<span class="question-mark">?</span>;
+<a href=#960 id=960 data-nosnippet>960</a>    <span class="kw">let </span><span class="kw-2">mut </span>answer = String::new();
+<a href=#961 id=961 data-nosnippet>961</a>    io::stdin().read_line(<span class="kw-2">&amp;mut </span>answer).context(<span class="string">"read input"</span>)<span class="question-mark">?</span>;
+<a href=#962 id=962 data-nosnippet>962</a>    <span class="prelude-val">Ok</span>(answer.trim().to_owned())
+<a href=#963 id=963 data-nosnippet>963</a>}
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a><span class="kw">fn </span>prompt_confirmation(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;bool&gt; {
+<a href=#966 id=966 data-nosnippet>966</a>    <span class="prelude-val">Ok</span>(<span class="macro">matches!</span>(
+<a href=#967 id=967 data-nosnippet>967</a>        read_public_line(prompt)<span class="question-mark">?</span>.to_ascii_lowercase().as_str(),
+<a href=#968 id=968 data-nosnippet>968</a>        <span class="string">"y" </span>| <span class="string">"yes"
+<a href=#969 id=969 data-nosnippet>969</a>    </span>))
+<a href=#970 id=970 data-nosnippet>970</a>}
+<a href=#971 id=971 data-nosnippet>971</a>
+<a href=#972 id=972 data-nosnippet>972</a><span class="attr">#[cfg(unix)]
+<a href=#973 id=973 data-nosnippet>973</a></span><span class="kw">fn </span>read_secret_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
+<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">struct </span>EchoGuard(libc::termios);
+<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>EchoGuard {
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#977 id=977 data-nosnippet>977</a>            <span class="comment">// SAFETY: stdin remains a valid process file descriptor.
+<a href=#978 id=978 data-nosnippet>978</a>            </span><span class="kw">unsafe </span>{
+<a href=#979 id=979 data-nosnippet>979</a>                libc::tcsetattr(libc::STDIN_FILENO, libc::TCSAFLUSH, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>);
+<a href=#980 id=980 data-nosnippet>980</a>            }
+<a href=#981 id=981 data-nosnippet>981</a>        }
+<a href=#982 id=982 data-nosnippet>982</a>    }
+<a href=#983 id=983 data-nosnippet>983</a>
+<a href=#984 id=984 data-nosnippet>984</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
+<a href=#985 id=985 data-nosnippet>985</a>    io::stdout().flush().context(<span class="string">"flush credential prompt"</span>)<span class="question-mark">?</span>;
+<a href=#986 id=986 data-nosnippet>986</a>    <span class="comment">// SAFETY: initialized by tcgetattr before use.
+<a href=#987 id=987 data-nosnippet>987</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>original = <span class="kw">unsafe </span>{ std::mem::zeroed::&lt;libc::termios&gt;() };
+<a href=#988 id=988 data-nosnippet>988</a>    <span class="comment">// SAFETY: connect verifies stdin is a TTY.
+<a href=#989 id=989 data-nosnippet>989</a>    </span><span class="kw">if unsafe </span>{ libc::tcgetattr(libc::STDIN_FILENO, <span class="kw-2">&amp;mut </span>original) } != <span class="number">0 </span>{
+<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
+<a href=#991 id=991 data-nosnippet>991</a>    }
+<a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">let </span>guard = EchoGuard(original);
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">let </span><span class="kw-2">mut </span>hidden = original;
+<a href=#994 id=994 data-nosnippet>994</a>    hidden.c_lflag &amp;= !libc::ECHO;
+<a href=#995 id=995 data-nosnippet>995</a>    <span class="comment">// SAFETY: both termios values are initialized.
+<a href=#996 id=996 data-nosnippet>996</a>    </span><span class="kw">if unsafe </span>{ libc::tcsetattr(libc::STDIN_FILENO, libc::TCSAFLUSH, <span class="kw-2">&amp;</span>hidden) } != <span class="number">0 </span>{
+<a href=#997 id=997 data-nosnippet>997</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
+<a href=#998 id=998 data-nosnippet>998</a>    }
+<a href=#999 id=999 data-nosnippet>999</a>    <span class="kw">let </span><span class="kw-2">mut </span>value = String::new();
+<a href=#1000 id=1000 data-nosnippet>1000</a>    <span class="kw">let </span>read = io::stdin().read_line(<span class="kw-2">&amp;mut </span>value).context(<span class="string">"read credential"</span>);
+<a href=#1001 id=1001 data-nosnippet>1001</a>    drop(guard);
+<a href=#1002 id=1002 data-nosnippet>1002</a>    <span class="macro">println!</span>();
+<a href=#1003 id=1003 data-nosnippet>1003</a>    read<span class="question-mark">?</span>;
+<a href=#1004 id=1004 data-nosnippet>1004</a>    <span class="kw">while </span><span class="macro">matches!</span>(value.as_bytes().last(), <span class="prelude-val">Some</span>(<span class="string">b'\n' </span>| <span class="string">b'\r'</span>)) {
+<a href=#1005 id=1005 data-nosnippet>1005</a>        value.pop();
+<a href=#1006 id=1006 data-nosnippet>1006</a>    }
+<a href=#1007 id=1007 data-nosnippet>1007</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(value))
+<a href=#1008 id=1008 data-nosnippet>1008</a>}
+<a href=#1009 id=1009 data-nosnippet>1009</a>
+<a href=#1010 id=1010 data-nosnippet>1010</a><span class="attr">#[cfg(windows)]
+<a href=#1011 id=1011 data-nosnippet>1011</a></span><span class="kw">fn </span>read_secret_line(prompt: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
+<a href=#1012 id=1012 data-nosnippet>1012</a>    <span class="kw">use </span>windows_sys::Win32::{
+<a href=#1013 id=1013 data-nosnippet>1013</a>        Foundation::{HANDLE, INVALID_HANDLE_VALUE},
+<a href=#1014 id=1014 data-nosnippet>1014</a>        System::Console::{
+<a href=#1015 id=1015 data-nosnippet>1015</a>            ENABLE_ECHO_INPUT, GetConsoleMode, GetStdHandle, STD_INPUT_HANDLE, SetConsoleMode,
+<a href=#1016 id=1016 data-nosnippet>1016</a>        },
+<a href=#1017 id=1017 data-nosnippet>1017</a>    };
+<a href=#1018 id=1018 data-nosnippet>1018</a>
+<a href=#1019 id=1019 data-nosnippet>1019</a>    <span class="kw">struct </span>ConsoleModeGuard {
+<a href=#1020 id=1020 data-nosnippet>1020</a>        handle: HANDLE,
+<a href=#1021 id=1021 data-nosnippet>1021</a>        mode: u32,
+<a href=#1022 id=1022 data-nosnippet>1022</a>    }
+<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>ConsoleModeGuard {
+<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#1025 id=1025 data-nosnippet>1025</a>            <span class="comment">// SAFETY: the console handle and original mode remain valid for this process.
+<a href=#1026 id=1026 data-nosnippet>1026</a>            </span><span class="kw">unsafe </span>{
+<a href=#1027 id=1027 data-nosnippet>1027</a>                SetConsoleMode(<span class="self">self</span>.handle, <span class="self">self</span>.mode);
+<a href=#1028 id=1028 data-nosnippet>1028</a>            }
+<a href=#1029 id=1029 data-nosnippet>1029</a>        }
+<a href=#1030 id=1030 data-nosnippet>1030</a>    }
+<a href=#1031 id=1031 data-nosnippet>1031</a>
+<a href=#1032 id=1032 data-nosnippet>1032</a>    <span class="macro">print!</span>(<span class="string">"{prompt}"</span>);
+<a href=#1033 id=1033 data-nosnippet>1033</a>    io::stdout().flush().context(<span class="string">"flush credential prompt"</span>)<span class="question-mark">?</span>;
+<a href=#1034 id=1034 data-nosnippet>1034</a>    <span class="comment">// SAFETY: GetStdHandle requires no caller-owned pointers.
+<a href=#1035 id=1035 data-nosnippet>1035</a>    </span><span class="kw">let </span>handle = <span class="kw">unsafe </span>{ GetStdHandle(STD_INPUT_HANDLE) };
+<a href=#1036 id=1036 data-nosnippet>1036</a>    <span class="kw">if </span>handle.is_null() || handle == INVALID_HANDLE_VALUE {
+<a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"open credential console"</span>);
+<a href=#1038 id=1038 data-nosnippet>1038</a>    }
+<a href=#1039 id=1039 data-nosnippet>1039</a>    <span class="kw">let </span><span class="kw-2">mut </span>original = <span class="number">0</span>;
+<a href=#1040 id=1040 data-nosnippet>1040</a>    <span class="comment">// SAFETY: original points to writable mode storage.
+<a href=#1041 id=1041 data-nosnippet>1041</a>    </span><span class="kw">if unsafe </span>{ GetConsoleMode(handle, <span class="kw-2">&amp;mut </span>original) } == <span class="number">0 </span>{
+<a href=#1042 id=1042 data-nosnippet>1042</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"read credential console mode"</span>);
+<a href=#1043 id=1043 data-nosnippet>1043</a>    }
+<a href=#1044 id=1044 data-nosnippet>1044</a>    <span class="comment">// SAFETY: handle is a console input handle and the mode only disables echo.
+<a href=#1045 id=1045 data-nosnippet>1045</a>    </span><span class="kw">if unsafe </span>{ SetConsoleMode(handle, original &amp; !ENABLE_ECHO_INPUT) } == <span class="number">0 </span>{
+<a href=#1046 id=1046 data-nosnippet>1046</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::last_os_error()).context(<span class="string">"disable credential echo"</span>);
+<a href=#1047 id=1047 data-nosnippet>1047</a>    }
+<a href=#1048 id=1048 data-nosnippet>1048</a>    <span class="kw">let </span>guard = ConsoleModeGuard {
+<a href=#1049 id=1049 data-nosnippet>1049</a>        handle,
+<a href=#1050 id=1050 data-nosnippet>1050</a>        mode: original,
+<a href=#1051 id=1051 data-nosnippet>1051</a>    };
+<a href=#1052 id=1052 data-nosnippet>1052</a>    <span class="kw">let </span><span class="kw-2">mut </span>value = String::new();
+<a href=#1053 id=1053 data-nosnippet>1053</a>    <span class="kw">let </span>read = io::stdin().read_line(<span class="kw-2">&amp;mut </span>value).context(<span class="string">"read credential"</span>);
+<a href=#1054 id=1054 data-nosnippet>1054</a>    drop(guard);
+<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="macro">println!</span>();
+<a href=#1056 id=1056 data-nosnippet>1056</a>    read<span class="question-mark">?</span>;
+<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">while </span><span class="macro">matches!</span>(value.as_bytes().last(), <span class="prelude-val">Some</span>(<span class="string">b'\n' </span>| <span class="string">b'\r'</span>)) {
+<a href=#1058 id=1058 data-nosnippet>1058</a>        value.pop();
+<a href=#1059 id=1059 data-nosnippet>1059</a>    }
+<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(value))
+<a href=#1061 id=1061 data-nosnippet>1061</a>}
+<a href=#1062 id=1062 data-nosnippet>1062</a>
+<a href=#1063 id=1063 data-nosnippet>1063</a><span class="kw">async fn </span>run_daemon(<span class="kw-2">mut </span>runtime: Runtime, port_override: <span class="prelude-ty">Option</span>&lt;u16&gt;) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#1064 id=1064 data-nosnippet>1064</a>    <span class="kw">let </span>token = generate_token().context(<span class="string">"generate daemon authentication token"</span>)<span class="question-mark">?</span>;
+<a href=#1065 id=1065 data-nosnippet>1065</a>    <span class="kw">let </span>port = port_override.unwrap_or(runtime.port);
+<a href=#1066 id=1066 data-nosnippet>1066</a>    <span class="kw">let </span>listener = <span class="kw">match </span>runtime.server.clone().serve(port, token.clone()).<span class="kw">await </span>{
+<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="prelude-val">Ok</span>(listener) =&gt; listener,
+<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#1069 id=1069 data-nosnippet>1069</a>            runtime.server.shutdown();
+<a href=#1070 id=1070 data-nosnippet>1070</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#1071 id=1071 data-nosnippet>1071</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#1072 id=1072 data-nosnippet>1072</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(anyhow::Error::new(error).context(<span class="string">"start WebSocket daemon"</span>));
+<a href=#1073 id=1073 data-nosnippet>1073</a>        }
+<a href=#1074 id=1074 data-nosnippet>1074</a>    };
+<a href=#1075 id=1075 data-nosnippet>1075</a>    <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"ws://{}/ws"</span>, listener.address());
+<a href=#1076 id=1076 data-nosnippet>1076</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, ready_line(<span class="kw-2">&amp;</span>url, token.as_str()));
+<a href=#1077 id=1077 data-nosnippet>1077</a>    drop(token);
+<a href=#1078 id=1078 data-nosnippet>1078</a>    <span class="macro">println!</span>(
+<a href=#1079 id=1079 data-nosnippet>1079</a>        <span class="string">"cookie daemon listening on {url} (protocol {})"</span>,
+<a href=#1080 id=1080 data-nosnippet>1080</a>        cookie_agent_protocol::PROTOCOL_VERSION
+<a href=#1081 id=1081 data-nosnippet>1081</a>    );
+<a href=#1082 id=1082 data-nosnippet>1082</a>    <span class="kw">let </span>signal = tokio::signal::ctrl_c().<span class="kw">await</span>;
+<a href=#1083 id=1083 data-nosnippet>1083</a>    runtime.server.shutdown();
+<a href=#1084 id=1084 data-nosnippet>1084</a>    runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#1085 id=1085 data-nosnippet>1085</a>    listener.wait().<span class="kw">await</span>;
+<a href=#1086 id=1086 data-nosnippet>1086</a>    runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#1087 id=1087 data-nosnippet>1087</a>    signal.context(<span class="string">"wait for daemon shutdown signal"</span>)
+<a href=#1088 id=1088 data-nosnippet>1088</a>}
+<a href=#1089 id=1089 data-nosnippet>1089</a>
+<a href=#1090 id=1090 data-nosnippet>1090</a><span class="attr">#[cfg(test)]
+<a href=#1091 id=1091 data-nosnippet>1091</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
+<a href=#1092 id=1092 data-nosnippet>1092</a></span><span class="kw">mod </span>config_harness;
+<a href=#1093 id=1093 data-nosnippet>1093</a>
+<a href=#1094 id=1094 data-nosnippet>1094</a><span class="attr">#[cfg(all(test, unix))]
+<a href=#1095 id=1095 data-nosnippet>1095</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
