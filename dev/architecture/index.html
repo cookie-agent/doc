@@ -2291,10 +2291,17 @@ The TUI additionally reads an independent <code>~/.cookie-agent/tui.toml</code>.
    bundled bootstrap (its size and digest are pinned and checked by tests) when
    there is none, without waiting on the network. It then refreshes the fixed
    models.dev catalog (<code>https://models.dev/catalog.json</code>) in the background: once
-   right away, then hourly, with an ETag. A <code>304 Not Modified</code> rewrites only the
+   right away, then hourly, with an ETag, accepting gzip (the 64 MiB cap
+   applies to the decoded body). A <code>304 Not Modified</code> rewrites only the
    cache metadata and reuses the catalog already parsed in memory while the
    on-disk metadata still names the same body revision, and models are
-   recompiled only when the catalog revision or availability changes. Catalog
+   recompiled only when the catalog revision or availability changes. A new
+   body is installed by atomically replacing the body and then the metadata
+   that names its SHA-256 revision; a pair torn by a crash fails validation,
+   so startup falls back to the bootstrap and the next refresh repairs it. A
+   refresh that would replace a cache validated within the last seven days
+   with fewer than half of its usable models is refused: the cache stays in
+   use, marked stale with a <code>catalog_model_loss_rejected</code> error. Catalog
    selection is network, cache, or bootstrap.</li>
 <li><strong>Family registry.</strong> A code-owned recipe registry (schema 1) maps the catalog's
    npm package names to protocol families: OpenAI, OpenAI-compatible chat,
