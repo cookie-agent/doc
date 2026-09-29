@@ -2327,8 +2327,9 @@ the same constraints as custom definitions. Variant and pricing rules are below.
   budget variant already turns reasoning on.</li>
 <li>A token budget becomes <code>budget-min</code> (the catalog minimum), <code>budget-high</code> (half
   the usable maximum), and <code>budget-max</code>. The usable maximum is the catalog
-  maximum capped at 31,999 tokens and at the output room left above the
-  default <code>max_output_tokens</code>. A dynamic minimum (<code>-1</code>) becomes <code>budget-auto</code>.</li>
+  maximum capped at 31,999 tokens and at the output limit less 4,096 tokens
+  kept for visible output (a 32K-output model's <code>budget-max</code> is 27,904). A
+  dynamic minimum (<code>-1</code>) becomes <code>budget-auto</code>.</li>
 </ul>
 <p>Variants the selected wire cannot express are dropped. Wire mapping by family:</p>
 <table>
@@ -2359,8 +2360,13 @@ the same constraints as custom definitions. Variant and pricing rules are below.
 </tbody>
 </table>
 <p>Claude models before 4.6 accept only manual budgets, so their effort and <code>on</code>
-variants send an enabled budget of half the free output room (1,024 to 16,000
-tokens) instead of adaptive thinking.</p>
+variants send an enabled budget of half the output room above those 4,096
+visible tokens (1,024 to 16,000 tokens) instead of adaptive thinking.</p>
+<p>The Anthropic wire sends <code>max_tokens</code> as visible output plus the thinking
+budget, and the total may not exceed the model's output limit. Requests send
+the full output limit (or a smaller agent cap) as visible output, so with a
+manual budget the visible output is lowered to <code>output limit - budget</code> when it
+would not otherwise fit; a smaller agent cap that fits is kept.</p>
 <p>OpenAI-compatible providers get <code>off</code>/<code>on</code> only where the provider documents a
 thinking switch: <code>thinking = {type = "disabled" | "enabled"}</code> for DeepSeek,
 Z.ai/Zhipu GLM, and Volcengine Ark; <code>enable_thinking = false | true</code> for
@@ -2717,6 +2723,11 @@ the current configuration or catalog changes.</p>
 <td>Context window in tokens; must be greater than zero.</td>
 </tr>
 <tr>
+<td><code>input_tokens</code></td>
+<td>integer</td>
+<td>Optional input-token limit for providers that document one below the context window; must be greater than zero and at most <code>context_tokens</code>. Omitted, the input budget is the context window less <code>min(output cap, 32000, context_tokens / 2)</code>. Compaction triggers against this budget.</td>
+</tr>
+<tr>
 <td><code>output_tokens</code></td>
 <td>integer</td>
 <td>Maximum output tokens; must be greater than zero and at most <code>context_tokens</code>.</td>
@@ -2769,7 +2780,7 @@ the current configuration or catalog changes.</p>
 <tr>
 <td><code>media</code></td>
 <td>map</td>
-<td>Per-kind (<code>image</code>, <code>audio</code>, <code>pdf</code>, <code>video</code>) input limits: nonempty <code>mime_types</code> string array, positive <code>max_bytes</code> and <code>max_count</code>. Exactly the non-text input modalities need entries; text-only models use <code>{}</code>.</td>
+<td>Per-kind (<code>image</code>, <code>audio</code>, <code>pdf</code>, <code>video</code>) input limits: nonempty <code>mime_types</code> string array, positive <code>max_bytes</code> and <code>max_count</code>. <code>max_count</code> is per request: when the history holds more parts of a kind, the oldest are replaced by a text placeholder in the outgoing request (see <a href="../../reference/tools/#media-reads">media reads</a>). Exactly the non-text input modalities need entries; text-only models use <code>{}</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -2876,7 +2887,7 @@ and explicit request settings can further constrain the effective request.</p>
 <tr>
 <td><code>max_output_tokens</code></td>
 <td>integer</td>
-<td>Must be greater than zero and at most <code>capabilities.output_tokens</code>.</td>
+<td>Must be greater than zero and at most <code>capabilities.output_tokens</code>. Sent when the agent sets no output cap of its own; without it, requests send the full <code>output_tokens</code>. Catalog models have no default.</td>
 </tr>
 <tr>
 <td><code>stop</code></td>

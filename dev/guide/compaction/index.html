@@ -1899,18 +1899,32 @@ Native windows remain unchanged by recent-history retention: the engine does not
 append an independent recent-message tail to them. Neither native nor internal
 compaction rereads files or emits new <code>context_rehydrated</code> events.</p>
 <h2 id="the-trigger-threshold">The trigger threshold<a class="headerlink" href="#the-trigger-threshold" title="Permanent link">&para;</a></h2>
-<p>By default, compaction uses a proportional trigger:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>trigger_tokens = model_context_limit * percent / 100
+<p>Triggers are measured against the model's <strong>input budget</strong>, the number of
+tokens a request may occupy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>input_budget = model_input_limit                     when the model declares one
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>input_budget = model_context_limit - output_reserve  otherwise
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>output_reserve = min(max_output_tokens, 32000, model_context_limit / 2)
 </code></pre></div>
-<p><code>percent</code> defaults to 70, so a model with a 200,000-token context window
-triggers at 140,000 tokens. Valid percentages are 1 through 99; 100 is rejected
+<p>Catalog models take the input limit from models.dev <code>limit.input</code> when it is
+narrower than the context window (for example <code>gpt-5</code>: 400,000 context,
+272,000 input); custom models declare it as <code>capabilities.input_tokens</code>.
+<code>max_output_tokens</code> is the output cap the run sends (see
+<a href="../agents/">agent limits</a>), by default the model's full output limit. The
+reserve is capped at 32,000 tokens so a large output limit does not claim a big
+share of the window, and at half the context so a model whose output limit
+equals its context window keeps a usable budget.</p>
+<p>By default, compaction uses a proportional trigger:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trigger_tokens = input_budget * percent / 100
+</code></pre></div>
+<p><code>percent</code> defaults to 70, so a model with a 200,000-token context window and a
+64,000-token output limit triggers at 117,600 tokens, and <code>gpt-5</code> at 190,400. Valid percentages are 1 through 99; 100 is rejected
 because compaction at the model limit does not preserve useful request
 headroom.</p>
 <p>The fixed-buffer form preserves the earlier behavior:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>trigger_tokens = model_context_limit - buffer_tokens
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>trigger_tokens = input_budget - buffer_tokens
 </code></pre></div>
-<p>This subtraction saturates at zero. If the buffer equals or exceeds the context
-limit, the trigger becomes 0 and automatic compaction is disabled for that
+<p>This subtraction saturates at zero. If the buffer equals or exceeds the input
+budget, the trigger becomes 0 and automatic compaction is disabled for that
 model.</p>
 <p>The threshold is compared against two signals:</p>
 <ul>
@@ -2012,7 +2026,7 @@ trigger forms, and inheritance.</p>
 <p>Choosing <code>/compact</code> in the <a href="../run/#command-palette">command palette</a> forces a
 checkpoint for the selected idle session. The palette then asks for an
 optional focus, for example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>preserve the parser decisions and failing test evidence
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>preserve the parser decisions and failing test evidence
 </code></pre></div>
 <p>Press Enter with the prompt empty to compact without a focus. The focus text is
 appended to the fixed compaction instruction so the
