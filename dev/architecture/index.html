@@ -2166,7 +2166,7 @@ the TUI, so the CLI keeps working even when built without the <code>tui</code> f
 </tr>
 <tr>
 <td><code>protocol</code></td>
-<td>Current-only wire contracts <strong>and the protocol session layer</strong>: RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the <code>ClientProtocol</code>/<code>ServerProtocol</code> traits, the shared <code>Client</code>, <code>ServerContext</code>, protocol-owned <code>serve</code>, and shared setup-value parsing. Re-exports <code>identity</code> and hosts the unified wire types.</td>
+<td>Current-only wire contracts <strong>and the protocol session layer</strong>: RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the <code>ServerProtocol</code> trait, the shared <code>Client</code>, <code>ServerContext</code>, protocol-owned <code>serve</code>, and shared setup-value parsing. Re-exports <code>identity</code> and hosts the unified wire types.</td>
 </tr>
 <tr>
 <td><code>plugin_sdk</code></td>
@@ -2242,19 +2242,18 @@ delegating every call to <code>Engine</code>.</p>
 <li><strong>Notification demux.</strong> <code>ServerContext::notify</code> queues one JSON-RPC
   notification per connection; the session loop interleaves it with incoming
   frames. The server implementation uses this for <code>runtime.changed</code>, event
-  tails, and streamed tool output.</li>
+  tails, and plugin bus events.</li>
 <li><strong>Shutdown.</strong> A per-connection cancellation token ends the loop and drops
   outstanding state.</li>
 </ul>
 <h3 id="client-side">Client side<a class="headerlink" href="#client-side" title="Permanent link">&para;</a></h3>
-<p><code>protocol::ClientProtocol</code> is the client contract; the shared concrete <code>Client</code>
-implements it over any <code>Transport</code>. A connection task owns the stream and
+<p>The shared concrete <code>protocol::Client</code> runs over any <code>Transport</code>. A connection task owns the stream and
 handles:</p>
 <ul>
 <li><strong>Request/response correlation</strong> by id, with a bounded command queue and a
   sole ordered delivery channel.</li>
 <li><strong>Notification demux</strong> into <code>ClientDelivery</code> variants: live
-  <code>events.subscription</code>, tool-output snapshot/delta/gap, and <code>runtime.changed</code>.</li>
+  <code>events.subscription</code>, <code>events.plugin</code>, and <code>runtime.changed</code>.</li>
 <li><strong>Replay and gap recovery.</strong> <code>events.subscribe</code> runs a cursor replay that is
   injected into the delivery stream before buffered live notifications; a
   recovery worker re-subscribes with backoff and emits <code>RecoveryFailed</code> when it
@@ -2270,8 +2269,7 @@ handles:</p>
 </ul>
 <p>The <code>server</code> crate wraps this in a thin <code>Client</code> (Deref to <code>protocol::Client</code>)
 and adds <code>connect_websocket</code>/<code>connect_in_process</code>/<code>connect_stream</code>. The <strong>TUI
-client is a ~6-line adapter</strong> re-exporting it, and the CLI uses the same <code>Client</code>
-through the <code>ClientProtocol</code> trait.</p>
+client is a ~6-line adapter</strong> re-exporting it, and the CLI uses the same <code>Client</code>.</p>
 <h2 id="configuration-and-layering">Configuration and layering<a class="headerlink" href="#configuration-and-layering" title="Permanent link">&para;</a></h2>
 <p>The <code>config</code> crate reads two optional authored layers:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.cookie-agent/config.toml                 # user layer
@@ -2524,7 +2522,7 @@ source's tree and therefore needs that tree's lock, taking it when it is free
 and failing as foreign-owned when it is not. Grants and grant invalidations
 committed by another process become
 visible after restart. Concurrent MCP configuration edits remain last-writer
-wins. Ownership failures in protocol 22 use an ordinary fault
+wins. Ownership failures in protocol 23 use an ordinary fault
 message rather than a new wire error.</p>
 <p>The data directory must be on a local filesystem with correct <code>flock</code> or
 <code>LockFileEx</code> semantics. NFS-class and other network filesystems are unsupported
@@ -2554,11 +2552,12 @@ so a token cannot be replayed or retargeted to another session.</p>
 details.</p>
 <h2 id="protocol-surface">Protocol surface<a class="headerlink" href="#protocol-surface" title="Permanent link">&para;</a></h2>
 <p>The wire protocol is unchanged by the session-layer refactor: JSON-RPC 2.0 over
-an authenticated WebSocket at <code>/ws</code>, protocol 22 current-only, <code>handshake</code> first.
+an authenticated WebSocket at <code>/ws</code>, protocol 23 current-only, <code>handshake</code> first.
 Discovery is a single <code>runtime.snapshot.get</code> call that returns one coherent
-runtime snapshot (schema 5). Session events stream through <code>events.subscribe</code>,
-plugin bus events through <code>events.plugin</code>, and tool output through separate
-snapshot/delta/gap notifications.</p>
+runtime snapshot (schema 5). Session events stream through <code>events.subscribe</code>
+and plugin bus events through <code>events.plugin</code>. Raw tool output is not streamed
+to clients: displays come from durable <code>tool_call_progress</code> and terminal
+events, and retained output is read back through artifacts.</p>
 <p>What moved is where the mechanics live: handshake, request/response
 correlation, notification demux, replay/gap recovery, and shutdown are now
 implemented once in the <code>protocol</code> crate and shared by the server, the TUI, and

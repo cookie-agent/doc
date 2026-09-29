@@ -1915,11 +1915,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 22 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 22 }</code> before any other method.</p>
+Protocol 23 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 23 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 22.</p>
+members of protocol 23.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -1937,7 +1937,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 22 alongside independent display and output references. The
+preserved in protocol 23 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -1977,16 +1977,15 @@ and the CLI share one implementation of the protocol mechanics.</p>
   ready, so responses can arrive out of request order. Notifications from work
   a request started, such as the live tail of <code>events.subscribe</code>, are written
   only after that request's response.</li>
-<li><strong>ClientProtocol.</strong> The client contract is implemented by the shared
-  <code>protocol::Client</code>. Its connection task correlates requests by id, demuxes
+<li><strong>Client.</strong> The client side is the concrete <code>protocol::Client</code>. Its connection task correlates requests by id, demuxes
   notifications into an ordered <code>ClientDelivery</code> stream, injects cursor replays
   and gap recovery before buffered live notifications, fetches replays in pages
   of 2,000 events and delivers each replay whole once its final page arrives,
   wipes secret-bearing
   serialized frames, and fails outstanding calls on shutdown.</li>
 <li><strong>TUI and CLI.</strong> The TUI client is a thin adapter re-exporting the server's
-  <code>Client</code> wrapper; the CLI uses the same client through the <code>ClientProtocol</code>
-  trait. Both still work without the <code>tui</code> feature.</li>
+  <code>Client</code> wrapper; the CLI uses the same client. Both still work without the
+  <code>tui</code> feature.</li>
 </ul>
 <h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h2>
 <p><code>run.start</code> accepts optional <code>reset_fallback</code> (default <code>false</code>). The server
@@ -2168,7 +2167,7 @@ a top-level entry, and stays reachable via <code>session.tree</code>, <code>sess
 <p>The engine implements these methods through its per-session actor. Goal mutations
 are root-only; producer inspection is available for any owned session.
 Goal/producer request shapes remain unchanged. Session protocol 18 added declared
-tool-output channels, generic named raw-output subscriptions, terminal output
+tool-output channels, terminal output
 references, and independent UI display. Plugin extension <code>0.0.6</code> uses typed
 terminal single/named output and final display; package versions are unchanged.</p>
 <table>
@@ -2294,23 +2293,15 @@ the title, and continues with new physical sequences.</p>
 <td><code>events.plugin</code></td>
 <td>Session-scoped non-durable plugin event</td>
 </tr>
-<tr>
-<td><code>events.tool_output_snapshot</code></td>
-<td>Stream and retained output snapshot</td>
-</tr>
-<tr>
-<td><code>events.tool_output_delta</code></td>
-<td>Tool call, stream, byte offset, data</td>
-</tr>
-<tr>
-<td><code>events.tool_output_gap</code></td>
-<td>Tool call, stream, next available offset</td>
-</tr>
 </tbody>
 </table>
 <p>The shared client maps these to <code>ClientDelivery</code> variants (<code>Live</code>, replay
-deliveries, output stream events, <code>RuntimeChanged</code>, <code>RecoveryFailed</code>), so a UI
+deliveries, <code>PluginEvent</code>, <code>RuntimeChanged</code>, <code>RecoveryFailed</code>), so a UI
 consumes one ordered stream and never parses raw JSON-RPC frames.</p>
+<p>Protocol 23 removed the <code>events.tool_output_snapshot</code>, <code>events.tool_output_delta</code>,
+and <code>events.tool_output_gap</code> notifications. Tool display comes from durable
+<code>tool_call_progress</code> and <code>tool_call_terminated</code> events; retained output is read
+through its artifact references.</p>
 <p>Session metadata includes additive <code>skipped_events</code> entries with the physical
 sequence (or source line number when no sequence was readable) and a safe reason.
 An empty array means the event log loaded without skipped records. Optional-field

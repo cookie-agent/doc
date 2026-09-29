@@ -958,6 +958,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#catalog-reasoning-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Catalog reasoning variants
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1958,6 +1967,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#catalog-reasoning-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Catalog reasoning variants
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2301,6 +2319,55 @@ model. Confirm availability in your runtime before making requests:</p>
 <code>headers</code>. Except for the explicit compaction policy described above, omitted
 fields retain catalog/base values. Display names and generation settings have
 the same constraints as custom definitions. Variant and pricing rules are below.</p>
+<h3 id="catalog-reasoning-variants">Catalog reasoning variants<a class="headerlink" href="#catalog-reasoning-variants" title="Permanent link">&para;</a></h3>
+<p>Managed models get variants from the catalog's <code>reasoning_options</code>:</p>
+<ul>
+<li>Each effort level becomes a variant of the same name (<code>low</code>, <code>high</code>, <code>max</code>, ...).</li>
+<li>A toggle becomes <code>off</code> and <code>on</code>; <code>on</code> is dropped when a supported effort or
+  budget variant already turns reasoning on.</li>
+<li>A token budget becomes <code>budget-min</code> (the catalog minimum), <code>budget-high</code> (half
+  the usable maximum), and <code>budget-max</code>. The usable maximum is the catalog
+  maximum capped at 31,999 tokens and at the output room left above the
+  default <code>max_output_tokens</code>. A dynamic minimum (<code>-1</code>) becomes <code>budget-auto</code>.</li>
+</ul>
+<p>Variants the selected wire cannot express are dropped. Wire mapping by family:</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Effort</th>
+<th><code>off</code></th>
+<th><code>on</code></th>
+<th>Budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic and Anthropic-compatible</td>
+<td><code>thinking = {type = "adaptive", display = "summarized"}</code> plus <code>output_config.effort</code></td>
+<td><code>thinking = {type = "disabled"}</code></td>
+<td>adaptive, summarized</td>
+<td><code>thinking = {type = "enabled", budget_tokens = N, display = "summarized"}</code></td>
+</tr>
+<tr>
+<td>OpenAI-compatible Chat</td>
+<td><code>reasoning_effort</code></td>
+<td>provider switch below</td>
+<td>provider switch below</td>
+<td>not sent</td>
+</tr>
+</tbody>
+</table>
+<p>Claude models before 4.6 accept only manual budgets, so their effort and <code>on</code>
+variants send an enabled budget of half the free output room (1,024 to 16,000
+tokens) instead of adaptive thinking.</p>
+<p>OpenAI-compatible providers get <code>off</code>/<code>on</code> only where the provider documents a
+thinking switch: <code>thinking = {type = "disabled" | "enabled"}</code> for DeepSeek,
+Z.ai/Zhipu GLM, and Volcengine Ark; <code>enable_thinking = false | true</code> for
+Alibaba Cloud Model Studio (<code>alibaba</code>, <code>alibaba-cn</code>); and
+<code>reasoning_effort = "none"</code> for Kimi Code, which has no <code>on</code> variant. Kimi Code
+serves thinking-off K3 requests with its K2.8 Preview model. Other providers,
+including Moonshot, get no toggle variants.</p>
 <h2 id="custom-providers">Custom providers<a class="headerlink" href="#custom-providers" title="Permanent link">&para;</a></h2>
 <p>Custom providers are config-only, never appear in <code>/connect</code>, and never use
 the provider store. Any valid provider ID is allowed; on collision with a
