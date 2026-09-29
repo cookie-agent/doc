@@ -2142,16 +2142,21 @@ the TUI, so the CLI keeps working even when built without the <code>tui</code> f
 <h2 id="crate-layering">Crate layering<a class="headerlink" href="#crate-layering" title="Permanent link">&para;</a></h2>
 <p>The workspace is layered bottom-up by dependency:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>identity
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  └─ protocol        (wire types + session transport/client/server traits)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  └─ protocol        (wire types + session layer: transports, client, serve)
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       ├─ plugin_sdk
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>       ├─ models
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       │    └─ config
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       │         └─ engine
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       │              ├─ tools
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       │              └─ server
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │                   └─ tui
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>       ├─ tui           (depends on protocol only; never on the engine)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       ├─ models
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       │    └─ config
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       │         └─ engine
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       │              ├─ tools
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │              └─ server
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       └─ cookie_agent (binary: composes every layer)
 </code></pre></div>
+<p>The TUI deliberately sits beside the engine rather than above it: it speaks
+only the protocol, receives an already-connected <code>Client</code>, and the
+<code>cookie_agent</code> binary does the in-process wiring to <code>server</code>. Engine edits
+therefore never rebuild the TUI library, and the two compile in parallel.
+The TUI's own tests still drive a real <code>server</code> through a dev-dependency.</p>
 <table>
 <thead>
 <tr>
@@ -2166,7 +2171,7 @@ the TUI, so the CLI keeps working even when built without the <code>tui</code> f
 </tr>
 <tr>
 <td><code>protocol</code></td>
-<td>Current-only wire contracts <strong>and the protocol session layer</strong>: RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the <code>ServerProtocol</code> trait, the shared <code>Client</code>, <code>ServerContext</code>, protocol-owned <code>serve</code>, and shared setup-value parsing. Re-exports <code>identity</code> and hosts the unified wire types.</td>
+<td>Current-only wire contracts <strong>and the protocol session layer</strong>: RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the in-memory <code>InProcessStream</code> pair, the <code>ServerProtocol</code> trait, the shared <code>Client</code>, <code>ServerContext</code>, protocol-owned <code>serve</code>, and shared setup-value parsing. The opt-in <code>websocket</code> feature adds the daemon client transport (<code>WebSocketTransport</code>, <code>Client::connect_websocket_with_token</code>, <code>validate_websocket_url</code>). Re-exports <code>identity</code> and hosts the unified wire types.</td>
 </tr>
 <tr>
 <td><code>plugin_sdk</code></td>
@@ -2190,11 +2195,11 @@ the TUI, so the CLI keeps working even when built without the <code>tui</code> f
 </tr>
 <tr>
 <td><code>server</code></td>
-<td>The <code>ServerProtocol</code> implementation over <code>Engine</code>, concrete transports (WebSocket + <code>InProcessStream</code>), a thin connection wrapper, and the public per-run token / <code>validate_websocket_url</code> APIs.</td>
+<td>The <code>ServerProtocol</code> implementation over <code>Engine</code>, the axum WebSocket accept path, <code>Server::connect_in_process</code>, and the per-run token / ready-line APIs. Server side only.</td>
 </tr>
 <tr>
 <td><code>tui</code></td>
-<td>ratatui terminal client: composer, transcript, approvals, sessions, provider connect flow. Its client is a thin adapter re-exporting the shared protocol client.</td>
+<td>ratatui terminal client: composer, transcript, approvals, sessions, provider connect flow. Depends only on <code>protocol</code> and runs over a <code>protocol::Client</code> it is handed.</td>
 </tr>
 <tr>
 <td><code>cookie_agent</code></td>
@@ -2221,11 +2226,12 @@ implementation of the protocol mechanics.</p>
 <h3 id="transport">Transport<a class="headerlink" href="#transport" title="Permanent link">&para;</a></h3>
 <p><code>protocol::Transport</code> is a frame-level channel: <code>send(MessageFrame)</code> /
 <code>recv() -&gt; Option&lt;MessageFrame&gt;</code>, with <code>MessageFrame</code> either a <code>Text</code> string or a
-<code>Value</code>. It has no JSON-RPC semantics. The <code>server</code> crate provides the concrete
-transports: <code>WebSocketTransport</code> (tokio-tungstenite, used by the TUI and CLI to
-reach a daemon) and <code>InProcessStream</code> (used by the local frontend over an
-in-memory mpsc pair). The axum WebSocket accept path implements <code>MessageStream</code>
-(the <code>Transport</code> alias) server-side.</p>
+<code>Value</code>. It has no JSON-RPC semantics. The <code>protocol</code> crate also provides the
+concrete client transports: <code>InProcessStream</code> (an in-memory mpsc pair used by
+the local frontend and tests) and, behind the <code>websocket</code> feature,
+<code>WebSocketTransport</code> (tokio-tungstenite, used by the TUI and CLI to reach a
+daemon). The <code>server</code> crate's axum WebSocket accept path implements
+<code>MessageStream</code> (the <code>Transport</code> alias) server-side.</p>
 <h3 id="server-side">Server side<a class="headerlink" href="#server-side" title="Permanent link">&para;</a></h3>
 <p><code>protocol::ServerProtocol</code> is the server contract: one async method per RPC
 method plus <code>connected</code> and <code>subscribe_events</code> (which receives a
@@ -2267,9 +2273,10 @@ handles:</p>
 <li><strong>Shutdown</strong> via a cancellation token that fails outstanding calls with
   <code>ClientError::Closed</code>.</li>
 </ul>
-<p>The <code>server</code> crate wraps this in a thin <code>Client</code> (Deref to <code>protocol::Client</code>)
-and adds <code>connect_websocket</code>/<code>connect_in_process</code>/<code>connect_stream</code>. The <strong>TUI
-client is a ~6-line adapter</strong> re-exporting it, and the CLI uses the same <code>Client</code>.</p>
+<p>Connections are made with <code>Client::connect_stream</code> over any transport,
+<code>Client::connect_websocket_with_token</code> (the <code>websocket</code> feature), or
+<code>Server::connect_in_process</code> in the <code>server</code> crate. The TUI and the CLI use this
+same <code>protocol::Client</code> directly; there is no per-frontend wrapper.</p>
 <h2 id="configuration-and-layering">Configuration and layering<a class="headerlink" href="#configuration-and-layering" title="Permanent link">&para;</a></h2>
 <p>The <code>config</code> crate reads two optional authored layers:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.cookie-agent/config.toml                 # user layer
