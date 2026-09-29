@@ -124,7 +124,7 @@
 <a href=#124 id=124 data-nosnippet>124</a>    <span class="kw">pub</span>(<span class="kw">super</span>) owner_policy: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FrozenRunPolicy,
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">pub</span>(<span class="kw">super</span>) internal_policy: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FrozenInternalAgentPolicy,
 <a href=#126 id=126 data-nosnippet>126</a>    <span class="kw">pub</span>(<span class="kw">super</span>) tools: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[ToolDefinition],
-<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">pub</span>(<span class="kw">super</span>) events: Arc&lt;[StoredEvent]&gt;,
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">pub</span>(<span class="kw">super</span>) events: <span class="kw">crate</span>::events::EventSnapshot,
 <a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">pub</span>(<span class="kw">super</span>) force: bool,
 <a href=#129 id=129 data-nosnippet>129</a>    <span class="doccomment">/// Predictive compaction has already made its own trigger decision.
 <a href=#130 id=130 data-nosnippet>130</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) skip_usage_trigger: bool,
@@ -223,7 +223,7 @@
 <a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>maybe_compact_context(
 <a href=#224 id=224 data-nosnippet>224</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#225 id=225 data-nosnippet>225</a>        <span class="kw-2">mut </span>input: CompactionInput&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#226 id=226 data-nosnippet>226</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;[StoredEvent]&gt;, EngineError&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::events::EventSnapshot, EngineError&gt; {
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(context_limit) = input.binding.descriptor.capabilities.limits.context <span class="kw">else </span>{
 <a href=#228 id=228 data-nosnippet>228</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(input.events);
 <a href=#229 id=229 data-nosnippet>229</a>        };
@@ -384,7 +384,7 @@
 <a href=#384 id=384 data-nosnippet>384</a>        }
 <a href=#385 id=385 data-nosnippet>385</a>
 <a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>composed_prompt = <span class="self">self</span>.run_agent_prompt(input.session, input.run)<span class="question-mark">?</span>;
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span><span class="kw-2">mut </span>events = input.events.to_vec();
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span><span class="kw-2">mut </span>events = input.events.clone();
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = assemble_model_context(
 <a href=#389 id=389 data-nosnippet>389</a>            <span class="kw-2">&amp;</span>events,
 <a href=#390 id=390 data-nosnippet>390</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.inner.artifacts,
@@ -416,7 +416,7 @@
 <a href=#416 id=416 data-nosnippet>416</a>            events = <span class="self">self
 <a href=#417 id=417 data-nosnippet>417</a>                </span>.stage_tool_output_elision(
 <a href=#418 id=418 data-nosnippet>418</a>                    input.session,
-<a href=#419 id=419 data-nosnippet>419</a>                    events,
+<a href=#419 id=419 data-nosnippet>419</a>                    <span class="kw-2">&amp;</span>events,
 <a href=#420 id=420 data-nosnippet>420</a>                    input.actor_direct,
 <a href=#421 id=421 data-nosnippet>421</a>                    input.origin.clone(),
 <a href=#422 id=422 data-nosnippet>422</a>                )
@@ -430,7 +430,7 @@
 <a href=#430 id=430 data-nosnippet>430</a>            <span class="self">self</span>.estimated_request_tokens(input.session, <span class="kw-2">&amp;</span>context.history, input.tools)<span class="question-mark">?
 <a href=#431 id=431 data-nosnippet>431</a>        </span>};
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="kw">if </span>!input.force &amp;&amp; context_tokens_before &lt; trigger_tokens {
-<a href=#433 id=433 data-nosnippet>433</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#433 id=433 data-nosnippet>433</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#434 id=434 data-nosnippet>434</a>        }
 <a href=#435 id=435 data-nosnippet>435</a>
 <a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span>input_through_seq = events.last().map_or(<span class="number">0</span>, |event| event.seq);
@@ -619,7 +619,7 @@
 <a href=#619 id=619 data-nosnippet>619</a>                .unwrap_or(<span class="bool-val">false</span>),
 <a href=#620 id=620 data-nosnippet>620</a>        );
 <a href=#621 id=621 data-nosnippet>621</a>        <span class="kw">if </span>prefix.len() &lt;= checkpoint_prefix.len().saturating_add(prior_summary_count) {
-<a href=#622 id=622 data-nosnippet>622</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#622 id=622 data-nosnippet>622</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#623 id=623 data-nosnippet>623</a>        }
 <a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">let </span>(history, instruction) = compaction_history(
 <a href=#625 id=625 data-nosnippet>625</a>            context.history,
@@ -703,10 +703,10 @@
 <a href=#703 id=703 data-nosnippet>703</a>                        </span>.to_string(),
 <a href=#704 id=704 data-nosnippet>704</a>                );
 <a href=#705 id=705 data-nosnippet>705</a>            }
-<a href=#706 id=706 data-nosnippet>706</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#706 id=706 data-nosnippet>706</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#707 id=707 data-nosnippet>707</a>        };
 <a href=#708 id=708 data-nosnippet>708</a>        <span class="kw">if </span>summary.text.trim().is_empty() {
-<a href=#709 id=709 data-nosnippet>709</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#709 id=709 data-nosnippet>709</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#710 id=710 data-nosnippet>710</a>        }
 <a href=#711 id=711 data-nosnippet>711</a>        <span class="kw">let </span>checkpoint = InternalSummaryCheckpoint::new(
 <a href=#712 id=712 data-nosnippet>712</a>            summary.text,
@@ -745,7 +745,7 @@
 <a href=#745 id=745 data-nosnippet>745</a>        <span class="kw">if </span>input_tokens_after &gt; retained_limit
 <a href=#746 id=746 data-nosnippet>746</a>            || input_tokens_after.saturating_sub(actual_base_tokens) &gt; keep_recent_tokens
 <a href=#747 id=747 data-nosnippet>747</a>        {
-<a href=#748 id=748 data-nosnippet>748</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#748 id=748 data-nosnippet>748</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#749 id=749 data-nosnippet>749</a>        }
 <a href=#750 id=750 data-nosnippet>750</a>        boundaries.recent_from_seq = recent_from_seq;
 <a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(recent_from_seq) = recent_from_seq {
@@ -765,7 +765,7 @@
 <a href=#765 id=765 data-nosnippet>765</a>            budgets,
 <a href=#766 id=766 data-nosnippet>766</a>        };
 <a href=#767 id=767 data-nosnippet>767</a>        <span class="kw">if </span>commit.validate().is_err() {
-<a href=#768 id=768 data-nosnippet>768</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Arc::from(events));
+<a href=#768 id=768 data-nosnippet>768</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(events);
 <a href=#769 id=769 data-nosnippet>769</a>        }
 <a href=#770 id=770 data-nosnippet>770</a>        <span class="self">self</span>.append_compaction_event(
 <a href=#771 id=771 data-nosnippet>771</a>            input.session,
@@ -785,7 +785,7 @@
 <a href=#785 id=785 data-nosnippet>785</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#786 id=786 data-nosnippet>786</a>        session: SessionId,
 <a href=#787 id=787 data-nosnippet>787</a>        input_tokens_after: u64,
-<a href=#788 id=788 data-nosnippet>788</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;[StoredEvent]&gt;, EngineError&gt; {
+<a href=#788 id=788 data-nosnippet>788</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::events::EventSnapshot, EngineError&gt; {
 <a href=#789 id=789 data-nosnippet>789</a>        <span class="self">self</span>.inner
 <a href=#790 id=790 data-nosnippet>790</a>            .compaction
 <a href=#791 id=791 data-nosnippet>791</a>            .context_token_estimators
@@ -794,16 +794,16 @@
 <a href=#794 id=794 data-nosnippet>794</a>            .entry(session)
 <a href=#795 id=795 data-nosnippet>795</a>            .or_default()
 <a href=#796 id=796 data-nosnippet>796</a>            .record_compaction(input_tokens_after);
-<a href=#797 id=797 data-nosnippet>797</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>.log.event_snapshot())
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.store.log(session)<span class="question-mark">?</span>.event_snapshot())
 <a href=#798 id=798 data-nosnippet>798</a>    }
 <a href=#799 id=799 data-nosnippet>799</a>
 <a href=#800 id=800 data-nosnippet>800</a>    <span class="kw">async fn </span>stage_tool_output_elision(
 <a href=#801 id=801 data-nosnippet>801</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#802 id=802 data-nosnippet>802</a>        session: SessionId,
-<a href=#803 id=803 data-nosnippet>803</a>        events: Vec&lt;StoredEvent&gt;,
+<a href=#803 id=803 data-nosnippet>803</a>        events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;],
 <a href=#804 id=804 data-nosnippet>804</a>        actor_direct: bool,
 <a href=#805 id=805 data-nosnippet>805</a>        origin: cookie_agent_protocol::EventOrigin,
-<a href=#806 id=806 data-nosnippet>806</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;StoredEvent&gt;, EngineError&gt; {
+<a href=#806 id=806 data-nosnippet>806</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::events::EventSnapshot, EngineError&gt; {
 <a href=#807 id=807 data-nosnippet>807</a>        <span class="kw">let </span>protected_turns = events
 <a href=#808 id=808 data-nosnippet>808</a>            .iter()
 <a href=#809 id=809 data-nosnippet>809</a>            .rev()
@@ -829,7 +829,7 @@
 <a href=#829 id=829 data-nosnippet>829</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#830 id=830 data-nosnippet>830</a>            })
 <a href=#831 id=831 data-nosnippet>831</a>            .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">for </span>event <span class="kw">in </span><span class="kw-2">&amp;</span>events {
+<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">for </span>event <span class="kw">in </span>events {
 <a href=#833 id=833 data-nosnippet>833</a>            <span class="kw">let </span>Event::ToolCallTerminated { termination } = <span class="kw-2">&amp;</span>event.payload <span class="kw">else </span>{
 <a href=#834 id=834 data-nosnippet>834</a>                <span class="kw">continue</span>;
 <a href=#835 id=835 data-nosnippet>835</a>            };
@@ -864,7 +864,7 @@
 <a href=#864 id=864 data-nosnippet>864</a>            )
 <a href=#865 id=865 data-nosnippet>865</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#866 id=866 data-nosnippet>866</a>        }
-<a href=#867 id=867 data-nosnippet>867</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>.log.events())
+<a href=#867 id=867 data-nosnippet>867</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.store.log(session)<span class="question-mark">?</span>.event_snapshot())
 <a href=#868 id=868 data-nosnippet>868</a>    }
 <a href=#869 id=869 data-nosnippet>869</a>
 <a href=#870 id=870 data-nosnippet>870</a>    <span class="kw">fn </span>estimated_request_tokens(
@@ -907,7 +907,7 @@
 <a href=#907 id=907 data-nosnippet>907</a>
 <a href=#908 id=908 data-nosnippet>908</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>active_compaction_binding&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#909 id=909 data-nosnippet>909</a>    policy: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FrozenRunPolicy,
-<a href=#910 id=910 data-nosnippet>910</a>    events: <span class="kw-2">&amp;</span>[StoredEvent],
+<a href=#910 id=910 data-nosnippet>910</a>    events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;],
 <a href=#911 id=911 data-nosnippet>911</a>    run: RunId,
 <a href=#912 id=912 data-nosnippet>912</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>cookie_agent_protocol::FrozenModelBinding, EngineError&gt; {
 <a href=#913 id=913 data-nosnippet>913</a>    policy
@@ -965,7 +965,7 @@
 <a href=#965 id=965 data-nosnippet>965</a>}
 <a href=#966 id=966 data-nosnippet>966</a>
 <a href=#967 id=967 data-nosnippet>967</a><span class="attr">#[cfg(test)]
-<a href=#968 id=968 data-nosnippet>968</a></span><span class="kw">fn </span>checkpoint_covers_input(events: <span class="kw-2">&amp;</span>[StoredEvent], input_through_seq: u64) -&gt; bool {
+<a href=#968 id=968 data-nosnippet>968</a></span><span class="kw">fn </span>checkpoint_covers_input(events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;], input_through_seq: u64) -&gt; bool {
 <a href=#969 id=969 data-nosnippet>969</a>    events.iter().rev().any(|event| {
 <a href=#970 id=970 data-nosnippet>970</a>        <span class="macro">matches!</span>(
 <a href=#971 id=971 data-nosnippet>971</a>            <span class="kw-2">&amp;</span>event.payload,
@@ -1197,7 +1197,7 @@
 <a href=#1197 id=1197 data-nosnippet>1197</a>}
 <a href=#1198 id=1198 data-nosnippet>1198</a>
 <a href=#1199 id=1199 data-nosnippet>1199</a><span class="kw">fn </span>pruned_compaction_history(
-<a href=#1200 id=1200 data-nosnippet>1200</a>    events: <span class="kw-2">&amp;</span>[StoredEvent],
+<a href=#1200 id=1200 data-nosnippet>1200</a>    events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;],
 <a href=#1201 id=1201 data-nosnippet>1201</a>    store: <span class="kw-2">&amp;</span><span class="kw">super</span>::artifacts::ArtifactRouter,
 <a href=#1202 id=1202 data-nosnippet>1202</a>    session: SessionId,
 <a href=#1203 id=1203 data-nosnippet>1203</a>    binding: <span class="kw-2">&amp;</span>cookie_agent_protocol::FrozenModelBinding,
@@ -1207,122 +1207,128 @@
 <a href=#1207 id=1207 data-nosnippet>1207</a>    // snapshot first, then prune only results in the active checkpoint-aware history.
 <a href=#1208 id=1208 data-nosnippet>1208</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>events = events.to_vec();
 <a href=#1209 id=1209 data-nosnippet>1209</a>    <span class="kw">for </span>event <span class="kw">in </span><span class="kw-2">&amp;mut </span>events {
-<a href=#1210 id=1210 data-nosnippet>1210</a>        <span class="kw">if let </span>Event::ToolCallTerminated { termination } = <span class="kw-2">&amp;mut </span>event.payload
-<a href=#1211 id=1211 data-nosnippet>1211</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(result) = <span class="kw-2">&amp;mut </span>termination.result
-<a href=#1212 id=1212 data-nosnippet>1212</a>        {
-<a href=#1213 id=1213 data-nosnippet>1213</a>            result.additional_messages.clear();
-<a href=#1214 id=1214 data-nosnippet>1214</a>            result.attachments.clear();
-<a href=#1215 id=1215 data-nosnippet>1215</a>        }
-<a href=#1216 id=1216 data-nosnippet>1216</a>    }
-<a href=#1217 id=1217 data-nosnippet>1217</a>    <span class="kw">let </span><span class="kw-2">mut </span>history = assemble_model_context(<span class="kw-2">&amp;</span>events, store, binding, composed_prompt)<span class="question-mark">?</span>.history;
-<a href=#1218 id=1218 data-nosnippet>1218</a>    <span class="kw">let </span><span class="kw-2">mut </span>retrieval_calls = HashSet::new();
-<a href=#1219 id=1219 data-nosnippet>1219</a>    <span class="kw">for </span>turn <span class="kw">in </span><span class="kw-2">&amp;mut </span>history {
-<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="kw">match </span>turn {
-<a href=#1221 id=1221 data-nosnippet>1221</a>            oven_sdk::HistoryTurn::Assistant(turn) =&gt; {
-<a href=#1222 id=1222 data-nosnippet>1222</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;</span>turn.message.content {
-<a href=#1223 id=1223 data-nosnippet>1223</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolCall(call) = part {
-<a href=#1224 id=1224 data-nosnippet>1224</a>                        <span class="kw">if </span>call.name == <span class="string">"read"
-<a href=#1225 id=1225 data-nosnippet>1225</a>                            </span>&amp;&amp; call
-<a href=#1226 id=1226 data-nosnippet>1226</a>                                .input
-<a href=#1227 id=1227 data-nosnippet>1227</a>                                .get(<span class="string">"filePath"</span>)
-<a href=#1228 id=1228 data-nosnippet>1228</a>                                .and_then(serde_json::Value::as_str)
-<a href=#1229 id=1229 data-nosnippet>1229</a>                                .is_some_and(|path| {
-<a href=#1230 id=1230 data-nosnippet>1230</a>                                    cookie_agent_protocol::ArtifactReadPath::parse(path).is_ok()
-<a href=#1231 id=1231 data-nosnippet>1231</a>                                })
-<a href=#1232 id=1232 data-nosnippet>1232</a>                        {
-<a href=#1233 id=1233 data-nosnippet>1233</a>                            retrieval_calls.insert(call.id.clone());
-<a href=#1234 id=1234 data-nosnippet>1234</a>                        } <span class="kw">else </span>{
-<a href=#1235 id=1235 data-nosnippet>1235</a>                            retrieval_calls.remove(<span class="kw-2">&amp;</span>call.id);
-<a href=#1236 id=1236 data-nosnippet>1236</a>                        }
-<a href=#1237 id=1237 data-nosnippet>1237</a>                    }
-<a href=#1238 id=1238 data-nosnippet>1238</a>                }
-<a href=#1239 id=1239 data-nosnippet>1239</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;mut </span>turn.message.content {
-<a href=#1240 id=1240 data-nosnippet>1240</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolResult(result) = part {
-<a href=#1241 id=1241 data-nosnippet>1241</a>                        prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
-<a href=#1242 id=1242 data-nosnippet>1242</a>                    }
-<a href=#1243 id=1243 data-nosnippet>1243</a>                }
-<a href=#1244 id=1244 data-nosnippet>1244</a>            }
-<a href=#1245 id=1245 data-nosnippet>1245</a>            oven_sdk::HistoryTurn::Tool(message) =&gt; {
-<a href=#1246 id=1246 data-nosnippet>1246</a>                <span class="kw">for </span>result <span class="kw">in </span><span class="kw-2">&amp;mut </span>message.results {
-<a href=#1247 id=1247 data-nosnippet>1247</a>                    prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
-<a href=#1248 id=1248 data-nosnippet>1248</a>                }
-<a href=#1249 id=1249 data-nosnippet>1249</a>            }
-<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#1251 id=1251 data-nosnippet>1251</a>        }
-<a href=#1252 id=1252 data-nosnippet>1252</a>    }
-<a href=#1253 id=1253 data-nosnippet>1253</a>    <span class="prelude-val">Ok</span>(history)
-<a href=#1254 id=1254 data-nosnippet>1254</a>}
-<a href=#1255 id=1255 data-nosnippet>1255</a>
-<a href=#1256 id=1256 data-nosnippet>1256</a><span class="kw">fn </span>prune_compaction_result(
-<a href=#1257 id=1257 data-nosnippet>1257</a>    result: <span class="kw-2">&amp;mut </span>oven_sdk::ToolResultPart,
-<a href=#1258 id=1258 data-nosnippet>1258</a>    retrieval_calls: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
-<a href=#1259 id=1259 data-nosnippet>1259</a>    store: <span class="kw-2">&amp;</span><span class="kw">super</span>::artifacts::ArtifactRouter,
-<a href=#1260 id=1260 data-nosnippet>1260</a>    session: SessionId,
-<a href=#1261 id=1261 data-nosnippet>1261</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#1262 id=1262 data-nosnippet>1262</a>    <span class="kw">let </span>marker = <span class="kw">if </span>retrieval_calls.contains(<span class="kw-2">&amp;</span>result.tool_call_id) {
-<a href=#1263 id=1263 data-nosnippet>1263</a>        <span class="comment">// This is a private summary-input copy; the original result stays in history.
-<a href=#1264 id=1264 data-nosnippet>1264</a>        </span><span class="string">"[artifact read output omitted for compaction]"</span>.to_owned()
-<a href=#1265 id=1265 data-nosnippet>1265</a>    } <span class="kw">else </span>{
-<a href=#1266 id=1266 data-nosnippet>1266</a>        <span class="kw">let </span>content = <span class="kw">match </span><span class="kw-2">&amp;</span>result.content {
-<a href=#1267 id=1267 data-nosnippet>1267</a>            oven_sdk::ToolContent::Text(text) =&gt; text.as_bytes().to_vec(),
-<a href=#1268 id=1268 data-nosnippet>1268</a>            content =&gt; serde_json::to_vec(content)
-<a href=#1269 id=1269 data-nosnippet>1269</a>                .map_err(|error| ModelError::invalid_request(error.to_string()))<span class="question-mark">?</span>,
-<a href=#1270 id=1270 data-nosnippet>1270</a>        };
-<a href=#1271 id=1271 data-nosnippet>1271</a>        <span class="kw">let </span>(<span class="kw">_</span>, artifact_id) = store.retain(session, <span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
-<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="kw">let </span><span class="kw-2">mut </span>marker =
-<a href=#1273 id=1273 data-nosnippet>1273</a>            model_history::tool_output_elision_marker(<span class="kw-2">&amp;</span>artifact_id, content.len() <span class="kw">as </span>u64, <span class="number">0</span>);
-<a href=#1274 id=1274 data-nosnippet>1274</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(result.content, oven_sdk::ToolContent::Text(<span class="kw">_</span>)) {
-<a href=#1275 id=1275 data-nosnippet>1275</a>            marker.push_str(<span class="string">" Stored as serialized tool content (JSON)."</span>);
-<a href=#1276 id=1276 data-nosnippet>1276</a>        }
-<a href=#1277 id=1277 data-nosnippet>1277</a>        <span class="kw">let </span>read_more = <span class="macro">serde_json::json!</span>({
-<a href=#1278 id=1278 data-nosnippet>1278</a>            <span class="string">"read_more"</span>: {
-<a href=#1279 id=1279 data-nosnippet>1279</a>                <span class="string">"tool"</span>: <span class="string">"read"</span>,
-<a href=#1280 id=1280 data-nosnippet>1280</a>                <span class="string">"arguments"</span>: {<span class="string">"filePath"</span>: <span class="macro">format!</span>(<span class="string">"artifact://{artifact_id}"</span>)}
-<a href=#1281 id=1281 data-nosnippet>1281</a>            }
-<a href=#1282 id=1282 data-nosnippet>1282</a>        });
-<a href=#1283 id=1283 data-nosnippet>1283</a>        marker.push(<span class="string">'\n'</span>);
-<a href=#1284 id=1284 data-nosnippet>1284</a>        marker.push_str(<span class="kw-2">&amp;</span>read_more.to_string());
-<a href=#1285 id=1285 data-nosnippet>1285</a>        marker
-<a href=#1286 id=1286 data-nosnippet>1286</a>    };
-<a href=#1287 id=1287 data-nosnippet>1287</a>    result.content = oven_sdk::ToolContent::Text(marker);
-<a href=#1288 id=1288 data-nosnippet>1288</a>    result.metadata = <span class="prelude-val">None</span>;
-<a href=#1289 id=1289 data-nosnippet>1289</a>    <span class="prelude-val">Ok</span>(())
-<a href=#1290 id=1290 data-nosnippet>1290</a>}
-<a href=#1291 id=1291 data-nosnippet>1291</a>
-<a href=#1292 id=1292 data-nosnippet>1292</a><span class="kw">fn </span>compaction_history(
-<a href=#1293 id=1293 data-nosnippet>1293</a>    <span class="kw-2">mut </span>history: Vec&lt;oven_sdk::HistoryTurn&gt;,
-<a href=#1294 id=1294 data-nosnippet>1294</a>    focus: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#1295 id=1295 data-nosnippet>1295</a>    system_prompt: <span class="kw-2">&amp;</span>str,
-<a href=#1296 id=1296 data-nosnippet>1296</a>) -&gt; (Vec&lt;oven_sdk::HistoryTurn&gt;, String) {
-<a href=#1297 id=1297 data-nosnippet>1297</a>    <span class="comment">// Keep the history (including its system prompt) intact so the summarizer
-<a href=#1298 id=1298 data-nosnippet>1298</a>    // request is a cache-friendly extension of the latest conversation turn;
-<a href=#1299 id=1299 data-nosnippet>1299</a>    // the compaction agent's own prompt rides along in the trailing
-<a href=#1300 id=1300 data-nosnippet>1300</a>    // instruction instead of replacing the session system prompt.
-<a href=#1301 id=1301 data-nosnippet>1301</a>    </span><span class="kw">let </span>base = compaction_instruction(focus);
-<a href=#1302 id=1302 data-nosnippet>1302</a>    <span class="kw">let </span>instruction = <span class="kw">if </span>system_prompt.trim().is_empty() {
-<a href=#1303 id=1303 data-nosnippet>1303</a>        base
-<a href=#1304 id=1304 data-nosnippet>1304</a>    } <span class="kw">else </span>{
-<a href=#1305 id=1305 data-nosnippet>1305</a>        <span class="macro">format!</span>(<span class="string">"{}\n\n{base}"</span>, system_prompt.trim())
-<a href=#1306 id=1306 data-nosnippet>1306</a>    };
-<a href=#1307 id=1307 data-nosnippet>1307</a>    history.push(oven_sdk::HistoryTurn::user(oven_sdk::UserMessage::new(
-<a href=#1308 id=1308 data-nosnippet>1308</a>        <span class="macro">vec!</span>[oven_sdk::InputPart::Text(oven_sdk::TextPart::new(
-<a href=#1309 id=1309 data-nosnippet>1309</a>            instruction.clone(),
-<a href=#1310 id=1310 data-nosnippet>1310</a>        ))],
-<a href=#1311 id=1311 data-nosnippet>1311</a>    )));
-<a href=#1312 id=1312 data-nosnippet>1312</a>    (history, instruction)
-<a href=#1313 id=1313 data-nosnippet>1313</a>}
-<a href=#1314 id=1314 data-nosnippet>1314</a>
-<a href=#1315 id=1315 data-nosnippet>1315</a><span class="kw">fn </span>should_elide_tool_output(
-<a href=#1316 id=1316 data-nosnippet>1316</a>    model_turn_seq: u64,
-<a href=#1317 id=1317 data-nosnippet>1317</a>    protected_turns: <span class="kw-2">&amp;</span>HashSet&lt;u64&gt;,
-<a href=#1318 id=1318 data-nosnippet>1318</a>    already_elided: bool,
-<a href=#1319 id=1319 data-nosnippet>1319</a>    output_bytes: usize,
-<a href=#1320 id=1320 data-nosnippet>1320</a>) -&gt; bool {
-<a href=#1321 id=1321 data-nosnippet>1321</a>    !protected_turns.contains(<span class="kw-2">&amp;</span>model_turn_seq)
-<a href=#1322 id=1322 data-nosnippet>1322</a>        &amp;&amp; !already_elided
-<a href=#1323 id=1323 data-nosnippet>1323</a>        &amp;&amp; output_bytes &gt;= TOOL_OUTPUT_ELISION_MIN_BYTES
-<a href=#1324 id=1324 data-nosnippet>1324</a>}
-<a href=#1325 id=1325 data-nosnippet>1325</a>
-<a href=#1326 id=1326 data-nosnippet>1326</a><span class="attr">#[cfg(test)]
-<a href=#1327 id=1327 data-nosnippet>1327</a></span><span class="kw">mod </span>tests;
+<a href=#1210 id=1210 data-nosnippet>1210</a>        <span class="kw">let </span>carries_result = <span class="macro">matches!</span>(
+<a href=#1211 id=1211 data-nosnippet>1211</a>            <span class="kw-2">&amp;</span>event.payload,
+<a href=#1212 id=1212 data-nosnippet>1212</a>            Event::ToolCallTerminated { termination } <span class="kw">if </span>termination.result.is_some()
+<a href=#1213 id=1213 data-nosnippet>1213</a>        );
+<a href=#1214 id=1214 data-nosnippet>1214</a>        <span class="comment">// Copy only the records this private snapshot changes.
+<a href=#1215 id=1215 data-nosnippet>1215</a>        </span><span class="kw">if </span>carries_result
+<a href=#1216 id=1216 data-nosnippet>1216</a>            &amp;&amp; <span class="kw">let </span>Event::ToolCallTerminated { termination } = <span class="kw-2">&amp;mut </span>Arc::make_mut(event).payload
+<a href=#1217 id=1217 data-nosnippet>1217</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(result) = <span class="kw-2">&amp;mut </span>termination.result
+<a href=#1218 id=1218 data-nosnippet>1218</a>        {
+<a href=#1219 id=1219 data-nosnippet>1219</a>            result.additional_messages.clear();
+<a href=#1220 id=1220 data-nosnippet>1220</a>            result.attachments.clear();
+<a href=#1221 id=1221 data-nosnippet>1221</a>        }
+<a href=#1222 id=1222 data-nosnippet>1222</a>    }
+<a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="kw">let </span><span class="kw-2">mut </span>history = assemble_model_context(<span class="kw-2">&amp;</span>events, store, binding, composed_prompt)<span class="question-mark">?</span>.history;
+<a href=#1224 id=1224 data-nosnippet>1224</a>    <span class="kw">let </span><span class="kw-2">mut </span>retrieval_calls = HashSet::new();
+<a href=#1225 id=1225 data-nosnippet>1225</a>    <span class="kw">for </span>turn <span class="kw">in </span><span class="kw-2">&amp;mut </span>history {
+<a href=#1226 id=1226 data-nosnippet>1226</a>        <span class="kw">match </span>turn {
+<a href=#1227 id=1227 data-nosnippet>1227</a>            oven_sdk::HistoryTurn::Assistant(turn) =&gt; {
+<a href=#1228 id=1228 data-nosnippet>1228</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;</span>turn.message.content {
+<a href=#1229 id=1229 data-nosnippet>1229</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolCall(call) = part {
+<a href=#1230 id=1230 data-nosnippet>1230</a>                        <span class="kw">if </span>call.name == <span class="string">"read"
+<a href=#1231 id=1231 data-nosnippet>1231</a>                            </span>&amp;&amp; call
+<a href=#1232 id=1232 data-nosnippet>1232</a>                                .input
+<a href=#1233 id=1233 data-nosnippet>1233</a>                                .get(<span class="string">"filePath"</span>)
+<a href=#1234 id=1234 data-nosnippet>1234</a>                                .and_then(serde_json::Value::as_str)
+<a href=#1235 id=1235 data-nosnippet>1235</a>                                .is_some_and(|path| {
+<a href=#1236 id=1236 data-nosnippet>1236</a>                                    cookie_agent_protocol::ArtifactReadPath::parse(path).is_ok()
+<a href=#1237 id=1237 data-nosnippet>1237</a>                                })
+<a href=#1238 id=1238 data-nosnippet>1238</a>                        {
+<a href=#1239 id=1239 data-nosnippet>1239</a>                            retrieval_calls.insert(call.id.clone());
+<a href=#1240 id=1240 data-nosnippet>1240</a>                        } <span class="kw">else </span>{
+<a href=#1241 id=1241 data-nosnippet>1241</a>                            retrieval_calls.remove(<span class="kw-2">&amp;</span>call.id);
+<a href=#1242 id=1242 data-nosnippet>1242</a>                        }
+<a href=#1243 id=1243 data-nosnippet>1243</a>                    }
+<a href=#1244 id=1244 data-nosnippet>1244</a>                }
+<a href=#1245 id=1245 data-nosnippet>1245</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;mut </span>turn.message.content {
+<a href=#1246 id=1246 data-nosnippet>1246</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolResult(result) = part {
+<a href=#1247 id=1247 data-nosnippet>1247</a>                        prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
+<a href=#1248 id=1248 data-nosnippet>1248</a>                    }
+<a href=#1249 id=1249 data-nosnippet>1249</a>                }
+<a href=#1250 id=1250 data-nosnippet>1250</a>            }
+<a href=#1251 id=1251 data-nosnippet>1251</a>            oven_sdk::HistoryTurn::Tool(message) =&gt; {
+<a href=#1252 id=1252 data-nosnippet>1252</a>                <span class="kw">for </span>result <span class="kw">in </span><span class="kw-2">&amp;mut </span>message.results {
+<a href=#1253 id=1253 data-nosnippet>1253</a>                    prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
+<a href=#1254 id=1254 data-nosnippet>1254</a>                }
+<a href=#1255 id=1255 data-nosnippet>1255</a>            }
+<a href=#1256 id=1256 data-nosnippet>1256</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1257 id=1257 data-nosnippet>1257</a>        }
+<a href=#1258 id=1258 data-nosnippet>1258</a>    }
+<a href=#1259 id=1259 data-nosnippet>1259</a>    <span class="prelude-val">Ok</span>(history)
+<a href=#1260 id=1260 data-nosnippet>1260</a>}
+<a href=#1261 id=1261 data-nosnippet>1261</a>
+<a href=#1262 id=1262 data-nosnippet>1262</a><span class="kw">fn </span>prune_compaction_result(
+<a href=#1263 id=1263 data-nosnippet>1263</a>    result: <span class="kw-2">&amp;mut </span>oven_sdk::ToolResultPart,
+<a href=#1264 id=1264 data-nosnippet>1264</a>    retrieval_calls: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
+<a href=#1265 id=1265 data-nosnippet>1265</a>    store: <span class="kw-2">&amp;</span><span class="kw">super</span>::artifacts::ArtifactRouter,
+<a href=#1266 id=1266 data-nosnippet>1266</a>    session: SessionId,
+<a href=#1267 id=1267 data-nosnippet>1267</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#1268 id=1268 data-nosnippet>1268</a>    <span class="kw">let </span>marker = <span class="kw">if </span>retrieval_calls.contains(<span class="kw-2">&amp;</span>result.tool_call_id) {
+<a href=#1269 id=1269 data-nosnippet>1269</a>        <span class="comment">// This is a private summary-input copy; the original result stays in history.
+<a href=#1270 id=1270 data-nosnippet>1270</a>        </span><span class="string">"[artifact read output omitted for compaction]"</span>.to_owned()
+<a href=#1271 id=1271 data-nosnippet>1271</a>    } <span class="kw">else </span>{
+<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="kw">let </span>content = <span class="kw">match </span><span class="kw-2">&amp;</span>result.content {
+<a href=#1273 id=1273 data-nosnippet>1273</a>            oven_sdk::ToolContent::Text(text) =&gt; text.as_bytes().to_vec(),
+<a href=#1274 id=1274 data-nosnippet>1274</a>            content =&gt; serde_json::to_vec(content)
+<a href=#1275 id=1275 data-nosnippet>1275</a>                .map_err(|error| ModelError::invalid_request(error.to_string()))<span class="question-mark">?</span>,
+<a href=#1276 id=1276 data-nosnippet>1276</a>        };
+<a href=#1277 id=1277 data-nosnippet>1277</a>        <span class="kw">let </span>(<span class="kw">_</span>, artifact_id) = store.retain(session, <span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
+<a href=#1278 id=1278 data-nosnippet>1278</a>        <span class="kw">let </span><span class="kw-2">mut </span>marker =
+<a href=#1279 id=1279 data-nosnippet>1279</a>            model_history::tool_output_elision_marker(<span class="kw-2">&amp;</span>artifact_id, content.len() <span class="kw">as </span>u64, <span class="number">0</span>);
+<a href=#1280 id=1280 data-nosnippet>1280</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(result.content, oven_sdk::ToolContent::Text(<span class="kw">_</span>)) {
+<a href=#1281 id=1281 data-nosnippet>1281</a>            marker.push_str(<span class="string">" Stored as serialized tool content (JSON)."</span>);
+<a href=#1282 id=1282 data-nosnippet>1282</a>        }
+<a href=#1283 id=1283 data-nosnippet>1283</a>        <span class="kw">let </span>read_more = <span class="macro">serde_json::json!</span>({
+<a href=#1284 id=1284 data-nosnippet>1284</a>            <span class="string">"read_more"</span>: {
+<a href=#1285 id=1285 data-nosnippet>1285</a>                <span class="string">"tool"</span>: <span class="string">"read"</span>,
+<a href=#1286 id=1286 data-nosnippet>1286</a>                <span class="string">"arguments"</span>: {<span class="string">"filePath"</span>: <span class="macro">format!</span>(<span class="string">"artifact://{artifact_id}"</span>)}
+<a href=#1287 id=1287 data-nosnippet>1287</a>            }
+<a href=#1288 id=1288 data-nosnippet>1288</a>        });
+<a href=#1289 id=1289 data-nosnippet>1289</a>        marker.push(<span class="string">'\n'</span>);
+<a href=#1290 id=1290 data-nosnippet>1290</a>        marker.push_str(<span class="kw-2">&amp;</span>read_more.to_string());
+<a href=#1291 id=1291 data-nosnippet>1291</a>        marker
+<a href=#1292 id=1292 data-nosnippet>1292</a>    };
+<a href=#1293 id=1293 data-nosnippet>1293</a>    result.content = oven_sdk::ToolContent::Text(marker);
+<a href=#1294 id=1294 data-nosnippet>1294</a>    result.metadata = <span class="prelude-val">None</span>;
+<a href=#1295 id=1295 data-nosnippet>1295</a>    <span class="prelude-val">Ok</span>(())
+<a href=#1296 id=1296 data-nosnippet>1296</a>}
+<a href=#1297 id=1297 data-nosnippet>1297</a>
+<a href=#1298 id=1298 data-nosnippet>1298</a><span class="kw">fn </span>compaction_history(
+<a href=#1299 id=1299 data-nosnippet>1299</a>    <span class="kw-2">mut </span>history: Vec&lt;oven_sdk::HistoryTurn&gt;,
+<a href=#1300 id=1300 data-nosnippet>1300</a>    focus: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#1301 id=1301 data-nosnippet>1301</a>    system_prompt: <span class="kw-2">&amp;</span>str,
+<a href=#1302 id=1302 data-nosnippet>1302</a>) -&gt; (Vec&lt;oven_sdk::HistoryTurn&gt;, String) {
+<a href=#1303 id=1303 data-nosnippet>1303</a>    <span class="comment">// Keep the history (including its system prompt) intact so the summarizer
+<a href=#1304 id=1304 data-nosnippet>1304</a>    // request is a cache-friendly extension of the latest conversation turn;
+<a href=#1305 id=1305 data-nosnippet>1305</a>    // the compaction agent's own prompt rides along in the trailing
+<a href=#1306 id=1306 data-nosnippet>1306</a>    // instruction instead of replacing the session system prompt.
+<a href=#1307 id=1307 data-nosnippet>1307</a>    </span><span class="kw">let </span>base = compaction_instruction(focus);
+<a href=#1308 id=1308 data-nosnippet>1308</a>    <span class="kw">let </span>instruction = <span class="kw">if </span>system_prompt.trim().is_empty() {
+<a href=#1309 id=1309 data-nosnippet>1309</a>        base
+<a href=#1310 id=1310 data-nosnippet>1310</a>    } <span class="kw">else </span>{
+<a href=#1311 id=1311 data-nosnippet>1311</a>        <span class="macro">format!</span>(<span class="string">"{}\n\n{base}"</span>, system_prompt.trim())
+<a href=#1312 id=1312 data-nosnippet>1312</a>    };
+<a href=#1313 id=1313 data-nosnippet>1313</a>    history.push(oven_sdk::HistoryTurn::user(oven_sdk::UserMessage::new(
+<a href=#1314 id=1314 data-nosnippet>1314</a>        <span class="macro">vec!</span>[oven_sdk::InputPart::Text(oven_sdk::TextPart::new(
+<a href=#1315 id=1315 data-nosnippet>1315</a>            instruction.clone(),
+<a href=#1316 id=1316 data-nosnippet>1316</a>        ))],
+<a href=#1317 id=1317 data-nosnippet>1317</a>    )));
+<a href=#1318 id=1318 data-nosnippet>1318</a>    (history, instruction)
+<a href=#1319 id=1319 data-nosnippet>1319</a>}
+<a href=#1320 id=1320 data-nosnippet>1320</a>
+<a href=#1321 id=1321 data-nosnippet>1321</a><span class="kw">fn </span>should_elide_tool_output(
+<a href=#1322 id=1322 data-nosnippet>1322</a>    model_turn_seq: u64,
+<a href=#1323 id=1323 data-nosnippet>1323</a>    protected_turns: <span class="kw-2">&amp;</span>HashSet&lt;u64&gt;,
+<a href=#1324 id=1324 data-nosnippet>1324</a>    already_elided: bool,
+<a href=#1325 id=1325 data-nosnippet>1325</a>    output_bytes: usize,
+<a href=#1326 id=1326 data-nosnippet>1326</a>) -&gt; bool {
+<a href=#1327 id=1327 data-nosnippet>1327</a>    !protected_turns.contains(<span class="kw-2">&amp;</span>model_turn_seq)
+<a href=#1328 id=1328 data-nosnippet>1328</a>        &amp;&amp; !already_elided
+<a href=#1329 id=1329 data-nosnippet>1329</a>        &amp;&amp; output_bytes &gt;= TOOL_OUTPUT_ELISION_MIN_BYTES
+<a href=#1330 id=1330 data-nosnippet>1330</a>}
+<a href=#1331 id=1331 data-nosnippet>1331</a>
+<a href=#1332 id=1332 data-nosnippet>1332</a><span class="attr">#[cfg(test)]
+<a href=#1333 id=1333 data-nosnippet>1333</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
