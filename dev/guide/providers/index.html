@@ -2210,7 +2210,14 @@ model request tests the credentials. Never commit credential-bearing files.</p>
 catalog on first run) and refreshes <code>https://models.dev/catalog.json</code> in the
 background right away, then hourly. Supported, non-deprecated text-output
 models are included automatically. Catalog declarations are not probes of your
-endpoint: account access, deployed model features, and billing may differ.</p>
+endpoint: account access, deployed model features, and billing may differ.
+Models the catalog lists without tool calling stay selectable: they work for
+agents that publish no tools and for internal agents such as session titles,
+while a request that carries tools or tool history fails with "tool calling is
+not supported by this model". Claude on Vertex AI (the
+<code>google-vertex-anthropic</code> provider and any model routed to
+<code>@ai-sdk/google-vertex/anthropic</code>) is unsupported: it needs the Anthropic
+Messages <code>rawPredict</code> wire, which cookie-agent does not implement.</p>
 <p>This is a complete <code>config.toml</code> alternative to <code>/connect</code>, with credentials
 supplied by the environment:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[providers.openai]</span>
@@ -2218,10 +2225,33 @@ supplied by the environment:</p>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"${env:OPENAI_API_KEY}"</span>
 </code></pre></div>
 <p>Authored <code>api_key</code> or <code>auth_override</code> takes precedence over an eligible saved
-connection, then a supported no-auth recipe, otherwise the provider is
-unavailable. An authored <code>base_url</code> cannot inherit store credentials or setup.
+connection, then no-auth access, otherwise the provider is unavailable.
+No-auth access applies to a catalog provider that declares no credential
+variable, and to a local server: an authored provider whose endpoint
+(<code>base_url</code>, else the catalog API URL) is on <code>localhost</code>, <code>127.0.0.1</code>, or
+<code>::1</code>. Local catalog providers such as LM Studio stay unavailable until
+authored, so <code>[providers.lmstudio]</code> with <code>source = "models_dev"</code> is enough to
+use a running LM Studio. An authored <code>base_url</code> cannot inherit store
+credentials or setup.
 Endpoint selection uses authored <code>base_url</code>, catalog API URL, then family
 default; setup-derived families retain their own routing.</p>
+<p>Some catalog providers mix wires: zenmux, ofox, and opencode serve Anthropic,
+Gemini, or Responses models next to OpenAI-compatible Chat ones, and a model
+may pin its own catalog API URL. An authored <code>base_url</code> replaces the
+provider-level API URL, and each model's endpoint follows these rules:</p>
+<ul>
+<li>A model without its own API URL, or with the provider's, uses <code>base_url</code>.</li>
+<li>A model API URL on the provider API's origin is rebased by path. With
+  zenmux's <code>https://zenmux.ai/api/v1</code> and an Anthropic model at
+  <code>https://zenmux.ai/api/anthropic/v1</code>, <code>base_url = "https://gw.example/api/v1"</code>
+  sends that model to <code>https://gw.example/api/anthropic/v1</code>.</li>
+<li>When <code>base_url</code> does not end with the provider's differing path suffix
+  (<code>v1</code> above), it is a gateway with its own layout and every model uses
+  <code>base_url</code> itself, whatever its wire (<code>/chat/completions</code>, <code>/messages</code>,
+  <code>/responses</code>, ...).</li>
+<li>A model API URL on another origin is a separate upstream and is kept.</li>
+</ul>
+<p>To send a single model somewhere else, define it in a custom provider.</p>
 <h3 id="unavailable-models">Unavailable models<a class="headerlink" href="#unavailable-models" title="Permanent link">&para;</a></h3>
 <p>A catalog model that cookie cannot run stays visible with its reason instead of
 disappearing. A model is unavailable when it is:</p>
@@ -2283,7 +2313,7 @@ stored); unconfigured providers report counts alone.</p>
 <td><code>base_url</code></td>
 <td>string</td>
 <td><em>(none)</em></td>
-<td>HTTPS endpoint override. Requires same-definition auth (<code>api_key</code> or <code>auth_override</code>) and never inherits provider-store setup or credentials. Forbidden for families that compute their endpoint from setup (Vertex, Bedrock, Azure).</td>
+<td>Override of the provider-level API URL; per-model catalog endpoints follow the rules above. Must be <code>https</code>, or <code>http</code> to <code>localhost</code>, <code>127.0.0.1</code>, or <code>::1</code>. Requires same-definition auth (<code>api_key</code> or <code>auth_override</code>) unless it is such a loopback URL, and never inherits provider-store setup or credentials. Forbidden for families that compute their endpoint from setup (Vertex, Bedrock, Azure).</td>
 </tr>
 <tr>
 <td><code>setup</code></td>
@@ -2409,6 +2439,20 @@ the same constraints as custom definitions. Variant and pricing rules are below.
 <td><code>thinking = {type = "enabled", budget_tokens = N, display = "summarized"}</code></td>
 </tr>
 <tr>
+<td>Claude on Bedrock Converse</td>
+<td><code>additionalModelRequestFields</code> <code>thinking = {type = "adaptive", display = "summarized"}</code> plus <code>output_config.effort</code></td>
+<td><code>thinking = {type = "disabled"}</code></td>
+<td>adaptive, summarized</td>
+<td><code>thinking = {type = "enabled", budget_tokens = N}</code></td>
+</tr>
+<tr>
+<td>Other Bedrock Converse models</td>
+<td><code>reasoningConfig.maxReasoningEffort</code></td>
+<td><code>reasoningConfig.type = "disabled"</code></td>
+<td><code>reasoningConfig.type = "enabled"</code></td>
+<td><code>reasoningConfig.budgetTokens</code></td>
+</tr>
+<tr>
 <td>OpenAI-compatible Chat</td>
 <td><code>reasoning_effort</code></td>
 <td>provider switch below</td>
@@ -2419,7 +2463,9 @@ the same constraints as custom definitions. Variant and pricing rules are below.
 </table>
 <p>Claude models before 4.6 accept only manual budgets, so their effort and <code>on</code>
 variants send an enabled budget of half the output room above those 4,096
-visible tokens (1,024 to 16,000 tokens) instead of adaptive thinking.</p>
+visible tokens (1,024 to 16,000 tokens) instead of adaptive thinking. Claude
+on Bedrock follows the same rules and requires its signed thinking to be
+replayed, so its native replay is <code>required</code>.</p>
 <p>The Anthropic wire sends <code>max_tokens</code> as visible output plus the thinking
 budget, and the total may not exceed the model's output limit. Requests send
 the full output limit (or a smaller agent cap) as visible output, so with a
