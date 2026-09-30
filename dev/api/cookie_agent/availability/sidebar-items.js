@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["env_config_hint","model_counts_text","model_unavailable_reason","no_tool_calling_text","unavailable_model_text","unusable_configured_providers"]};
+window.SIDEBAR_ITEMS = {"fn":["env_config_hint","model_counts_text","model_unavailable_reason","unavailable_model_text","unusable_configured_providers"]};
