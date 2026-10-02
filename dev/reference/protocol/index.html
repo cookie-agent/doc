@@ -1945,11 +1945,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 25 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 25 }</code> before any other method.</p>
+Protocol 27 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 27 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 25.</p>
+members of protocol 27.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -1967,7 +1967,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 25 alongside independent display and output references. The
+preserved in protocol 27 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2359,6 +2359,19 @@ the durable <code>after_seq</code> they follow instead of a sequence of their ow
 are never stored or replayed. <code>model_output_started</code> durably marks where each
 streamed part began. See
 <a href="../events/#live-only-stream-output">live-only stream output</a>.</p>
+<p>Protocol 27 moves the MCP OAuth callback to the client, so a daemon reached
+through a tunnel or on another machine can still be authorized from the
+client's browser. <code>mcp.auth.begin</code> requires <code>redirect_uri</code>, the client's own
+loopback callback (<code>http://127.0.0.1:&lt;port&gt;/&lt;path&gt;</code> or <code>http://[::1]:&lt;port&gt;/&lt;path&gt;</code>
+with no query, fragment, or credentials). The client then sends the browser's
+redirect to the new <code>mcp.auth.complete { server, callback_url }</code>; the daemon
+keeps the PKCE verifier, exchanges the code, and stores the tokens, which never
+cross the connection. A <code>callback_url</code> that is not a redirect to the pending
+<code>redirect_uri</code> with a <code>code</code> or <code>error</code> parameter is rejected and leaves the
+flow waiting. Any other completion ends it. A <code>begin</code> with the pending
+<code>redirect_uri</code> returns the same authorization URL; one with a different
+<code>redirect_uri</code> replaces the pending flow. Protocol 26 shipped only in a nightly
+build and is not reused.</p>
 <p>Session metadata includes additive <code>skipped_events</code> entries with the physical
 sequence (or source line number when no sequence was readable) and a safe reason.
 An empty array means the event log loaded without skipped records. Optional-field

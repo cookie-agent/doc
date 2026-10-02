@@ -1929,8 +1929,13 @@ including on disabled entries.</p>
 <p>An authorization challenge changes the server state to <code>needs_auth</code>. Run
 <code>cookie mcp --token &lt;TOKEN&gt; auth &lt;server&gt;</code> (or set <code>COOKIE_DAEMON_TOKEN</code>),
 or select the server in <code>/mcp</code> and press <code>a</code>, then
-open the displayed URL. The daemon listens on an ephemeral <code>127.0.0.1</code> callback
-port for five minutes. The TUI can copy the URL with <code>c</code> and cancel the wait with
+open the displayed URL. The client, not the daemon, listens on an ephemeral
+<code>127.0.0.1</code> callback port and hands the browser's redirect to the daemon, so a
+daemon reached through an SSH tunnel or on another machine authorizes the same
+way. When the browser runs on a different machine from the client, its
+redirect cannot connect; copy the URL from the browser's address bar and paste
+it into <code>/mcp</code> or the <code>cookie mcp auth</code> prompt instead. The daemon keeps the
+flow for five minutes. The TUI can copy the URL with <code>c</code> and cancel the wait with
 Escape. Successful authorization stores the token and reconnects the server.
 Expired tokens refresh automatically. A rejected refresh or revoked token
 returns the server to <code>needs_auth</code> instead of repeatedly opening a browser flow.
@@ -1940,6 +1945,9 @@ Agent does not silently retry token requests or open a browser flow.</p>
 in the MCP diagnostic, capped at 4,096 UTF-8 bytes. Content is preserved, including
 credential-like text returned by the server; terminal and Unicode format controls
 are stripped or replaced. This does not change credential storage or Debug formatting.</p>
+<p>Only the authorization code crosses the client connection: the daemon keeps
+the PKCE verifier, performs the token exchange, and stores and refreshes the
+tokens. The code is single-use and useless without that verifier.</p>
 <p>Authorization codes are held only by a one-shot in-memory relay. Cookie Agent
 passes a fixed redacted surrogate through rmcp's traced exchange path and restores
 the real code only in the outbound token request, preventing debug logs from
