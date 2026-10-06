@@ -871,34 +871,48 @@
 <a href=#871 id=871 data-nosnippet>871</a>                .map(SessionTitle::to_string)
 <a href=#872 id=872 data-nosnippet>872</a>                .unwrap_or_else(|| meta.creation_selection.agent.to_string());
 <a href=#873 id=873 data-nosnippet>873</a>            <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>state.transcript {
-<a href=#874 id=874 data-nosnippet>874</a>                <span class="kw">if let </span>TranscriptItem::Event { level, text, .. } = item
-<a href=#875 id=875 data-nosnippet>875</a>                    &amp;&amp; <span class="kw-2">*</span>level &gt;= minimum_level
-<a href=#876 id=876 data-nosnippet>876</a>                {
-<a href=#877 id=877 data-nosnippet>877</a>                    <span class="comment">// Pre-date rows (from before insertion times were tracked)
-<a href=#878 id=878 data-nosnippet>878</a>                    // keep their historical bottom-of-transcript position by
-<a href=#879 id=879 data-nosnippet>879</a>                    // sorting after every anchored item.
-<a href=#880 id=880 data-nosnippet>880</a>                    </span>events.push(DescendantEvent {
-<a href=#881 id=881 data-nosnippet>881</a>                        time: state.item_time(item.id()).unwrap_or(jiff::Timestamp::MAX),
-<a href=#882 id=882 data-nosnippet>882</a>                        level: <span class="kw-2">*</span>level,
-<a href=#883 id=883 data-nosnippet>883</a>                        text: <span class="macro">format!</span>(<span class="string">"from {source} ({}): {text}"</span>, short_id(<span class="kw-2">&amp;</span>meta)),
-<a href=#884 id=884 data-nosnippet>884</a>                    });
-<a href=#885 id=885 data-nosnippet>885</a>                }
-<a href=#886 id=886 data-nosnippet>886</a>            }
-<a href=#887 id=887 data-nosnippet>887</a>        }
-<a href=#888 id=888 data-nosnippet>888</a>        <span class="comment">// Stable, so one session's rows with equal times keep their order.
-<a href=#889 id=889 data-nosnippet>889</a>        </span>events.sort_by_key(|event| event.time);
-<a href=#890 id=890 data-nosnippet>890</a>        events
-<a href=#891 id=891 data-nosnippet>891</a>    }
-<a href=#892 id=892 data-nosnippet>892</a>}
-<a href=#893 id=893 data-nosnippet>893</a>
-<a href=#894 id=894 data-nosnippet>894</a><span class="doccomment">/// One descendant session's warning or error row, aggregated into the view
-<a href=#895 id=895 data-nosnippet>895</a>/// of an ancestor.
-<a href=#896 id=896 data-nosnippet>896</a></span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
-<a href=#897 id=897 data-nosnippet>897</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>DescendantEvent {
-<a href=#898 id=898 data-nosnippet>898</a>    <span class="doccomment">/// Durable time of the row in its own session.
-<a href=#899 id=899 data-nosnippet>899</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) time: jiff::Timestamp,
-<a href=#900 id=900 data-nosnippet>900</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) level: EventLevel,
-<a href=#901 id=901 data-nosnippet>901</a>    <span class="doccomment">/// Row text, prefixed with its source session.
-<a href=#902 id=902 data-nosnippet>902</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) text: String,
-<a href=#903 id=903 data-nosnippet>903</a>}
+<a href=#874 id=874 data-nosnippet>874</a>                <span class="kw">if let </span>TranscriptItem::Event {
+<a href=#875 id=875 data-nosnippet>875</a>                    id,
+<a href=#876 id=876 data-nosnippet>876</a>                    level,
+<a href=#877 id=877 data-nosnippet>877</a>                    text,
+<a href=#878 id=878 data-nosnippet>878</a>                    repeat,
+<a href=#879 id=879 data-nosnippet>879</a>                    ..
+<a href=#880 id=880 data-nosnippet>880</a>                } = item
+<a href=#881 id=881 data-nosnippet>881</a>                    &amp;&amp; <span class="kw-2">*</span>level &gt;= minimum_level
+<a href=#882 id=882 data-nosnippet>882</a>                {
+<a href=#883 id=883 data-nosnippet>883</a>                    <span class="comment">// Pre-date rows (from before insertion times were tracked)
+<a href=#884 id=884 data-nosnippet>884</a>                    // keep their historical bottom-of-transcript position by
+<a href=#885 id=885 data-nosnippet>885</a>                    // sorting after every anchored item.
+<a href=#886 id=886 data-nosnippet>886</a>                    </span>events.push(DescendantEvent {
+<a href=#887 id=887 data-nosnippet>887</a>                        time: state.item_time(item.id()).unwrap_or(jiff::Timestamp::MAX),
+<a href=#888 id=888 data-nosnippet>888</a>                        session: meta.session_id,
+<a href=#889 id=889 data-nosnippet>889</a>                        item: <span class="kw-2">*</span>id,
+<a href=#890 id=890 data-nosnippet>890</a>                        level: <span class="kw-2">*</span>level,
+<a href=#891 id=891 data-nosnippet>891</a>                        text: <span class="macro">format!</span>(<span class="string">"from {source} ({}): {text}"</span>, short_id(<span class="kw-2">&amp;</span>meta)),
+<a href=#892 id=892 data-nosnippet>892</a>                        repeat: <span class="kw-2">*</span>repeat,
+<a href=#893 id=893 data-nosnippet>893</a>                    });
+<a href=#894 id=894 data-nosnippet>894</a>                }
+<a href=#895 id=895 data-nosnippet>895</a>            }
+<a href=#896 id=896 data-nosnippet>896</a>        }
+<a href=#897 id=897 data-nosnippet>897</a>        <span class="comment">// Stable, so one session's rows with equal times keep their order.
+<a href=#898 id=898 data-nosnippet>898</a>        </span>events.sort_by_key(|event| event.time);
+<a href=#899 id=899 data-nosnippet>899</a>        events
+<a href=#900 id=900 data-nosnippet>900</a>    }
+<a href=#901 id=901 data-nosnippet>901</a>}
+<a href=#902 id=902 data-nosnippet>902</a>
+<a href=#903 id=903 data-nosnippet>903</a><span class="doccomment">/// One descendant session's warning or error row, aggregated into the view
+<a href=#904 id=904 data-nosnippet>904</a>/// of an ancestor.
+<a href=#905 id=905 data-nosnippet>905</a></span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
+<a href=#906 id=906 data-nosnippet>906</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>DescendantEvent {
+<a href=#907 id=907 data-nosnippet>907</a>    <span class="doccomment">/// Durable time of the row in its own session.
+<a href=#908 id=908 data-nosnippet>908</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) time: jiff::Timestamp,
+<a href=#909 id=909 data-nosnippet>909</a>    <span class="doccomment">/// The session that owns the row, and the row's item id there.
+<a href=#910 id=910 data-nosnippet>910</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) session: SessionId,
+<a href=#911 id=911 data-nosnippet>911</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) item: u64,
+<a href=#912 id=912 data-nosnippet>912</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) level: EventLevel,
+<a href=#913 id=913 data-nosnippet>913</a>    <span class="doccomment">/// Row text, prefixed with its source session.
+<a href=#914 id=914 data-nosnippet>914</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) text: String,
+<a href=#915 id=915 data-nosnippet>915</a>    <span class="doccomment">/// Consecutive repeats folded into the row.
+<a href=#916 id=916 data-nosnippet>916</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) repeat: u32,
+<a href=#917 id=917 data-nosnippet>917</a>}
 </code></pre></div></section></main></body></html>
