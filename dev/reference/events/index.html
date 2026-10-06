@@ -1935,7 +1935,7 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 <tbody>
 <tr>
 <td>Session</td>
-<td><code>session_created</code>, <code>session_reverted</code>, <code>session_permission_overlay_set</code>, <code>skill_loaded</code>, <code>skill_invocation_noted</code>, <code>session_title_committed</code>, <code>delegated_context_seeded</code></td>
+<td><code>session_created</code>, <code>session_reverted</code> (legacy), <code>session_permission_overlay_set</code>, <code>skill_loaded</code>, <code>skill_invocation_noted</code>, <code>session_title_committed</code>, <code>delegated_context_seeded</code></td>
 </tr>
 <tr>
 <td>AGENTS.md context</td>
@@ -2396,9 +2396,23 @@ replay is in flight; anything else is stale or outruns a durable event the view
 has not seen, and is dropped. The engine drops transient output for a
 subscriber whose queue is nearly full rather than spending the slot reserved
 for a gap.</p>
-<p>Revert markers are delivered like every other physical event. Clients should
-rebuild branch-derived state when one arrives; they must not assume sequence
-numbers were truncated or reused.</p>
+<p>A revert cuts the log and the next appends reuse the removed sequence
+numbers, so live subscribers receive a rewind:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rewound"</span><span class="p">,</span><span class="w"> </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span><span class="w"> </span><span class="nt">"through_seq"</span><span class="p">:</span><span class="w"> </span><span class="mi">41</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>A subscriber drops everything it holds past <code>through_seq</code>; later events follow
+on from it. The shared client also replays the session in full. A reader that
+was not subscribed when the cut happened cannot tell a reused sequence from the
+event it replaced, so a replay request may carry <code>cursor_timestamp</code>, the
+timestamp of the event at <code>cursor</code> as the reader saw it. When the session's
+event at <code>cursor</code> has a different timestamp (or no longer exists), the response
+is <code>{ "events": [], "stale_cursor": true }</code>, no tail is registered, and the
+reader must replay from the start. The shared client sends it on every
+recovery replay.</p>
+<p><code>session_reverted</code> markers appear only in logs written before protocol 28.
+Each hides the events after its <code>through_seq</code> on the branch visible when it was
+written; events appended after an earlier marker stay visible up to a later
+marker's target.</p>
 <p>Tool stdout and stderr use separate snapshot, delta, and gap notifications.
 Offsets are byte offsets, and clients use a snapshot after a gap before applying
 later deltas. The ordinary event subscription also includes live-only

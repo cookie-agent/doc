@@ -1968,11 +1968,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 27 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 27 }</code> before any other method.</p>
+Protocol 28 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 28 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 27.</p>
+members of protocol 28.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -1990,7 +1990,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 27 alongside independent display and output references. The
+preserved in protocol 28 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2196,8 +2196,8 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>events.subscribe</code></td>
-<td>Session ID, optional cursor, optional <code>limit</code></td>
-<td>Stored events after the cursor; starts notifications on the final page (see <a href="../events/#subscriptions">Subscriptions</a>)</td>
+<td>Session ID, optional cursor and <code>cursor_timestamp</code>, optional <code>limit</code></td>
+<td>Stored events after the cursor, or <code>stale_cursor</code>; starts notifications on the final page (see <a href="../events/#subscriptions">Subscriptions</a>)</td>
 </tr>
 <tr>
 <td><code>approval.list</code></td>
@@ -2338,10 +2338,15 @@ no pending input completes the run.</p>
 without an event if the lane is empty. Terminal run events void anything still
 pending.</p>
 <h2 id="revert-and-fork">Revert and fork<a class="headerlink" href="#revert-and-fork" title="Permanent link">&para;</a></h2>
-<p><code>session.revert</code> is idle-only and appends a <code>session_reverted</code> marker. The target
-must be a positive existing physical sequence. The physical log remains
-append-only; branch-derived transcript, context, title, usage, and approvals use
-the visible prefix plus events after the marker.</p>
+<p><code>session.revert</code> is idle-only. The target must be a positive existing
+sequence. The engine removes every event after it from the log (a run left with
+nothing but its <code>run_started</code> goes too), closes any run, tool call, internal
+agent, or approval the cut left open, and deletes the subagent sessions created
+by removed delegations; a running one refuses the revert. Later appends reuse
+the freed sequence numbers. Subscribers receive a <code>rewound</code> notification (see
+<a href="../events/#subscriptions">Subscriptions</a>). Logs from before protocol 28 may
+still hold <code>session_reverted</code> markers, which readers apply as before: each hides
+what followed its target on the branch visible when it was written.</p>
 <p><code>session.fork</code> may read an active source but requires a persisted prefix that
 contains a submitted user message. The fork copies that prefix exactly under a
 new session ID, closes any copied in-flight run locally, appends <code>(fork)</code> to
@@ -2361,7 +2366,7 @@ the title, and continues with new physical sequences.</p>
 </tr>
 <tr>
 <td><code>events.subscription</code></td>
-<td>One stored event, live-only stream output, or a session sequence gap</td>
+<td>One stored event, live-only stream output, a session sequence gap, or a rewind</td>
 </tr>
 <tr>
 <td><code>events.plugin</code></td>
