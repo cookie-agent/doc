@@ -808,7 +808,7 @@
 <a href=#808 id=808 data-nosnippet>808</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>notice_lines(<span class="kw-2">&amp;</span><span class="self">self</span>, width: u16) -&gt; Vec&lt;Line&lt;<span class="lifetime">'static</span>&gt;&gt; {
 <a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let </span><span class="kw-2">mut </span>notice_lines = Vec::new();
 <a href=#810 id=810 data-nosnippet>810</a>        <span class="kw">let </span>goal_notices = <span class="self">self
-<a href=#811 id=811 data-nosnippet>811</a>            </span>.selected
+<a href=#811 id=811 data-nosnippet>811</a>            </span>.viewed_session()
 <a href=#812 id=812 data-nosnippet>812</a>            .and_then(|session_id| <span class="self">self</span>.goal_notices.get(<span class="kw-2">&amp;</span>session_id));
 <a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">for </span>notice <span class="kw">in </span><span class="self">self
 <a href=#814 id=814 data-nosnippet>814</a>            </span>.transient_notices
@@ -836,7 +836,7 @@
 <a href=#836 id=836 data-nosnippet>836</a>    <span class="doccomment">/// Descendant warning and error rows for the viewed session, at or
 <a href=#837 id=837 data-nosnippet>837</a>    /// above the event-level filter.
 <a href=#838 id=838 data-nosnippet>838</a>    </span><span class="kw">fn </span>viewed_descendant_events(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;DescendantEvent&gt; {
-<a href=#839 id=839 data-nosnippet>839</a>        <span class="self">self</span>.selected
+<a href=#839 id=839 data-nosnippet>839</a>        <span class="self">self</span>.viewed_session()
 <a href=#840 id=840 data-nosnippet>840</a>            .map(|selected| <span class="self">self</span>.descendant_events(selected, <span class="self">self</span>.tui_config.minimum_event_level))
 <a href=#841 id=841 data-nosnippet>841</a>            .unwrap_or_default()
 <a href=#842 id=842 data-nosnippet>842</a>    }
@@ -1068,577 +1068,580 @@
 <a href=#1068 id=1068 data-nosnippet>1068</a>    /// what the last frame rendered at this width, so logical-line
 <a href=#1069 id=1069 data-nosnippet>1069</a>    /// coordinates from the mouse map one-to-one.
 <a href=#1070 id=1070 data-nosnippet>1070</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>conversation_chain(<span class="kw-2">&amp;</span><span class="self">self</span>, width: u16) -&gt; Cow&lt;<span class="lifetime">'_</span>, [Line&lt;<span class="lifetime">'static</span>&gt;]&gt; {
-<a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="kw">let </span>session_present = <span class="self">self
-<a href=#1072 id=1072 data-nosnippet>1072</a>            </span>.selected
-<a href=#1073 id=1073 data-nosnippet>1073</a>            .is_some_and(|session_id| <span class="self">self</span>.store.sessions.contains_key(<span class="kw-2">&amp;</span>session_id));
-<a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">let </span>transcript_empty = <span class="self">self
-<a href=#1075 id=1075 data-nosnippet>1075</a>            </span>.selected
-<a href=#1076 id=1076 data-nosnippet>1076</a>            .and_then(|session_id| <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>session_id))
-<a href=#1077 id=1077 data-nosnippet>1077</a>            .is_none_or(|state| state.transcript.is_empty() &amp;&amp; state.run_snapshot.is_none());
-<a href=#1078 id=1078 data-nosnippet>1078</a>        <span class="kw">let </span>descendant_events = <span class="self">self</span>.viewed_descendant_events();
-<a href=#1079 id=1079 data-nosnippet>1079</a>        <span class="kw">let </span><span class="kw-2">mut </span>notices = <span class="self">self</span>.notice_lines(width);
-<a href=#1080 id=1080 data-nosnippet>1080</a>        <span class="kw">if </span>session_present
-<a href=#1081 id=1081 data-nosnippet>1081</a>            &amp;&amp; !transcript_empty
-<a href=#1082 id=1082 data-nosnippet>1082</a>            &amp;&amp; descendant_events.is_empty()
-<a href=#1083 id=1083 data-nosnippet>1083</a>            &amp;&amp; notices.is_empty()
-<a href=#1084 id=1084 data-nosnippet>1084</a>        {
-<a href=#1085 id=1085 data-nosnippet>1085</a>            <span class="kw">return </span>Cow::Borrowed(<span class="kw-2">&amp;</span><span class="self">self</span>.layout_cache.layout.lines);
-<a href=#1086 id=1086 data-nosnippet>1086</a>        }
-<a href=#1087 id=1087 data-nosnippet>1087</a>        <span class="kw">let </span>base = <span class="kw">if </span>session_present &amp;&amp; !transcript_empty {
-<a href=#1088 id=1088 data-nosnippet>1088</a>            Cow::Borrowed(<span class="self">self</span>.layout_cache.layout.lines.as_slice())
-<a href=#1089 id=1089 data-nosnippet>1089</a>        } <span class="kw">else </span>{
-<a href=#1090 id=1090 data-nosnippet>1090</a>            Cow::Owned(empty_conversation_lines(
-<a href=#1091 id=1091 data-nosnippet>1091</a>                session_present,
-<a href=#1092 id=1092 data-nosnippet>1092</a>                width,
-<a href=#1093 id=1093 data-nosnippet>1093</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.theme,
-<a href=#1094 id=1094 data-nosnippet>1094</a>            ))
-<a href=#1095 id=1095 data-nosnippet>1095</a>        };
-<a href=#1096 id=1096 data-nosnippet>1096</a>        <span class="kw">let </span><span class="kw-2">mut </span>lines = <span class="kw">match </span><span class="self">self</span>.spliced_conversation_lines(width, <span class="kw-2">&amp;</span>base, <span class="kw-2">&amp;</span>descendant_events) {
-<a href=#1097 id=1097 data-nosnippet>1097</a>            <span class="prelude-val">Some</span>((spliced, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; spliced,
-<a href=#1098 id=1098 data-nosnippet>1098</a>            <span class="prelude-val">None </span>=&gt; base.into_owned(),
-<a href=#1099 id=1099 data-nosnippet>1099</a>        };
-<a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">if </span>!lines.is_empty() &amp;&amp; !notices.is_empty() {
-<a href=#1101 id=1101 data-nosnippet>1101</a>            notices.insert(<span class="number">0</span>, Line::default());
-<a href=#1102 id=1102 data-nosnippet>1102</a>        }
-<a href=#1103 id=1103 data-nosnippet>1103</a>        lines.extend(notices);
-<a href=#1104 id=1104 data-nosnippet>1104</a>        Cow::Owned(lines)
-<a href=#1105 id=1105 data-nosnippet>1105</a>    }
-<a href=#1106 id=1106 data-nosnippet>1106</a>
-<a href=#1107 id=1107 data-nosnippet>1107</a>    <span class="doccomment">/// The currently selected text, mapped from content coordinates back to
-<a href=#1108 id=1108 data-nosnippet>1108</a>    /// real text: chrome (gutters, bands, box-drawing headers) is stripped,
-<a href=#1109 id=1109 data-nosnippet>1109</a>    /// code copies raw, and the composer leg slices the draft buffer.
-<a href=#1110 id=1110 data-nosnippet>1110</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>selected_text(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#1111 id=1111 data-nosnippet>1111</a>        <span class="kw">let </span>selection = <span class="self">self</span>.selection<span class="question-mark">?</span>;
-<a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>selection {
-<a href=#1113 id=1113 data-nosnippet>1113</a>            TextSelection::Conversation { .. } =&gt; {
-<a href=#1114 id=1114 data-nosnippet>1114</a>                <span class="kw">let </span>(start, end) = selection.ordered();
-<a href=#1115 id=1115 data-nosnippet>1115</a>                <span class="kw">let </span>width = <span class="self">self
-<a href=#1116 id=1116 data-nosnippet>1116</a>                    </span>.hit_map
-<a href=#1117 id=1117 data-nosnippet>1117</a>                    .conversation
-<a href=#1118 id=1118 data-nosnippet>1118</a>                    .map_or(<span class="number">0</span>, |viewport| viewport.width);
-<a href=#1119 id=1119 data-nosnippet>1119</a>                <span class="kw">let </span>lines = <span class="self">self</span>.conversation_chain(width);
-<a href=#1120 id=1120 data-nosnippet>1120</a>                extract_selection(<span class="kw-2">&amp;</span>lines, start, end, <span class="kw-2">&amp;</span><span class="self">self</span>.theme)
-<a href=#1121 id=1121 data-nosnippet>1121</a>            }
-<a href=#1122 id=1122 data-nosnippet>1122</a>            TextSelection::Composer { .. } =&gt; {
-<a href=#1123 id=1123 data-nosnippet>1123</a>                <span class="kw">let </span>(start, end) = selection.byte_range();
-<a href=#1124 id=1124 data-nosnippet>1124</a>                <span class="self">self</span>.input
-<a href=#1125 id=1125 data-nosnippet>1125</a>                    .as_str()
-<a href=#1126 id=1126 data-nosnippet>1126</a>                    .get(start..end)
-<a href=#1127 id=1127 data-nosnippet>1127</a>                    .unwrap_or_default()
-<a href=#1128 id=1128 data-nosnippet>1128</a>                    .to_owned()
-<a href=#1129 id=1129 data-nosnippet>1129</a>            }
-<a href=#1130 id=1130 data-nosnippet>1130</a>        })
-<a href=#1131 id=1131 data-nosnippet>1131</a>    }
-<a href=#1132 id=1132 data-nosnippet>1132</a>
-<a href=#1133 id=1133 data-nosnippet>1133</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_conversation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, frame: <span class="kw-2">&amp;mut </span>ratatui::Frame, area: Rect) {
-<a href=#1134 id=1134 data-nosnippet>1134</a>        <span class="comment">// The two rightmost inner columns always belong to the scrollbar: a
-<a href=#1135 id=1135 data-nosnippet>1135</a>        // blank margin and the track. Content layout, block hit regions and
-<a href=#1136 id=1136 data-nosnippet>1136</a>        // highlight rects are built at that reduced width and never extend
-<a href=#1137 id=1137 data-nosnippet>1137</a>        // into it, so the track can be grabbed without hitting blocks — and
-<a href=#1138 id=1138 data-nosnippet>1138</a>        // because the reservation is constant, the wrap width (a
-<a href=#1139 id=1139 data-nosnippet>1139</a>        // `LayoutCacheKey` input) never flips when content starts or stops
-<a href=#1140 id=1140 data-nosnippet>1140</a>        // overflowing.
-<a href=#1141 id=1141 data-nosnippet>1141</a>        </span><span class="kw">let </span>descendant_events = <span class="self">self</span>.viewed_descendant_events();
-<a href=#1142 id=1142 data-nosnippet>1142</a>        <span class="kw">let </span>width = pane_text_width(area.width);
-<a href=#1143 id=1143 data-nosnippet>1143</a>        <span class="kw">let </span>session_present = <span class="self">self
-<a href=#1144 id=1144 data-nosnippet>1144</a>            </span>.selected
-<a href=#1145 id=1145 data-nosnippet>1145</a>            .is_some_and(|session_id| <span class="self">self</span>.store.sessions.contains_key(<span class="kw-2">&amp;</span>session_id));
-<a href=#1146 id=1146 data-nosnippet>1146</a>        <span class="kw">let </span>empty_layout = TranscriptLayout {
-<a href=#1147 id=1147 data-nosnippet>1147</a>            lines: empty_conversation_lines(session_present, width, <span class="kw-2">&amp;</span><span class="self">self</span>.theme),
-<a href=#1148 id=1148 data-nosnippet>1148</a>            regions: Vec::new(),
-<a href=#1149 id=1149 data-nosnippet>1149</a>            user_regions: Vec::new(),
-<a href=#1150 id=1150 data-nosnippet>1150</a>        };
-<a href=#1151 id=1151 data-nosnippet>1151</a>        <span class="kw">let </span>clock_bucket = <span class="self">self</span>.clock_bucket();
-<a href=#1152 id=1152 data-nosnippet>1152</a>        <span class="kw">let </span>draft_agent = <span class="self">self</span>.draft.as_ref().map(|draft| draft.agent.clone());
-<a href=#1153 id=1153 data-nosnippet>1153</a>        <span class="kw">let </span>anchor_key = <span class="self">self</span>.layout_cache.key;
-<a href=#1154 id=1154 data-nosnippet>1154</a>        <span class="comment">// The offset addresses the last drawn (spliced) lines; the anchor
-<a href=#1155 id=1155 data-nosnippet>1155</a>        // addresses the cached layout, so map the offset back first.
-<a href=#1156 id=1156 data-nosnippet>1156</a>        </span><span class="kw">let </span>(unspliced_offset, spliced_depth) = unsplice_line(
-<a href=#1157 id=1157 data-nosnippet>1157</a>            <span class="self">self</span>.conversation_scroll.offset,
-<a href=#1158 id=1158 data-nosnippet>1158</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.conversation_splice_shifts,
-<a href=#1159 id=1159 data-nosnippet>1159</a>        );
-<a href=#1160 id=1160 data-nosnippet>1160</a>        <span class="kw">let </span>anchor = (!<span class="self">self</span>.conversation_scroll.following)
-<a href=#1161 id=1161 data-nosnippet>1161</a>            .then(|| <span class="self">self</span>.layout_cache.scroll_anchor(unspliced_offset))
-<a href=#1162 id=1162 data-nosnippet>1162</a>            .flatten();
-<a href=#1163 id=1163 data-nosnippet>1163</a>        <span class="kw">let </span><span class="kw-2">mut </span>layout_changed = <span class="bool-val">false</span>;
-<a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span>layout = <span class="kw">if let </span><span class="prelude-val">Some</span>((session_id, state)) = <span class="self">self</span>.selected.and_then(|session_id| {
-<a href=#1165 id=1165 data-nosnippet>1165</a>            <span class="self">self</span>.store
-<a href=#1166 id=1166 data-nosnippet>1166</a>                .sessions
-<a href=#1167 id=1167 data-nosnippet>1167</a>                .get(<span class="kw-2">&amp;</span>session_id)
-<a href=#1168 id=1168 data-nosnippet>1168</a>                .map(|state| (session_id, state))
-<a href=#1169 id=1169 data-nosnippet>1169</a>        }) {
-<a href=#1170 id=1170 data-nosnippet>1170</a>            layout_changed = !ensure_cached_transcript_layout(
-<a href=#1171 id=1171 data-nosnippet>1171</a>                <span class="kw-2">&amp;mut </span><span class="self">self</span>.layout_cache,
-<a href=#1172 id=1172 data-nosnippet>1172</a>                session_id,
-<a href=#1173 id=1173 data-nosnippet>1173</a>                state,
-<a href=#1174 id=1174 data-nosnippet>1174</a>                draft_agent.as_ref(),
-<a href=#1175 id=1175 data-nosnippet>1175</a>                <span class="self">self</span>.expanded_blocks.get(<span class="kw-2">&amp;</span>session_id),
-<a href=#1176 id=1176 data-nosnippet>1176</a>                width,
-<a href=#1177 id=1177 data-nosnippet>1177</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.theme,
-<a href=#1178 id=1178 data-nosnippet>1178</a>                <span class="self">self</span>.highlighter.as_ref(),
-<a href=#1179 id=1179 data-nosnippet>1179</a>                <span class="self">self</span>.tui_config.minimum_event_level,
-<a href=#1180 id=1180 data-nosnippet>1180</a>                clock_bucket,
-<a href=#1181 id=1181 data-nosnippet>1181</a>                <span class="self">self</span>.runtime.model_names(),
-<a href=#1182 id=1182 data-nosnippet>1182</a>            );
-<a href=#1183 id=1183 data-nosnippet>1183</a>            <span class="comment">// A fresh session greets with guidance instead of a blank pane;
-<a href=#1184 id=1184 data-nosnippet>1184</a>            // a filtered-down transcript (lines hidden by the event level)
-<a href=#1185 id=1185 data-nosnippet>1185</a>            // keeps its own rows, empty-looking or not.
-<a href=#1186 id=1186 data-nosnippet>1186</a>            </span><span class="kw">if </span>state.transcript.is_empty() &amp;&amp; state.run_snapshot.is_none() {
-<a href=#1187 id=1187 data-nosnippet>1187</a>                <span class="kw-2">&amp;</span>empty_layout
-<a href=#1188 id=1188 data-nosnippet>1188</a>            } <span class="kw">else </span>{
-<a href=#1189 id=1189 data-nosnippet>1189</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.layout_cache.layout
-<a href=#1190 id=1190 data-nosnippet>1190</a>            }
-<a href=#1191 id=1191 data-nosnippet>1191</a>        } <span class="kw">else </span>{
-<a href=#1192 id=1192 data-nosnippet>1192</a>            <span class="kw-2">&amp;</span>empty_layout
-<a href=#1193 id=1193 data-nosnippet>1193</a>        };
-<a href=#1194 id=1194 data-nosnippet>1194</a>        <span class="kw">let </span><span class="kw-2">mut </span>notice_lines = <span class="self">self</span>.notice_lines(width);
-<a href=#1195 id=1195 data-nosnippet>1195</a>        <span class="comment">// Notices follow the same rhythm as transcript items: one blank row
-<a href=#1196 id=1196 data-nosnippet>1196</a>        // between real content and the first notice block.
-<a href=#1197 id=1197 data-nosnippet>1197</a>        </span><span class="kw">if </span>!layout.lines.is_empty() &amp;&amp; !notice_lines.is_empty() {
-<a href=#1198 id=1198 data-nosnippet>1198</a>            notice_lines.insert(<span class="number">0</span>, Line::default());
-<a href=#1199 id=1199 data-nosnippet>1199</a>        }
-<a href=#1200 id=1200 data-nosnippet>1200</a>        <span class="comment">// Nothing to splice (the common case) borrows the cached layout; only
-<a href=#1201 id=1201 data-nosnippet>1201</a>        // frames with descendant warnings pay for a spliced copy.
-<a href=#1202 id=1202 data-nosnippet>1202</a>        </span><span class="kw">let </span>(spliced_lines, splice_shifts, spliced_regions) = <span class="self">self
-<a href=#1203 id=1203 data-nosnippet>1203</a>            </span>.spliced_conversation_lines(width, <span class="kw-2">&amp;</span>layout.lines, <span class="kw-2">&amp;</span>descendant_events)
-<a href=#1204 id=1204 data-nosnippet>1204</a>            .unwrap_or_default();
-<a href=#1205 id=1205 data-nosnippet>1205</a>        <span class="kw">let </span>layout_lines: <span class="kw-2">&amp;</span>[Line&lt;<span class="lifetime">'static</span>&gt;] = <span class="kw">if </span>splice_shifts.is_empty() {
-<a href=#1206 id=1206 data-nosnippet>1206</a>            <span class="kw-2">&amp;</span>layout.lines
-<a href=#1207 id=1207 data-nosnippet>1207</a>        } <span class="kw">else </span>{
-<a href=#1208 id=1208 data-nosnippet>1208</a>            <span class="kw-2">&amp;</span>spliced_lines
-<a href=#1209 id=1209 data-nosnippet>1209</a>        };
-<a href=#1210 id=1210 data-nosnippet>1210</a>        <span class="kw">let </span>viewport = Rect::new(
-<a href=#1211 id=1211 data-nosnippet>1211</a>            area.x.saturating_add(<span class="number">1</span>),
-<a href=#1212 id=1212 data-nosnippet>1212</a>            area.y.saturating_add(<span class="number">1</span>),
-<a href=#1213 id=1213 data-nosnippet>1213</a>            width,
-<a href=#1214 id=1214 data-nosnippet>1214</a>            area.height.saturating_sub(<span class="number">2</span>),
-<a href=#1215 id=1215 data-nosnippet>1215</a>        );
-<a href=#1216 id=1216 data-nosnippet>1216</a>        <span class="kw">let </span>scrollbar_track = pane_scrollbar_track(area, viewport);
-<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">let </span>content_height = layout_lines.len() + notice_lines.len();
-<a href=#1218 id=1218 data-nosnippet>1218</a>        <span class="kw">if </span>layout_changed
-<a href=#1219 id=1219 data-nosnippet>1219</a>            &amp;&amp; anchor_key == <span class="self">self</span>.layout_cache.key
-<a href=#1220 id=1220 data-nosnippet>1220</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>((point, row_offset)) = anchor
-<a href=#1221 id=1221 data-nosnippet>1221</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(line) = <span class="self">self</span>.layout_cache.anchor_line(point)
-<a href=#1222 id=1222 data-nosnippet>1222</a>        {
-<a href=#1223 id=1223 data-nosnippet>1223</a>            <span class="comment">// `line` addresses the unspliced layout; rows spliced in above
-<a href=#1224 id=1224 data-nosnippet>1224</a>            // the anchored row shift it down by their count. A view resting
-<a href=#1225 id=1225 data-nosnippet>1225</a>            // inside spliced rows keeps its depth into them.
-<a href=#1226 id=1226 data-nosnippet>1226</a>            </span><span class="kw">let </span>line = line.saturating_add(row_offset);
-<a href=#1227 id=1227 data-nosnippet>1227</a>            <span class="self">self</span>.conversation_scroll.offset = <span class="kw">match </span>spliced_depth {
-<a href=#1228 id=1228 data-nosnippet>1228</a>                <span class="prelude-val">Some</span>(depth) =&gt; splice_shifted(line, <span class="kw-2">&amp;</span>splice_shifts, <span class="bool-val">false</span>).saturating_add(depth),
-<a href=#1229 id=1229 data-nosnippet>1229</a>                <span class="prelude-val">None </span>=&gt; splice_shifted(line, <span class="kw-2">&amp;</span>splice_shifts, <span class="bool-val">true</span>),
-<a href=#1230 id=1230 data-nosnippet>1230</a>            };
-<a href=#1231 id=1231 data-nosnippet>1231</a>        }
-<a href=#1232 id=1232 data-nosnippet>1232</a>        <span class="self">self</span>.conversation_splice_shifts.clone_from(<span class="kw-2">&amp;</span>splice_shifts);
-<a href=#1233 id=1233 data-nosnippet>1233</a>        <span class="self">self</span>.conversation_scroll
-<a href=#1234 id=1234 data-nosnippet>1234</a>            .clamp(content_height, viewport.height);
-<a href=#1235 id=1235 data-nosnippet>1235</a>        <span class="self">self</span>.hit_map.conversation = <span class="prelude-val">Some</span>(viewport);
-<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="self">self</span>.hit_map.scrollbar = (scrollbar_track.width &gt; <span class="number">0</span>).then_some(scrollbar_track);
-<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="self">self</span>.hit_map.blocks.clear();
-<a href=#1238 id=1238 data-nosnippet>1238</a>        <span class="kw">let </span>shifted_block_regions: Vec&lt;BlockRegion&gt;;
-<a href=#1239 id=1239 data-nosnippet>1239</a>        <span class="kw">let </span>block_regions: <span class="kw-2">&amp;</span>[BlockRegion] = <span class="kw">if </span>splice_shifts.is_empty() {
-<a href=#1240 id=1240 data-nosnippet>1240</a>            <span class="kw-2">&amp;</span>layout.regions
-<a href=#1241 id=1241 data-nosnippet>1241</a>        } <span class="kw">else </span>{
-<a href=#1242 id=1242 data-nosnippet>1242</a>            shifted_block_regions = layout
-<a href=#1243 id=1243 data-nosnippet>1243</a>                .regions
-<a href=#1244 id=1244 data-nosnippet>1244</a>                .iter()
-<a href=#1245 id=1245 data-nosnippet>1245</a>                .map(|region| <span class="self">Self</span>::shift_region_lines(<span class="kw-2">*</span>region, <span class="kw-2">&amp;</span>splice_shifts))
-<a href=#1246 id=1246 data-nosnippet>1246</a>                .collect();
-<a href=#1247 id=1247 data-nosnippet>1247</a>            <span class="kw-2">&amp;</span>shifted_block_regions
-<a href=#1248 id=1248 data-nosnippet>1248</a>        };
-<a href=#1249 id=1249 data-nosnippet>1249</a>        <span class="self">self</span>.hit_map
-<a href=#1250 id=1250 data-nosnippet>1250</a>            .blocks
-<a href=#1251 id=1251 data-nosnippet>1251</a>            .extend(
-<a href=#1252 id=1252 data-nosnippet>1252</a>                block_regions
-<a href=#1253 id=1253 data-nosnippet>1253</a>                    .iter()
-<a href=#1254 id=1254 data-nosnippet>1254</a>                    .chain(<span class="kw-2">&amp;</span>spliced_regions)
-<a href=#1255 id=1255 data-nosnippet>1255</a>                    .filter_map(|region| {
-<a href=#1256 id=1256 data-nosnippet>1256</a>                        block_hit(
-<a href=#1257 id=1257 data-nosnippet>1257</a>                            <span class="kw-2">*</span>region,
-<a href=#1258 id=1258 data-nosnippet>1258</a>                            layout_lines,
-<a href=#1259 id=1259 data-nosnippet>1259</a>                            viewport,
-<a href=#1260 id=1260 data-nosnippet>1260</a>                            <span class="self">self</span>.conversation_scroll.offset,
-<a href=#1261 id=1261 data-nosnippet>1261</a>                        )
-<a href=#1262 id=1262 data-nosnippet>1262</a>                    }),
-<a href=#1263 id=1263 data-nosnippet>1263</a>            );
-<a href=#1264 id=1264 data-nosnippet>1264</a>        <span class="self">self</span>.hit_map.user_messages.clear();
-<a href=#1265 id=1265 data-nosnippet>1265</a>        <span class="kw">let </span>shifted_user_regions: Vec&lt;UserRegion&gt;;
-<a href=#1266 id=1266 data-nosnippet>1266</a>        <span class="kw">let </span>user_regions: <span class="kw-2">&amp;</span>[UserRegion] = <span class="kw">if </span>splice_shifts.is_empty() {
-<a href=#1267 id=1267 data-nosnippet>1267</a>            <span class="kw-2">&amp;</span>layout.user_regions
-<a href=#1268 id=1268 data-nosnippet>1268</a>        } <span class="kw">else </span>{
-<a href=#1269 id=1269 data-nosnippet>1269</a>            shifted_user_regions = layout
-<a href=#1270 id=1270 data-nosnippet>1270</a>                .user_regions
-<a href=#1271 id=1271 data-nosnippet>1271</a>                .iter()
-<a href=#1272 id=1272 data-nosnippet>1272</a>                .map(|region| <span class="self">Self</span>::shift_user_region_lines(<span class="kw-2">*</span>region, <span class="kw-2">&amp;</span>splice_shifts))
-<a href=#1273 id=1273 data-nosnippet>1273</a>                .collect();
-<a href=#1274 id=1274 data-nosnippet>1274</a>            <span class="kw-2">&amp;</span>shifted_user_regions
-<a href=#1275 id=1275 data-nosnippet>1275</a>        };
-<a href=#1276 id=1276 data-nosnippet>1276</a>        <span class="self">self</span>.hit_map
-<a href=#1277 id=1277 data-nosnippet>1277</a>            .user_messages
-<a href=#1278 id=1278 data-nosnippet>1278</a>            .extend(user_regions.iter().filter_map(|region| {
-<a href=#1279 id=1279 data-nosnippet>1279</a>                user_message_hit(<span class="kw-2">*</span>region, viewport, <span class="self">self</span>.conversation_scroll.offset)
-<a href=#1280 id=1280 data-nosnippet>1280</a>            }));
-<a href=#1281 id=1281 data-nosnippet>1281</a>        <span class="kw">let </span>filter = <span class="self">self</span>.tui_config.minimum_event_level.name();
-<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="comment">// Conversation and Message border titles carry no instructional
-<a href=#1283 id=1283 data-nosnippet>1283</a>        // drag/hotkey prose.
-<a href=#1284 id=1284 data-nosnippet>1284</a>        </span><span class="kw">let </span>title_spans = <span class="macro">vec!</span>[
-<a href=#1285 id=1285 data-nosnippet>1285</a>            Span::raw(<span class="string">"Conversation · "</span>),
-<a href=#1286 id=1286 data-nosnippet>1286</a>            Span::styled(<span class="macro">format!</span>(<span class="string">"events ≥ {filter}"</span>), <span class="self">self</span>.theme.link()),
-<a href=#1287 id=1287 data-nosnippet>1287</a>        ];
-<a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="kw">let </span>filter_span = <span class="number">1</span>;
-<a href=#1289 id=1289 data-nosnippet>1289</a>        <span class="kw">let </span>title_area = Rect::new(
-<a href=#1290 id=1290 data-nosnippet>1290</a>            area.x.saturating_add(<span class="number">1</span>),
-<a href=#1291 id=1291 data-nosnippet>1291</a>            area.y,
-<a href=#1292 id=1292 data-nosnippet>1292</a>            area.width.saturating_sub(<span class="number">2</span>),
-<a href=#1293 id=1293 data-nosnippet>1293</a>            u16::from(area.height &gt; <span class="number">0</span>),
-<a href=#1294 id=1294 data-nosnippet>1294</a>        );
-<a href=#1295 id=1295 data-nosnippet>1295</a>        <span class="self">self</span>.hit_map.event_level_filter = {
-<a href=#1296 id=1296 data-nosnippet>1296</a>            <span class="kw">let </span><span class="kw-2">mut </span>column = title_area.x.saturating_add(<span class="kw">crate</span>::ui::PANEL_TITLE_PAD);
-<a href=#1297 id=1297 data-nosnippet>1297</a>            title_spans.iter().enumerate().find_map(|(index, span)| {
-<a href=#1298 id=1298 data-nosnippet>1298</a>                <span class="kw">let </span>width =
-<a href=#1299 id=1299 data-nosnippet>1299</a>                    UnicodeWidthStr::width(span.content.as_ref()).min(usize::from(u16::MAX)) <span class="kw">as </span>u16;
-<a href=#1300 id=1300 data-nosnippet>1300</a>                <span class="kw">let </span>hit = (index == filter_span).then(|| {
-<a href=#1301 id=1301 data-nosnippet>1301</a>                    <span class="kw">let </span>visible = title_area
-<a href=#1302 id=1302 data-nosnippet>1302</a>                        .x
-<a href=#1303 id=1303 data-nosnippet>1303</a>                        .saturating_add(title_area.width)
-<a href=#1304 id=1304 data-nosnippet>1304</a>                        .saturating_sub(column)
-<a href=#1305 id=1305 data-nosnippet>1305</a>                        .min(width);
-<a href=#1306 id=1306 data-nosnippet>1306</a>                    (visible &gt; <span class="number">0</span>).then(|| Rect::new(column, title_area.y, visible, <span class="number">1</span>))
-<a href=#1307 id=1307 data-nosnippet>1307</a>                });
-<a href=#1308 id=1308 data-nosnippet>1308</a>                column = column.saturating_add(width);
-<a href=#1309 id=1309 data-nosnippet>1309</a>                hit.flatten()
-<a href=#1310 id=1310 data-nosnippet>1310</a>            })
-<a href=#1311 id=1311 data-nosnippet>1311</a>        };
-<a href=#1312 id=1312 data-nosnippet>1312</a>        <span class="kw">let </span><span class="kw-2">mut </span>block = <span class="kw">crate</span>::ui::panel_block()
-<a href=#1313 id=1313 data-nosnippet>1313</a>            .border_style(<span class="self">self</span>.theme.panel_border())
-<a href=#1314 id=1314 data-nosnippet>1314</a>            .title(<span class="kw">crate</span>::ui::panel_title(title_spans));
-<a href=#1315 id=1315 data-nosnippet>1315</a>        <span class="comment">// A viewport that no longer follows live output says so loudly, in
-<a href=#1316 id=1316 data-nosnippet>1316</a>        // the title row, with the truthful way back — never buried in the
-<a href=#1317 id=1317 data-nosnippet>1317</a>        // muted status line.
-<a href=#1318 id=1318 data-nosnippet>1318</a>        </span><span class="kw">if </span>!<span class="self">self</span>.conversation_scroll.following {
-<a href=#1319 id=1319 data-nosnippet>1319</a>            block = block.title(
-<a href=#1320 id=1320 data-nosnippet>1320</a>                <span class="kw">crate</span>::ui::panel_title(Span::styled(
-<a href=#1321 id=1321 data-nosnippet>1321</a>                    <span class="string">"↑ scrolled · PgDn: bottom"</span>,
-<a href=#1322 id=1322 data-nosnippet>1322</a>                    <span class="self">self</span>.theme.warning(),
-<a href=#1323 id=1323 data-nosnippet>1323</a>                ))
-<a href=#1324 id=1324 data-nosnippet>1324</a>                .right_aligned(),
-<a href=#1325 id=1325 data-nosnippet>1325</a>            );
-<a href=#1326 id=1326 data-nosnippet>1326</a>        }
-<a href=#1327 id=1327 data-nosnippet>1327</a>        frame.render_widget(block, area);
-<a href=#1328 id=1328 data-nosnippet>1328</a>        <span class="comment">// Rendering borrowed Lines avoids viewport clones. Line::style paints
-<a href=#1329 id=1329 data-nosnippet>1329</a>        // the full row, so future background or REVERSED line styles must be
-<a href=#1330 id=1330 data-nosnippet>1330</a>        // reviewed as row-wide rather than span-local styling.
-<a href=#1331 id=1331 data-nosnippet>1331</a>        </span><span class="kw">for </span>(row, line) <span class="kw">in </span>layout_lines
-<a href=#1332 id=1332 data-nosnippet>1332</a>            .iter()
-<a href=#1333 id=1333 data-nosnippet>1333</a>            .chain(notice_lines.iter())
-<a href=#1334 id=1334 data-nosnippet>1334</a>            .skip(<span class="self">self</span>.conversation_scroll.offset)
-<a href=#1335 id=1335 data-nosnippet>1335</a>            .take(usize::from(viewport.height))
-<a href=#1336 id=1336 data-nosnippet>1336</a>            .enumerate()
-<a href=#1337 id=1337 data-nosnippet>1337</a>        {
-<a href=#1338 id=1338 data-nosnippet>1338</a>            frame.render_widget(
-<a href=#1339 id=1339 data-nosnippet>1339</a>                line,
-<a href=#1340 id=1340 data-nosnippet>1340</a>                Rect::new(viewport.x, viewport.y + row <span class="kw">as </span>u16, viewport.width, <span class="number">1</span>),
-<a href=#1341 id=1341 data-nosnippet>1341</a>            );
-<a href=#1342 id=1342 data-nosnippet>1342</a>        }
-<a href=#1343 id=1343 data-nosnippet>1343</a>        <span class="comment">// The reservation always exists; the thumb only does. A pane too tight
-<a href=#1344 id=1344 data-nosnippet>1344</a>        // for the track, or content that fits the viewport, keeps its reserved
-<a href=#1345 id=1345 data-nosnippet>1345</a>        // columns blank.
-<a href=#1346 id=1346 data-nosnippet>1346</a>        </span><span class="self">self</span>.scrollbar_geometry = (scrollbar_track.width &gt; <span class="number">0</span>)
-<a href=#1347 id=1347 data-nosnippet>1347</a>            .then(|| {
-<a href=#1348 id=1348 data-nosnippet>1348</a>                ScrollbarGeometry::resolve(scrollbar_track, content_height)
-<a href=#1349 id=1349 data-nosnippet>1349</a>                    .map(|geometry| geometry.with_thumb(<span class="self">self</span>.conversation_scroll.offset))
-<a href=#1350 id=1350 data-nosnippet>1350</a>            })
-<a href=#1351 id=1351 data-nosnippet>1351</a>            .flatten();
-<a href=#1352 id=1352 data-nosnippet>1352</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(geometry) = <span class="self">self</span>.scrollbar_geometry {
-<a href=#1353 id=1353 data-nosnippet>1353</a>            render_scrollbar_track(frame, geometry, <span class="kw-2">&amp;</span><span class="self">self</span>.theme);
-<a href=#1354 id=1354 data-nosnippet>1354</a>        }
-<a href=#1355 id=1355 data-nosnippet>1355</a>    }
-<a href=#1356 id=1356 data-nosnippet>1356</a>
-<a href=#1357 id=1357 data-nosnippet>1357</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>toggle_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block_id: BlockId) {
-<a href=#1358 id=1358 data-nosnippet>1358</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected <span class="kw">else </span>{
-<a href=#1359 id=1359 data-nosnippet>1359</a>            <span class="kw">return</span>;
-<a href=#1360 id=1360 data-nosnippet>1360</a>        };
-<a href=#1361 id=1361 data-nosnippet>1361</a>        <span class="comment">// An explicit layout change preserves what the user is reading. Only
-<a href=#1362 id=1362 data-nosnippet>1362</a>        // output received while already following should advance to the tail.
-<a href=#1363 id=1363 data-nosnippet>1363</a>        </span><span class="self">self</span>.conversation_scroll.following = <span class="bool-val">false</span>;
-<a href=#1364 id=1364 data-nosnippet>1364</a>        <span class="kw">let </span>expanded = <span class="self">self</span>.expanded_blocks.entry(session_id).or_default();
-<a href=#1365 id=1365 data-nosnippet>1365</a>        <span class="kw">if </span>!expanded.insert(block_id) {
-<a href=#1366 id=1366 data-nosnippet>1366</a>            expanded.remove(<span class="kw-2">&amp;</span>block_id);
-<a href=#1367 id=1367 data-nosnippet>1367</a>        }
-<a href=#1368 id=1368 data-nosnippet>1368</a>    }
-<a href=#1369 id=1369 data-nosnippet>1369</a>}
-<a href=#1370 id=1370 data-nosnippet>1370</a>
-<a href=#1371 id=1371 data-nosnippet>1371</a><span class="doccomment">/// Render the reserved scrollbar column: a subdued track with a distinct
-<a href=#1372 id=1372 data-nosnippet>1372</a>/// thumb covering the exact visible fraction of the total rendered height.
-<a href=#1373 id=1373 data-nosnippet>1373</a>/// Shared by the conversation pane and the overflowed message composer.
-<a href=#1374 id=1374 data-nosnippet>1374</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_scrollbar_track(
-<a href=#1375 id=1375 data-nosnippet>1375</a>    frame: <span class="kw-2">&amp;mut </span>ratatui::Frame,
-<a href=#1376 id=1376 data-nosnippet>1376</a>    geometry: ScrollbarGeometry,
-<a href=#1377 id=1377 data-nosnippet>1377</a>    theme: <span class="kw-2">&amp;</span>Theme,
-<a href=#1378 id=1378 data-nosnippet>1378</a>) {
-<a href=#1379 id=1379 data-nosnippet>1379</a>    <span class="kw">for </span>row <span class="kw">in </span><span class="number">0</span>..geometry.track.height {
-<a href=#1380 id=1380 data-nosnippet>1380</a>        <span class="kw">let </span>y = geometry.track.y + row;
-<a href=#1381 id=1381 data-nosnippet>1381</a>        <span class="kw">if </span>y &gt;= geometry.track.y + geometry.track.height {
-<a href=#1382 id=1382 data-nosnippet>1382</a>            <span class="kw">break</span>;
-<a href=#1383 id=1383 data-nosnippet>1383</a>        }
-<a href=#1384 id=1384 data-nosnippet>1384</a>        <span class="kw">let </span>cell = <span class="kw-2">&amp;mut </span>frame.buffer_mut()[(geometry.track.x, y)];
-<a href=#1385 id=1385 data-nosnippet>1385</a>        cell.set_symbol(<span class="string">"│"</span>);
-<a href=#1386 id=1386 data-nosnippet>1386</a>        cell.set_style(theme.muted());
-<a href=#1387 id=1387 data-nosnippet>1387</a>    }
-<a href=#1388 id=1388 data-nosnippet>1388</a>    <span class="kw">for </span>row <span class="kw">in </span><span class="number">0</span>..geometry.thumb.height {
-<a href=#1389 id=1389 data-nosnippet>1389</a>        <span class="kw">let </span>y = geometry.thumb.y + row;
-<a href=#1390 id=1390 data-nosnippet>1390</a>        <span class="kw">if </span>y &gt;= geometry.track.y + geometry.track.height {
-<a href=#1391 id=1391 data-nosnippet>1391</a>            <span class="kw">break</span>;
-<a href=#1392 id=1392 data-nosnippet>1392</a>        }
-<a href=#1393 id=1393 data-nosnippet>1393</a>        <span class="kw">let </span>cell = <span class="kw-2">&amp;mut </span>frame.buffer_mut()[(geometry.thumb.x, y)];
-<a href=#1394 id=1394 data-nosnippet>1394</a>        cell.set_symbol(<span class="string">"█"</span>);
-<a href=#1395 id=1395 data-nosnippet>1395</a>        cell.set_style(theme.assistant());
-<a href=#1396 id=1396 data-nosnippet>1396</a>    }
-<a href=#1397 id=1397 data-nosnippet>1397</a>}
-<a href=#1398 id=1398 data-nosnippet>1398</a>
-<a href=#1399 id=1399 data-nosnippet>1399</a><span class="attr">#[cfg(test)]
-<a href=#1400 id=1400 data-nosnippet>1400</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transcript_layout(
-<a href=#1401 id=1401 data-nosnippet>1401</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#1402 id=1402 data-nosnippet>1402</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#1403 id=1403 data-nosnippet>1403</a>    width: u16,
-<a href=#1404 id=1404 data-nosnippet>1404</a>) -&gt; TranscriptLayout {
-<a href=#1405 id=1405 data-nosnippet>1405</a>    transcript_layout_with(
-<a href=#1406 id=1406 data-nosnippet>1406</a>        state,
-<a href=#1407 id=1407 data-nosnippet>1407</a>        expanded,
-<a href=#1408 id=1408 data-nosnippet>1408</a>        width,
-<a href=#1409 id=1409 data-nosnippet>1409</a>        <span class="kw-2">&amp;</span>Theme::default(),
-<a href=#1410 id=1410 data-nosnippet>1410</a>        <span class="kw-2">&amp;</span><span class="kw">crate</span>::markdown::SyntectHighlighter::default(),
-<a href=#1411 id=1411 data-nosnippet>1411</a>    )
-<a href=#1412 id=1412 data-nosnippet>1412</a>}
-<a href=#1413 id=1413 data-nosnippet>1413</a>
-<a href=#1414 id=1414 data-nosnippet>1414</a><span class="attr">#[cfg(test)]
-<a href=#1415 id=1415 data-nosnippet>1415</a></span><span class="kw">fn </span>transcript_layout_with(
-<a href=#1416 id=1416 data-nosnippet>1416</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#1417 id=1417 data-nosnippet>1417</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#1418 id=1418 data-nosnippet>1418</a>    width: u16,
-<a href=#1419 id=1419 data-nosnippet>1419</a>    theme: <span class="kw-2">&amp;</span>Theme,
-<a href=#1420 id=1420 data-nosnippet>1420</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
-<a href=#1421 id=1421 data-nosnippet>1421</a>) -&gt; TranscriptLayout {
-<a href=#1422 id=1422 data-nosnippet>1422</a>    transcript_layout_with_level(
-<a href=#1423 id=1423 data-nosnippet>1423</a>        state,
-<a href=#1424 id=1424 data-nosnippet>1424</a>        expanded,
-<a href=#1425 id=1425 data-nosnippet>1425</a>        width,
-<a href=#1426 id=1426 data-nosnippet>1426</a>        theme,
-<a href=#1427 id=1427 data-nosnippet>1427</a>        highlighter,
-<a href=#1428 id=1428 data-nosnippet>1428</a>        <span class="kw">crate</span>::state::EventLevel::Debug,
-<a href=#1429 id=1429 data-nosnippet>1429</a>    )
-<a href=#1430 id=1430 data-nosnippet>1430</a>}
-<a href=#1431 id=1431 data-nosnippet>1431</a>
-<a href=#1432 id=1432 data-nosnippet>1432</a><span class="attr">#[cfg(test)]
-<a href=#1433 id=1433 data-nosnippet>1433</a></span><span class="kw">fn </span>transcript_layout_with_level(
-<a href=#1434 id=1434 data-nosnippet>1434</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#1435 id=1435 data-nosnippet>1435</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#1436 id=1436 data-nosnippet>1436</a>    width: u16,
-<a href=#1437 id=1437 data-nosnippet>1437</a>    theme: <span class="kw-2">&amp;</span>Theme,
-<a href=#1438 id=1438 data-nosnippet>1438</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
-<a href=#1439 id=1439 data-nosnippet>1439</a>    minimum_event_level: <span class="kw">crate</span>::state::EventLevel,
-<a href=#1440 id=1440 data-nosnippet>1440</a>) -&gt; TranscriptLayout {
-<a href=#1441 id=1441 data-nosnippet>1441</a>    transcript_layout_at_clock(
-<a href=#1442 id=1442 data-nosnippet>1442</a>        state,
-<a href=#1443 id=1443 data-nosnippet>1443</a>        expanded,
-<a href=#1444 id=1444 data-nosnippet>1444</a>        width,
-<a href=#1445 id=1445 data-nosnippet>1445</a>        theme,
-<a href=#1446 id=1446 data-nosnippet>1446</a>        highlighter,
-<a href=#1447 id=1447 data-nosnippet>1447</a>        minimum_event_level,
-<a href=#1448 id=1448 data-nosnippet>1448</a>        <span class="number">0</span>,
-<a href=#1449 id=1449 data-nosnippet>1449</a>    )
-<a href=#1450 id=1450 data-nosnippet>1450</a>}
-<a href=#1451 id=1451 data-nosnippet>1451</a>
-<a href=#1452 id=1452 data-nosnippet>1452</a><span class="doccomment">/// Layout at an explicit animation bucket, so tests can pin every phase of the
-<a href=#1453 id=1453 data-nosnippet>1453</a>/// running status marker (which changes the header's suffix width).
-<a href=#1454 id=1454 data-nosnippet>1454</a></span><span class="attr">#[cfg(test)]
-<a href=#1455 id=1455 data-nosnippet>1455</a></span><span class="kw">fn </span>transcript_layout_at_clock(
-<a href=#1456 id=1456 data-nosnippet>1456</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#1457 id=1457 data-nosnippet>1457</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#1458 id=1458 data-nosnippet>1458</a>    width: u16,
-<a href=#1459 id=1459 data-nosnippet>1459</a>    theme: <span class="kw-2">&amp;</span>Theme,
-<a href=#1460 id=1460 data-nosnippet>1460</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
-<a href=#1461 id=1461 data-nosnippet>1461</a>    minimum_event_level: <span class="kw">crate</span>::state::EventLevel,
-<a href=#1462 id=1462 data-nosnippet>1462</a>    clock_bucket: u8,
-<a href=#1463 id=1463 data-nosnippet>1463</a>) -&gt; TranscriptLayout {
-<a href=#1464 id=1464 data-nosnippet>1464</a>    <span class="kw">let </span><span class="kw-2">mut </span>layout = TranscriptLayout::default();
-<a href=#1465 id=1465 data-nosnippet>1465</a>    <span class="kw">let </span><span class="kw-2">mut </span>assistant_parts = HashMap::new();
-<a href=#1466 id=1466 data-nosnippet>1466</a>    <span class="kw">let </span><span class="kw-2">mut </span>assistant_part_layout_passes = <span class="number">0</span>;
-<a href=#1467 id=1467 data-nosnippet>1467</a>    <span class="kw">let </span>model_names = ModelDisplayNames::default();
-<a href=#1468 id=1468 data-nosnippet>1468</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(snapshot) = state.run_snapshot.as_deref() {
-<a href=#1469 id=1469 data-nosnippet>1469</a>        append_item_layout(
-<a href=#1470 id=1470 data-nosnippet>1470</a>            <span class="kw-2">&amp;mut </span>layout,
-<a href=#1471 id=1471 data-nosnippet>1471</a>            system_prompt_layout(snapshot, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>snapshot.agent), expanded, width, theme),
-<a href=#1472 id=1472 data-nosnippet>1472</a>        );
-<a href=#1473 id=1473 data-nosnippet>1473</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(tools) = state.model_tools.as_deref() {
-<a href=#1474 id=1474 data-nosnippet>1474</a>            append_item_layout(
-<a href=#1475 id=1475 data-nosnippet>1475</a>                <span class="kw-2">&amp;mut </span>layout,
-<a href=#1476 id=1476 data-nosnippet>1476</a>                model_tools_layout(tools, expanded, width, theme),
-<a href=#1477 id=1477 data-nosnippet>1477</a>            );
-<a href=#1478 id=1478 data-nosnippet>1478</a>        }
-<a href=#1479 id=1479 data-nosnippet>1479</a>    }
-<a href=#1480 id=1480 data-nosnippet>1480</a>    <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>state.transcript {
-<a href=#1481 id=1481 data-nosnippet>1481</a>        <span class="kw">let </span><span class="kw-2">mut </span>assistant_part_ranges = Vec::new();
-<a href=#1482 id=1482 data-nosnippet>1482</a>        <span class="kw">let </span><span class="kw-2">mut </span>assistant_child_lines = Vec::new();
-<a href=#1483 id=1483 data-nosnippet>1483</a>        <span class="kw">let </span>item_layout = transcript_item_layout(
-<a href=#1484 id=1484 data-nosnippet>1484</a>            state,
-<a href=#1485 id=1485 data-nosnippet>1485</a>            item,
-<a href=#1486 id=1486 data-nosnippet>1486</a>            <span class="kw-2">&amp;mut </span>TranscriptRenderContext {
-<a href=#1487 id=1487 data-nosnippet>1487</a>                expanded,
-<a href=#1488 id=1488 data-nosnippet>1488</a>                width,
-<a href=#1489 id=1489 data-nosnippet>1489</a>                theme,
-<a href=#1490 id=1490 data-nosnippet>1490</a>                highlighter,
-<a href=#1491 id=1491 data-nosnippet>1491</a>                minimum_event_level,
-<a href=#1492 id=1492 data-nosnippet>1492</a>                clock_bucket,
-<a href=#1493 id=1493 data-nosnippet>1493</a>                model_names: <span class="kw-2">&amp;</span>model_names,
-<a href=#1494 id=1494 data-nosnippet>1494</a>                assistant_part_cache: <span class="kw-2">&amp;mut </span>assistant_parts,
-<a href=#1495 id=1495 data-nosnippet>1495</a>                assistant_part_layout_passes: <span class="kw-2">&amp;mut </span>assistant_part_layout_passes,
-<a href=#1496 id=1496 data-nosnippet>1496</a>                assistant_part_ranges: <span class="kw-2">&amp;mut </span>assistant_part_ranges,
-<a href=#1497 id=1497 data-nosnippet>1497</a>                assistant_child_lines: <span class="kw-2">&amp;mut </span>assistant_child_lines,
-<a href=#1498 id=1498 data-nosnippet>1498</a>            },
-<a href=#1499 id=1499 data-nosnippet>1499</a>        );
-<a href=#1500 id=1500 data-nosnippet>1500</a>        append_item_layout(<span class="kw-2">&amp;mut </span>layout, item_layout);
-<a href=#1501 id=1501 data-nosnippet>1501</a>    }
-<a href=#1502 id=1502 data-nosnippet>1502</a>    layout
-<a href=#1503 id=1503 data-nosnippet>1503</a>}
-<a href=#1504 id=1504 data-nosnippet>1504</a>
-<a href=#1505 id=1505 data-nosnippet>1505</a><span class="doccomment">/// One blank row of breathing room between top-level transcript items, so
-<a href=#1506 id=1506 data-nosnippet>1506</a>/// messages never butt against each other. Items that render nothing
-<a href=#1507 id=1507 data-nosnippet>1507</a>/// (event rows below the level filter) contribute no lines and no spacer —
-<a href=#1508 id=1508 data-nosnippet>1508</a>/// never a leading, trailing, or doubled blank row.
-<a href=#1509 id=1509 data-nosnippet>1509</a></span><span class="kw">fn </span>append_item_layout(assembled: <span class="kw-2">&amp;mut </span>TranscriptLayout, item_layout: ItemLayout) {
-<a href=#1510 id=1510 data-nosnippet>1510</a>    <span class="kw">if </span>item_layout.lines.is_empty() {
-<a href=#1511 id=1511 data-nosnippet>1511</a>        <span class="kw">return</span>;
-<a href=#1512 id=1512 data-nosnippet>1512</a>    }
-<a href=#1513 id=1513 data-nosnippet>1513</a>    <span class="kw">if </span>!assembled.lines.is_empty() {
-<a href=#1514 id=1514 data-nosnippet>1514</a>        assembled.lines.push(Line::default());
+<a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="comment">// A new-session draft shows the fresh session it will create, not the
+<a href=#1072 id=1072 data-nosnippet>1072</a>        // conversation still selected behind it.
+<a href=#1073 id=1073 data-nosnippet>1073</a>        </span><span class="kw">let </span>viewed = <span class="self">self</span>.viewed_session();
+<a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">let </span>session_present = <span class="self">self</span>.new_session_draft.is_some()
+<a href=#1075 id=1075 data-nosnippet>1075</a>            || viewed.is_some_and(|session_id| <span class="self">self</span>.store.sessions.contains_key(<span class="kw-2">&amp;</span>session_id));
+<a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="kw">let </span>transcript_empty = viewed
+<a href=#1077 id=1077 data-nosnippet>1077</a>            .and_then(|session_id| <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>session_id))
+<a href=#1078 id=1078 data-nosnippet>1078</a>            .is_none_or(|state| state.transcript.is_empty() &amp;&amp; state.run_snapshot.is_none());
+<a href=#1079 id=1079 data-nosnippet>1079</a>        <span class="kw">let </span>descendant_events = <span class="self">self</span>.viewed_descendant_events();
+<a href=#1080 id=1080 data-nosnippet>1080</a>        <span class="kw">let </span><span class="kw-2">mut </span>notices = <span class="self">self</span>.notice_lines(width);
+<a href=#1081 id=1081 data-nosnippet>1081</a>        <span class="kw">if </span>session_present
+<a href=#1082 id=1082 data-nosnippet>1082</a>            &amp;&amp; !transcript_empty
+<a href=#1083 id=1083 data-nosnippet>1083</a>            &amp;&amp; descendant_events.is_empty()
+<a href=#1084 id=1084 data-nosnippet>1084</a>            &amp;&amp; notices.is_empty()
+<a href=#1085 id=1085 data-nosnippet>1085</a>        {
+<a href=#1086 id=1086 data-nosnippet>1086</a>            <span class="kw">return </span>Cow::Borrowed(<span class="kw-2">&amp;</span><span class="self">self</span>.layout_cache.layout.lines);
+<a href=#1087 id=1087 data-nosnippet>1087</a>        }
+<a href=#1088 id=1088 data-nosnippet>1088</a>        <span class="kw">let </span>base = <span class="kw">if </span>session_present &amp;&amp; !transcript_empty {
+<a href=#1089 id=1089 data-nosnippet>1089</a>            Cow::Borrowed(<span class="self">self</span>.layout_cache.layout.lines.as_slice())
+<a href=#1090 id=1090 data-nosnippet>1090</a>        } <span class="kw">else </span>{
+<a href=#1091 id=1091 data-nosnippet>1091</a>            Cow::Owned(empty_conversation_lines(
+<a href=#1092 id=1092 data-nosnippet>1092</a>                session_present,
+<a href=#1093 id=1093 data-nosnippet>1093</a>                width,
+<a href=#1094 id=1094 data-nosnippet>1094</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.theme,
+<a href=#1095 id=1095 data-nosnippet>1095</a>            ))
+<a href=#1096 id=1096 data-nosnippet>1096</a>        };
+<a href=#1097 id=1097 data-nosnippet>1097</a>        <span class="kw">let </span><span class="kw-2">mut </span>lines = <span class="kw">match </span><span class="self">self</span>.spliced_conversation_lines(width, <span class="kw-2">&amp;</span>base, <span class="kw-2">&amp;</span>descendant_events) {
+<a href=#1098 id=1098 data-nosnippet>1098</a>            <span class="prelude-val">Some</span>((spliced, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; spliced,
+<a href=#1099 id=1099 data-nosnippet>1099</a>            <span class="prelude-val">None </span>=&gt; base.into_owned(),
+<a href=#1100 id=1100 data-nosnippet>1100</a>        };
+<a href=#1101 id=1101 data-nosnippet>1101</a>        <span class="kw">if </span>!lines.is_empty() &amp;&amp; !notices.is_empty() {
+<a href=#1102 id=1102 data-nosnippet>1102</a>            notices.insert(<span class="number">0</span>, Line::default());
+<a href=#1103 id=1103 data-nosnippet>1103</a>        }
+<a href=#1104 id=1104 data-nosnippet>1104</a>        lines.extend(notices);
+<a href=#1105 id=1105 data-nosnippet>1105</a>        Cow::Owned(lines)
+<a href=#1106 id=1106 data-nosnippet>1106</a>    }
+<a href=#1107 id=1107 data-nosnippet>1107</a>
+<a href=#1108 id=1108 data-nosnippet>1108</a>    <span class="doccomment">/// The currently selected text, mapped from content coordinates back to
+<a href=#1109 id=1109 data-nosnippet>1109</a>    /// real text: chrome (gutters, bands, box-drawing headers) is stripped,
+<a href=#1110 id=1110 data-nosnippet>1110</a>    /// code copies raw, and the composer leg slices the draft buffer.
+<a href=#1111 id=1111 data-nosnippet>1111</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>selected_text(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="kw">let </span>selection = <span class="self">self</span>.selection<span class="question-mark">?</span>;
+<a href=#1113 id=1113 data-nosnippet>1113</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>selection {
+<a href=#1114 id=1114 data-nosnippet>1114</a>            TextSelection::Conversation { .. } =&gt; {
+<a href=#1115 id=1115 data-nosnippet>1115</a>                <span class="kw">let </span>(start, end) = selection.ordered();
+<a href=#1116 id=1116 data-nosnippet>1116</a>                <span class="kw">let </span>width = <span class="self">self
+<a href=#1117 id=1117 data-nosnippet>1117</a>                    </span>.hit_map
+<a href=#1118 id=1118 data-nosnippet>1118</a>                    .conversation
+<a href=#1119 id=1119 data-nosnippet>1119</a>                    .map_or(<span class="number">0</span>, |viewport| viewport.width);
+<a href=#1120 id=1120 data-nosnippet>1120</a>                <span class="kw">let </span>lines = <span class="self">self</span>.conversation_chain(width);
+<a href=#1121 id=1121 data-nosnippet>1121</a>                extract_selection(<span class="kw-2">&amp;</span>lines, start, end, <span class="kw-2">&amp;</span><span class="self">self</span>.theme)
+<a href=#1122 id=1122 data-nosnippet>1122</a>            }
+<a href=#1123 id=1123 data-nosnippet>1123</a>            TextSelection::Composer { .. } =&gt; {
+<a href=#1124 id=1124 data-nosnippet>1124</a>                <span class="kw">let </span>(start, end) = selection.byte_range();
+<a href=#1125 id=1125 data-nosnippet>1125</a>                <span class="self">self</span>.input
+<a href=#1126 id=1126 data-nosnippet>1126</a>                    .as_str()
+<a href=#1127 id=1127 data-nosnippet>1127</a>                    .get(start..end)
+<a href=#1128 id=1128 data-nosnippet>1128</a>                    .unwrap_or_default()
+<a href=#1129 id=1129 data-nosnippet>1129</a>                    .to_owned()
+<a href=#1130 id=1130 data-nosnippet>1130</a>            }
+<a href=#1131 id=1131 data-nosnippet>1131</a>        })
+<a href=#1132 id=1132 data-nosnippet>1132</a>    }
+<a href=#1133 id=1133 data-nosnippet>1133</a>
+<a href=#1134 id=1134 data-nosnippet>1134</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_conversation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, frame: <span class="kw-2">&amp;mut </span>ratatui::Frame, area: Rect) {
+<a href=#1135 id=1135 data-nosnippet>1135</a>        <span class="comment">// The two rightmost inner columns always belong to the scrollbar: a
+<a href=#1136 id=1136 data-nosnippet>1136</a>        // blank margin and the track. Content layout, block hit regions and
+<a href=#1137 id=1137 data-nosnippet>1137</a>        // highlight rects are built at that reduced width and never extend
+<a href=#1138 id=1138 data-nosnippet>1138</a>        // into it, so the track can be grabbed without hitting blocks — and
+<a href=#1139 id=1139 data-nosnippet>1139</a>        // because the reservation is constant, the wrap width (a
+<a href=#1140 id=1140 data-nosnippet>1140</a>        // `LayoutCacheKey` input) never flips when content starts or stops
+<a href=#1141 id=1141 data-nosnippet>1141</a>        // overflowing.
+<a href=#1142 id=1142 data-nosnippet>1142</a>        </span><span class="kw">let </span>descendant_events = <span class="self">self</span>.viewed_descendant_events();
+<a href=#1143 id=1143 data-nosnippet>1143</a>        <span class="kw">let </span>width = pane_text_width(area.width);
+<a href=#1144 id=1144 data-nosnippet>1144</a>        <span class="comment">// A new-session draft shows the fresh session it will create, not the
+<a href=#1145 id=1145 data-nosnippet>1145</a>        // conversation still selected behind it.
+<a href=#1146 id=1146 data-nosnippet>1146</a>        </span><span class="kw">let </span>viewed = <span class="self">self</span>.viewed_session();
+<a href=#1147 id=1147 data-nosnippet>1147</a>        <span class="kw">let </span>session_present = <span class="self">self</span>.new_session_draft.is_some()
+<a href=#1148 id=1148 data-nosnippet>1148</a>            || viewed.is_some_and(|session_id| <span class="self">self</span>.store.sessions.contains_key(<span class="kw-2">&amp;</span>session_id));
+<a href=#1149 id=1149 data-nosnippet>1149</a>        <span class="kw">let </span>empty_layout = TranscriptLayout {
+<a href=#1150 id=1150 data-nosnippet>1150</a>            lines: empty_conversation_lines(session_present, width, <span class="kw-2">&amp;</span><span class="self">self</span>.theme),
+<a href=#1151 id=1151 data-nosnippet>1151</a>            regions: Vec::new(),
+<a href=#1152 id=1152 data-nosnippet>1152</a>            user_regions: Vec::new(),
+<a href=#1153 id=1153 data-nosnippet>1153</a>        };
+<a href=#1154 id=1154 data-nosnippet>1154</a>        <span class="kw">let </span>clock_bucket = <span class="self">self</span>.clock_bucket();
+<a href=#1155 id=1155 data-nosnippet>1155</a>        <span class="kw">let </span>draft_agent = <span class="self">self</span>.draft.as_ref().map(|draft| draft.agent.clone());
+<a href=#1156 id=1156 data-nosnippet>1156</a>        <span class="kw">let </span>anchor_key = <span class="self">self</span>.layout_cache.key;
+<a href=#1157 id=1157 data-nosnippet>1157</a>        <span class="comment">// The offset addresses the last drawn (spliced) lines; the anchor
+<a href=#1158 id=1158 data-nosnippet>1158</a>        // addresses the cached layout, so map the offset back first.
+<a href=#1159 id=1159 data-nosnippet>1159</a>        </span><span class="kw">let </span>(unspliced_offset, spliced_depth) = unsplice_line(
+<a href=#1160 id=1160 data-nosnippet>1160</a>            <span class="self">self</span>.conversation_scroll.offset,
+<a href=#1161 id=1161 data-nosnippet>1161</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.conversation_splice_shifts,
+<a href=#1162 id=1162 data-nosnippet>1162</a>        );
+<a href=#1163 id=1163 data-nosnippet>1163</a>        <span class="kw">let </span>anchor = (!<span class="self">self</span>.conversation_scroll.following)
+<a href=#1164 id=1164 data-nosnippet>1164</a>            .then(|| <span class="self">self</span>.layout_cache.scroll_anchor(unspliced_offset))
+<a href=#1165 id=1165 data-nosnippet>1165</a>            .flatten();
+<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">let </span><span class="kw-2">mut </span>layout_changed = <span class="bool-val">false</span>;
+<a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="kw">let </span>layout = <span class="kw">if let </span><span class="prelude-val">Some</span>((session_id, state)) = viewed.and_then(|session_id| {
+<a href=#1168 id=1168 data-nosnippet>1168</a>            <span class="self">self</span>.store
+<a href=#1169 id=1169 data-nosnippet>1169</a>                .sessions
+<a href=#1170 id=1170 data-nosnippet>1170</a>                .get(<span class="kw-2">&amp;</span>session_id)
+<a href=#1171 id=1171 data-nosnippet>1171</a>                .map(|state| (session_id, state))
+<a href=#1172 id=1172 data-nosnippet>1172</a>        }) {
+<a href=#1173 id=1173 data-nosnippet>1173</a>            layout_changed = !ensure_cached_transcript_layout(
+<a href=#1174 id=1174 data-nosnippet>1174</a>                <span class="kw-2">&amp;mut </span><span class="self">self</span>.layout_cache,
+<a href=#1175 id=1175 data-nosnippet>1175</a>                session_id,
+<a href=#1176 id=1176 data-nosnippet>1176</a>                state,
+<a href=#1177 id=1177 data-nosnippet>1177</a>                draft_agent.as_ref(),
+<a href=#1178 id=1178 data-nosnippet>1178</a>                <span class="self">self</span>.expanded_blocks.get(<span class="kw-2">&amp;</span>session_id),
+<a href=#1179 id=1179 data-nosnippet>1179</a>                width,
+<a href=#1180 id=1180 data-nosnippet>1180</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.theme,
+<a href=#1181 id=1181 data-nosnippet>1181</a>                <span class="self">self</span>.highlighter.as_ref(),
+<a href=#1182 id=1182 data-nosnippet>1182</a>                <span class="self">self</span>.tui_config.minimum_event_level,
+<a href=#1183 id=1183 data-nosnippet>1183</a>                clock_bucket,
+<a href=#1184 id=1184 data-nosnippet>1184</a>                <span class="self">self</span>.runtime.model_names(),
+<a href=#1185 id=1185 data-nosnippet>1185</a>            );
+<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="comment">// A fresh session greets with guidance instead of a blank pane;
+<a href=#1187 id=1187 data-nosnippet>1187</a>            // a filtered-down transcript (lines hidden by the event level)
+<a href=#1188 id=1188 data-nosnippet>1188</a>            // keeps its own rows, empty-looking or not.
+<a href=#1189 id=1189 data-nosnippet>1189</a>            </span><span class="kw">if </span>state.transcript.is_empty() &amp;&amp; state.run_snapshot.is_none() {
+<a href=#1190 id=1190 data-nosnippet>1190</a>                <span class="kw-2">&amp;</span>empty_layout
+<a href=#1191 id=1191 data-nosnippet>1191</a>            } <span class="kw">else </span>{
+<a href=#1192 id=1192 data-nosnippet>1192</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.layout_cache.layout
+<a href=#1193 id=1193 data-nosnippet>1193</a>            }
+<a href=#1194 id=1194 data-nosnippet>1194</a>        } <span class="kw">else </span>{
+<a href=#1195 id=1195 data-nosnippet>1195</a>            <span class="kw-2">&amp;</span>empty_layout
+<a href=#1196 id=1196 data-nosnippet>1196</a>        };
+<a href=#1197 id=1197 data-nosnippet>1197</a>        <span class="kw">let </span><span class="kw-2">mut </span>notice_lines = <span class="self">self</span>.notice_lines(width);
+<a href=#1198 id=1198 data-nosnippet>1198</a>        <span class="comment">// Notices follow the same rhythm as transcript items: one blank row
+<a href=#1199 id=1199 data-nosnippet>1199</a>        // between real content and the first notice block.
+<a href=#1200 id=1200 data-nosnippet>1200</a>        </span><span class="kw">if </span>!layout.lines.is_empty() &amp;&amp; !notice_lines.is_empty() {
+<a href=#1201 id=1201 data-nosnippet>1201</a>            notice_lines.insert(<span class="number">0</span>, Line::default());
+<a href=#1202 id=1202 data-nosnippet>1202</a>        }
+<a href=#1203 id=1203 data-nosnippet>1203</a>        <span class="comment">// Nothing to splice (the common case) borrows the cached layout; only
+<a href=#1204 id=1204 data-nosnippet>1204</a>        // frames with descendant warnings pay for a spliced copy.
+<a href=#1205 id=1205 data-nosnippet>1205</a>        </span><span class="kw">let </span>(spliced_lines, splice_shifts, spliced_regions) = <span class="self">self
+<a href=#1206 id=1206 data-nosnippet>1206</a>            </span>.spliced_conversation_lines(width, <span class="kw-2">&amp;</span>layout.lines, <span class="kw-2">&amp;</span>descendant_events)
+<a href=#1207 id=1207 data-nosnippet>1207</a>            .unwrap_or_default();
+<a href=#1208 id=1208 data-nosnippet>1208</a>        <span class="kw">let </span>layout_lines: <span class="kw-2">&amp;</span>[Line&lt;<span class="lifetime">'static</span>&gt;] = <span class="kw">if </span>splice_shifts.is_empty() {
+<a href=#1209 id=1209 data-nosnippet>1209</a>            <span class="kw-2">&amp;</span>layout.lines
+<a href=#1210 id=1210 data-nosnippet>1210</a>        } <span class="kw">else </span>{
+<a href=#1211 id=1211 data-nosnippet>1211</a>            <span class="kw-2">&amp;</span>spliced_lines
+<a href=#1212 id=1212 data-nosnippet>1212</a>        };
+<a href=#1213 id=1213 data-nosnippet>1213</a>        <span class="kw">let </span>viewport = Rect::new(
+<a href=#1214 id=1214 data-nosnippet>1214</a>            area.x.saturating_add(<span class="number">1</span>),
+<a href=#1215 id=1215 data-nosnippet>1215</a>            area.y.saturating_add(<span class="number">1</span>),
+<a href=#1216 id=1216 data-nosnippet>1216</a>            width,
+<a href=#1217 id=1217 data-nosnippet>1217</a>            area.height.saturating_sub(<span class="number">2</span>),
+<a href=#1218 id=1218 data-nosnippet>1218</a>        );
+<a href=#1219 id=1219 data-nosnippet>1219</a>        <span class="kw">let </span>scrollbar_track = pane_scrollbar_track(area, viewport);
+<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="kw">let </span>content_height = layout_lines.len() + notice_lines.len();
+<a href=#1221 id=1221 data-nosnippet>1221</a>        <span class="kw">if </span>layout_changed
+<a href=#1222 id=1222 data-nosnippet>1222</a>            &amp;&amp; anchor_key == <span class="self">self</span>.layout_cache.key
+<a href=#1223 id=1223 data-nosnippet>1223</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>((point, row_offset)) = anchor
+<a href=#1224 id=1224 data-nosnippet>1224</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(line) = <span class="self">self</span>.layout_cache.anchor_line(point)
+<a href=#1225 id=1225 data-nosnippet>1225</a>        {
+<a href=#1226 id=1226 data-nosnippet>1226</a>            <span class="comment">// `line` addresses the unspliced layout; rows spliced in above
+<a href=#1227 id=1227 data-nosnippet>1227</a>            // the anchored row shift it down by their count. A view resting
+<a href=#1228 id=1228 data-nosnippet>1228</a>            // inside spliced rows keeps its depth into them.
+<a href=#1229 id=1229 data-nosnippet>1229</a>            </span><span class="kw">let </span>line = line.saturating_add(row_offset);
+<a href=#1230 id=1230 data-nosnippet>1230</a>            <span class="self">self</span>.conversation_scroll.offset = <span class="kw">match </span>spliced_depth {
+<a href=#1231 id=1231 data-nosnippet>1231</a>                <span class="prelude-val">Some</span>(depth) =&gt; splice_shifted(line, <span class="kw-2">&amp;</span>splice_shifts, <span class="bool-val">false</span>).saturating_add(depth),
+<a href=#1232 id=1232 data-nosnippet>1232</a>                <span class="prelude-val">None </span>=&gt; splice_shifted(line, <span class="kw-2">&amp;</span>splice_shifts, <span class="bool-val">true</span>),
+<a href=#1233 id=1233 data-nosnippet>1233</a>            };
+<a href=#1234 id=1234 data-nosnippet>1234</a>        }
+<a href=#1235 id=1235 data-nosnippet>1235</a>        <span class="self">self</span>.conversation_splice_shifts.clone_from(<span class="kw-2">&amp;</span>splice_shifts);
+<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="self">self</span>.conversation_scroll
+<a href=#1237 id=1237 data-nosnippet>1237</a>            .clamp(content_height, viewport.height);
+<a href=#1238 id=1238 data-nosnippet>1238</a>        <span class="self">self</span>.hit_map.conversation = <span class="prelude-val">Some</span>(viewport);
+<a href=#1239 id=1239 data-nosnippet>1239</a>        <span class="self">self</span>.hit_map.scrollbar = (scrollbar_track.width &gt; <span class="number">0</span>).then_some(scrollbar_track);
+<a href=#1240 id=1240 data-nosnippet>1240</a>        <span class="self">self</span>.hit_map.blocks.clear();
+<a href=#1241 id=1241 data-nosnippet>1241</a>        <span class="kw">let </span>shifted_block_regions: Vec&lt;BlockRegion&gt;;
+<a href=#1242 id=1242 data-nosnippet>1242</a>        <span class="kw">let </span>block_regions: <span class="kw-2">&amp;</span>[BlockRegion] = <span class="kw">if </span>splice_shifts.is_empty() {
+<a href=#1243 id=1243 data-nosnippet>1243</a>            <span class="kw-2">&amp;</span>layout.regions
+<a href=#1244 id=1244 data-nosnippet>1244</a>        } <span class="kw">else </span>{
+<a href=#1245 id=1245 data-nosnippet>1245</a>            shifted_block_regions = layout
+<a href=#1246 id=1246 data-nosnippet>1246</a>                .regions
+<a href=#1247 id=1247 data-nosnippet>1247</a>                .iter()
+<a href=#1248 id=1248 data-nosnippet>1248</a>                .map(|region| <span class="self">Self</span>::shift_region_lines(<span class="kw-2">*</span>region, <span class="kw-2">&amp;</span>splice_shifts))
+<a href=#1249 id=1249 data-nosnippet>1249</a>                .collect();
+<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="kw-2">&amp;</span>shifted_block_regions
+<a href=#1251 id=1251 data-nosnippet>1251</a>        };
+<a href=#1252 id=1252 data-nosnippet>1252</a>        <span class="self">self</span>.hit_map
+<a href=#1253 id=1253 data-nosnippet>1253</a>            .blocks
+<a href=#1254 id=1254 data-nosnippet>1254</a>            .extend(
+<a href=#1255 id=1255 data-nosnippet>1255</a>                block_regions
+<a href=#1256 id=1256 data-nosnippet>1256</a>                    .iter()
+<a href=#1257 id=1257 data-nosnippet>1257</a>                    .chain(<span class="kw-2">&amp;</span>spliced_regions)
+<a href=#1258 id=1258 data-nosnippet>1258</a>                    .filter_map(|region| {
+<a href=#1259 id=1259 data-nosnippet>1259</a>                        block_hit(
+<a href=#1260 id=1260 data-nosnippet>1260</a>                            <span class="kw-2">*</span>region,
+<a href=#1261 id=1261 data-nosnippet>1261</a>                            layout_lines,
+<a href=#1262 id=1262 data-nosnippet>1262</a>                            viewport,
+<a href=#1263 id=1263 data-nosnippet>1263</a>                            <span class="self">self</span>.conversation_scroll.offset,
+<a href=#1264 id=1264 data-nosnippet>1264</a>                        )
+<a href=#1265 id=1265 data-nosnippet>1265</a>                    }),
+<a href=#1266 id=1266 data-nosnippet>1266</a>            );
+<a href=#1267 id=1267 data-nosnippet>1267</a>        <span class="self">self</span>.hit_map.user_messages.clear();
+<a href=#1268 id=1268 data-nosnippet>1268</a>        <span class="kw">let </span>shifted_user_regions: Vec&lt;UserRegion&gt;;
+<a href=#1269 id=1269 data-nosnippet>1269</a>        <span class="kw">let </span>user_regions: <span class="kw-2">&amp;</span>[UserRegion] = <span class="kw">if </span>splice_shifts.is_empty() {
+<a href=#1270 id=1270 data-nosnippet>1270</a>            <span class="kw-2">&amp;</span>layout.user_regions
+<a href=#1271 id=1271 data-nosnippet>1271</a>        } <span class="kw">else </span>{
+<a href=#1272 id=1272 data-nosnippet>1272</a>            shifted_user_regions = layout
+<a href=#1273 id=1273 data-nosnippet>1273</a>                .user_regions
+<a href=#1274 id=1274 data-nosnippet>1274</a>                .iter()
+<a href=#1275 id=1275 data-nosnippet>1275</a>                .map(|region| <span class="self">Self</span>::shift_user_region_lines(<span class="kw-2">*</span>region, <span class="kw-2">&amp;</span>splice_shifts))
+<a href=#1276 id=1276 data-nosnippet>1276</a>                .collect();
+<a href=#1277 id=1277 data-nosnippet>1277</a>            <span class="kw-2">&amp;</span>shifted_user_regions
+<a href=#1278 id=1278 data-nosnippet>1278</a>        };
+<a href=#1279 id=1279 data-nosnippet>1279</a>        <span class="self">self</span>.hit_map
+<a href=#1280 id=1280 data-nosnippet>1280</a>            .user_messages
+<a href=#1281 id=1281 data-nosnippet>1281</a>            .extend(user_regions.iter().filter_map(|region| {
+<a href=#1282 id=1282 data-nosnippet>1282</a>                user_message_hit(<span class="kw-2">*</span>region, viewport, <span class="self">self</span>.conversation_scroll.offset)
+<a href=#1283 id=1283 data-nosnippet>1283</a>            }));
+<a href=#1284 id=1284 data-nosnippet>1284</a>        <span class="kw">let </span>filter = <span class="self">self</span>.tui_config.minimum_event_level.name();
+<a href=#1285 id=1285 data-nosnippet>1285</a>        <span class="comment">// Conversation and Message border titles carry no instructional
+<a href=#1286 id=1286 data-nosnippet>1286</a>        // drag/hotkey prose.
+<a href=#1287 id=1287 data-nosnippet>1287</a>        </span><span class="kw">let </span>title_spans = <span class="macro">vec!</span>[
+<a href=#1288 id=1288 data-nosnippet>1288</a>            Span::raw(<span class="string">"Conversation · "</span>),
+<a href=#1289 id=1289 data-nosnippet>1289</a>            Span::styled(<span class="macro">format!</span>(<span class="string">"events ≥ {filter}"</span>), <span class="self">self</span>.theme.link()),
+<a href=#1290 id=1290 data-nosnippet>1290</a>        ];
+<a href=#1291 id=1291 data-nosnippet>1291</a>        <span class="kw">let </span>filter_span = <span class="number">1</span>;
+<a href=#1292 id=1292 data-nosnippet>1292</a>        <span class="kw">let </span>title_area = Rect::new(
+<a href=#1293 id=1293 data-nosnippet>1293</a>            area.x.saturating_add(<span class="number">1</span>),
+<a href=#1294 id=1294 data-nosnippet>1294</a>            area.y,
+<a href=#1295 id=1295 data-nosnippet>1295</a>            area.width.saturating_sub(<span class="number">2</span>),
+<a href=#1296 id=1296 data-nosnippet>1296</a>            u16::from(area.height &gt; <span class="number">0</span>),
+<a href=#1297 id=1297 data-nosnippet>1297</a>        );
+<a href=#1298 id=1298 data-nosnippet>1298</a>        <span class="self">self</span>.hit_map.event_level_filter = {
+<a href=#1299 id=1299 data-nosnippet>1299</a>            <span class="kw">let </span><span class="kw-2">mut </span>column = title_area.x.saturating_add(<span class="kw">crate</span>::ui::PANEL_TITLE_PAD);
+<a href=#1300 id=1300 data-nosnippet>1300</a>            title_spans.iter().enumerate().find_map(|(index, span)| {
+<a href=#1301 id=1301 data-nosnippet>1301</a>                <span class="kw">let </span>width =
+<a href=#1302 id=1302 data-nosnippet>1302</a>                    UnicodeWidthStr::width(span.content.as_ref()).min(usize::from(u16::MAX)) <span class="kw">as </span>u16;
+<a href=#1303 id=1303 data-nosnippet>1303</a>                <span class="kw">let </span>hit = (index == filter_span).then(|| {
+<a href=#1304 id=1304 data-nosnippet>1304</a>                    <span class="kw">let </span>visible = title_area
+<a href=#1305 id=1305 data-nosnippet>1305</a>                        .x
+<a href=#1306 id=1306 data-nosnippet>1306</a>                        .saturating_add(title_area.width)
+<a href=#1307 id=1307 data-nosnippet>1307</a>                        .saturating_sub(column)
+<a href=#1308 id=1308 data-nosnippet>1308</a>                        .min(width);
+<a href=#1309 id=1309 data-nosnippet>1309</a>                    (visible &gt; <span class="number">0</span>).then(|| Rect::new(column, title_area.y, visible, <span class="number">1</span>))
+<a href=#1310 id=1310 data-nosnippet>1310</a>                });
+<a href=#1311 id=1311 data-nosnippet>1311</a>                column = column.saturating_add(width);
+<a href=#1312 id=1312 data-nosnippet>1312</a>                hit.flatten()
+<a href=#1313 id=1313 data-nosnippet>1313</a>            })
+<a href=#1314 id=1314 data-nosnippet>1314</a>        };
+<a href=#1315 id=1315 data-nosnippet>1315</a>        <span class="kw">let </span><span class="kw-2">mut </span>block = <span class="kw">crate</span>::ui::panel_block()
+<a href=#1316 id=1316 data-nosnippet>1316</a>            .border_style(<span class="self">self</span>.theme.panel_border())
+<a href=#1317 id=1317 data-nosnippet>1317</a>            .title(<span class="kw">crate</span>::ui::panel_title(title_spans));
+<a href=#1318 id=1318 data-nosnippet>1318</a>        <span class="comment">// A viewport that no longer follows live output says so loudly, in
+<a href=#1319 id=1319 data-nosnippet>1319</a>        // the title row, with the truthful way back — never buried in the
+<a href=#1320 id=1320 data-nosnippet>1320</a>        // muted status line.
+<a href=#1321 id=1321 data-nosnippet>1321</a>        </span><span class="kw">if </span>!<span class="self">self</span>.conversation_scroll.following {
+<a href=#1322 id=1322 data-nosnippet>1322</a>            block = block.title(
+<a href=#1323 id=1323 data-nosnippet>1323</a>                <span class="kw">crate</span>::ui::panel_title(Span::styled(
+<a href=#1324 id=1324 data-nosnippet>1324</a>                    <span class="string">"↑ scrolled · PgDn: bottom"</span>,
+<a href=#1325 id=1325 data-nosnippet>1325</a>                    <span class="self">self</span>.theme.warning(),
+<a href=#1326 id=1326 data-nosnippet>1326</a>                ))
+<a href=#1327 id=1327 data-nosnippet>1327</a>                .right_aligned(),
+<a href=#1328 id=1328 data-nosnippet>1328</a>            );
+<a href=#1329 id=1329 data-nosnippet>1329</a>        }
+<a href=#1330 id=1330 data-nosnippet>1330</a>        frame.render_widget(block, area);
+<a href=#1331 id=1331 data-nosnippet>1331</a>        <span class="comment">// Rendering borrowed Lines avoids viewport clones. Line::style paints
+<a href=#1332 id=1332 data-nosnippet>1332</a>        // the full row, so future background or REVERSED line styles must be
+<a href=#1333 id=1333 data-nosnippet>1333</a>        // reviewed as row-wide rather than span-local styling.
+<a href=#1334 id=1334 data-nosnippet>1334</a>        </span><span class="kw">for </span>(row, line) <span class="kw">in </span>layout_lines
+<a href=#1335 id=1335 data-nosnippet>1335</a>            .iter()
+<a href=#1336 id=1336 data-nosnippet>1336</a>            .chain(notice_lines.iter())
+<a href=#1337 id=1337 data-nosnippet>1337</a>            .skip(<span class="self">self</span>.conversation_scroll.offset)
+<a href=#1338 id=1338 data-nosnippet>1338</a>            .take(usize::from(viewport.height))
+<a href=#1339 id=1339 data-nosnippet>1339</a>            .enumerate()
+<a href=#1340 id=1340 data-nosnippet>1340</a>        {
+<a href=#1341 id=1341 data-nosnippet>1341</a>            frame.render_widget(
+<a href=#1342 id=1342 data-nosnippet>1342</a>                line,
+<a href=#1343 id=1343 data-nosnippet>1343</a>                Rect::new(viewport.x, viewport.y + row <span class="kw">as </span>u16, viewport.width, <span class="number">1</span>),
+<a href=#1344 id=1344 data-nosnippet>1344</a>            );
+<a href=#1345 id=1345 data-nosnippet>1345</a>        }
+<a href=#1346 id=1346 data-nosnippet>1346</a>        <span class="comment">// The reservation always exists; the thumb only does. A pane too tight
+<a href=#1347 id=1347 data-nosnippet>1347</a>        // for the track, or content that fits the viewport, keeps its reserved
+<a href=#1348 id=1348 data-nosnippet>1348</a>        // columns blank.
+<a href=#1349 id=1349 data-nosnippet>1349</a>        </span><span class="self">self</span>.scrollbar_geometry = (scrollbar_track.width &gt; <span class="number">0</span>)
+<a href=#1350 id=1350 data-nosnippet>1350</a>            .then(|| {
+<a href=#1351 id=1351 data-nosnippet>1351</a>                ScrollbarGeometry::resolve(scrollbar_track, content_height)
+<a href=#1352 id=1352 data-nosnippet>1352</a>                    .map(|geometry| geometry.with_thumb(<span class="self">self</span>.conversation_scroll.offset))
+<a href=#1353 id=1353 data-nosnippet>1353</a>            })
+<a href=#1354 id=1354 data-nosnippet>1354</a>            .flatten();
+<a href=#1355 id=1355 data-nosnippet>1355</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(geometry) = <span class="self">self</span>.scrollbar_geometry {
+<a href=#1356 id=1356 data-nosnippet>1356</a>            render_scrollbar_track(frame, geometry, <span class="kw-2">&amp;</span><span class="self">self</span>.theme);
+<a href=#1357 id=1357 data-nosnippet>1357</a>        }
+<a href=#1358 id=1358 data-nosnippet>1358</a>    }
+<a href=#1359 id=1359 data-nosnippet>1359</a>
+<a href=#1360 id=1360 data-nosnippet>1360</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>toggle_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block_id: BlockId) {
+<a href=#1361 id=1361 data-nosnippet>1361</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected <span class="kw">else </span>{
+<a href=#1362 id=1362 data-nosnippet>1362</a>            <span class="kw">return</span>;
+<a href=#1363 id=1363 data-nosnippet>1363</a>        };
+<a href=#1364 id=1364 data-nosnippet>1364</a>        <span class="comment">// An explicit layout change preserves what the user is reading. Only
+<a href=#1365 id=1365 data-nosnippet>1365</a>        // output received while already following should advance to the tail.
+<a href=#1366 id=1366 data-nosnippet>1366</a>        </span><span class="self">self</span>.conversation_scroll.following = <span class="bool-val">false</span>;
+<a href=#1367 id=1367 data-nosnippet>1367</a>        <span class="kw">let </span>expanded = <span class="self">self</span>.expanded_blocks.entry(session_id).or_default();
+<a href=#1368 id=1368 data-nosnippet>1368</a>        <span class="kw">if </span>!expanded.insert(block_id) {
+<a href=#1369 id=1369 data-nosnippet>1369</a>            expanded.remove(<span class="kw-2">&amp;</span>block_id);
+<a href=#1370 id=1370 data-nosnippet>1370</a>        }
+<a href=#1371 id=1371 data-nosnippet>1371</a>    }
+<a href=#1372 id=1372 data-nosnippet>1372</a>}
+<a href=#1373 id=1373 data-nosnippet>1373</a>
+<a href=#1374 id=1374 data-nosnippet>1374</a><span class="doccomment">/// Render the reserved scrollbar column: a subdued track with a distinct
+<a href=#1375 id=1375 data-nosnippet>1375</a>/// thumb covering the exact visible fraction of the total rendered height.
+<a href=#1376 id=1376 data-nosnippet>1376</a>/// Shared by the conversation pane and the overflowed message composer.
+<a href=#1377 id=1377 data-nosnippet>1377</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_scrollbar_track(
+<a href=#1378 id=1378 data-nosnippet>1378</a>    frame: <span class="kw-2">&amp;mut </span>ratatui::Frame,
+<a href=#1379 id=1379 data-nosnippet>1379</a>    geometry: ScrollbarGeometry,
+<a href=#1380 id=1380 data-nosnippet>1380</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1381 id=1381 data-nosnippet>1381</a>) {
+<a href=#1382 id=1382 data-nosnippet>1382</a>    <span class="kw">for </span>row <span class="kw">in </span><span class="number">0</span>..geometry.track.height {
+<a href=#1383 id=1383 data-nosnippet>1383</a>        <span class="kw">let </span>y = geometry.track.y + row;
+<a href=#1384 id=1384 data-nosnippet>1384</a>        <span class="kw">if </span>y &gt;= geometry.track.y + geometry.track.height {
+<a href=#1385 id=1385 data-nosnippet>1385</a>            <span class="kw">break</span>;
+<a href=#1386 id=1386 data-nosnippet>1386</a>        }
+<a href=#1387 id=1387 data-nosnippet>1387</a>        <span class="kw">let </span>cell = <span class="kw-2">&amp;mut </span>frame.buffer_mut()[(geometry.track.x, y)];
+<a href=#1388 id=1388 data-nosnippet>1388</a>        cell.set_symbol(<span class="string">"│"</span>);
+<a href=#1389 id=1389 data-nosnippet>1389</a>        cell.set_style(theme.muted());
+<a href=#1390 id=1390 data-nosnippet>1390</a>    }
+<a href=#1391 id=1391 data-nosnippet>1391</a>    <span class="kw">for </span>row <span class="kw">in </span><span class="number">0</span>..geometry.thumb.height {
+<a href=#1392 id=1392 data-nosnippet>1392</a>        <span class="kw">let </span>y = geometry.thumb.y + row;
+<a href=#1393 id=1393 data-nosnippet>1393</a>        <span class="kw">if </span>y &gt;= geometry.track.y + geometry.track.height {
+<a href=#1394 id=1394 data-nosnippet>1394</a>            <span class="kw">break</span>;
+<a href=#1395 id=1395 data-nosnippet>1395</a>        }
+<a href=#1396 id=1396 data-nosnippet>1396</a>        <span class="kw">let </span>cell = <span class="kw-2">&amp;mut </span>frame.buffer_mut()[(geometry.thumb.x, y)];
+<a href=#1397 id=1397 data-nosnippet>1397</a>        cell.set_symbol(<span class="string">"█"</span>);
+<a href=#1398 id=1398 data-nosnippet>1398</a>        cell.set_style(theme.assistant());
+<a href=#1399 id=1399 data-nosnippet>1399</a>    }
+<a href=#1400 id=1400 data-nosnippet>1400</a>}
+<a href=#1401 id=1401 data-nosnippet>1401</a>
+<a href=#1402 id=1402 data-nosnippet>1402</a><span class="attr">#[cfg(test)]
+<a href=#1403 id=1403 data-nosnippet>1403</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transcript_layout(
+<a href=#1404 id=1404 data-nosnippet>1404</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#1405 id=1405 data-nosnippet>1405</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#1406 id=1406 data-nosnippet>1406</a>    width: u16,
+<a href=#1407 id=1407 data-nosnippet>1407</a>) -&gt; TranscriptLayout {
+<a href=#1408 id=1408 data-nosnippet>1408</a>    transcript_layout_with(
+<a href=#1409 id=1409 data-nosnippet>1409</a>        state,
+<a href=#1410 id=1410 data-nosnippet>1410</a>        expanded,
+<a href=#1411 id=1411 data-nosnippet>1411</a>        width,
+<a href=#1412 id=1412 data-nosnippet>1412</a>        <span class="kw-2">&amp;</span>Theme::default(),
+<a href=#1413 id=1413 data-nosnippet>1413</a>        <span class="kw-2">&amp;</span><span class="kw">crate</span>::markdown::SyntectHighlighter::default(),
+<a href=#1414 id=1414 data-nosnippet>1414</a>    )
+<a href=#1415 id=1415 data-nosnippet>1415</a>}
+<a href=#1416 id=1416 data-nosnippet>1416</a>
+<a href=#1417 id=1417 data-nosnippet>1417</a><span class="attr">#[cfg(test)]
+<a href=#1418 id=1418 data-nosnippet>1418</a></span><span class="kw">fn </span>transcript_layout_with(
+<a href=#1419 id=1419 data-nosnippet>1419</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#1420 id=1420 data-nosnippet>1420</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#1421 id=1421 data-nosnippet>1421</a>    width: u16,
+<a href=#1422 id=1422 data-nosnippet>1422</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1423 id=1423 data-nosnippet>1423</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
+<a href=#1424 id=1424 data-nosnippet>1424</a>) -&gt; TranscriptLayout {
+<a href=#1425 id=1425 data-nosnippet>1425</a>    transcript_layout_with_level(
+<a href=#1426 id=1426 data-nosnippet>1426</a>        state,
+<a href=#1427 id=1427 data-nosnippet>1427</a>        expanded,
+<a href=#1428 id=1428 data-nosnippet>1428</a>        width,
+<a href=#1429 id=1429 data-nosnippet>1429</a>        theme,
+<a href=#1430 id=1430 data-nosnippet>1430</a>        highlighter,
+<a href=#1431 id=1431 data-nosnippet>1431</a>        <span class="kw">crate</span>::state::EventLevel::Debug,
+<a href=#1432 id=1432 data-nosnippet>1432</a>    )
+<a href=#1433 id=1433 data-nosnippet>1433</a>}
+<a href=#1434 id=1434 data-nosnippet>1434</a>
+<a href=#1435 id=1435 data-nosnippet>1435</a><span class="attr">#[cfg(test)]
+<a href=#1436 id=1436 data-nosnippet>1436</a></span><span class="kw">fn </span>transcript_layout_with_level(
+<a href=#1437 id=1437 data-nosnippet>1437</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#1438 id=1438 data-nosnippet>1438</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#1439 id=1439 data-nosnippet>1439</a>    width: u16,
+<a href=#1440 id=1440 data-nosnippet>1440</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1441 id=1441 data-nosnippet>1441</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
+<a href=#1442 id=1442 data-nosnippet>1442</a>    minimum_event_level: <span class="kw">crate</span>::state::EventLevel,
+<a href=#1443 id=1443 data-nosnippet>1443</a>) -&gt; TranscriptLayout {
+<a href=#1444 id=1444 data-nosnippet>1444</a>    transcript_layout_at_clock(
+<a href=#1445 id=1445 data-nosnippet>1445</a>        state,
+<a href=#1446 id=1446 data-nosnippet>1446</a>        expanded,
+<a href=#1447 id=1447 data-nosnippet>1447</a>        width,
+<a href=#1448 id=1448 data-nosnippet>1448</a>        theme,
+<a href=#1449 id=1449 data-nosnippet>1449</a>        highlighter,
+<a href=#1450 id=1450 data-nosnippet>1450</a>        minimum_event_level,
+<a href=#1451 id=1451 data-nosnippet>1451</a>        <span class="number">0</span>,
+<a href=#1452 id=1452 data-nosnippet>1452</a>    )
+<a href=#1453 id=1453 data-nosnippet>1453</a>}
+<a href=#1454 id=1454 data-nosnippet>1454</a>
+<a href=#1455 id=1455 data-nosnippet>1455</a><span class="doccomment">/// Layout at an explicit animation bucket, so tests can pin every phase of the
+<a href=#1456 id=1456 data-nosnippet>1456</a>/// running status marker (which changes the header's suffix width).
+<a href=#1457 id=1457 data-nosnippet>1457</a></span><span class="attr">#[cfg(test)]
+<a href=#1458 id=1458 data-nosnippet>1458</a></span><span class="kw">fn </span>transcript_layout_at_clock(
+<a href=#1459 id=1459 data-nosnippet>1459</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#1460 id=1460 data-nosnippet>1460</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#1461 id=1461 data-nosnippet>1461</a>    width: u16,
+<a href=#1462 id=1462 data-nosnippet>1462</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1463 id=1463 data-nosnippet>1463</a>    highlighter: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Highlighter,
+<a href=#1464 id=1464 data-nosnippet>1464</a>    minimum_event_level: <span class="kw">crate</span>::state::EventLevel,
+<a href=#1465 id=1465 data-nosnippet>1465</a>    clock_bucket: u8,
+<a href=#1466 id=1466 data-nosnippet>1466</a>) -&gt; TranscriptLayout {
+<a href=#1467 id=1467 data-nosnippet>1467</a>    <span class="kw">let </span><span class="kw-2">mut </span>layout = TranscriptLayout::default();
+<a href=#1468 id=1468 data-nosnippet>1468</a>    <span class="kw">let </span><span class="kw-2">mut </span>assistant_parts = HashMap::new();
+<a href=#1469 id=1469 data-nosnippet>1469</a>    <span class="kw">let </span><span class="kw-2">mut </span>assistant_part_layout_passes = <span class="number">0</span>;
+<a href=#1470 id=1470 data-nosnippet>1470</a>    <span class="kw">let </span>model_names = ModelDisplayNames::default();
+<a href=#1471 id=1471 data-nosnippet>1471</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(snapshot) = state.run_snapshot.as_deref() {
+<a href=#1472 id=1472 data-nosnippet>1472</a>        append_item_layout(
+<a href=#1473 id=1473 data-nosnippet>1473</a>            <span class="kw-2">&amp;mut </span>layout,
+<a href=#1474 id=1474 data-nosnippet>1474</a>            system_prompt_layout(snapshot, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>snapshot.agent), expanded, width, theme),
+<a href=#1475 id=1475 data-nosnippet>1475</a>        );
+<a href=#1476 id=1476 data-nosnippet>1476</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(tools) = state.model_tools.as_deref() {
+<a href=#1477 id=1477 data-nosnippet>1477</a>            append_item_layout(
+<a href=#1478 id=1478 data-nosnippet>1478</a>                <span class="kw-2">&amp;mut </span>layout,
+<a href=#1479 id=1479 data-nosnippet>1479</a>                model_tools_layout(tools, expanded, width, theme),
+<a href=#1480 id=1480 data-nosnippet>1480</a>            );
+<a href=#1481 id=1481 data-nosnippet>1481</a>        }
+<a href=#1482 id=1482 data-nosnippet>1482</a>    }
+<a href=#1483 id=1483 data-nosnippet>1483</a>    <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>state.transcript {
+<a href=#1484 id=1484 data-nosnippet>1484</a>        <span class="kw">let </span><span class="kw-2">mut </span>assistant_part_ranges = Vec::new();
+<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="kw">let </span><span class="kw-2">mut </span>assistant_child_lines = Vec::new();
+<a href=#1486 id=1486 data-nosnippet>1486</a>        <span class="kw">let </span>item_layout = transcript_item_layout(
+<a href=#1487 id=1487 data-nosnippet>1487</a>            state,
+<a href=#1488 id=1488 data-nosnippet>1488</a>            item,
+<a href=#1489 id=1489 data-nosnippet>1489</a>            <span class="kw-2">&amp;mut </span>TranscriptRenderContext {
+<a href=#1490 id=1490 data-nosnippet>1490</a>                expanded,
+<a href=#1491 id=1491 data-nosnippet>1491</a>                width,
+<a href=#1492 id=1492 data-nosnippet>1492</a>                theme,
+<a href=#1493 id=1493 data-nosnippet>1493</a>                highlighter,
+<a href=#1494 id=1494 data-nosnippet>1494</a>                minimum_event_level,
+<a href=#1495 id=1495 data-nosnippet>1495</a>                clock_bucket,
+<a href=#1496 id=1496 data-nosnippet>1496</a>                model_names: <span class="kw-2">&amp;</span>model_names,
+<a href=#1497 id=1497 data-nosnippet>1497</a>                assistant_part_cache: <span class="kw-2">&amp;mut </span>assistant_parts,
+<a href=#1498 id=1498 data-nosnippet>1498</a>                assistant_part_layout_passes: <span class="kw-2">&amp;mut </span>assistant_part_layout_passes,
+<a href=#1499 id=1499 data-nosnippet>1499</a>                assistant_part_ranges: <span class="kw-2">&amp;mut </span>assistant_part_ranges,
+<a href=#1500 id=1500 data-nosnippet>1500</a>                assistant_child_lines: <span class="kw-2">&amp;mut </span>assistant_child_lines,
+<a href=#1501 id=1501 data-nosnippet>1501</a>            },
+<a href=#1502 id=1502 data-nosnippet>1502</a>        );
+<a href=#1503 id=1503 data-nosnippet>1503</a>        append_item_layout(<span class="kw-2">&amp;mut </span>layout, item_layout);
+<a href=#1504 id=1504 data-nosnippet>1504</a>    }
+<a href=#1505 id=1505 data-nosnippet>1505</a>    layout
+<a href=#1506 id=1506 data-nosnippet>1506</a>}
+<a href=#1507 id=1507 data-nosnippet>1507</a>
+<a href=#1508 id=1508 data-nosnippet>1508</a><span class="doccomment">/// One blank row of breathing room between top-level transcript items, so
+<a href=#1509 id=1509 data-nosnippet>1509</a>/// messages never butt against each other. Items that render nothing
+<a href=#1510 id=1510 data-nosnippet>1510</a>/// (event rows below the level filter) contribute no lines and no spacer —
+<a href=#1511 id=1511 data-nosnippet>1511</a>/// never a leading, trailing, or doubled blank row.
+<a href=#1512 id=1512 data-nosnippet>1512</a></span><span class="kw">fn </span>append_item_layout(assembled: <span class="kw-2">&amp;mut </span>TranscriptLayout, item_layout: ItemLayout) {
+<a href=#1513 id=1513 data-nosnippet>1513</a>    <span class="kw">if </span>item_layout.lines.is_empty() {
+<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="kw">return</span>;
 <a href=#1515 id=1515 data-nosnippet>1515</a>    }
-<a href=#1516 id=1516 data-nosnippet>1516</a>    <span class="kw">let </span>start_line = assembled.lines.len();
-<a href=#1517 id=1517 data-nosnippet>1517</a>    <span class="kw">let </span>end_line = start_line + item_layout.lines.len();
-<a href=#1518 id=1518 data-nosnippet>1518</a>    assembled.lines.extend(item_layout.lines);
-<a href=#1519 id=1519 data-nosnippet>1519</a>    <span class="kw">for </span>region <span class="kw">in </span>item_layout.regions {
-<a href=#1520 id=1520 data-nosnippet>1520</a>        assembled.regions.push(BlockRegion {
-<a href=#1521 id=1521 data-nosnippet>1521</a>            id: region.id,
-<a href=#1522 id=1522 data-nosnippet>1522</a>            start_line: start_line + region.start_line,
-<a href=#1523 id=1523 data-nosnippet>1523</a>            end_line: start_line + region.end_line,
-<a href=#1524 id=1524 data-nosnippet>1524</a>            ..region
-<a href=#1525 id=1525 data-nosnippet>1525</a>        });
-<a href=#1526 id=1526 data-nosnippet>1526</a>    }
-<a href=#1527 id=1527 data-nosnippet>1527</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(seq) = item_layout.user_seq {
-<a href=#1528 id=1528 data-nosnippet>1528</a>        assembled.user_regions.push(UserRegion {
-<a href=#1529 id=1529 data-nosnippet>1529</a>            seq,
-<a href=#1530 id=1530 data-nosnippet>1530</a>            start_line,
-<a href=#1531 id=1531 data-nosnippet>1531</a>            end_line,
-<a href=#1532 id=1532 data-nosnippet>1532</a>        });
-<a href=#1533 id=1533 data-nosnippet>1533</a>    }
-<a href=#1534 id=1534 data-nosnippet>1534</a>}
-<a href=#1535 id=1535 data-nosnippet>1535</a>
-<a href=#1536 id=1536 data-nosnippet>1536</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_hit(
-<a href=#1537 id=1537 data-nosnippet>1537</a>    region: BlockRegion,
-<a href=#1538 id=1538 data-nosnippet>1538</a>    lines: <span class="kw-2">&amp;</span>[Line&lt;<span class="lifetime">'static</span>&gt;],
-<a href=#1539 id=1539 data-nosnippet>1539</a>    viewport: Rect,
-<a href=#1540 id=1540 data-nosnippet>1540</a>    scroll_offset: usize,
-<a href=#1541 id=1541 data-nosnippet>1541</a>) -&gt; <span class="prelude-ty">Option</span>&lt;BlockHit&gt; {
-<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="kw">let </span>viewport_end = scroll_offset.saturating_add(usize::from(viewport.height));
-<a href=#1543 id=1543 data-nosnippet>1543</a>    <span class="kw">let </span>start = region.start_line.max(scroll_offset);
-<a href=#1544 id=1544 data-nosnippet>1544</a>    <span class="kw">let </span>end = region.end_line.min(viewport_end);
-<a href=#1545 id=1545 data-nosnippet>1545</a>    <span class="kw">let </span>header_end = region
-<a href=#1546 id=1546 data-nosnippet>1546</a>        .header_lines
-<a href=#1547 id=1547 data-nosnippet>1547</a>        .map_or(start.saturating_add(<span class="number">1</span>), |height| {
-<a href=#1548 id=1548 data-nosnippet>1548</a>            region.start_line.saturating_add(height)
-<a href=#1549 id=1549 data-nosnippet>1549</a>        })
-<a href=#1550 id=1550 data-nosnippet>1550</a>        .min(end);
-<a href=#1551 id=1551 data-nosnippet>1551</a>    <span class="comment">// The block's own content columns: everything right of its leading gutter
-<a href=#1552 id=1552 data-nosnippet>1552</a>    // and left of the viewport edge, which already stops before the reserved
-<a href=#1553 id=1553 data-nosnippet>1553</a>    // scrollbar columns. Highlights share this rect with the band and the
-<a href=#1554 id=1554 data-nosnippet>1554</a>    // selection so no painted row ever covers a `│` border or the track.
-<a href=#1555 id=1555 data-nosnippet>1555</a>    // Hit rectangles stay viewport-wide on purpose: the gutter and the blank
-<a href=#1556 id=1556 data-nosnippet>1556</a>    // tail of a row must still click, toggle and drag.
-<a href=#1557 id=1557 data-nosnippet>1557</a>    //
-<a href=#1558 id=1558 data-nosnippet>1558</a>    // The block's header rows stand behind their gutter, and only behind it:
-<a href=#1559 id=1559 data-nosnippet>1559</a>    // a builder that counted its own spans says how wide that is, which is the
-<a href=#1560 id=1560 data-nosnippet>1560</a>    // only reading that cannot mistake `"│ "` arriving as command output — a
-<a href=#1561 id=1561 data-nosnippet>1561</a>    // tree listing, a diff body — for a second gutter and hide real columns.
-<a href=#1562 id=1562 data-nosnippet>1562</a>    // Regions whose builders do not count fall back to reading the row; the
-<a href=#1563 id=1563 data-nosnippet>1563</a>    // walk is bounded to header rows, which carry the block's own gutter, and
-<a href=#1564 id=1564 data-nosnippet>1564</a>    // resolves the one case a bare line cannot settle — leading spaces that
-<a href=#1565 id=1565 data-nosnippet>1565</a>    // could be a continuation indent or indentation inside the content — as
-<a href=#1566 id=1566 data-nosnippet>1566</a>    // content, matching `extract_line` rather than hiding columns a reader
-<a href=#1567 id=1567 data-nosnippet>1567</a>    // could have selected.
-<a href=#1568 id=1568 data-nosnippet>1568</a>    </span><span class="kw">let </span>hovered = start.min(lines.len())..header_end.max(start).min(lines.len());
-<a href=#1569 id=1569 data-nosnippet>1569</a>    <span class="kw">let </span>gutter = region.header_gutter.unwrap_or_else(|| {
-<a href=#1570 id=1570 data-nosnippet>1570</a>        lines[hovered]
-<a href=#1571 id=1571 data-nosnippet>1571</a>            .iter()
-<a href=#1572 id=1572 data-nosnippet>1572</a>            .map(leading_gutter_columns)
-<a href=#1573 id=1573 data-nosnippet>1573</a>            .max()
-<a href=#1574 id=1574 data-nosnippet>1574</a>            .unwrap_or(<span class="number">0</span>)
-<a href=#1575 id=1575 data-nosnippet>1575</a>    });
-<a href=#1576 id=1576 data-nosnippet>1576</a>    <span class="kw">let </span>content = Rect::new(
-<a href=#1577 id=1577 data-nosnippet>1577</a>        viewport.x.saturating_add(gutter),
-<a href=#1578 id=1578 data-nosnippet>1578</a>        viewport.y,
-<a href=#1579 id=1579 data-nosnippet>1579</a>        viewport.width.saturating_sub(gutter),
-<a href=#1580 id=1580 data-nosnippet>1580</a>        viewport.height,
-<a href=#1581 id=1581 data-nosnippet>1581</a>    );
-<a href=#1582 id=1582 data-nosnippet>1582</a>    (start &lt; end).then(|| BlockHit {
-<a href=#1583 id=1583 data-nosnippet>1583</a>        rect: Rect::new(
-<a href=#1584 id=1584 data-nosnippet>1584</a>            viewport.x,
-<a href=#1585 id=1585 data-nosnippet>1585</a>            viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
-<a href=#1586 id=1586 data-nosnippet>1586</a>            viewport.width,
-<a href=#1587 id=1587 data-nosnippet>1587</a>            u16::try_from(end - start).unwrap_or(u16::MAX),
-<a href=#1588 id=1588 data-nosnippet>1588</a>        ),
-<a href=#1589 id=1589 data-nosnippet>1589</a>        id: region.id,
-<a href=#1590 id=1590 data-nosnippet>1590</a>        toggle_rect: <span class="kw">if </span><span class="macro">matches!</span>(region.id, BlockId::ToolOutput { .. }) {
-<a href=#1591 id=1591 data-nosnippet>1591</a>            <span class="comment">// Output regions are built solely from append_output_notice rows.
-<a href=#1592 id=1592 data-nosnippet>1592</a>            </span>(region.start_line &gt;= scroll_offset).then(|| {
-<a href=#1593 id=1593 data-nosnippet>1593</a>                Rect::new(
-<a href=#1594 id=1594 data-nosnippet>1594</a>                    viewport.x,
-<a href=#1595 id=1595 data-nosnippet>1595</a>                    viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
-<a href=#1596 id=1596 data-nosnippet>1596</a>                    viewport.width,
-<a href=#1597 id=1597 data-nosnippet>1597</a>                    <span class="number">1</span>,
-<a href=#1598 id=1598 data-nosnippet>1598</a>                )
-<a href=#1599 id=1599 data-nosnippet>1599</a>            })
-<a href=#1600 id=1600 data-nosnippet>1600</a>        } <span class="kw">else </span>{
-<a href=#1601 id=1601 data-nosnippet>1601</a>            (start &lt; header_end).then(|| {
-<a href=#1602 id=1602 data-nosnippet>1602</a>                Rect::new(
-<a href=#1603 id=1603 data-nosnippet>1603</a>                    viewport.x,
-<a href=#1604 id=1604 data-nosnippet>1604</a>                    viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
-<a href=#1605 id=1605 data-nosnippet>1605</a>                    viewport.width,
-<a href=#1606 id=1606 data-nosnippet>1606</a>                    u16::try_from(header_end - start).unwrap_or(u16::MAX),
-<a href=#1607 id=1607 data-nosnippet>1607</a>                )
-<a href=#1608 id=1608 data-nosnippet>1608</a>            })
-<a href=#1609 id=1609 data-nosnippet>1609</a>        },
-<a href=#1610 id=1610 data-nosnippet>1610</a>        hover_rect: (start &lt; header_end).then(|| {
-<a href=#1611 id=1611 data-nosnippet>1611</a>            Rect::new(
-<a href=#1612 id=1612 data-nosnippet>1612</a>                content.x,
-<a href=#1613 id=1613 data-nosnippet>1613</a>                viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
-<a href=#1614 id=1614 data-nosnippet>1614</a>                content.width,
-<a href=#1615 id=1615 data-nosnippet>1615</a>                u16::try_from(header_end - start).unwrap_or(u16::MAX),
-<a href=#1616 id=1616 data-nosnippet>1616</a>            )
-<a href=#1617 id=1617 data-nosnippet>1617</a>        }),
-<a href=#1618 id=1618 data-nosnippet>1618</a>    })
-<a href=#1619 id=1619 data-nosnippet>1619</a>}
-<a href=#1620 id=1620 data-nosnippet>1620</a>
-<a href=#1621 id=1621 data-nosnippet>1621</a><span class="doccomment">/// The user-message analogue of [`block_hit`]: clip a message's logical-line
-<a href=#1622 id=1622 data-nosnippet>1622</a>/// range to the visible window so its rows open the copy/revert/fork menu.
-<a href=#1623 id=1623 data-nosnippet>1623</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>user_message_hit(
-<a href=#1624 id=1624 data-nosnippet>1624</a>    region: UserRegion,
-<a href=#1625 id=1625 data-nosnippet>1625</a>    viewport: Rect,
-<a href=#1626 id=1626 data-nosnippet>1626</a>    scroll_offset: usize,
-<a href=#1627 id=1627 data-nosnippet>1627</a>) -&gt; <span class="prelude-ty">Option</span>&lt;UserMessageHit&gt; {
-<a href=#1628 id=1628 data-nosnippet>1628</a>    <span class="kw">let </span>viewport_end = scroll_offset.saturating_add(usize::from(viewport.height));
-<a href=#1629 id=1629 data-nosnippet>1629</a>    <span class="kw">let </span>start = region.start_line.max(scroll_offset);
-<a href=#1630 id=1630 data-nosnippet>1630</a>    <span class="kw">let </span>end = region.end_line.min(viewport_end);
-<a href=#1631 id=1631 data-nosnippet>1631</a>    (start &lt; end).then(|| UserMessageHit {
-<a href=#1632 id=1632 data-nosnippet>1632</a>        rect: Rect::new(
-<a href=#1633 id=1633 data-nosnippet>1633</a>            viewport.x,
-<a href=#1634 id=1634 data-nosnippet>1634</a>            viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
-<a href=#1635 id=1635 data-nosnippet>1635</a>            viewport.width,
-<a href=#1636 id=1636 data-nosnippet>1636</a>            u16::try_from(end - start).unwrap_or(u16::MAX),
-<a href=#1637 id=1637 data-nosnippet>1637</a>        ),
-<a href=#1638 id=1638 data-nosnippet>1638</a>        seq: region.seq,
-<a href=#1639 id=1639 data-nosnippet>1639</a>    })
-<a href=#1640 id=1640 data-nosnippet>1640</a>}
-<a href=#1641 id=1641 data-nosnippet>1641</a>
-<a href=#1642 id=1642 data-nosnippet>1642</a><span class="attr">#[cfg(test)]
-<a href=#1643 id=1643 data-nosnippet>1643</a></span><span class="kw">mod </span>tests;
+<a href=#1516 id=1516 data-nosnippet>1516</a>    <span class="kw">if </span>!assembled.lines.is_empty() {
+<a href=#1517 id=1517 data-nosnippet>1517</a>        assembled.lines.push(Line::default());
+<a href=#1518 id=1518 data-nosnippet>1518</a>    }
+<a href=#1519 id=1519 data-nosnippet>1519</a>    <span class="kw">let </span>start_line = assembled.lines.len();
+<a href=#1520 id=1520 data-nosnippet>1520</a>    <span class="kw">let </span>end_line = start_line + item_layout.lines.len();
+<a href=#1521 id=1521 data-nosnippet>1521</a>    assembled.lines.extend(item_layout.lines);
+<a href=#1522 id=1522 data-nosnippet>1522</a>    <span class="kw">for </span>region <span class="kw">in </span>item_layout.regions {
+<a href=#1523 id=1523 data-nosnippet>1523</a>        assembled.regions.push(BlockRegion {
+<a href=#1524 id=1524 data-nosnippet>1524</a>            id: region.id,
+<a href=#1525 id=1525 data-nosnippet>1525</a>            start_line: start_line + region.start_line,
+<a href=#1526 id=1526 data-nosnippet>1526</a>            end_line: start_line + region.end_line,
+<a href=#1527 id=1527 data-nosnippet>1527</a>            ..region
+<a href=#1528 id=1528 data-nosnippet>1528</a>        });
+<a href=#1529 id=1529 data-nosnippet>1529</a>    }
+<a href=#1530 id=1530 data-nosnippet>1530</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(seq) = item_layout.user_seq {
+<a href=#1531 id=1531 data-nosnippet>1531</a>        assembled.user_regions.push(UserRegion {
+<a href=#1532 id=1532 data-nosnippet>1532</a>            seq,
+<a href=#1533 id=1533 data-nosnippet>1533</a>            start_line,
+<a href=#1534 id=1534 data-nosnippet>1534</a>            end_line,
+<a href=#1535 id=1535 data-nosnippet>1535</a>        });
+<a href=#1536 id=1536 data-nosnippet>1536</a>    }
+<a href=#1537 id=1537 data-nosnippet>1537</a>}
+<a href=#1538 id=1538 data-nosnippet>1538</a>
+<a href=#1539 id=1539 data-nosnippet>1539</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_hit(
+<a href=#1540 id=1540 data-nosnippet>1540</a>    region: BlockRegion,
+<a href=#1541 id=1541 data-nosnippet>1541</a>    lines: <span class="kw-2">&amp;</span>[Line&lt;<span class="lifetime">'static</span>&gt;],
+<a href=#1542 id=1542 data-nosnippet>1542</a>    viewport: Rect,
+<a href=#1543 id=1543 data-nosnippet>1543</a>    scroll_offset: usize,
+<a href=#1544 id=1544 data-nosnippet>1544</a>) -&gt; <span class="prelude-ty">Option</span>&lt;BlockHit&gt; {
+<a href=#1545 id=1545 data-nosnippet>1545</a>    <span class="kw">let </span>viewport_end = scroll_offset.saturating_add(usize::from(viewport.height));
+<a href=#1546 id=1546 data-nosnippet>1546</a>    <span class="kw">let </span>start = region.start_line.max(scroll_offset);
+<a href=#1547 id=1547 data-nosnippet>1547</a>    <span class="kw">let </span>end = region.end_line.min(viewport_end);
+<a href=#1548 id=1548 data-nosnippet>1548</a>    <span class="kw">let </span>header_end = region
+<a href=#1549 id=1549 data-nosnippet>1549</a>        .header_lines
+<a href=#1550 id=1550 data-nosnippet>1550</a>        .map_or(start.saturating_add(<span class="number">1</span>), |height| {
+<a href=#1551 id=1551 data-nosnippet>1551</a>            region.start_line.saturating_add(height)
+<a href=#1552 id=1552 data-nosnippet>1552</a>        })
+<a href=#1553 id=1553 data-nosnippet>1553</a>        .min(end);
+<a href=#1554 id=1554 data-nosnippet>1554</a>    <span class="comment">// The block's own content columns: everything right of its leading gutter
+<a href=#1555 id=1555 data-nosnippet>1555</a>    // and left of the viewport edge, which already stops before the reserved
+<a href=#1556 id=1556 data-nosnippet>1556</a>    // scrollbar columns. Highlights share this rect with the band and the
+<a href=#1557 id=1557 data-nosnippet>1557</a>    // selection so no painted row ever covers a `│` border or the track.
+<a href=#1558 id=1558 data-nosnippet>1558</a>    // Hit rectangles stay viewport-wide on purpose: the gutter and the blank
+<a href=#1559 id=1559 data-nosnippet>1559</a>    // tail of a row must still click, toggle and drag.
+<a href=#1560 id=1560 data-nosnippet>1560</a>    //
+<a href=#1561 id=1561 data-nosnippet>1561</a>    // The block's header rows stand behind their gutter, and only behind it:
+<a href=#1562 id=1562 data-nosnippet>1562</a>    // a builder that counted its own spans says how wide that is, which is the
+<a href=#1563 id=1563 data-nosnippet>1563</a>    // only reading that cannot mistake `"│ "` arriving as command output — a
+<a href=#1564 id=1564 data-nosnippet>1564</a>    // tree listing, a diff body — for a second gutter and hide real columns.
+<a href=#1565 id=1565 data-nosnippet>1565</a>    // Regions whose builders do not count fall back to reading the row; the
+<a href=#1566 id=1566 data-nosnippet>1566</a>    // walk is bounded to header rows, which carry the block's own gutter, and
+<a href=#1567 id=1567 data-nosnippet>1567</a>    // resolves the one case a bare line cannot settle — leading spaces that
+<a href=#1568 id=1568 data-nosnippet>1568</a>    // could be a continuation indent or indentation inside the content — as
+<a href=#1569 id=1569 data-nosnippet>1569</a>    // content, matching `extract_line` rather than hiding columns a reader
+<a href=#1570 id=1570 data-nosnippet>1570</a>    // could have selected.
+<a href=#1571 id=1571 data-nosnippet>1571</a>    </span><span class="kw">let </span>hovered = start.min(lines.len())..header_end.max(start).min(lines.len());
+<a href=#1572 id=1572 data-nosnippet>1572</a>    <span class="kw">let </span>gutter = region.header_gutter.unwrap_or_else(|| {
+<a href=#1573 id=1573 data-nosnippet>1573</a>        lines[hovered]
+<a href=#1574 id=1574 data-nosnippet>1574</a>            .iter()
+<a href=#1575 id=1575 data-nosnippet>1575</a>            .map(leading_gutter_columns)
+<a href=#1576 id=1576 data-nosnippet>1576</a>            .max()
+<a href=#1577 id=1577 data-nosnippet>1577</a>            .unwrap_or(<span class="number">0</span>)
+<a href=#1578 id=1578 data-nosnippet>1578</a>    });
+<a href=#1579 id=1579 data-nosnippet>1579</a>    <span class="kw">let </span>content = Rect::new(
+<a href=#1580 id=1580 data-nosnippet>1580</a>        viewport.x.saturating_add(gutter),
+<a href=#1581 id=1581 data-nosnippet>1581</a>        viewport.y,
+<a href=#1582 id=1582 data-nosnippet>1582</a>        viewport.width.saturating_sub(gutter),
+<a href=#1583 id=1583 data-nosnippet>1583</a>        viewport.height,
+<a href=#1584 id=1584 data-nosnippet>1584</a>    );
+<a href=#1585 id=1585 data-nosnippet>1585</a>    (start &lt; end).then(|| BlockHit {
+<a href=#1586 id=1586 data-nosnippet>1586</a>        rect: Rect::new(
+<a href=#1587 id=1587 data-nosnippet>1587</a>            viewport.x,
+<a href=#1588 id=1588 data-nosnippet>1588</a>            viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
+<a href=#1589 id=1589 data-nosnippet>1589</a>            viewport.width,
+<a href=#1590 id=1590 data-nosnippet>1590</a>            u16::try_from(end - start).unwrap_or(u16::MAX),
+<a href=#1591 id=1591 data-nosnippet>1591</a>        ),
+<a href=#1592 id=1592 data-nosnippet>1592</a>        id: region.id,
+<a href=#1593 id=1593 data-nosnippet>1593</a>        toggle_rect: <span class="kw">if </span><span class="macro">matches!</span>(region.id, BlockId::ToolOutput { .. }) {
+<a href=#1594 id=1594 data-nosnippet>1594</a>            <span class="comment">// Output regions are built solely from append_output_notice rows.
+<a href=#1595 id=1595 data-nosnippet>1595</a>            </span>(region.start_line &gt;= scroll_offset).then(|| {
+<a href=#1596 id=1596 data-nosnippet>1596</a>                Rect::new(
+<a href=#1597 id=1597 data-nosnippet>1597</a>                    viewport.x,
+<a href=#1598 id=1598 data-nosnippet>1598</a>                    viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
+<a href=#1599 id=1599 data-nosnippet>1599</a>                    viewport.width,
+<a href=#1600 id=1600 data-nosnippet>1600</a>                    <span class="number">1</span>,
+<a href=#1601 id=1601 data-nosnippet>1601</a>                )
+<a href=#1602 id=1602 data-nosnippet>1602</a>            })
+<a href=#1603 id=1603 data-nosnippet>1603</a>        } <span class="kw">else </span>{
+<a href=#1604 id=1604 data-nosnippet>1604</a>            (start &lt; header_end).then(|| {
+<a href=#1605 id=1605 data-nosnippet>1605</a>                Rect::new(
+<a href=#1606 id=1606 data-nosnippet>1606</a>                    viewport.x,
+<a href=#1607 id=1607 data-nosnippet>1607</a>                    viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
+<a href=#1608 id=1608 data-nosnippet>1608</a>                    viewport.width,
+<a href=#1609 id=1609 data-nosnippet>1609</a>                    u16::try_from(header_end - start).unwrap_or(u16::MAX),
+<a href=#1610 id=1610 data-nosnippet>1610</a>                )
+<a href=#1611 id=1611 data-nosnippet>1611</a>            })
+<a href=#1612 id=1612 data-nosnippet>1612</a>        },
+<a href=#1613 id=1613 data-nosnippet>1613</a>        hover_rect: (start &lt; header_end).then(|| {
+<a href=#1614 id=1614 data-nosnippet>1614</a>            Rect::new(
+<a href=#1615 id=1615 data-nosnippet>1615</a>                content.x,
+<a href=#1616 id=1616 data-nosnippet>1616</a>                viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
+<a href=#1617 id=1617 data-nosnippet>1617</a>                content.width,
+<a href=#1618 id=1618 data-nosnippet>1618</a>                u16::try_from(header_end - start).unwrap_or(u16::MAX),
+<a href=#1619 id=1619 data-nosnippet>1619</a>            )
+<a href=#1620 id=1620 data-nosnippet>1620</a>        }),
+<a href=#1621 id=1621 data-nosnippet>1621</a>    })
+<a href=#1622 id=1622 data-nosnippet>1622</a>}
+<a href=#1623 id=1623 data-nosnippet>1623</a>
+<a href=#1624 id=1624 data-nosnippet>1624</a><span class="doccomment">/// The user-message analogue of [`block_hit`]: clip a message's logical-line
+<a href=#1625 id=1625 data-nosnippet>1625</a>/// range to the visible window so its rows open the copy/revert/fork menu.
+<a href=#1626 id=1626 data-nosnippet>1626</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>user_message_hit(
+<a href=#1627 id=1627 data-nosnippet>1627</a>    region: UserRegion,
+<a href=#1628 id=1628 data-nosnippet>1628</a>    viewport: Rect,
+<a href=#1629 id=1629 data-nosnippet>1629</a>    scroll_offset: usize,
+<a href=#1630 id=1630 data-nosnippet>1630</a>) -&gt; <span class="prelude-ty">Option</span>&lt;UserMessageHit&gt; {
+<a href=#1631 id=1631 data-nosnippet>1631</a>    <span class="kw">let </span>viewport_end = scroll_offset.saturating_add(usize::from(viewport.height));
+<a href=#1632 id=1632 data-nosnippet>1632</a>    <span class="kw">let </span>start = region.start_line.max(scroll_offset);
+<a href=#1633 id=1633 data-nosnippet>1633</a>    <span class="kw">let </span>end = region.end_line.min(viewport_end);
+<a href=#1634 id=1634 data-nosnippet>1634</a>    (start &lt; end).then(|| UserMessageHit {
+<a href=#1635 id=1635 data-nosnippet>1635</a>        rect: Rect::new(
+<a href=#1636 id=1636 data-nosnippet>1636</a>            viewport.x,
+<a href=#1637 id=1637 data-nosnippet>1637</a>            viewport.y + u16::try_from(start - scroll_offset).unwrap_or(u16::MAX),
+<a href=#1638 id=1638 data-nosnippet>1638</a>            viewport.width,
+<a href=#1639 id=1639 data-nosnippet>1639</a>            u16::try_from(end - start).unwrap_or(u16::MAX),
+<a href=#1640 id=1640 data-nosnippet>1640</a>        ),
+<a href=#1641 id=1641 data-nosnippet>1641</a>        seq: region.seq,
+<a href=#1642 id=1642 data-nosnippet>1642</a>    })
+<a href=#1643 id=1643 data-nosnippet>1643</a>}
+<a href=#1644 id=1644 data-nosnippet>1644</a>
+<a href=#1645 id=1645 data-nosnippet>1645</a><span class="attr">#[cfg(test)]
+<a href=#1646 id=1646 data-nosnippet>1646</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
