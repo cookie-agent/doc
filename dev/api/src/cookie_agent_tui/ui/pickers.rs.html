@@ -394,38 +394,46 @@
 <a href=#394 id=394 data-nosnippet>394</a>    entries.push((tree.session.session_id, tree.session.clone(), depth));
 <a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">if </span>!collapsed.contains(<span class="kw-2">&amp;</span>tree.session.session_id) {
 <a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span><span class="kw-2">mut </span>children = tree.children.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#397 id=397 data-nosnippet>397</a>        children.sort_by(|left, right| {
-<a href=#398 id=398 data-nosnippet>398</a>            <span class="kw">let </span>left_state = states.get(<span class="kw-2">&amp;</span>left.session.session_id);
-<a href=#399 id=399 data-nosnippet>399</a>            <span class="kw">let </span>right_state = states.get(<span class="kw-2">&amp;</span>right.session.session_id);
-<a href=#400 id=400 data-nosnippet>400</a>            right_state
-<a href=#401 id=401 data-nosnippet>401</a>                .and_then(|state| state.last_agent_activity)
-<a href=#402 id=402 data-nosnippet>402</a>                .cmp(<span class="kw-2">&amp;</span>left_state.and_then(|state| state.last_agent_activity))
-<a href=#403 id=403 data-nosnippet>403</a>                .then_with(|| {
-<a href=#404 id=404 data-nosnippet>404</a>                    <span class="kw">match </span>(
-<a href=#405 id=405 data-nosnippet>405</a>                        left_state.and_then(|state| state.created_at),
-<a href=#406 id=406 data-nosnippet>406</a>                        right_state.and_then(|state| state.created_at),
-<a href=#407 id=407 data-nosnippet>407</a>                    ) {
-<a href=#408 id=408 data-nosnippet>408</a>                        (<span class="prelude-val">Some</span>(left), <span class="prelude-val">Some</span>(right)) =&gt; left.cmp(<span class="kw-2">&amp;</span>right),
-<a href=#409 id=409 data-nosnippet>409</a>                        <span class="kw">_ </span>=&gt; left.session.session_id.cmp(<span class="kw-2">&amp;</span>right.session.session_id),
-<a href=#410 id=410 data-nosnippet>410</a>                    }
-<a href=#411 id=411 data-nosnippet>411</a>                })
-<a href=#412 id=412 data-nosnippet>412</a>                .then_with(|| left.session.session_id.cmp(<span class="kw-2">&amp;</span>right.session.session_id))
-<a href=#413 id=413 data-nosnippet>413</a>        });
-<a href=#414 id=414 data-nosnippet>414</a>        <span class="kw">for </span>child <span class="kw">in </span>children {
-<a href=#415 id=415 data-nosnippet>415</a>            flatten_tree(child, depth + <span class="number">1</span>, collapsed, states, entries);
-<a href=#416 id=416 data-nosnippet>416</a>        }
-<a href=#417 id=417 data-nosnippet>417</a>    }
-<a href=#418 id=418 data-nosnippet>418</a>}
-<a href=#419 id=419 data-nosnippet>419</a>
-<a href=#420 id=420 data-nosnippet>420</a><span class="kw">fn </span>inner_rect(area: Rect) -&gt; Rect {
-<a href=#421 id=421 data-nosnippet>421</a>    Rect::new(
-<a href=#422 id=422 data-nosnippet>422</a>        area.x.saturating_add(<span class="number">1</span>),
-<a href=#423 id=423 data-nosnippet>423</a>        area.y.saturating_add(<span class="number">1</span>),
-<a href=#424 id=424 data-nosnippet>424</a>        area.width.saturating_sub(<span class="number">2</span>),
-<a href=#425 id=425 data-nosnippet>425</a>        area.height.saturating_sub(<span class="number">2</span>),
-<a href=#426 id=426 data-nosnippet>426</a>    )
-<a href=#427 id=427 data-nosnippet>427</a>}
-<a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a><span class="attr">#[cfg(test)]
-<a href=#430 id=430 data-nosnippet>430</a></span><span class="kw">mod </span>tests;
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="comment">// A child this view has replayed knows its activity live; any other
+<a href=#398 id=398 data-nosnippet>398</a>        // (every child of a freshly opened session) has it from the engine's
+<a href=#399 id=399 data-nosnippet>399</a>        // fold of its log, carried in the tree's metadata.
+<a href=#400 id=400 data-nosnippet>400</a>        </span><span class="kw">let </span>activity = |child: <span class="kw-2">&amp;</span>SessionTree| {
+<a href=#401 id=401 data-nosnippet>401</a>            states
+<a href=#402 id=402 data-nosnippet>402</a>                .get(<span class="kw-2">&amp;</span>child.session.session_id)
+<a href=#403 id=403 data-nosnippet>403</a>                .and_then(|state| state.last_agent_activity)
+<a href=#404 id=404 data-nosnippet>404</a>                .or(child.session.last_agent_activity)
+<a href=#405 id=405 data-nosnippet>405</a>        };
+<a href=#406 id=406 data-nosnippet>406</a>        children.sort_by(|left, right| {
+<a href=#407 id=407 data-nosnippet>407</a>            <span class="kw">let </span>left_state = states.get(<span class="kw-2">&amp;</span>left.session.session_id);
+<a href=#408 id=408 data-nosnippet>408</a>            <span class="kw">let </span>right_state = states.get(<span class="kw-2">&amp;</span>right.session.session_id);
+<a href=#409 id=409 data-nosnippet>409</a>            activity(right)
+<a href=#410 id=410 data-nosnippet>410</a>                .cmp(<span class="kw-2">&amp;</span>activity(left))
+<a href=#411 id=411 data-nosnippet>411</a>                .then_with(|| {
+<a href=#412 id=412 data-nosnippet>412</a>                    <span class="kw">match </span>(
+<a href=#413 id=413 data-nosnippet>413</a>                        left_state.and_then(|state| state.created_at),
+<a href=#414 id=414 data-nosnippet>414</a>                        right_state.and_then(|state| state.created_at),
+<a href=#415 id=415 data-nosnippet>415</a>                    ) {
+<a href=#416 id=416 data-nosnippet>416</a>                        (<span class="prelude-val">Some</span>(left), <span class="prelude-val">Some</span>(right)) =&gt; left.cmp(<span class="kw-2">&amp;</span>right),
+<a href=#417 id=417 data-nosnippet>417</a>                        <span class="kw">_ </span>=&gt; left.session.session_id.cmp(<span class="kw-2">&amp;</span>right.session.session_id),
+<a href=#418 id=418 data-nosnippet>418</a>                    }
+<a href=#419 id=419 data-nosnippet>419</a>                })
+<a href=#420 id=420 data-nosnippet>420</a>                .then_with(|| left.session.session_id.cmp(<span class="kw-2">&amp;</span>right.session.session_id))
+<a href=#421 id=421 data-nosnippet>421</a>        });
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="kw">for </span>child <span class="kw">in </span>children {
+<a href=#423 id=423 data-nosnippet>423</a>            flatten_tree(child, depth + <span class="number">1</span>, collapsed, states, entries);
+<a href=#424 id=424 data-nosnippet>424</a>        }
+<a href=#425 id=425 data-nosnippet>425</a>    }
+<a href=#426 id=426 data-nosnippet>426</a>}
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a><span class="kw">fn </span>inner_rect(area: Rect) -&gt; Rect {
+<a href=#429 id=429 data-nosnippet>429</a>    Rect::new(
+<a href=#430 id=430 data-nosnippet>430</a>        area.x.saturating_add(<span class="number">1</span>),
+<a href=#431 id=431 data-nosnippet>431</a>        area.y.saturating_add(<span class="number">1</span>),
+<a href=#432 id=432 data-nosnippet>432</a>        area.width.saturating_sub(<span class="number">2</span>),
+<a href=#433 id=433 data-nosnippet>433</a>        area.height.saturating_sub(<span class="number">2</span>),
+<a href=#434 id=434 data-nosnippet>434</a>    )
+<a href=#435 id=435 data-nosnippet>435</a>}
+<a href=#436 id=436 data-nosnippet>436</a>
+<a href=#437 id=437 data-nosnippet>437</a><span class="attr">#[cfg(test)]
+<a href=#438 id=438 data-nosnippet>438</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
