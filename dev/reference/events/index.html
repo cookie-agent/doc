@@ -2002,23 +2002,31 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 </tr>
 <tr>
 <td>Internal agents</td>
-<td><code>internal_agent_started</code>, <code>internal_agent_usage_recorded</code>, <code>internal_agent_completed</code>, <code>internal_agent_failed</code>, <code>internal_agent_cancelled</code>, <code>internal_agent_interrupted</code>, <code>internal_agent_fallback</code></td>
+<td><code>internal_agent_started</code>, <code>internal_agent_usage_recorded</code>, <code>internal_agent_completed</code>, <code>internal_agent_failed</code>, <code>internal_agent_cancelled</code>, <code>internal_agent_interrupted</code>, <code>internal_agent_fallback</code>; live-only: <code>internal_agent_text_delta</code></td>
 </tr>
 <tr>
 <td>Compaction</td>
-<td><code>context_checkpoint_committed</code>; legacy read/render only: <code>context_rehydrated</code></td>
+<td><code>context_checkpoint_committed</code>; live-only: <code>native_compaction_started</code>, <code>native_compaction_finished</code>; legacy read/render only: <code>context_rehydrated</code></td>
 </tr>
 </tbody>
 </table>
 <h3 id="live-only-stream-output">Live-only stream output<a class="headerlink" href="#live-only-stream-output" title="Permanent link">&para;</a></h3>
-<p><code>text_delta</code>, <code>reasoning_delta</code>, and <code>tool_call_progress</code> are live-only. The
-engine delivers them to event subscribers and plugins as they stream but never
-appends them to <code>events.jsonl</code> or to a session's in-memory log, and a stored
-record carrying one fails validation. Their durable record is the committed
-turn (<code>model_turn_committed</code>) and the tool termination (<code>tool_call_terminated</code>,
-with its retained output). A replay, a reload, or a view that attaches while a
-reply streams therefore sees finished turns only; the in-flight reply appears
-from the first live delta after attach, and its commit replaces it.</p>
+<p><code>text_delta</code>, <code>reasoning_delta</code>, <code>internal_agent_text_delta</code>,
+<code>native_compaction_started</code>, <code>native_compaction_finished</code>, and
+<code>tool_call_progress</code> are live-only. The engine delivers them to event
+subscribers and plugins as they stream but never appends them to
+<code>events.jsonl</code> or to a session's in-memory log, and a stored record carrying
+one fails validation. Their durable record is the committed turn
+(<code>model_turn_committed</code>), the tool termination (<code>tool_call_terminated</code>, with its
+retained output), and the internal agent's terminal event. A replay, a reload,
+or a view that attaches while a reply streams therefore sees finished turns
+only; the in-flight reply appears from the first live delta after attach, and
+its commit replaces it.</p>
+<p><code>internal_agent_text_delta</code> (<code>invocation_id</code>, <code>text</code>) streams the compaction
+agent's summary text. Other internal agents do not stream.
+<code>native_compaction_started</code> and <code>native_compaction_finished</code> (<code>resolved_model</code>)
+bracket a provider-native compaction call, whether or not it succeeds; a
+committed <code>context_checkpoint_committed</code> is the durable record of a success.</p>
 <p><code>model_output_started</code> (<code>attempt_id</code>, <code>kind</code>: <code>text</code> or <code>reasoning</code>) is the
 durable trace of streaming. The engine appends it before the first delta of each
 streamed part: an attempt's first output and every switch between text and
