@@ -1991,11 +1991,11 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 28 is current-only. A client must call <code>handshake</code> with
-<code>{ "protocol_version": 28 }</code> before any other method.</p>
+Protocol 30 is current-only. A client must call <code>handshake</code> with
+<code>{ "protocol_version": 30 }</code> before any other method.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 28.</p>
+members of protocol 30.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -2013,7 +2013,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 28 alongside independent display and output references. The
+preserved in protocol 30 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2104,7 +2104,7 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>session.create</code></td>
-<td>Run selection</td>
+<td>Run selection, optional <code>permission_mode</code>, optional <code>permission_rules</code> (the initial session overlay, at most 256 rules)</td>
 <td>Session metadata with skipped-event diagnostics</td>
 </tr>
 <tr>
@@ -2161,6 +2161,26 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td><code>session.rename</code></td>
 <td>Session ID, client rename ID, set/clear/reset change</td>
 <td>Session metadata and client ID</td>
+</tr>
+<tr>
+<td><code>session.permission.get</code></td>
+<td>Session ID</td>
+<td>Effective permissions per action and the tree's current mode</td>
+</tr>
+<tr>
+<td><code>session.permission.set</code></td>
+<td>Session ID, action, wildcard pattern, effect</td>
+<td>Effective permissions after the overlay change</td>
+</tr>
+<tr>
+<td><code>session.permission.clear</code></td>
+<td>Session ID, action, wildcard pattern</td>
+<td>Effective permissions after the overlay change</td>
+</tr>
+<tr>
+<td><code>session.permission.preview</code></td>
+<td>Run selection, optional overlay <code>rules</code></td>
+<td>Effective permissions a session created with them would have; creates nothing</td>
 </tr>
 <tr>
 <td><code>session.set_permission_mode</code></td>
@@ -2423,6 +2443,15 @@ flow waiting. Any other completion ends it. A <code>begin</code> with the pendin
 <code>redirect_uri</code> returns the same authorization URL; one with a different
 <code>redirect_uri</code> replaces the pending flow. Protocol 26 shipped only in a nightly
 build and is not reused.</p>
+<p>Protocol 30 lets a client configure permissions before a session exists.
+<code>session.create</code> accepts an optional <code>permission_mode</code> for the new tree and
+optional <code>permission_rules</code>, which are validated like any overlay (no duplicate
+action and pattern, at most 256) before the session is created and committed as
+its first <code>session_permission_overlay_set</code> event, so the first run already sees
+them. <code>session.permission.preview { selection, rules }</code> returns the effective
+permissions such a session would have, computed from the selection's frozen
+agent policy exactly as <code>session.permission.get</code> computes them for a live
+session.</p>
 <p>Session metadata includes additive <code>skipped_events</code> entries with the physical
 sequence (or source line number when no sequence was readable) and a safe reason.
 An empty array means the event log loaded without skipped records. Optional-field
