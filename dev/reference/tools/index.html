@@ -715,6 +715,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/subagent_output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Subagent Output [subagent_output]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/agent_md/" class="md-nav__link">
         
   
@@ -2210,11 +2233,29 @@ accepts. The effective model must also declare the modality and limits.</p>
 </tbody>
 </table>
 <h2 id="bash">Bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h2>
-<p><code>bash</code> accepts a complete <code>command</code>, an optional timeout in milliseconds, and
-<code>interactive</code> (default <code>false</code>). Interactive calls can receive bytes or EOF
+<p><code>bash</code> accepts a complete <code>command</code>, an optional <code>timeout</code> in milliseconds
+(default 120000; <code>0</code> never times out), <code>interactive</code> (default <code>false</code>), and
+<code>background</code> (default <code>false</code>). Interactive calls can receive bytes or EOF
 through the <code>run.tool_stdin</code> RPC while the call is active. Standard output and
 standard error are streamed separately during execution and retained as
 separate artifacts for the terminal result.</p>
+<p>The command runs in its own session and process group (a job object on
+Windows). When the shell exits, whatever it left in that group is killed, so
+<code>cmd &amp;</code> and <code>nohup cmd &amp;</code> do not outlive the call; only a process that leaves
+the group, such as one started with <code>setsid</code>, does.</p>
+<p>With <code>background: true</code> the call returns as soon as the command starts. Its
+result names the process ID, which is also the process group, so
+<code>kill -- -PID</code> stops the job early (<code>taskkill //T //F //PID PID</code> on Windows). The job keeps the same timeout and process-group
+cleanup. When it exits, the engine accepts one producer message owned by
+<code>tool { tool_call_id }</code> that steers into the active run or wakes the idle
+session: a <code>&lt;background_bash from="PID"&gt;</code> block with the command, the exit
+status and duration, and the job's standard output and standard error previewed
+exactly like a tool result: the first and last lines of each stream, with a
+<code>read</code> path into the retained artifact for anything omitted. The job reports only after its
+starting call is committed as completed. It is killed without a report if that
+call is cancelled before it commits, if a revert removes the call, if its
+session is deleted, or when the daemon stops. <code>background</code> cannot be combined
+with <code>interactive</code>.</p>
 <h2 id="retained-tool-output">Retained tool output<a class="headerlink" href="#retained-tool-output" title="Permanent link">&para;</a></h2>
 <p>Tools declare <code>ToolOutputDeclaration::Single</code> or an ordered list of 1 to 8 named
 streams. Names are unique, case-sensitive ASCII path segments, 1 to 64 bytes,
@@ -2253,8 +2294,8 @@ without artifact retention or truncation metadata, regardless of
 arguments. A requested page above the event schema's 2 MiB output limit fails
 with a resource-limit tool error; it is never silently truncated. The
 <code>delegate_subagent</code> terminal result also opts out, because its teaser preview is
-already capped internally; the owner of the delegation flow is the only place it
-is bounded. MCP and plugin tools remain subject to normal truncation. External
+bounded by <code>[subagent_output]</code> instead; the owner of the delegation flow is the
+only place it is bounded. MCP and plugin tools remain subject to normal truncation. External
 opt-out would require a future extension-protocol capability and is not currently
 authorable.</p>
 <p>Artifacts are content-addressed by SHA-256, deduplicated, and newly created with
@@ -2367,10 +2408,12 @@ error that lists the live candidates as
 pre-wrap the handle, for example
 <code>Subagent started. [subagent session explore_1a2b3c4d]</code> and
 <code>[subagent session explore_1a2b3c4d; completed; 79 lines; use get_subagent_result with session_id "explore_1a2b3c4d" for the full output]</code>.
-The completion notice carries a preview of at most 20 lines and 2048 bytes,
-with its line breaks and tabs kept and other control characters folded to
-spaces. It points at <code>get_subagent_result</code> only when that preview is cut, and
-otherwise ends in <code>full output shown</code>.
+The completion notice previews the report per
+<a href="../../engine/subagent_output/"><code>[subagent_output]</code></a>, with its line breaks and
+tabs kept and other control characters folded to spaces. A report over the limit
+shows its first and last lines around a marker such as
+<code>[… 200 lines omitted. Read more: get_subagent_result(session_id="explore_1a2b3c4d", offset=20)]</code>;
+a complete one ends in <code>full output shown</code>.
 Terminal and lifecycle results keep the UUID under the unified <code>session_id</code>
 metadata key and add <code>handle</code>. <code>resume_session_id</code> accepts the same two forms,
 and a terminal child woken by <code>send_message</code> reports as running until its new
