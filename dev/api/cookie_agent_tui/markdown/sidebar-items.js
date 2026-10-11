@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["MarkdownBlockKind"],"fn":["render_markdown","render_markdown_width"],"struct":["MarkdownBlock","MarkdownDocument","PlainHighlighter","SyntectHighlighter"],"trait":["Highlighter"]};
+window.SIDEBAR_ITEMS = {"enum":["MarkdownBlockKind"],"fn":["render_markdown","render_markdown_width","warm_up_syntax_assets"],"struct":["MarkdownBlock","MarkdownDocument","PlainHighlighter","SyntectHighlighter"],"trait":["Highlighter"]};
