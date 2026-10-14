@@ -1764,6 +1764,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Notifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#daemon-wide-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon-wide changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2008,6 +2023,21 @@
       Notifications
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Notifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#daemon-wide-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Daemon-wide changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2507,8 +2537,61 @@ the title, and continues with new physical sequences.</p>
 <td><code>events.plugin</code></td>
 <td>Session-scoped non-durable plugin event</td>
 </tr>
+<tr>
+<td><code>sessions.changed</code></td>
+<td>One session index change: <code>upserted</code>, <code>removed</code>, <code>approvals_changed</code>, <code>permission_mode_changed</code>, or <code>resync</code></td>
+</tr>
+<tr>
+<td><code>mcp.changed</code></td>
+<td>Empty object: MCP server configuration or status changed</td>
+</tr>
 </tbody>
 </table>
+<h3 id="daemon-wide-changes">Daemon-wide changes<a class="headerlink" href="#daemon-wide-changes" title="Permanent link">&para;</a></h3>
+<p><code>runtime.changed</code>, <code>sessions.changed</code>, and <code>mcp.changed</code> reach every connection
+from its handshake on, whether or not it subscribed to any session, so each
+client sharing a daemon stays current with what the others do. Clients ignore
+notification methods they do not know.</p>
+<p><code>sessions.changed</code> carries one change, tagged by <code>change</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>change</code></th>
+<th>Fields</th>
+<th>Sent when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>upserted</code></td>
+<td><code>session</code> (<code>SessionMeta</code>)</td>
+<td>A session, root or delegated, is created, first persisted, or reverted, or its status or title changes</td>
+</tr>
+<tr>
+<td><code>removed</code></td>
+<td><code>session_id</code></td>
+<td>A revert deleted a delegated session</td>
+</tr>
+<tr>
+<td><code>approvals_changed</code></td>
+<td><code>root_session_id</code>, <code>session_id</code></td>
+<td>An approval in any session of the tree was requested, escalated, decided, or cancelled; <code>approval.list</code> for the root shows the result</td>
+</tr>
+<tr>
+<td><code>permission_mode_changed</code></td>
+<td><code>root_session_id</code>, <code>mode</code>, <code>changed_by</code></td>
+<td><code>session.set_permission_mode</code> changed the tree's mode; <code>changed_by</code> is the caller's origin</td>
+</tr>
+<tr>
+<td><code>resync</code></td>
+<td>none</td>
+<td>This connection fell more than 256 changes behind and missed some; refetch <code>session.list</code>, approvals, and permission modes</td>
+</tr>
+</tbody>
+</table>
+<p>The permission mode is runtime-only and has no event, so <code>permission_mode_changed</code>
+is the only way other clients learn of a change. <code>mcp.changed</code> carries nothing;
+bursts coalesce into one notification, and a client refetches <code>mcp.server.list</code>.</p>
 <p>The shared client maps these to <code>ClientDelivery</code> variants (<code>Live</code>, replay
 deliveries, <code>PluginEvent</code>, <code>RuntimeChanged</code>, <code>RecoveryFailed</code>), so a UI
 consumes one ordered stream and never parses raw JSON-RPC frames.</p>
