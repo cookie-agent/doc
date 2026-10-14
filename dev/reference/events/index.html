@@ -2005,7 +2005,7 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 </tr>
 <tr>
 <td>User input</td>
-<td><code>message_injected</code>, <code>user_input_admitted</code>, <code>user_input_submitted</code>, <code>user_input_transformed</code>, <code>user_input_recalled</code>, <code>user_input_recalled_v2</code>, <code>user_input_applied</code></td>
+<td><code>message_injected</code>, <code>user_input_admitted</code>, <code>user_input_submitted</code>, <code>user_input_transformed</code>, <code>user_input_recalled</code>, <code>user_input_recalled_v2</code>, <code>user_input_applied</code>, <code>user_input_queued</code>, <code>user_input_queue_recalled</code>, <code>user_input_queue_voided</code></td>
 </tr>
 <tr>
 <td>Run</td>
@@ -2370,10 +2370,18 @@ written during run setup and projected into model history, so reopen, fork, reve
 use the injected message without consulting the plugin again. <code>user_input_transformed</code> is the
 run-owned audit record written immediately before <code>user_input_submitted</code> when <code>user_before_input</code>
 changes direct input; it contains both <code>original_input</code> and the non-empty committed <code>input</code>.</p>
-<p>Running-resume rollback appends <code>user_input_recalled_v2</code> with the exact
-<code>user_input_seq</code> of its admission. Replay removes that specific pending input
-and preserves direct steers admitted after it. Legacy <code>user_input_recalled</code>
-continues to recall the newest pending input.</p>
+<p>Running-resume rollback and <code>session.recall_input</code> append
+<code>user_input_recalled_v2</code> with the exact <code>user_input_seq</code> of its admission.
+Replay removes that specific pending input and preserves the others. Legacy
+<code>user_input_recalled</code> continues to recall the newest pending input.</p>
+<p>The queued-input lane is session-level, so its events are runless.
+<code>user_input_queued</code> holds an input waiting for the running run to complete, with
+the <code>selection</code> and <code>client_run_id</code> of the run it will start; its origin is the
+client that queued it. The entry leaves the queue when a <code>run_started</code> carries
+its <code>client_run_id</code>, when <code>user_input_queue_recalled</code> names its <code>queued_seq</code>, or
+when every entry is voided by <code>run_failed</code>, <code>run_cancelled</code>, <code>run_interrupted</code>,
+or <code>user_input_queue_voided</code> (written when a queued input cannot start). A
+voided entry goes back to the client that queued it.</p>
 <h2 id="compaction-checkpoints">Compaction checkpoints<a class="headerlink" href="#compaction-checkpoints" title="Permanent link">&para;</a></h2>
 <p><code>context_checkpoint_committed</code> carries a <code>commit</code> containing the text summary or
 opaque native checkpoint, <code>boundaries</code>, and <code>budgets</code>. Internal summaries cover
