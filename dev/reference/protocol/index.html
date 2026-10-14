@@ -2062,16 +2062,16 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 36 is current-only. A client must call <code>handshake</code> before any other
+Protocol 37 is current-only. A client must call <code>handshake</code> before any other
 method:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">36</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tui"</span><span class="p">,</span><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;uuid&gt;"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">37</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tui"</span><span class="p">,</span><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;uuid&gt;"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p><code>client.kind</code> names the client program: a lowercase letter followed by up to 15
 lowercase letters, digits, or hyphens (the shipped clients use <code>tui</code> and <code>cli</code>).
 <code>client.instance_id</code> is a UUID identifying one running client; a client keeps it
 across reconnects so it can recognize events it caused. Any number of clients
 may connect to one daemon at once.</p>
-<p>The response is <code>{ "protocol_version": 36, "origin": "client:&lt;kind&gt;-&lt;id&gt;" }</code>,
+<p>The response is <code>{ "protocol_version": 37, "origin": "client:&lt;kind&gt;-&lt;id&gt;" }</code>,
 where <code>&lt;id&gt;</code> is the instance id as 32 lowercase hex digits. The daemon stamps
 that origin on every event the connection's requests cause, so each client can
 tell its own actions from another client's. A repeated handshake on the same
@@ -2079,11 +2079,13 @@ connection keeps the first identity. Protocol 34 added the required <code>client
 member and the <code>origin</code> result. Protocol 35 replaced <code>run.recall_steer</code> with
 <code>session.recall_input</code> and added <code>session.submit_input</code> with queued input (see
 <a href="#submitting-from-several-clients">Submitting from several clients</a>), and
-protocol 36 added the <code>resync</code> runtime change reason. Older clients are
+protocol 36 added the <code>resync</code> runtime change reason. Protocol 37 made
+<code>session.revert</code> require <code>expected_last_seq</code> and <code>session.fork</code> require
+<code>client_fork_id</code>, and added <code>session.compact.cancel</code>. Older clients are
 rejected.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 36.</p>
+members of protocol 37.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -2101,7 +2103,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 36 alongside independent display and output references. The
+preserved in protocol 37 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2291,13 +2293,18 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td>Whether a checkpoint was committed</td>
 </tr>
 <tr>
+<td><code>session.compact.cancel</code></td>
+<td>Session ID</td>
+<td>Whether a running manual compaction was cancelled</td>
+</tr>
+<tr>
 <td><code>session.revert</code></td>
-<td>Session ID, positive <code>through_seq</code></td>
+<td>Session ID, positive <code>through_seq</code>, <code>expected_last_seq</code></td>
 <td>Updated session metadata</td>
 </tr>
 <tr>
 <td><code>session.fork</code></td>
-<td>Session ID, positive <code>through_seq</code></td>
+<td>Session ID, positive <code>through_seq</code>, <code>client_fork_id</code></td>
 <td>New session ID</td>
 </tr>
 <tr>
@@ -2505,7 +2512,11 @@ started, or voided returns <code>{ "outcome": "gone" }</code>.</p>
 back to <code>session.submit_input</code>.</p>
 <h2 id="revert-and-fork">Revert and fork<a class="headerlink" href="#revert-and-fork" title="Permanent link">&para;</a></h2>
 <p><code>session.revert</code> is idle-only. The target must be a positive existing
-sequence. The engine removes every event after it from the log (a run left with
+sequence, and <code>expected_last_seq</code> must be the session's current last event
+sequence: a session that has moved on since the client looked (another client's
+turn, say) is refused with code <code>-32602</code>, message <code>stale revert</code>, and
+<code>SessionRevertConflict</code> data carrying <code>current_last_seq</code>, so a revert never
+deletes what the requester has not seen. The engine removes every event after it from the log (a run left with
 nothing but its <code>run_started</code> goes too), closes any run, tool call, internal
 agent, or approval the cut left open, and deletes the subagent sessions created
 by removed delegations; a running one refuses the revert. Later appends reuse
@@ -2513,7 +2524,10 @@ the freed sequence numbers. Subscribers receive a <code>rewound</code> notificat
 <a href="../events/#subscriptions">Subscriptions</a>). Logs from before protocol 28 may
 still hold <code>session_reverted</code> markers, which readers apply as before: each hides
 what followed its target on the branch visible when it was written.</p>
-<p><code>session.fork</code> may read an active source but requires a persisted prefix that
+<p><code>session.fork</code> takes a <code>client_fork_id</code>: while the daemon runs, a retry with the
+same key and target returns the first fork instead of making another, and the
+same key with a different target is an <code>idempotency_conflict</code>.
+<code>session.fork</code> may read an active source but requires a persisted prefix that
 contains a submitted user message. The fork copies that prefix exactly under a
 new session ID, closes any copied in-flight run locally, appends <code>(fork)</code> to
 the title, and continues with new physical sequences.</p>
