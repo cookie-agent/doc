@@ -1786,13 +1786,14 @@ and uses defaults for omitted fields. Unknown fields fail; see
 <code>compaction.md</code> can override <code>limits.timeout_ms</code>, which is honored exactly;
 zero or omission uses the 30-second internal-agent default. The timeout does
 not scale with serialized history size.</p>
-<p>The internal summarizer first receives the entire active, unpruned history,
-including recent messages that will be retained unchanged after the summary.
-This is the currently assembled history, not a reload of events replaced by
-earlier checkpoints. The request keeps the session's own system prompt and
-tool definitions so it stays a cache-friendly extension of the latest
-conversation turn; the compaction agent's prompt is folded into the trailing
-instruction message instead of replacing the session system prompt. A tool-call
+<p>The internal summarizer receives only the span the checkpoint replaces: the
+active, unpruned history up to the recent messages retained unchanged after the
+summary, which are never sent to it. This is the currently assembled history,
+not a reload of events replaced by earlier checkpoints. The request keeps the
+session's own system prompt and tool definitions so it stays a cache-friendly
+prefix of the latest conversation request; the compaction agent's prompt is
+folded into the trailing instruction message instead of replacing the session
+system prompt. A tool-call
 answer is rejected as non-text output and counts as a compaction failure.
 Internal agents have no local byte-based admission gate.
 A provider context-length failure permits at most one pruned retry; other failures
@@ -1851,7 +1852,7 @@ alongside pinned context.</p>
 <td><code>keep_recent_tokens</code></td>
 <td>integer (<code>u64</code>)</td>
 <td><code>16384</code></td>
-<td>Nonnegative token budget for recent original messages retained unchanged after an internal summary of the entire active history. These messages are also included in the summarizer's input. <code>0</code> disables retention, not summary coverage. The effective target is at most <code>min(keep_recent_tokens, input_budget / 4)</code>, further limited by actual post-checkpoint available space. Complete tool-call/result groups are never split; an oversized newest indivisible group leaves no recent messages retained. Configuration does not clamp the requested value. Native windows receive no independent recent messages.</td>
+<td>Nonnegative token budget for recent original messages retained unchanged after an internal summary. The summarizer receives only the messages before them. <code>0</code> disables retention, so the summary covers the whole active history. The effective target is at most <code>min(keep_recent_tokens, input_budget / 4)</code>, further limited by actual post-checkpoint available space. Complete tool-call/result groups are never split; an oversized newest indivisible group leaves no recent messages retained. Configuration does not clamp the requested value. Native windows receive no independent recent messages.</td>
 </tr>
 </tbody>
 </table>
