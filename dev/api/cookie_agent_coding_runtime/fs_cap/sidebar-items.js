@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PreparedTarget"],"fn":["prepare_existing","prepare_target"],"struct":["PreparedAbsent","PreparedExisting"]};

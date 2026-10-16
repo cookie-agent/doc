@@ -1007,6 +1007,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1353,6 +1376,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1629,6 +1675,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../events/" class="md-nav__link">
         
   
@@ -1705,6 +1774,15 @@
   <a href="#execution-concurrency" class="md-nav__link">
     <span class="md-ellipsis">
       Execution concurrency
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tool-call-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tool call failures
     </span>
   </a>
   
@@ -1895,6 +1973,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tool-call-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tool call failures
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#webfetch" class="md-nav__link">
     <span class="md-ellipsis">
       Webfetch
@@ -2019,7 +2106,7 @@ declaration.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>read</code>, <code>bash</code>, <code>webfetch</code></td>
+<td><code>read</code>, <code>read_artifact</code>, <code>bash</code>, <code>webfetch</code></td>
 <td>Parallel</td>
 <td>Each call owns its execution and streaming state.</td>
 </tr>
@@ -2059,6 +2146,46 @@ declaration.</p>
 fan-out limit. Exclusive calls run one at a time after the parallel calls have
 finished. Results remain associated with their tool call IDs, while terminal
 events are persisted in completion order.</p>
+<h2 id="tool-call-failures">Tool call failures<a class="headerlink" href="#tool-call-failures" title="Permanent link">&para;</a></h2>
+<p>A failed tool call terminates with a failure code and a message for the model:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>execution_failed</code></td>
+<td>The tool ran, or tried to, and failed.</td>
+</tr>
+<tr>
+<td><code>operation_changed</code></td>
+<td>What the call was prepared and approved against changed before it ran, such as an MCP tool list or a restarted runtime.</td>
+</tr>
+<tr>
+<td><code>prepared_capability_lost</code></td>
+<td>The prepared call was lost, for example in a daemon restart between preparation and execution.</td>
+</tr>
+<tr>
+<td><code>permission_denied</code></td>
+<td>A permission rule denied the call.</td>
+</tr>
+<tr>
+<td><code>runtime_unavailable</code></td>
+<td>The runtime or MCP server that owns the tool is reconnecting or dropped during the call. The call is not retried for the model; the tool stays published while its owner reconnects.</td>
+</tr>
+<tr>
+<td><code>unsupported_platform</code></td>
+<td>The tool cannot run on this platform.</td>
+</tr>
+<tr>
+<td><code>invalid_url</code>, <code>redirect_error</code>, <code>timeout</code>, <code>transport_error</code>, <code>unsupported_content_type</code></td>
+<td><code>webfetch</code> failures (see <a href="#webfetch">Webfetch</a>).</td>
+</tr>
+</tbody>
+</table>
 <h2 id="webfetch">Webfetch<a class="headerlink" href="#webfetch" title="Permanent link">&para;</a></h2>
 <p><code>webfetch</code> accepts <code>{"url":"https://docs.quantumcookie.xyz/", "raw":false}</code>.
 <code>url</code> is required; <code>raw</code> defaults to false. The URL must start with a lowercase
@@ -2085,10 +2212,10 @@ converted to text. Over-cap responses return the fetched prefix with
 <code>truncated: true</code>, not an error. The caps have no input or configuration
 parameter. Full results use the standard event log and result
 store. The standard Bounded policy retains oversized output and sends a preview
-to the model. <code>read</code> with an artifact URI pages the retained header and body by physical
+to the model. <code>read_artifact</code> pages the retained header and body by physical
 line; its zero-based offset 5 starts at the body. Follow <code>next_offset</code> for
-successive pages. Metadata is separate and is not paged. Grant
-<code>read: {"artifact://*": allow}</code> for result paging.</p>
+successive pages. Metadata is separate and is not paged. <code>read_artifact</code> needs
+no permission rule.</p>
 <p>Errors distinguish <code>invalid_url</code>, <code>redirect_error</code>, <code>timeout</code>,
 <code>transport_error</code>, and <code>unsupported_content_type</code> (which names the content type).
 <code>permission_denied</code> uses the standard policy-denial path and its structured
@@ -2258,7 +2385,7 @@ cleanup. When it exits, the engine accepts one producer message owned by
 session: a <code>&lt;background_bash from="PID"&gt;</code> block with the command, the exit
 status and duration, and the job's standard output and standard error previewed
 exactly like a tool result: the first and last lines of each stream, with a
-<code>read</code> path into the retained artifact for anything omitted. The job reports only after its
+<code>read_artifact</code> hint into the retained artifact for anything omitted. The job reports only after its
 starting call is committed as completed. It is killed without a report if that
 call is cancelled before it commits, if a revert removes the call, if its
 session is deleted, or when the daemon stops. <code>background</code> cannot be combined
@@ -2267,7 +2394,7 @@ with <code>interactive</code>.</p>
 <p>Tools declare <code>ToolOutputDeclaration::Single</code> or an ordered list of 1 to 8 named
 streams. Names are unique, case-sensitive ASCII path segments, 1 to 64 bytes,
 using letters, digits, <code>_</code>, <code>-</code>, and <code>.</code>; <code>.</code> and <code>..</code> alone are forbidden. The
-same validator governs declarations and artifact stream suffixes.</p>
+same validator governs declarations and the <code>stream</code> argument of <code>read_artifact</code>.</p>
 <p>The runtime keeps bounded previews and counts of accepted text chunks in
 memory. A stream that fits its preview is stored nowhere else: the result output
 holds all of it and it has no artifact. Once a stream outgrows its preview, its
@@ -2281,9 +2408,9 @@ an artifact, and the manifest lists every declared stream. Declaration
 order determines model rendering. Bash uses the same named-output interface as
 other tools; it does not build its own retained-output manifest.</p>
 <p>Each stream receives its own configured <code>[tool_output]</code> line/byte preview limits.
-Only truncated streams receive a <code>read(filePath="artifact://&lt;digest&gt;/&lt;stream&gt;",
-offset=...)</code> hint, where the digest identifies the manifest. Single-output hints
-omit the stream suffix and heading. A partial-line byte cut points back to that
+Only truncated streams receive a <code>read_artifact(artifact="&lt;digest&gt;",
+stream="&lt;stream&gt;", offset=...)</code> hint, where the digest identifies the manifest.
+Single-output hints omit <code>stream</code> and the heading. A partial-line byte cut points back to that
 line, so readback does not skip unseen text. Aggregate preview construction also
 reserves 16 KiB for headings/hints inside the existing 2 MiB output bound; when
 necessary, previews are reduced with truthful read hints.</p>
@@ -2300,7 +2427,7 @@ terminal output after streaming is an error. Failures and cancellation preserve
 accepted output as incomplete, retain the correct terminal status, and expose the
 error alongside output previews to the model. Terminal events carry
 <code>retained_output</code> references and final <code>display</code>; replay does not recapture chunks.</p>
-<p>The self-paginating <code>read</code> and <code>get_subagent_result</code> tools
+<p>The self-paginating <code>read</code>, <code>read_artifact</code>, and <code>get_subagent_result</code> tools
 declare an absolute truncation opt-out. Their requested page is returned in full
 without artifact retention or truncation metadata, regardless of
 <code>[tool_output]</code>. Callers bound these results with each tool's offset/limit
@@ -2326,7 +2453,7 @@ still in the tree's logs references them too. The sweep is skipped while any
 session of the tree runs or a capture is still publishing its terminal
 references. Artifacts orphaned any other way, such as by a crash or a cancelled
 capture, stay in the tree's <code>artifacts/</code> directory until the tree is deleted.</p>
-<p>Artifact lookup uses the existing <code>read</code> tool:</p>
+<p>Artifact lookup uses the <code>read_artifact</code> tool:</p>
 <table>
 <thead>
 <tr>
@@ -2336,8 +2463,12 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 </thead>
 <tbody>
 <tr>
-<td><code>filePath</code></td>
-<td><code>artifact://&lt;64 lowercase hex digest&gt;</code> or <code>artifact://&lt;digest&gt;/&lt;stream&gt;</code></td>
+<td><code>artifact</code></td>
+<td>The 64-character lowercase SHA-256 digest a hint names</td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td>Optional declared stream name of a named-output manifest</td>
 </tr>
 <tr>
 <td><code>offset</code></td>
@@ -2349,18 +2480,14 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 </tr>
 </tbody>
 </table>
-<p><strong>Artifact IDs grant access by possession.</strong> The tool reads the
-named artifact in the configured project store without checking session ownership,
-tool-call visibility, or whether the reference survived a revert. An ID learned
-from another session is usable. IDs remain content-addressed SHA-256 references,
-not random secrets; anyone who can compute an artifact's digest can address it.
-Ordinary <code>read</code> approval/preparation rules still apply. Artifact resources use the
-public URI as their permission label and an artifact resource identity, never a
-filesystem-path permission. Dispatch occurs before filesystem normalization or
-existence checks. Malformed artifact URIs do not fall back to filesystem reads.
-Bare hashes, internal <code>artifact://sha256/</code> URIs, extra path segments, traversal,
-queries, fragments, and uppercase digests are rejected. Ordinary filesystem read
-formatting, media handling, and permissions are unchanged.</p>
+<p><code>read_artifact</code> is a base-layer tool. It needs no permission rule: it is always
+sent to the model and every call is allowed, whatever the agent's rules, because
+it can reach only artifacts stored in the calling session's own tree. A digest
+that names content another tree stored does not resolve. Digests are
+content-addressed SHA-256 references, not random secrets. Malformed digests
+(bare <code>artifact://</code> URIs, the internal <code>sha256/</code> form, uppercase or short
+digests) and invalid stream names are rejected. <code>read</code> reads only the
+filesystem.</p>
 <p>Artifact reads return the stored content without unwrapping JSON. Normal
 single-output artifacts contain the original full text. Named-stream artifacts
 contain their complete individual text. Compaction retry artifacts may contain serialized
@@ -2368,17 +2495,17 @@ tool-content JSON, including output text, metadata, and references to original
 truncation artifacts. Their markers identify this format and expose usable IDs
 without requiring durable elision events. Follow any nested truncation reference
 to retrieve the original full output rather than its serialized preview.</p>
-<p>Without a suffix, an artifact URI reads stored text as-is, including manifest
-JSON; it does not merge streams. A suffix selects a declared name from the generic
+<p>Without <code>stream</code>, <code>read_artifact</code> reads stored text as-is, including manifest
+JSON; it does not merge streams. <code>stream</code> selects a declared name from the generic
 manifest. This is content-based and works for <code>results</code>, <code>diagnostics</code>, or any
 other valid declared name, not just Bash streams. Unknown names and selection on
-non-manifests are errors. There is no separate <code>stream</code> argument. Stored
-<code>ArtifactReference</code> values retain the internal <code>artifact://sha256/&lt;digest&gt;</code> form.</p>
+non-manifests are errors. Stored <code>ArtifactReference</code> values keep the internal
+<code>artifact://sha256/&lt;digest&gt;</code> form, which is not a <code>read_artifact</code> argument.</p>
 <p>Returned pages include <code>next_offset</code> metadata when more lines remain. A zero
 limit fails; larger limits are capped at 2000 lines. Pages over the 2 MiB
 terminal-result limit fail and must be requested with a smaller limit. Missing
 and corrupt artifacts produce tool errors.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">"filePath"</span><span class="p">:</span><span class="s2">"artifact://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/results"</span><span class="p">,</span><span class="nt">"offset"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span><span class="nt">"limit"</span><span class="p">:</span><span class="mi">200</span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">"artifact"</span><span class="p">:</span><span class="s2">"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"</span><span class="p">,</span><span class="nt">"stream"</span><span class="p">:</span><span class="s2">"results"</span><span class="p">,</span><span class="nt">"offset"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span><span class="nt">"limit"</span><span class="p">:</span><span class="mi">200</span><span class="p">}</span>
 </code></pre></div>
 <h2 id="goal-checklist-tools">Goal checklist tools<a class="headerlink" href="#goal-checklist-tools" title="Permanent link">&para;</a></h2>
 <p><code>goal_get</code> returns the current root goal's objective, status, revision, and entire

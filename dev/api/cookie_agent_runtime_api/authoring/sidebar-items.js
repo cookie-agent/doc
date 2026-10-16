@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["parse_args","prepared_operation","prepared_resource","safe_title","schema"]};

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/engine/src/runtime/compaction.rs`."><title>compaction.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cookie_agent_engine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0 (b940084d7 2026-09-28)" data-channel="1.99.0" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_engine/runtime/</div>compaction.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/engine/src/runtime/compaction.rs`."><title>compaction.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cookie_agent_engine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_engine/runtime/</div>compaction.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{
 <a href=#2 id=2 data-nosnippet>2</a>    collections::{HashMap, HashSet, VecDeque},
 <a href=#3 id=3 data-nosnippet>3</a>    io,
 <a href=#4 id=4 data-nosnippet>4</a>    sync::{Arc, Mutex},
@@ -1442,102 +1442,94 @@
 <a href=#1442 id=1442 data-nosnippet>1442</a>            oven_sdk::HistoryTurn::Assistant(turn) =&gt; {
 <a href=#1443 id=1443 data-nosnippet>1443</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;</span>turn.message.content {
 <a href=#1444 id=1444 data-nosnippet>1444</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolCall(call) = part {
-<a href=#1445 id=1445 data-nosnippet>1445</a>                        <span class="kw">if </span>call.name == <span class="string">"read"
-<a href=#1446 id=1446 data-nosnippet>1446</a>                            </span>&amp;&amp; call
-<a href=#1447 id=1447 data-nosnippet>1447</a>                                .input
-<a href=#1448 id=1448 data-nosnippet>1448</a>                                .get(<span class="string">"filePath"</span>)
-<a href=#1449 id=1449 data-nosnippet>1449</a>                                .and_then(serde_json::Value::as_str)
-<a href=#1450 id=1450 data-nosnippet>1450</a>                                .is_some_and(|path| {
-<a href=#1451 id=1451 data-nosnippet>1451</a>                                    cookie_agent_protocol::ArtifactReadPath::parse(path).is_ok()
-<a href=#1452 id=1452 data-nosnippet>1452</a>                                })
-<a href=#1453 id=1453 data-nosnippet>1453</a>                        {
-<a href=#1454 id=1454 data-nosnippet>1454</a>                            retrieval_calls.insert(call.id.clone());
-<a href=#1455 id=1455 data-nosnippet>1455</a>                        } <span class="kw">else </span>{
-<a href=#1456 id=1456 data-nosnippet>1456</a>                            retrieval_calls.remove(<span class="kw-2">&amp;</span>call.id);
-<a href=#1457 id=1457 data-nosnippet>1457</a>                        }
-<a href=#1458 id=1458 data-nosnippet>1458</a>                    }
-<a href=#1459 id=1459 data-nosnippet>1459</a>                }
-<a href=#1460 id=1460 data-nosnippet>1460</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;mut </span>turn.message.content {
-<a href=#1461 id=1461 data-nosnippet>1461</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolResult(result) = part {
-<a href=#1462 id=1462 data-nosnippet>1462</a>                        prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
-<a href=#1463 id=1463 data-nosnippet>1463</a>                    }
-<a href=#1464 id=1464 data-nosnippet>1464</a>                }
-<a href=#1465 id=1465 data-nosnippet>1465</a>            }
-<a href=#1466 id=1466 data-nosnippet>1466</a>            oven_sdk::HistoryTurn::Tool(message) =&gt; {
-<a href=#1467 id=1467 data-nosnippet>1467</a>                <span class="kw">for </span>result <span class="kw">in </span><span class="kw-2">&amp;mut </span>message.results {
-<a href=#1468 id=1468 data-nosnippet>1468</a>                    prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
-<a href=#1469 id=1469 data-nosnippet>1469</a>                }
-<a href=#1470 id=1470 data-nosnippet>1470</a>            }
-<a href=#1471 id=1471 data-nosnippet>1471</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#1472 id=1472 data-nosnippet>1472</a>        }
-<a href=#1473 id=1473 data-nosnippet>1473</a>    }
-<a href=#1474 id=1474 data-nosnippet>1474</a>    <span class="prelude-val">Ok</span>(history)
-<a href=#1475 id=1475 data-nosnippet>1475</a>}
-<a href=#1476 id=1476 data-nosnippet>1476</a>
-<a href=#1477 id=1477 data-nosnippet>1477</a><span class="kw">fn </span>prune_compaction_result(
-<a href=#1478 id=1478 data-nosnippet>1478</a>    result: <span class="kw-2">&amp;mut </span>oven_sdk::ToolResultPart,
-<a href=#1479 id=1479 data-nosnippet>1479</a>    retrieval_calls: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
-<a href=#1480 id=1480 data-nosnippet>1480</a>    store: <span class="kw-2">&amp;</span><span class="kw">super</span>::artifacts::ArtifactRouter,
-<a href=#1481 id=1481 data-nosnippet>1481</a>    session: SessionId,
-<a href=#1482 id=1482 data-nosnippet>1482</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#1483 id=1483 data-nosnippet>1483</a>    <span class="kw">let </span>marker = <span class="kw">if </span>retrieval_calls.contains(<span class="kw-2">&amp;</span>result.tool_call_id) {
-<a href=#1484 id=1484 data-nosnippet>1484</a>        <span class="comment">// This is a private summary-input copy; the original result stays in history.
-<a href=#1485 id=1485 data-nosnippet>1485</a>        </span><span class="string">"[artifact read output omitted for compaction]"</span>.to_owned()
-<a href=#1486 id=1486 data-nosnippet>1486</a>    } <span class="kw">else </span>{
-<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="kw">let </span>content = <span class="kw">match </span><span class="kw-2">&amp;</span>result.content {
-<a href=#1488 id=1488 data-nosnippet>1488</a>            oven_sdk::ToolContent::Text(text) =&gt; text.as_bytes().to_vec(),
-<a href=#1489 id=1489 data-nosnippet>1489</a>            content =&gt; serde_json::to_vec(content)
-<a href=#1490 id=1490 data-nosnippet>1490</a>                .map_err(|error| ModelError::invalid_request(error.to_string()))<span class="question-mark">?</span>,
-<a href=#1491 id=1491 data-nosnippet>1491</a>        };
-<a href=#1492 id=1492 data-nosnippet>1492</a>        <span class="kw">let </span>(<span class="kw">_</span>, artifact_id) = store.retain(session, <span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
-<a href=#1493 id=1493 data-nosnippet>1493</a>        <span class="kw">let </span><span class="kw-2">mut </span>marker =
-<a href=#1494 id=1494 data-nosnippet>1494</a>            model_history::tool_output_elision_marker(<span class="kw-2">&amp;</span>artifact_id, content.len() <span class="kw">as </span>u64, <span class="number">0</span>);
-<a href=#1495 id=1495 data-nosnippet>1495</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(result.content, oven_sdk::ToolContent::Text(<span class="kw">_</span>)) {
-<a href=#1496 id=1496 data-nosnippet>1496</a>            marker.push_str(<span class="string">" Stored as serialized tool content (JSON)."</span>);
-<a href=#1497 id=1497 data-nosnippet>1497</a>        }
-<a href=#1498 id=1498 data-nosnippet>1498</a>        <span class="kw">let </span>read_more = <span class="macro">serde_json::json!</span>({
-<a href=#1499 id=1499 data-nosnippet>1499</a>            <span class="string">"read_more"</span>: {
-<a href=#1500 id=1500 data-nosnippet>1500</a>                <span class="string">"tool"</span>: <span class="string">"read"</span>,
-<a href=#1501 id=1501 data-nosnippet>1501</a>                <span class="string">"arguments"</span>: {<span class="string">"filePath"</span>: <span class="macro">format!</span>(<span class="string">"artifact://{artifact_id}"</span>)}
-<a href=#1502 id=1502 data-nosnippet>1502</a>            }
-<a href=#1503 id=1503 data-nosnippet>1503</a>        });
-<a href=#1504 id=1504 data-nosnippet>1504</a>        marker.push(<span class="string">'\n'</span>);
-<a href=#1505 id=1505 data-nosnippet>1505</a>        marker.push_str(<span class="kw-2">&amp;</span>read_more.to_string());
-<a href=#1506 id=1506 data-nosnippet>1506</a>        marker
-<a href=#1507 id=1507 data-nosnippet>1507</a>    };
-<a href=#1508 id=1508 data-nosnippet>1508</a>    result.content = oven_sdk::ToolContent::Text(marker);
-<a href=#1509 id=1509 data-nosnippet>1509</a>    result.metadata = <span class="prelude-val">None</span>;
-<a href=#1510 id=1510 data-nosnippet>1510</a>    <span class="prelude-val">Ok</span>(())
-<a href=#1511 id=1511 data-nosnippet>1511</a>}
-<a href=#1512 id=1512 data-nosnippet>1512</a>
-<a href=#1513 id=1513 data-nosnippet>1513</a><span class="kw">fn </span>compaction_history(
-<a href=#1514 id=1514 data-nosnippet>1514</a>    <span class="kw-2">mut </span>history: Vec&lt;oven_sdk::HistoryTurn&gt;,
-<a href=#1515 id=1515 data-nosnippet>1515</a>    instruction: <span class="kw-2">&amp;</span>str,
-<a href=#1516 id=1516 data-nosnippet>1516</a>) -&gt; Vec&lt;oven_sdk::HistoryTurn&gt; {
-<a href=#1517 id=1517 data-nosnippet>1517</a>    <span class="comment">// `history` is the span the checkpoint replaces. It starts with the
-<a href=#1518 id=1518 data-nosnippet>1518</a>    // session's own system prompt and pinned context, so the summarizer
-<a href=#1519 id=1519 data-nosnippet>1519</a>    // request is a cache-friendly prefix of the latest conversation request;
-<a href=#1520 id=1520 data-nosnippet>1520</a>    // the compaction agent's prompt rides along in the trailing instruction
-<a href=#1521 id=1521 data-nosnippet>1521</a>    // instead of replacing the session system prompt.
-<a href=#1522 id=1522 data-nosnippet>1522</a>    </span>history.push(oven_sdk::HistoryTurn::user(oven_sdk::UserMessage::new(
-<a href=#1523 id=1523 data-nosnippet>1523</a>        <span class="macro">vec!</span>[oven_sdk::InputPart::Text(oven_sdk::TextPart::new(
-<a href=#1524 id=1524 data-nosnippet>1524</a>            instruction.to_owned(),
-<a href=#1525 id=1525 data-nosnippet>1525</a>        ))],
-<a href=#1526 id=1526 data-nosnippet>1526</a>    )));
-<a href=#1527 id=1527 data-nosnippet>1527</a>    history
-<a href=#1528 id=1528 data-nosnippet>1528</a>}
-<a href=#1529 id=1529 data-nosnippet>1529</a>
-<a href=#1530 id=1530 data-nosnippet>1530</a><span class="kw">fn </span>should_elide_tool_output(
-<a href=#1531 id=1531 data-nosnippet>1531</a>    model_turn_seq: u64,
-<a href=#1532 id=1532 data-nosnippet>1532</a>    protected_turns: <span class="kw-2">&amp;</span>HashSet&lt;u64&gt;,
-<a href=#1533 id=1533 data-nosnippet>1533</a>    already_elided: bool,
-<a href=#1534 id=1534 data-nosnippet>1534</a>    output_bytes: usize,
-<a href=#1535 id=1535 data-nosnippet>1535</a>) -&gt; bool {
-<a href=#1536 id=1536 data-nosnippet>1536</a>    !protected_turns.contains(<span class="kw-2">&amp;</span>model_turn_seq)
-<a href=#1537 id=1537 data-nosnippet>1537</a>        &amp;&amp; !already_elided
-<a href=#1538 id=1538 data-nosnippet>1538</a>        &amp;&amp; output_bytes &gt;= TOOL_OUTPUT_ELISION_MIN_BYTES
-<a href=#1539 id=1539 data-nosnippet>1539</a>}
-<a href=#1540 id=1540 data-nosnippet>1540</a>
-<a href=#1541 id=1541 data-nosnippet>1541</a><span class="attr">#[cfg(test)]
-<a href=#1542 id=1542 data-nosnippet>1542</a></span><span class="kw">mod </span>tests;
+<a href=#1445 id=1445 data-nosnippet>1445</a>                        <span class="kw">if </span>call.name == <span class="string">"read_artifact" </span>{
+<a href=#1446 id=1446 data-nosnippet>1446</a>                            retrieval_calls.insert(call.id.clone());
+<a href=#1447 id=1447 data-nosnippet>1447</a>                        } <span class="kw">else </span>{
+<a href=#1448 id=1448 data-nosnippet>1448</a>                            retrieval_calls.remove(<span class="kw-2">&amp;</span>call.id);
+<a href=#1449 id=1449 data-nosnippet>1449</a>                        }
+<a href=#1450 id=1450 data-nosnippet>1450</a>                    }
+<a href=#1451 id=1451 data-nosnippet>1451</a>                }
+<a href=#1452 id=1452 data-nosnippet>1452</a>                <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;mut </span>turn.message.content {
+<a href=#1453 id=1453 data-nosnippet>1453</a>                    <span class="kw">if let </span>oven_sdk::AssistantPart::ToolResult(result) = part {
+<a href=#1454 id=1454 data-nosnippet>1454</a>                        prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
+<a href=#1455 id=1455 data-nosnippet>1455</a>                    }
+<a href=#1456 id=1456 data-nosnippet>1456</a>                }
+<a href=#1457 id=1457 data-nosnippet>1457</a>            }
+<a href=#1458 id=1458 data-nosnippet>1458</a>            oven_sdk::HistoryTurn::Tool(message) =&gt; {
+<a href=#1459 id=1459 data-nosnippet>1459</a>                <span class="kw">for </span>result <span class="kw">in </span><span class="kw-2">&amp;mut </span>message.results {
+<a href=#1460 id=1460 data-nosnippet>1460</a>                    prune_compaction_result(result, <span class="kw-2">&amp;</span>retrieval_calls, store, session)<span class="question-mark">?</span>;
+<a href=#1461 id=1461 data-nosnippet>1461</a>                }
+<a href=#1462 id=1462 data-nosnippet>1462</a>            }
+<a href=#1463 id=1463 data-nosnippet>1463</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1464 id=1464 data-nosnippet>1464</a>        }
+<a href=#1465 id=1465 data-nosnippet>1465</a>    }
+<a href=#1466 id=1466 data-nosnippet>1466</a>    <span class="prelude-val">Ok</span>(history)
+<a href=#1467 id=1467 data-nosnippet>1467</a>}
+<a href=#1468 id=1468 data-nosnippet>1468</a>
+<a href=#1469 id=1469 data-nosnippet>1469</a><span class="kw">fn </span>prune_compaction_result(
+<a href=#1470 id=1470 data-nosnippet>1470</a>    result: <span class="kw-2">&amp;mut </span>oven_sdk::ToolResultPart,
+<a href=#1471 id=1471 data-nosnippet>1471</a>    retrieval_calls: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
+<a href=#1472 id=1472 data-nosnippet>1472</a>    store: <span class="kw-2">&amp;</span><span class="kw">super</span>::artifacts::ArtifactRouter,
+<a href=#1473 id=1473 data-nosnippet>1473</a>    session: SessionId,
+<a href=#1474 id=1474 data-nosnippet>1474</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#1475 id=1475 data-nosnippet>1475</a>    <span class="kw">let </span>marker = <span class="kw">if </span>retrieval_calls.contains(<span class="kw-2">&amp;</span>result.tool_call_id) {
+<a href=#1476 id=1476 data-nosnippet>1476</a>        <span class="comment">// This is a private summary-input copy; the original result stays in history.
+<a href=#1477 id=1477 data-nosnippet>1477</a>        </span><span class="string">"[artifact read output omitted for compaction]"</span>.to_owned()
+<a href=#1478 id=1478 data-nosnippet>1478</a>    } <span class="kw">else </span>{
+<a href=#1479 id=1479 data-nosnippet>1479</a>        <span class="kw">let </span>content = <span class="kw">match </span><span class="kw-2">&amp;</span>result.content {
+<a href=#1480 id=1480 data-nosnippet>1480</a>            oven_sdk::ToolContent::Text(text) =&gt; text.as_bytes().to_vec(),
+<a href=#1481 id=1481 data-nosnippet>1481</a>            content =&gt; serde_json::to_vec(content)
+<a href=#1482 id=1482 data-nosnippet>1482</a>                .map_err(|error| ModelError::invalid_request(error.to_string()))<span class="question-mark">?</span>,
+<a href=#1483 id=1483 data-nosnippet>1483</a>        };
+<a href=#1484 id=1484 data-nosnippet>1484</a>        <span class="kw">let </span>(<span class="kw">_</span>, artifact_id) = store.retain(session, <span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
+<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="kw">let </span><span class="kw-2">mut </span>marker =
+<a href=#1486 id=1486 data-nosnippet>1486</a>            model_history::tool_output_elision_marker(<span class="kw-2">&amp;</span>artifact_id, content.len() <span class="kw">as </span>u64, <span class="number">0</span>);
+<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(result.content, oven_sdk::ToolContent::Text(<span class="kw">_</span>)) {
+<a href=#1488 id=1488 data-nosnippet>1488</a>            marker.push_str(<span class="string">" Stored as serialized tool content (JSON)."</span>);
+<a href=#1489 id=1489 data-nosnippet>1489</a>        }
+<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">let </span>read_more = <span class="macro">serde_json::json!</span>({
+<a href=#1491 id=1491 data-nosnippet>1491</a>            <span class="string">"read_more"</span>: {
+<a href=#1492 id=1492 data-nosnippet>1492</a>                <span class="string">"tool"</span>: <span class="string">"read_artifact"</span>,
+<a href=#1493 id=1493 data-nosnippet>1493</a>                <span class="string">"arguments"</span>: {<span class="string">"artifact"</span>: artifact_id}
+<a href=#1494 id=1494 data-nosnippet>1494</a>            }
+<a href=#1495 id=1495 data-nosnippet>1495</a>        });
+<a href=#1496 id=1496 data-nosnippet>1496</a>        marker.push(<span class="string">'\n'</span>);
+<a href=#1497 id=1497 data-nosnippet>1497</a>        marker.push_str(<span class="kw-2">&amp;</span>read_more.to_string());
+<a href=#1498 id=1498 data-nosnippet>1498</a>        marker
+<a href=#1499 id=1499 data-nosnippet>1499</a>    };
+<a href=#1500 id=1500 data-nosnippet>1500</a>    result.content = oven_sdk::ToolContent::Text(marker);
+<a href=#1501 id=1501 data-nosnippet>1501</a>    result.metadata = <span class="prelude-val">None</span>;
+<a href=#1502 id=1502 data-nosnippet>1502</a>    <span class="prelude-val">Ok</span>(())
+<a href=#1503 id=1503 data-nosnippet>1503</a>}
+<a href=#1504 id=1504 data-nosnippet>1504</a>
+<a href=#1505 id=1505 data-nosnippet>1505</a><span class="kw">fn </span>compaction_history(
+<a href=#1506 id=1506 data-nosnippet>1506</a>    <span class="kw-2">mut </span>history: Vec&lt;oven_sdk::HistoryTurn&gt;,
+<a href=#1507 id=1507 data-nosnippet>1507</a>    instruction: <span class="kw-2">&amp;</span>str,
+<a href=#1508 id=1508 data-nosnippet>1508</a>) -&gt; Vec&lt;oven_sdk::HistoryTurn&gt; {
+<a href=#1509 id=1509 data-nosnippet>1509</a>    <span class="comment">// `history` is the span the checkpoint replaces. It starts with the
+<a href=#1510 id=1510 data-nosnippet>1510</a>    // session's own system prompt and pinned context, so the summarizer
+<a href=#1511 id=1511 data-nosnippet>1511</a>    // request is a cache-friendly prefix of the latest conversation request;
+<a href=#1512 id=1512 data-nosnippet>1512</a>    // the compaction agent's prompt rides along in the trailing instruction
+<a href=#1513 id=1513 data-nosnippet>1513</a>    // instead of replacing the session system prompt.
+<a href=#1514 id=1514 data-nosnippet>1514</a>    </span>history.push(oven_sdk::HistoryTurn::user(oven_sdk::UserMessage::new(
+<a href=#1515 id=1515 data-nosnippet>1515</a>        <span class="macro">vec!</span>[oven_sdk::InputPart::Text(oven_sdk::TextPart::new(
+<a href=#1516 id=1516 data-nosnippet>1516</a>            instruction.to_owned(),
+<a href=#1517 id=1517 data-nosnippet>1517</a>        ))],
+<a href=#1518 id=1518 data-nosnippet>1518</a>    )));
+<a href=#1519 id=1519 data-nosnippet>1519</a>    history
+<a href=#1520 id=1520 data-nosnippet>1520</a>}
+<a href=#1521 id=1521 data-nosnippet>1521</a>
+<a href=#1522 id=1522 data-nosnippet>1522</a><span class="kw">fn </span>should_elide_tool_output(
+<a href=#1523 id=1523 data-nosnippet>1523</a>    model_turn_seq: u64,
+<a href=#1524 id=1524 data-nosnippet>1524</a>    protected_turns: <span class="kw-2">&amp;</span>HashSet&lt;u64&gt;,
+<a href=#1525 id=1525 data-nosnippet>1525</a>    already_elided: bool,
+<a href=#1526 id=1526 data-nosnippet>1526</a>    output_bytes: usize,
+<a href=#1527 id=1527 data-nosnippet>1527</a>) -&gt; bool {
+<a href=#1528 id=1528 data-nosnippet>1528</a>    !protected_turns.contains(<span class="kw-2">&amp;</span>model_turn_seq)
+<a href=#1529 id=1529 data-nosnippet>1529</a>        &amp;&amp; !already_elided
+<a href=#1530 id=1530 data-nosnippet>1530</a>        &amp;&amp; output_bytes &gt;= TOOL_OUTPUT_ELISION_MIN_BYTES
+<a href=#1531 id=1531 data-nosnippet>1531</a>}
+<a href=#1532 id=1532 data-nosnippet>1532</a>
+<a href=#1533 id=1533 data-nosnippet>1533</a><span class="attr">#[cfg(test)]
+<a href=#1534 id=1534 data-nosnippet>1534</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

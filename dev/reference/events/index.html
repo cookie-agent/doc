@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://cookie-agent.github.io/doc/dev/reference/events/">
       
       
-        <link rel="prev" href="../protocol/">
+        <link rel="prev" href="../runtime-protocol/">
       
       
         <link rel="next" href="../tools/">
@@ -1007,6 +1007,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1353,6 +1376,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1612,6 +1658,29 @@
   
   <span class="md-ellipsis">
     Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
     
   </span>
   
@@ -1985,11 +2054,11 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 <tbody>
 <tr>
 <td>Session</td>
-<td><code>session_created</code>, <code>session_reverted</code> (legacy), <code>session_permission_overlay_set</code>, <code>skill_loaded</code>, <code>skill_invocation_noted</code>, <code>session_title_committed</code>, <code>delegated_context_seeded</code></td>
+<td><code>session_created</code>, <code>session_reverted</code> (legacy), <code>session_permission_overlay_set</code>, <code>runtime_attached</code>, <code>runtime_detached</code>, <code>skill_loaded</code>, <code>skill_invocation_noted</code>, <code>session_title_committed</code>, <code>delegated_context_seeded</code></td>
 </tr>
 <tr>
 <td>AGENTS.md context</td>
-<td><code>agent_md_loaded</code></td>
+<td><code>agent_md_loaded</code>, <code>agent_md_skipped</code></td>
 </tr>
 <tr>
 <td>Plugins</td>
@@ -2244,12 +2313,20 @@ model changed or whose earlier decisions changed (compaction, a pinned turn,
 a late tool result). Readers that ignore the field see only new decisions for
 such an attempt.</p>
 <p><code>agent_md_loaded</code> is a run-scoped root-session event stamped
-<code>engine:agent-md</code>. It contains one or two discovered <code>AGENTS.md</code> entries,
-each with a bounded display source, retained content, truncation flag, and
-original byte size. Missing or disabled context produces no event. History uses
-only the latest run's event and replays its entries as one provenance-delimited
-user turn. Compaction pins that turn alongside loaded skill bodies. See
+<code>engine:agent-md</code>. It contains one or two <code>AGENTS.md</code> entries a coding runtime
+discovered in its workspace, each with a bounded display source, retained
+content, truncation flag, and original byte size, and the optional <code>attachment</code>
+naming that runtime's attachment. A run writes one event per attachment that
+returned a file. Missing or disabled context produces no event. History uses
+only the latest run's events, the latest per attachment (an event without
+<code>attachment</code> predates runtimes and counts as <code>local</code>'s), and replays their
+entries as one provenance-delimited user turn. Compaction pins that turn
+alongside loaded skill bodies. See
 <a href="../system-prompt/#agentsmd-context-turn">System Prompt Composition</a>.</p>
+<p><code>agent_md_skipped</code> is a run-scoped warning for an <code>AGENTS.md</code> file over the
+size limit: its display <code>path</code>, its <code>byte_length</code>, and the optional
+<code>attachment</code> whose workspace holds it (absent in events written before
+runtimes, which belong to <code>local</code>). The file contributes no context.</p>
 <p>Legacy <code>plugin_event_added</code> is a runless plugin publication containing <code>plugin</code>, <code>name</code>, and arbitrary
 JSON <code>payload</code>. Plugin-originated payloads are capped at 256 KiB, names at 128 characters, and the
 complete serialized event at 272 KiB; per-plugin/session rate and byte quotas apply. The event is normal
@@ -2278,7 +2355,9 @@ Foreground delegation retains its tool result as its only result channel.</p>
 <p>The <code>delegation_*</code> lifecycle records are durable control events on the parent
 session. <code>delegation_reserved</code> contains the complete current delegate request,
 child agent snapshot, selected model suffix, runtime revisions, request
-fingerprint, and optional typed staged-skill provenance.
+fingerprint, and optional typed staged-skill provenance. The request's optional
+<code>runtimes</code> lists the parent attachments the child was narrowed to; the child
+itself records its attachments with <code>runtime_attached</code> events at creation.
 <code>delegation_started</code> records publication of the child session;
 <code>delegation_run_started</code> and <code>delegation_run_attached</code> distinguish a new child
 run from attachment to an already-running resumed child. <code>delegation_finished</code>
@@ -2294,6 +2373,20 @@ delegation event, that delegation is not recovered, the parent session records
 the diagnostic, and unrelated delegations remain recoverable. Legacy
 <code>delegations.jsonl</code> files are ignored, so pre-release in-flight journal entries
 do not cross this upgrade.</p>
+<p>The runless <code>runtime_attached</code> and <code>runtime_detached</code> events record the
+session's <a href="../../specs/runtimes/#5-session-attachments">runtime attachments</a>.
+<code>runtime_attached</code> carries the session-unique attachment <code>name</code>, the
+<code>runtime_id</code> of the template, the runtime's <code>kind</code> (<code>global</code> or <code>coding</code>), and,
+when the runtime has one, the canonical <code>workspace</code> it reported.
+<code>runtime_detached</code> carries the <code>name</code> it removes. The attachment set is the fold
+of these events in log order; a session's creation writes one
+<code>runtime_attached</code> per initial attachment together with <code>session_created</code>, so
+both reach disk with the session's first persistence; a session created with no
+attachment records a single <code>runtime_detached</code> of <code>global</code> instead. A log that holds neither
+event was written before runtimes existed and reads as attached to <code>global</code>
+and <code>local</code>; the engine writes those two attachments out before such a
+session's first attach or detach. Delegated children record their own
+attachments.</p>
 <p>The runless <code>session_permission_overlay_set</code> event's <code>overlay</code>
 contains the complete, validated set of unique <code>(action, resource)</code> rules for
 the session. The latest visible event wins. Because it is an ordinary branch
@@ -2359,7 +2452,8 @@ in parallel, so progress and <code>tool_call_terminated</code> events from diffe
 may interleave, and terminations commit in completion order. The ordering
 guarantee is per call: its start precedes all of its progress and stdin events,
 which precede its single termination. Consumers must correlate calls by
-<code>tool_call_id</code> rather than cross-call event position.</p>
+<code>tool_call_id</code> rather than cross-call event position. A failed termination
+carries one of the <a href="../tools/#tool-call-failures">tool failure codes</a>.</p>
 <p><code>internal_agent_usage_recorded</code> attributes each completed
 internal model request to its internal run, internal agent ID, kind, and resolved
 model. It carries the same optional <code>estimated_cost_pico_usd</code> stamp. The same

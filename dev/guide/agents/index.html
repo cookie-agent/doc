@@ -791,6 +791,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#runtime-selectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime selectors
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#resource-labels" class="md-nav__link">
     <span class="md-ellipsis">
       Resource labels
@@ -1240,6 +1249,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1581,6 +1613,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1857,6 +1912,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/events/" class="md-nav__link">
         
   
@@ -2112,6 +2190,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#runtime-selectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime selectors
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#resource-labels" class="md-nav__link">
     <span class="md-ellipsis">
       Resource labels
@@ -2186,10 +2273,11 @@ ID. An agent defines the system prompt, permission-controlled tool access, its
 model fallback chain, and its runtime limits. The harness supplies four agents:
 three internal agents plus the synthesized <code>default</code> coding agent when no
 authored root agent is runnable.</p>
-<p>Author common agents under <code>~/.cookie-agent/agents/</code>. The exact workspace may
-use the same document format under <code>&lt;cwd&gt;/.cookie-agent/agents/</code>; a same-ID
-workspace document takes precedence and replaces the complete user document.
-Frontmatter fields and nested permission maps never merge across layers.</p>
+<p>Author agents under <code>~/.cookie-agent/agents/</code>. That user directory is the only
+place agent documents are read from: a <code>&lt;cwd&gt;/.cookie-agent/agents/</code> directory
+is never opened for agent documents or presets, and leftover files there are
+ignored without a warning. (<code>AGENTS.md</code> files there are still read as
+<a href="#agentsmd-context">context</a>.)</p>
 <h2 id="agent-document-structure">Agent document structure<a class="headerlink" href="#agent-document-structure" title="Permanent link">&para;</a></h2>
 <p>Each file has strict YAML frontmatter and a nonempty Markdown body:</p>
 <p>The filename is the agent ID: lowercase letters and digits separated by single
@@ -2346,19 +2434,24 @@ prompt, skill-listing, plugin, cache, and history assembly order.</p>
 unless it is turned off. The run agent's <code>agent_md</code> frontmatter decides when it is
 set; otherwise the global <a href="../../engine/agent_md/"><code>[agent_md]</code></a> <code>enabled</code> switch
 does. The files are read fresh, so edits apply to the next run:</p>
+<p>Every coding runtime the session is attached to applies the same lookup to its
+own workspace (for the built-in <code>local</code> runtime, the daemon's working
+directory):</p>
 <ol>
 <li><code>.cookie-agent/agents/AGENTS.md</code> is the default project file. When the run
    uses a preset and <code>.cookie-agent/agents/&lt;preset&gt;/AGENTS.md</code> exists, that file
    replaces the default project file.</li>
-<li><code>&lt;cwd&gt;/AGENTS.md</code> is loaded in addition when present.</li>
+<li><code>&lt;workspace&gt;/AGENTS.md</code> is loaded in addition when present.</li>
 </ol>
+<p>Presets themselves are still defined only by the daemon's user configuration.</p>
 <p>Missing files add no event or model tokens. Files larger than 2 MiB are skipped
 and surfaced as <code>AgentMdSkipped</code> warning events. Delegated sessions do not
 discover these files for their own runs; explicitly inherited parent text and
 forked event prefixes retain their existing behavior. Internal agents never
-discover them. Loaded entries are persisted with provenance in
-<code>agent_md_loaded</code> and replayed as one user context turn wrapped in a
-<code>&lt;system-reminder&gt;</code> block, not as system-prompt text.</p>
+discover them. Loaded entries are persisted with provenance in one
+<code>agent_md_loaded</code> event per attachment that returned a file and replayed
+together as one user context turn wrapped in a <code>&lt;system-reminder&gt;</code> block, not
+as system-prompt text.</p>
 <p>Repository-controlled <code>AGENTS.md</code> content enters model context automatically.
 Treat it as untrusted instructions when opening unfamiliar workspaces and review
 the <a href="../security/#agentsmd-context-files">security guidance</a>. Configure limits in
@@ -2366,7 +2459,7 @@ the <a href="../security/#agentsmd-context-files">security guidance</a>. Configu
 <h2 id="subagent-tools">Subagent tools<a class="headerlink" href="#subagent-tools" title="Permanent link">&para;</a></h2>
 <p><code>delegate_subagent</code> requires a short <code>description</code>, a self-contained <code>prompt</code>,
 an allowed <code>agent_type</code>, and accepts optional <code>background</code>, <code>resume_session_id</code>,
-and <code>inherit_context</code> arguments. Foreground calls block and return a concise
+<code>inherit_context</code>, and <code>runtimes</code> arguments. Foreground calls block and return a concise
 result teaser. Background calls return immediately with the child's handle;
 admission still waits for any required permission approval. A child is
 addressed everywhere by its short tree-unique handle
@@ -2393,6 +2486,13 @@ dropped. The retained text is capped at 64 KiB by truncating the oldest content
 first. This is a capability and privacy boundary: retained parent text crosses
 into the child agent's model context and must be appropriate for that child.
 <code>inherit_context</code> and <code>resume_session_id</code> cannot both be set.</p>
+<p>A new child is attached to the same <a href="../../specs/runtimes/">runtimes</a> as its
+parent, under the same attachment names, and records those attachments in its
+own log. <code>runtimes</code> narrows that set to the listed attachment names of the
+parent (an empty list leaves the child only the base layer); a name the parent
+does not have rejects the call. A resumed child keeps its own attachments, so
+<code>runtimes</code> cannot be combined with <code>resume_session_id</code>. The child composes its
+tools from its own attachments the same way the parent does.</p>
 <p>Background sessions move through <code>queued</code>, <code>running</code>, and a terminal
 <code>completed</code>, <code>failed</code>, <code>interrupted</code>, or <code>cancelled</code> state. Completion appends a
 parent event containing the session ID and handle, status, a preview of the
@@ -2429,11 +2529,10 @@ reopens its event log and rebuilds the in-memory projection and actor.</p>
 Agents panel, so resuming a tree with many long finished children stays fast.
 A finished child that is woken again is picked up on the next tree refresh.</p>
 <h2 id="layering-and-replacement">Layering and replacement<a class="headerlink" href="#layering-and-replacement" title="Permanent link">&para;</a></h2>
-<p>User-layer and workspace-layer agent directories merge into one registry by
-agent ID. A same-ID workspace agent replaces the user agent completely. The IDs
-<code>approval</code>, <code>compaction</code>, and <code>title</code> are reserved for internal agents; an
-authored document with one of those IDs must use <code>mode: internal</code> and replaces
-the built-in document through normal layering. The ID <code>default</code> is reserved for
+<p>User agent documents and the built-in documents form one registry by agent ID.
+The IDs <code>approval</code>, <code>compaction</code>, and <code>title</code> are reserved for internal agents;
+an authored document with one of those IDs must use <code>mode: internal</code> and
+replaces the built-in document completely. The ID <code>default</code> is reserved for
 the engine-supplied fallback agent and cannot be authored at all.</p>
 <p>If no authored agent is runnable as a root, the engine synthesizes the built-in
 <code>default</code> coding agent bound to the first available model selection. Its prompt
@@ -2677,9 +2776,31 @@ built-in <code>default</code> agent is used.</p>
 </code></pre></div>
 <p>Effects are <code>allow</code>, <code>ask</code>, and <code>deny</code>. A bare effect is equivalent to mapping
 <code>"*"</code> to that effect. For matching patterns, more literal characters win, then
-fewer wildcards, then the later declaration on an exact tie. Unmatched resources
-are denied by default. <code>ask</code> remains an explicitly writable effect and routes
-matching calls through the existing approval flow; it is never an implicit fallback.</p>
+fewer wildcards, then a rule with a runtime selector over one without, then the
+later declaration on an exact tie. Unmatched resources are denied by default.
+<code>ask</code> remains an explicitly writable effect and routes matching calls through
+the existing approval flow; it is never an implicit fallback.</p>
+<h3 id="runtime-selectors">Runtime selectors<a class="headerlink" href="#runtime-selectors" title="Permanent link">&para;</a></h3>
+<p>A key may name a runtime: <code>action@runtime_id</code> applies only to tools of
+<a href="../../specs/runtimes/">runtimes</a> with that runtime ID, whatever workspace or
+attachment name they have in a session. A plain action applies to every
+runtime and to the daemon's base layer, so documents without selectors keep
+working unchanged.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">bash@labpc</span><span class="p">:</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="s">"git</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nt">read@local</span><span class="p">:</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="s">"${workspace_dir}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+</code></pre></div>
+<p>Here <code>git status</code> on the <code>labpc</code> runtime is allowed while every other command
+asks, and reads inside the local runtime's workspace are allowed. A qualified
+rule only outranks an unqualified one at the same resource specificity: with
+<code>bash: {"git push *": deny}</code> and <code>bash@labpc: {"*": allow}</code>, <code>git push</code> on
+<code>labpc</code> is still denied. The runtime ID follows <code>[a-z][a-z0-9_]{0,31}</code>.
+<code>delegate</code>, <code>message</code>, and <code>skill</code> belong to the base layer and take no
+selector. A selector also limits visibility: with only <code>bash@labpc</code> rules,
+<code>bash</code> tools of other runtimes are not published.</p>
 <h3 id="resource-labels">Resource labels<a class="headerlink" href="#resource-labels" title="Permanent link">&para;</a></h3>
 <p>Tool providers publish a static permission name and an optional resource label:</p>
 <table>
@@ -2694,7 +2815,7 @@ matching calls through the existing approval flow; it is never an implicit fallb
 <tr>
 <td><code>read</code></td>
 <td><code>read</code></td>
-<td>Filesystem path, or the exact <code>artifact://&lt;digest&gt;[/&lt;stream&gt;]</code> URI for an artifact</td>
+<td>Filesystem path</td>
 </tr>
 <tr>
 <td><code>write</code>, <code>edit</code></td>
@@ -2737,6 +2858,11 @@ matching calls through the existing approval flow; it is never an implicit fallb
 <td><code>goal:current</code></td>
 </tr>
 <tr>
+<td><code>read_artifact</code></td>
+<td>none</td>
+<td>None: always sent and always allowed, because it reads only the session tree's own retained output</td>
+</tr>
+<tr>
 <td><code>webfetch</code></td>
 <td><code>webfetch</code></td>
 <td>Initial URL as given, including its query string</td>
@@ -2772,7 +2898,9 @@ rule applies. Specific patterns are inapplicable rather than matching or
 denying. If neither a bare effect nor <code>"*"</code> exists, the normal unmatched result
 is <code>deny</code>.</p>
 <p><code>${workspace_dir}</code> is allowed only in <code>read</code> and <code>write</code> patterns and expands
-against the engine workspace root during evaluation. Ordinary absolute patterns
+against the workspace of the runtime that prepared the call; relative path
+labels resolve against it too. Base-layer and global-runtime tools have no
+workspace, so <code>${workspace_dir}</code> and relative-path patterns never match them. Ordinary absolute patterns
 such as <code>/etc/*</code> control outside-workspace paths. Permission patterns do not
 expand environment variables. A <code>*</code> matches across directory separators, so
 <code>"${workspace_dir}/*"</code> already covers nested paths such as
@@ -2805,27 +2933,27 @@ Resource patterns and overlay precedence still decide individual calls once
 tools are visible.</p>
 <p>For example, this agent exposes read, write/edit, and bash with granular write
 and command policies while leaving delegation and MCP tools hidden:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>---
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>description: Workspace implementation agent
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>mode: primary
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>enabled: true
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>models:
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>permissions:
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  read: allow
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  write:
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    "src/*": ask
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  bash:
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    "cargo test*": allow
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="gu">    "cargo fmt*": allow</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="gu">---</span>
-<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>Implement and verify requested workspace changes.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>---
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>description: Workspace implementation agent
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>mode: primary
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>enabled: true
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>models:
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>permissions:
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  read: allow
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>  write:
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    "src/*": ask
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>  bash:
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    "cargo test*": allow
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="gu">    "cargo fmt*": allow</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="gu">---</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>Implement and verify requested workspace changes.
 </code></pre></div>
 <p>MCP tools follow the same rule: the <code>mcp</code> action must contain a non-deny rule.
 Delegation tools additionally require the <code>delegate</code> map to name at least one
 eligible target with <code>allow</code> or <code>ask</code>. There is no separate tool allowlist.</p>
 <p>There is also no separate MCP server approval prompt or trust store. Configured,
-enabled servers follow their normal lazy or eager connection lifecycle, while
+enabled servers connect eagerly, while
 the agent's <code>mcp</code> map remains the sole visibility and call gate. Project MCP
 configuration and project agent documents are version-controlled content
 equivalent to code: a repository can ship both a server definition and an agent
@@ -2861,15 +2989,12 @@ fail closed. See the
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="s">"artifact://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
-<p>The <code>read</code> rule permits artifact readback so the model can page long responses.
-It does not grant filesystem reads, and workspace-path patterns do not grant artifact reads.
+<p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are
 not checked, and there is no SSRF protection, host/IP blocklist, or DNS
 pinning, so scope patterns accordingly, including access to local network
@@ -2931,8 +3056,11 @@ the chosen agent's rules with the draft's rules applied, and the title reads
 <code>Permissions · new session</code>. The draft's rules and permission mode are sent with
 the session's creation, so its first run already uses them; a session that was
 selected before <code>/new</code> is never changed.</p>
-<p>An overlay rule is evaluated before matching rules from the frozen agent
-snapshot. If no overlay rule matches, evaluation falls back to the agent
+<p>Overlay rules accept the same runtime selector as agent documents
+(<code>session.permission.set</code> and <code>session.permission.clear</code> take an optional
+<code>runtime</code>), and a rule's selector is part of its identity: <code>bash</code> and
+<code>bash@labpc</code> with the same pattern are two rules. An overlay rule is evaluated
+before matching rules from the frozen agent snapshot. If no overlay rule matches, evaluation falls back to the agent
 document and then the normal default (<code>deny</code>). This default affects evaluation
 only; an action omitted from both layers has no visible tools. Changes affect
 subsequent visibility and permission evaluations only. They do not rewrite an
@@ -2944,8 +3072,15 @@ after that approval was requested, so it cannot commit a stale durable grant.</p
 session log. Overlay state therefore survives daemon restart and follows normal
 revert and fork branch semantics. Tightening a rule durably invalidates existing
 tree grants for that action under the session root before the overlay event is
-committed. Invalidation is action-wide because tree-grant records retain opaque
-prepared identities rather than normalized resource labels.</p>
+committed. A change counts as tightening when it makes the rule stricter for
+the base layer or any runtime the session is attached to, each evaluated
+against that runtime's workspace. Invalidation is action-wide because tree-grant
+records retain opaque prepared identities rather than normalized resource
+labels; a qualified rule only invalidates grants of its runtime ID.</p>
+<p>Tree grants record the runtime ID of the tool they were approved for and only
+apply to calls on that runtime ID; base-layer grants record none. Grants and
+approval requests written before runtimes existed carry no runtime ID and are
+read as <code>local</code>.</p>
 
 
 

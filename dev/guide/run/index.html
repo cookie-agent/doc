@@ -566,6 +566,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtimes-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes panel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#usage-dashboard" class="md-nav__link">
     <span class="md-ellipsis">
       Usage dashboard
@@ -1231,6 +1240,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1572,6 +1604,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1848,6 +1903,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/events/" class="md-nav__link">
         
   
@@ -2066,6 +2144,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtimes-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes panel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#usage-dashboard" class="md-nav__link">
     <span class="md-ellipsis">
       Usage dashboard
@@ -2207,8 +2294,10 @@ interactive prompt, so a missing token is clap's standard required-argument
 error. The URL defaults to <code>ws://127.0.0.1:7419/ws</code> and may be changed with
 <code>--url</code>; only loopback WebSocket URLs with the exact <code>/ws</code> path are accepted.
 See <a href="../../engine/server/">Server</a>.
-Only open trusted workspaces: configured plugins and eager MCP servers can
-start during engine initialization, before a model tool call is approved.
+Configured plugins and eager MCP servers, which come only from the user
+<code>config.toml</code>, start during engine initialization, before a model tool call is
+approved. Repository <code>AGENTS.md</code> files and project skills still enter model
+context, so open unfamiliar workspaces with care.
 Allowed shell commands run without a filesystem sandbox; see the
 <a href="../security/#process-boundary">security contract</a>.</p>
 <h2 id="composer">Composer<a class="headerlink" href="#composer" title="Permanent link">&para;</a></h2>
@@ -2274,6 +2363,10 @@ intact.</p>
 <td>Manage MCP servers; see <a href="../mcp/">MCP servers</a></td>
 </tr>
 <tr>
+<td><code>/runtime</code> (also <code>runtimes</code>)</td>
+<td>Attach and detach the selected session's runtimes; see <a href="#runtimes-panel">Runtimes panel</a></td>
+</tr>
+<tr>
 <td><code>/permissions</code> (also <code>perms</code>)</td>
 <td>Edit session permission overrides; see <a href="../agents/#permissions">Permissions</a></td>
 </tr>
@@ -2316,8 +2409,8 @@ intact.</p>
 </tbody>
 </table>
 <p>In a read-only session owned by another cookie process, commands that write to
-the session (<code>/permissions</code>, <code>/skills</code>, <code>/cancel</code>, <code>/goal</code>, <code>/compact</code>) are
-hidden.</p>
+the session (<code>/permissions</code>, <code>/runtime</code>, <code>/skills</code>, <code>/cancel</code>, <code>/goal</code>,
+<code>/compact</code>) are hidden.</p>
 <p>The composer only ever sends messages: text beginning with <code>/</code> is sent as a
 prompt like any other. To start a message with <code>/</code>, open the palette and type
 <code>/</code> in its empty search; the palette closes and a literal <code>/</code> lands in the
@@ -2505,6 +2598,30 @@ mode. See <a href="../agents/#permissions">Permissions</a>.</p>
 <p>When pricing is available, the bottom bar also shows the selected session's
 estimated cost between the permission mode and context usage. Click the cost to
 open the <code>/usage</code> dashboard. Unpriced sessions omit the segment.</p>
+<p>The left of the bottom bar shows the session's directory followed by the names
+of its runtime attachments, for example <code>~/web · global, local_web</code>, or
+<code>no runtimes</code> for a session with none.</p>
+<h2 id="runtimes-panel">Runtimes panel<a class="headerlink" href="#runtimes-panel" title="Permanent link">&para;</a></h2>
+<p><code>/runtime</code> lists the selected session's
+<a href="../../specs/runtimes/#5-session-attachments">runtime attachments</a>: each
+attachment's name, runtime ID, workspace, and instance status (<code>starting</code>,
+<code>ready</code>, <code>reconnecting</code>, <code>failed</code>, <code>stopped</code>, or <code>not running</code>). The details
+pane shows the selected attachment's kind, platform, and, for a failed
+instance, the reason. The panel refreshes on every runtime change and while it
+is open.</p>
+<p>Press <code>a</code> to attach a runtime: choose a template with the arrow keys and, when
+the template takes a workspace, Tab to the workspace path and type it; Enter
+attaches. The path is passed to the runtime as typed and resolved on its
+machine (see <a href="../runtimes/">Runtimes</a>). Press <code>d</code> to detach the selected
+attachment, and <code>r</code> to retry its instance now, for example after fixing why it
+failed (<code>runtimes.reconnect</code>). The daemon refuses both
+while the session has an active run, and refuses attaching an instance the
+session already has; the refusal appears in the status line. Attaching starts
+the instance first and records nothing when it fails to start.</p>
+<p>When an MCP server or runtime instance a session uses fails to connect, or
+drops and does not reconnect, the TUI adds an error row to each affected
+session naming the server or runtime and the reason (see
+<a href="../mcp/#connection-lifecycle">MCP connection lifecycle</a>).</p>
 <h2 id="usage-dashboard">Usage dashboard<a class="headerlink" href="#usage-dashboard" title="Permanent link">&para;</a></h2>
 <p><code>/usage</code> opens a read-only view with the selected session first and its complete
 delegation tree second. The tree count includes the selected session. Each

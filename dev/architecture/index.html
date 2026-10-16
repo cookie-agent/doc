@@ -1007,6 +1007,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1566,6 +1589,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1825,6 +1871,29 @@
   
   <span class="md-ellipsis">
     Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
     
   </span>
   
@@ -2151,7 +2220,7 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>cookie agent is a subagent-first coding harness built as a Rust workspace of ten
+<p>cookie agent is a subagent-first coding harness built as a Rust workspace of twelve
 crates. A local daemon owns provider connections, sessions, model execution,
 permissions, and persistence; a terminal UI communicates with it over a versioned
 JSON-RPC WebSocket protocol. Session history is a versionless, best-effort-read
@@ -2193,7 +2262,7 @@ has six top-level subcommands plus a default mode:</p>
 </tr>
 <tr>
 <td><code>mcp --token list</code></td>
-<td>List configured MCP servers</td>
+<td>List the MCP servers of every runtime with their state and hosting runtime</td>
 </tr>
 <tr>
 <td><code>mcp --token auth &lt;server&gt;</code></td>
@@ -2208,6 +2277,15 @@ token file on disk. <code>attach</code>, <code>connect</code>, <code>disconnect<
 token via <code>--token</code> or <code>COOKIE_DAEMON_TOKEN</code> and accept only loopback <code>ws</code>/<code>wss</code>
 URLs whose path is exactly <code>/ws</code>. They use the same shared protocol client as
 the TUI, so the CLI keeps working even when built without the <code>tui</code> feature.</p>
+<p>Tools run in <em>runtimes</em> (see the <a href="../specs/runtimes/">runtimes specification</a>).
+The daemon itself hosts the base layer and the global runtime (MCP servers and
+plugins). The <code>local</code> coding runtime, with <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>,
+and <code>webfetch</code> in the daemon's working directory, runs on a task of the daemon
+process and is reached over the <a href="../reference/runtime-protocol/">runtime protocol</a>
+through an in-memory frame pair. A configured
+<a href="../guide/runtimes/"><code>[runtimes.&lt;id&gt;]</code></a> template starts runtimes in child
+processes (typically <code>cookie runtime coding --stdio</code> on another machine over
+ssh) that speak the same protocol over stdio.</p>
 <p>Any number of clients may attach to one daemon at once. Each sees every
 session's events live, can submit input to any of them, and is told of the
 others' changes (see <a href="../reference/protocol/#daemon-wide-changes">the protocol</a>).
@@ -2223,12 +2301,14 @@ after a short pause.</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  └─ protocol        (wire types + session layer: transports, client, serve)
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       ├─ plugin_sdk
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>       ├─ tui           (depends on protocol only; never on the engine)
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       ├─ models
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       │    └─ config
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       │         └─ engine
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       │              ├─ tools
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │              └─ server
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       └─ cookie_agent (binary: composes every layer)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       ├─ runtime_api   (tool contract + runtime protocol; never on the engine)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       ├─ models
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       │    └─ config
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       │         └─ mcp     (also on runtime_api; never on the engine)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │              ├─ coding_runtime  (never on the engine)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       │              └─ engine  (enables mcp's `oauth` feature)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       │                   └─ server
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>       └─ cookie_agent (binary: composes every layer)
 </code></pre></div>
 <p>The TUI deliberately sits beside the engine rather than above it: it speaks
 only the protocol, receives an already-connected <code>Client</code>, and the
@@ -2261,15 +2341,23 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
 </tr>
 <tr>
 <td><code>config</code></td>
-<td>Strict runtime configuration and Markdown agent documents; layered user/workspace loading with secret zeroization. Re-exports <code>AgentMode</code>, <code>PermissionAction</code>, <code>PermissionEffect</code>, <code>PermissionRule</code>, and <code>AgentDocumentSource</code> from <code>protocol</code>.</td>
+<td>Strict runtime configuration and Markdown agent documents from the user layer, with secret zeroization; also the <code>SKILL.md</code> parser and project skill discovery that coding runtimes use. Re-exports <code>AgentMode</code>, <code>PermissionAction</code>, <code>PermissionEffect</code>, <code>PermissionRule</code>, and <code>AgentDocumentSource</code> from <code>protocol</code>.</td>
+</tr>
+<tr>
+<td><code>runtime_api</code></td>
+<td>The contract between the engine and the tools it runs: <code>ToolProvider</code>, <code>ToolSpec</code>, prepared calls, preparation and execution contexts, progress and stdin, the traits through which the engine provides output capture, artifact retention, and background jobs, runtime identity (<code>ToolOrigin</code>, <code>RuntimeInfo</code>, <code>WorkspaceContext</code>), tool attachment validation, and the <code>AGENTS.md</code> lookup. It also holds the <a href="../reference/runtime-protocol/">runtime protocol</a>: its wire types (<code>protocol</code>), the symmetric JSON-RPC peer both ends run with a newline-delimited stdio transport (<code>rpc</code>), and <code>RuntimeConnector</code>, which starts a runtime for a requested workspace and returns its transport with a bounded <code>DiagnosticTail</code> of what it writes outside the protocol. Depends on <code>protocol</code> only.</td>
+</tr>
+<tr>
+<td><code>mcp</code></td>
+<td>The MCP client (<code>cookie_agent_mcp</code>): an <code>McpRegistry</code> per runtime that connects its servers eagerly over stdio or Streamable HTTP, publishes their tools as <code>&lt;server&gt;_&lt;tool&gt;</code> with untrusted-output markings, maps result media to attachments, reconnects dropped servers with the shared reconnect policy, and reports status and failures to subscribers and an <code>McpObserver</code>. The <code>oauth</code> feature, which only the engine enables, adds OAuth for remote servers and the <code>mcp-oauth.json</code> credential store. Depends on <code>runtime_api</code> and <code>config</code>, never on the engine.</td>
 </tr>
 <tr>
 <td><code>engine</code></td>
-<td>Session actors, run loops, permissions, approvals, delegation, compaction, internal agents, persistence.</td>
+<td>Session actors, run loops, permissions, approvals, delegation, compaction, internal agents, persistence, the base layer tools (delegation: <code>delegate_subagent</code>, <code>get_subagent_result</code>, <code>cancel_subagent</code>; messaging: <code>send_message</code>; <code>skill</code>; goals; <code>read_artifact</code>), and the runtime registry with the runtime protocol client (<code>runtimes::remote</code>), the child-process connector of configured templates (<code>runtimes::process</code>), instance reconnects, and the global runtime's <code>McpRegistry</code> with the TUI's runtime-layer MCP edits and their write-back (<code>config_store</code>).</td>
 </tr>
 <tr>
-<td><code>tools</code></td>
-<td>Built-in <code>read</code> (filesystem and artifact URIs), <code>write</code>, <code>edit</code>, <code>bash</code>, and <code>webfetch</code> tools plus the delegation (<code>delegate_subagent</code>, <code>get_subagent_result</code>, <code>cancel_subagent</code>), messaging (<code>send_message</code>), <code>skill</code>, and goal providers.</td>
+<td><code>coding_runtime</code></td>
+<td>The coding runtime: its <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, and <code>webfetch</code> tools, working in the runtime's workspace, the global runtime's fallback <code>webfetch</code>, and the runtime protocol server (<code>server::serve</code>) that answers a daemon with them, the workspace's project skills, and its <code>AGENTS.md</code>, plus the in-process connector the daemon's <code>local</code> runtime uses and <code>server::serve_stdio</code>, which <code>cookie runtime coding --stdio</code> runs. The server hosts its template's MCP servers with an <code>McpRegistry</code> without OAuth. Depends on <code>runtime_api</code>, <code>mcp</code>, and <code>config</code> (the skill parser), never on the engine.</td>
 </tr>
 <tr>
 <td><code>server</code></td>
@@ -2281,7 +2369,7 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
 </tr>
 <tr>
 <td><code>cookie_agent</code></td>
-<td>CLI and composition root wiring every crate together. The only binary.</td>
+<td>CLI and composition root wiring every crate together, and <code>cookie runtime coding --stdio</code>, which serves a coding runtime to a daemon without reading any configuration. The only binary.</td>
 </tr>
 </tbody>
 </table>
@@ -2365,15 +2453,16 @@ session again is a recovery, reopening a foreign read-only snapshot (which has
 no tail to keep it current), a session adopted after a snapshot subscription
 (which needs its first live tail), and a new connection.</p>
 <h2 id="configuration-and-layering">Configuration and layering<a class="headerlink" href="#configuration-and-layering" title="Permanent link">&para;</a></h2>
-<p>The <code>config</code> crate reads two optional authored layers:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.cookie-agent/config.toml                 # user layer
+<p>The <code>config</code> crate reads built-in defaults and one optional authored layer, the
+user layer:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.cookie-agent/config.toml
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>~/.cookie-agent/agents/&lt;agent-id&gt;.md
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>&lt;exact-cwd&gt;/.cookie-agent/config.toml       # workspace layer
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>&lt;exact-cwd&gt;/.cookie-agent/agents/&lt;agent-id&gt;.md
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>~/.cookie-agent/agents/&lt;preset&gt;/&lt;agent-id&gt;.md
 </code></pre></div>
-<p>There is no upward workspace search. A workspace setting replaces the
-corresponding user setting; a same-ID workspace provider or agent replaces the
-complete user definition. Unknown keys, leftover schema/version fields, wrong
+<p>There is no workspace configuration layer: <code>&lt;cwd&gt;/.cookie-agent/config.toml</code>
+and <code>&lt;cwd&gt;/.cookie-agent/agents/</code> are never opened. The working directory is
+the local coding runtime's workspace and only contributes context, <code>AGENTS.md</code>
+files and project skills. Unknown keys, leftover schema/version fields, wrong
 types, and malformed values are rejected without migration or silent ignores.
 The TUI additionally reads an independent <code>~/.cookie-agent/tui.toml</code>.</p>
 <p>See <a href="../guide/configuration/">Configuration</a> and the
@@ -2465,27 +2554,101 @@ session and drive the run loop:</p>
   to the user, reject automatically, or approve once automatically according to
   the mode. Each evaluation is one fresh model call that sees the latest user
   request, up to five recent user, tree-grant, or classifier decisions for the
-  same permission action from the tree's resident sessions, and the tool call's
-  normalized parameters. <code>ask</code> skips the classifier, and <code>yolo</code> approves
-  immediately. A doom-loop guard rejects repeated identical approvals.</li>
-<li><strong>Tool dispatch.</strong> Calls from one committed model turn are prepared and
+  same permission action from the tree's resident sessions, the runtime the
+  call runs on with its workspace, and the tool call's normalized parameters.
+  <code>ask</code> skips the classifier, and <code>yolo</code> approves immediately. A doom-loop
+  guard rejects repeated identical approvals.</li>
+<li><strong>Tool layers and runtimes.</strong> The engine composes each session's tool list
+  from the base layer and the session's runtime attachments
+  (<code>crates/engine/src/runtimes</code>; see the
+  <a href="../specs/runtimes/">runtimes specification</a>):</li>
+<li>the <em>base layer</em>: the daemon's own orchestration tools (delegation,
+    <code>send_message</code>, <code>skill</code>, goals, <code>read_artifact</code>), which the engine
+    implements and registers itself when it opens
+    (<code>crates/engine/src/base_tools</code>). It has no workspace and every session
+    has it.</li>
+<li><em>runtime instances</em>, started from <em>templates</em> by a registry that keeps one
+    instance per (runtime ID, canonical workspace) and shares it with every
+    session attached to it. The built-in templates are <code>global</code> (top-level MCP
+    servers, plugins, and a <code>webfetch</code> that is only a fallback; no workspace)
+    and <code>local</code> (kind <code>coding</code>: <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, and
+    <code>webfetch</code> in the daemon's working directory, and the
+    <code>[runtimes.local.mcp]</code> servers). A coding runtime hosts its template's
+    MCP servers itself, on its own machine: it connects them before it
+    answers <code>runtime/initialize</code>, declares their tools next to its built-in
+    ones, and reports their status (<code>mcp/changed</code>). Both instances start with
+    the daemon (<code>Engine::open_async</code>). Each configured <code>[runtimes.&lt;id&gt;]</code>
+    adds a protocol template whose <code>ProcessConnector</code> runs the template's
+    command (<code>runtimes/process.rs</code>); its instances start when a session
+    needs them and are keyed by the canonical workspace the runtime reports,
+    never by a path the daemon resolved. The global runtime is called
+    in-process. <code>local</code> and the configured runtimes run behind the
+    <a href="../reference/runtime-protocol/">runtime protocol</a>: a protocol template
+    starts an instance with a <code>RuntimeConnector</code> and initializes it, and the
+    client publishes the tools it declared, proxies preparation and
+    execution, routes its progress into the daemon's output capture, retains
+    the media it sends, and maps its background jobs onto the engine's. When
+    a protocol connection is lost, calls in flight fail with
+    <code>runtime_unavailable</code> and running background jobs complete as failed;
+    the instance reconnects (1 s, 2 s, 4 s) with its tools still published,
+    and a restart revives it under a new generation. When every attempt
+    fails it becomes failed and its tools are dropped.</li>
+<li><em>attachments</em>: a session records the instances it uses with
+    <code>runtime_attached</code> and <code>runtime_detached</code> events. New sessions attach
+    <code>global</code> and <code>local</code>; a log with neither event reads the same way. Each
+    attachment has a session-unique name, the name its instance reports
+    (<code>local_&lt;workspace basename&gt;</code>, sanitized to <code>[a-z0-9_]</code> and capped at 32
+    bytes, for a coding runtime), suffixed <code>_2</code>, <code>_3</code>, ... on a clash.</li>
+<li><em>connections</em>: everything a session uses is connected before its first
+    run. The global runtime's MCP servers connect eagerly when the daemon
+    starts, and the first run waits for those attempts; a coding runtime's
+    servers have finished theirs when its instance starts. Creating or
+    opening a session starts its attached instances and retries the failed
+    MCP servers of every attached instance (<code>mcp/reconnect</code> for a coding
+    runtime); its next run waits for them. A connected MCP server that drops
+    is restarted by the shared reconnect policy
+    (<code>cookie_agent_runtime_api::reconnect</code>: three attempts after 1 s, 2 s,
+    and 4 s) in the runtime that hosts it; meanwhile its tools stay published
+    and calls fail fast with <code>runtime_unavailable</code>, and when every attempt
+    fails its tools are dropped. Connect failures, exhausted reconnects, and
+    failed instance starts are broadcast by the runtime registry and the MCP
+    hub, which merges the global runtime's servers with those coding
+    runtimes report; the server turns them into <code>mcp.changed</code> and
+    <code>runtimes.changed</code> notifications that name the affected sessions each
+    connection subscribes to.</li>
+</ul>
+<p>Every published tool records which layer or attachment offers it, and the
+  instance generation it came from. Preparation, permission decisions, and
+  visibility use that runtime's workspace: a tool without one never matches a
+  <code>${workspace_dir}</code> rule or a rule for a relative path, and its operations
+  digest the runtime ID instead of a path. Names are recomputed every model
+  turn: a name offered by one source is published bare; when several runtime
+  tools offer one name, or a runtime tool takes a base-layer name, each runtime
+  tool is published as <code>&lt;attachment&gt;_&lt;name&gt;</code> (the base tool keeps its name); a
+  <code>fallback</code> tool is hidden whenever a regular tool offers its name, so the
+  global <code>webfetch</code> only appears without a coding runtime; and a published name
+  longer than 64 bytes is dropped with a diagnostic. A call to a published name
+  runs on its attachment under the runtime's own name for the tool, and fails
+  as <code>operation_changed</code> when that attachment, instance, or declaration
+  changed since publication. The daemon's working directory itself only
+  locates the session store and stamps each session's <code>cwd_identity</code>.
+- <strong>Tool dispatch.</strong> Calls from one committed model turn are prepared and
   started in model order, then all permission decisions and serialized approval
   prompts resolve before execution begins. Tools explicitly marked parallel are
   dispatched together without a fan-out limit; exclusive tools run sequentially
   after that set. Prepared serialization keys still prevent conflicting
-  mutations from overlapping. Terminal events commit as calls finish.</li>
-<li><strong>Delegation.</strong> The <code>delegate_subagent</code> tool reserves a child session by
+  mutations from overlapping. Terminal events commit as calls finish.
+- <strong>Delegation.</strong> The <code>delegate_subagent</code> tool reserves a child session by
   appending lifecycle events to the parent session, then runs the target
   subagent with an inherited model suffix. Each session is assigned a short,
   tree-unique handle (<code>&lt;agent_type&gt;_&lt;8 hex&gt;</code>) recorded on its creation event,
   and the model-facing delegation tools accept that handle interchangeably with
   the full session UUID. Depth and concurrency limits come from <code>delegation</code>
-  configuration.</li>
-<li><strong>Internal agents.</strong> The approval, context-compaction, and session-title
+  configuration.
+- <strong>Internal agents.</strong> The approval, context-compaction, and session-title
   agents run with no tools and a strict text-only output contract, normally on
   the parent run's model via <code>${parent_model}</code>. See
-  <a href="../guide/agents/#internal-agents">Internal agents</a>.</li>
-</ul>
+  <a href="../guide/agents/#internal-agents">Internal agents</a>.</p>
 <h2 id="sessions-and-persistence">Sessions and persistence<a class="headerlink" href="#sessions-and-persistence" title="Permanent link">&para;</a></h2>
 <p>Sessions are append-only event logs. A new session exists only in memory until
 its first user message, when its directory, <code>events.jsonl</code>, and <code>metadata</code>
@@ -2555,7 +2718,10 @@ write path and later evicts like any other session.</p>
 <p>Tool output is content-addressed under a digest-named file, and every artifact
 belongs to exactly one tree: output written by a root or one of its descendants
 lands in that root's <code>artifacts/</code>. A session reads only its own tree's
-artifacts, so a URI naming content another tree stored does not resolve there.
+artifacts, so a <code>read_artifact</code> digest naming content another tree stored does not
+resolve there. <code>read_artifact</code> therefore needs no permission rule: it is a
+base-layer tool with the unconditional permission name, always published and
+always allowed.
 A fork of a root hard-links every artifact its history references — and the
 streams a named-stream manifest lists — into the new tree before the fork is
 published, so it never depends on its source; a link that fails fails the fork. Collection is therefore per tree
@@ -2626,7 +2792,7 @@ source's tree and therefore needs that tree's lock, taking it when it is free
 and failing as foreign-owned when it is not. Grants and grant invalidations
 committed by another process become
 visible after restart. Concurrent MCP configuration edits remain last-writer
-wins. Ownership failures in protocol 38 use an ordinary fault
+wins. Ownership failures in protocol 40 use an ordinary fault
 message rather than a new wire error.</p>
 <p>The data directory must be on a local filesystem with correct <code>flock</code> or
 <code>LockFileEx</code> semantics. NFS-class and other network filesystems are unsupported
@@ -2656,7 +2822,7 @@ so a token cannot be replayed or retargeted to another session.</p>
 details.</p>
 <h2 id="protocol-surface">Protocol surface<a class="headerlink" href="#protocol-surface" title="Permanent link">&para;</a></h2>
 <p>The wire protocol is unchanged by the session-layer refactor: JSON-RPC 2.0 over
-an authenticated WebSocket at <code>/ws</code>, protocol 38 current-only, <code>handshake</code> first.
+an authenticated WebSocket at <code>/ws</code>, protocol 40 current-only, <code>handshake</code> first.
 Discovery is a single <code>runtime.snapshot.get</code> call that returns one coherent
 runtime snapshot (schema 5). Session events stream through <code>events.subscribe</code>
 and plugin bus events through <code>events.plugin</code>. Raw tool output is not streamed

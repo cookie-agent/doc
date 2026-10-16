@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["McpServerState"],"struct":["McpRegistry","McpRegistryOptions","McpServerFailure","McpServerStatus"],"trait":["McpObserver"],"type":["PluginCollisionHandler"]};

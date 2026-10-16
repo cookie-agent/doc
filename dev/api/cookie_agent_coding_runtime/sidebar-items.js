@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["runtime_options"],"mod":["bash","edit","fs_cap","read","server","webfetch","write"],"struct":["BuiltinTools"]};

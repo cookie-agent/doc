@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_ATTACHMENT_BYTES","MAX_VIDEO_ATTACHMENT_BYTES","MEDIA_SNIFF_BYTES"],"enum":["AttachmentGate"],"fn":["approved_media_type","attachment_gate_error","canonical_video_mime_type","gate_attachment","sniff_media_type","validate_attachment"]};

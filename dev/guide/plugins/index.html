@@ -16,7 +16,7 @@
         <link rel="prev" href="../mcp/">
       
       
-        <link rel="next" href="../../tui/configuration/">
+        <link rel="next" href="../runtimes/">
       
       
       <link rel="icon" href="../../assets/logo.svg">
@@ -1099,6 +1099,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1440,6 +1463,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1716,6 +1762,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/events/" class="md-nav__link">
         
   
@@ -1906,8 +1975,8 @@ engine's standard error stream.</p>
 <p>For SDK usage, extension hooks, event delivery, publishing, and protocol
 contracts, see <a href="../../development/plugins/">Plugin development</a>.</p>
 <h2 id="configure-and-enable-a-plugin">Configure and enable a plugin<a class="headerlink" href="#configure-and-enable-a-plugin" title="Permanent link">&para;</a></h2>
-<p>Configure each plugin under <code>[plugins.&lt;name&gt;]</code> in user or workspace
-<code>config.toml</code>. A workspace entry replaces a user entry with the same name.
+<p>Configure each plugin under <code>[plugins.&lt;name&gt;]</code> in the user <code>config.toml</code>
+(<code>~/.cookie-agent/config.toml</code>).
 The map defaults to empty. Names must be nonempty, at most 128 bytes, and contain
 no control characters. The following is a complete illustrative <code>config.toml</code>;
 the executable and working directory must exist when the engine starts.</p>
@@ -1926,9 +1995,10 @@ the executable and working directory must exist when the engine starts.</p>
 <p><code>command</code> is required. <code>args</code> and <code>env</code> default to empty collections, <code>enabled</code>
 defaults to <code>true</code>, and <code>cwd</code> is optional. All timeout values must be positive.
 A disabled entry is not started but is still validated.</p>
-<p>Plugin processes receive only the variables in <code>env</code>; the engine clears its
-inherited environment, including <code>PATH</code>, before adding those configured values.
-Configure <code>PATH</code> explicitly when the plugin itself needs it.</p>
+<p>Plugin processes inherit the engine's environment, like MCP stdio servers, and
+<code>env</code> adds to it, overriding inherited variables of the same name. A plugin
+therefore also sees provider API keys and other secrets the engine reads from
+its environment.</p>
 <p>Each enabled plugin starts when the engine opens. Set <code>enabled = false</code> to keep
 an installed plugin configured without starting it. Configuration changes take
 effect when the engine next starts.</p>
@@ -1990,10 +2060,9 @@ is only as complete as the plugin's own durable records.</p>
 <p>During shutdown, the engine requests plugin shutdown, waits for the configured
 grace period, and then terminates the process if needed.</p>
 <h2 id="accepted-fields">Accepted fields<a class="headerlink" href="#accepted-fields" title="Permanent link">&para;</a></h2>
-<p>Plugin definitions are layered by plugin name. A workspace definition replaces
-the complete same-name user definition without merging nested fields. The
-replacement keeps that user's position in authored order, which is also the
-interception order; workspace-only plugins append in workspace-authored order.
+<p>Plugins are defined only in the user <code>config.toml</code>; a
+<code>&lt;cwd&gt;/.cookie-agent/config.toml</code> is never read. Their authored order is also the
+interception order.
 Plugin authors can use the
 <a href="../../development/plugins/">development guide</a> for protocol and tool contracts.</p>
 <table>
@@ -2022,7 +2091,7 @@ Plugin authors can use the
 <td><code>env</code></td>
 <td>map of strings</td>
 <td>empty</td>
-<td>Complete child environment; inherited variables are cleared.</td>
+<td>Additions to the inherited engine environment; a listed variable overrides the inherited value.</td>
 </tr>
 <tr>
 <td><code>cwd</code></td>
@@ -2072,11 +2141,9 @@ Plugin authors can use the
 <code>cwd</code> must be nonempty when set, and every timeout must be greater than zero.
 These rules apply even when <code>enabled = false</code>; disabling an entry prevents
 startup but does not bypass configuration validation.</p>
-<p>The child receives only the variables in <code>env</code>. It does not inherit the
-engine's environment, including <code>PATH</code>; use an absolute <code>command</code> and configure
-<code>PATH</code> explicitly when the executable or its children need it.</p>
-<p>Plugin commands are trusted local code, not a sandbox. Review workspace plugin
-configuration before opening the workspace. Tool permissions do not prevent
+<p>The child inherits the engine's environment, including <code>PATH</code> and any provider
+API keys set there, plus the variables in <code>env</code>, which take precedence.</p>
+<p>Plugin commands are trusted local code, not a sandbox. Tool permissions do not prevent
 configured startup or independently authorize interception hooks. See
 <a href="../security/#process-boundary">security boundaries</a>.</p>
 

@@ -1007,6 +1007,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes [runtimes]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1353,6 +1376,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1660,6 +1706,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtimes-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes block
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agentsmd-context-turn" class="md-nav__link">
     <span class="md-ellipsis">
       AGENTS.md context turn
@@ -1717,6 +1772,29 @@
   
   <span class="md-ellipsis">
     Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
     
   </span>
   
@@ -1880,6 +1958,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtimes-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes block
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agentsmd-context-turn" class="md-nav__link">
     <span class="md-ellipsis">
       AGENTS.md context turn
@@ -1943,9 +2030,9 @@ agent but is not copied into prompt text.</p>
 <p>For a root or delegated run, the engine composes the model request in this order:</p>
 <ol>
 <li>The selected agent document body becomes <code>AgentSnapshot.composed_prompt</code>.</li>
-<li>The session working directory is appended as a single
-   <code>&lt;working_directory&gt;</code> block so the model knows where relative paths resolve.
-   The prompt and document fingerprints are updated.</li>
+<li>The session's runtime attachments are appended as a single <code>&lt;runtimes&gt;</code>
+   block so the model knows which runtimes it can use and where relative paths
+   resolve. The prompt and document fingerprints are updated.</li>
 <li>Trusted in-process tool providers may append bounded behavioral-policy
    sections. Sections retain provider provenance and update both prompt and
    document fingerprints.</li>
@@ -1961,7 +2048,7 @@ agent but is not copied into prompt text.</p>
    session history.</li>
 </ol>
 <p>Appended blocks are joined by a markdown horizontal rule (<code>\n\n---\n\n</code>) so the
-boundaries between the authored body, the working-directory block, tool-provider
+boundaries between the authored body, the runtimes block, tool-provider
 sections, the skills listing, and a plugin addendum are visible. The authored
 body is first and carries no leading separator; a plugin <code>replace_system_prompt</code>
 replaces the whole prompt instead of appending to it.</p>
@@ -1972,8 +2059,8 @@ for the first attempt and refreshes session events only when a later attempt
 needs current history.</p>
 <h2 id="fingerprints">Fingerprints<a class="headerlink" href="#fingerprints" title="Permanent link">&para;</a></h2>
 <p>The document fingerprint covers the agent identity, strict frontmatter, and
-body. The prompt fingerprint covers prompt text only. The working-directory
-block, tool-provider sections, skill listings, and plugin composition update the
+body. The prompt fingerprint covers prompt text only. The runtimes block,
+tool-provider sections, skill listings, and plugin composition update the
 effective fingerprints before
 <code>run_started</code> is persisted. Model-attempt events record the prompt fingerprint,
 and replay validation rejects attempt attribution that contradicts the frozen
@@ -1989,8 +2076,9 @@ engine-derived identity:</p>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>- sub-fixer: Coder for anything that touches code
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>&lt;/tool_instructions&gt;
 </code></pre></div>
-<p>Provider registration order determines block order; declaration order determines
-section order within a provider. Bodies are limited to 8 KiB per section,
+<p>Providers contribute in composition order: the base layer, then the global
+runtime, then the local coding runtime, each in registration order.
+Declaration order determines section order within a provider. Bodies are limited to 8 KiB per section,
 16 KiB per provider, and 32 KiB across all providers. Any invalid content or
 overflow rejects run admission instead of truncating or omitting policy. The
 existing 128 KiB composed-prompt limit still applies.</p>
@@ -2002,27 +2090,48 @@ reviewed and trusted like other installed code.</p>
 <p>MCP providers are architecturally excluded. Remote MCP output remains delimited
 data and typed tool metadata; it cannot contribute durable system instructions,
 and no configuration switch enables that path.</p>
+<h2 id="runtimes-block">Runtimes block<a class="headerlink" href="#runtimes-block" title="Permanent link">&para;</a></h2>
+<p>The block lists every attachment of the session in attach order, with its
+kind, and for a coding runtime its canonical workspace and platform. Each entry
+also says whether, at admission, any of the runtime's tools is published under
+its attachment prefix because another runtime or the base layer offers the same
+name:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>&lt;runtimes&gt;
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>&lt;runtime name="global" kind="global" prefixed="false"/&gt;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>&lt;runtime name="local_web" kind="coding" workspace="/home/me/web" platform="linux" prefixed="true"/&gt;
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>&lt;runtime name="labpc_api" kind="coding" workspace="/home/me/api" platform="linux" prefixed="true"/&gt;
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>&lt;/runtimes&gt;
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>File tools and bash of a coding runtime resolve relative paths against its workspace. Use workspace-relative paths for files inside it. When several runtimes offer a tool with one name, each is published as `&lt;runtime name&gt;_&lt;tool&gt;`; `prefixed="true"` marks a runtime whose tools carry that prefix.
+</code></pre></div>
+<p>Attribute values are XML-escaped. The block is frozen with the prompt: an
+attachment added or removed after admission changes the next run's block, not
+the current one.</p>
 <h2 id="agentsmd-context-turn">AGENTS.md context turn<a class="headerlink" href="#agentsmd-context-turn" title="Permanent link">&para;</a></h2>
 <p>At each root run start where AGENTS.md loading is on (the run agent's
-<code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>), cookie agent discovers
-applicable <code>AGENTS.md</code> files and
-stores their bounded content in <code>agent_md_loaded</code>. Files larger than 2 MiB are
-skipped and surfaced as <code>AgentMdSkipped</code> warning events. History replays the
-latest run's entries as one user turn, wrapped in a <code>&lt;system-reminder&gt;</code> block
-with each file delimited as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>&lt;system-reminder&gt;
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>As you answer the user's questions, you can use the following context:
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a># AGENTS.md
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Codebase and user instructions are shown below. Be sure to adhere to these instructions.
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>&lt;contents from="/abs/path/AGENTS.md"&gt;
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>...
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>&lt;/contents&gt;
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>&lt;/system-reminder&gt;
+<code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>), each coding runtime the
+session is attached to discovers the applicable <code>AGENTS.md</code> files in its own
+workspace, and cookie agent stores their bounded content in one
+<code>agent_md_loaded</code> event per attachment that returned a file, naming the
+attachment. Files larger than 2 MiB are skipped and surfaced as
+<code>AgentMdSkipped</code> warning events. History replays the latest run's entries, the
+latest event per attachment, as one user turn, wrapped in a
+<code>&lt;system-reminder&gt;</code> block with each file delimited as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;system-reminder&gt;
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>As you answer the user's questions, you can use the following context:
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a># AGENTS.md
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Codebase and user instructions are shown below. Be sure to adhere to these instructions.
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>&lt;contents from="/abs/path/AGENTS.md"&gt;
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>...
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>&lt;/contents&gt;
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>&lt;/system-reminder&gt;
 </code></pre></div>
+<p>With more than one attachment each <code>&lt;contents&gt;</code> element also carries a
+<code>runtime="&lt;attachment&gt;"</code> attribute. Events written before runtimes carry no
+attachment and count as the <code>local</code> runtime's.</p>
 <p>Making this context a turn rather than system text keeps the stable system
 cache key independent of normal repository edits, preserves per-file
 provenance, and lets compaction pin the turn alongside loaded skill bodies. The
@@ -2063,12 +2172,12 @@ cached prefix rather than using an isolated cache namespace. See the
 <tbody>
 <tr>
 <td>Root</td>
-<td>Selected authored agent body, or the concise built-in default coding prompt; working-directory block, optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Selected authored agent body, or the concise built-in default coding prompt; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>Root-only AGENTS.md context turn, loaded skill bodies, then session history</td>
 </tr>
 <tr>
 <td>Delegated</td>
-<td>Frozen delegated agent body; working-directory block, optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Frozen delegated agent body; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>No filesystem AGENTS.md context load. Explicit inherited user/assistant text and ordinary child history remain separate turns.</td>
 </tr>
 <tr>
@@ -2087,12 +2196,11 @@ the built-in backend while retaining the same isolated invocation contract.</p>
 server instructions, filesystem inventories, or generic operational boilerplate.
 Tools and MCP capabilities are represented by typed request definitions and
 permission policy. Runtime state belongs in events or request fields. The narrow
-exceptions are the frozen session working directory, which is needed to resolve
-relative paths, and the bounded set of authored behavioral-policy sections from
+exceptions are the frozen runtimes block, which is needed to resolve relative
+paths and to tell runtimes apart, and the bounded set of authored behavioral-policy sections from
 trusted local providers: reviewed local code supplies them, fingerprints cover
-them, and the admitted run freezes them. Working-directory text is XML-escaped
-and skipped rather than truncated if the composed prompt is already at the byte
-limit. Changing, externally controlled, or redundant information remains in
+them, and the admitted run freezes them. The runtimes block is XML-escaped and skipped rather than truncated if the
+composed prompt is already at the byte limit. Changing, externally controlled, or redundant information remains in
 typed fields or explicit context turns.</p>
 <p>See <a href="../../guide/agents/">Agents</a>, <a href="../events/">Events</a>, and
 <a href="../../guide/configuration/">Configuration</a>.</p>

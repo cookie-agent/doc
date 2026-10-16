@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["PreparedTarget"],"fn":["cwd_context_bytes","prepare_existing","prepare_target"],"struct":["PreparedAbsent","PreparedExisting"]};
