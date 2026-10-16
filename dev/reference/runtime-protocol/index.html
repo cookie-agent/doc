@@ -2178,11 +2178,13 @@ engine's <code>runtimes::remote</code> module.</p>
   with <code>-32602</code>, and the connection stays up.</li>
 </ul>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is an integer, currently <strong>2</strong>
+<p>The protocol version is an integer, currently <strong>3</strong>
 (<code>protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its version in
 <code>runtime/initialize</code>; a runtime that speaks another version fails the request
 with code <code>-32010</code> and a message naming both versions, and the daemon checks
-the version in the reply the same way. There is no negotiation.</p>
+the version in the reply the same way. There is no negotiation.
+Version 3 removed <code>tool/stdin</code> and the <code>stdin</code> flag of <code>tool/execute</code>: tools
+no longer take input while they run.</p>
 <h2 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
 <ol>
 <li>The daemon connects (in-process: a new frame pair and a server task; a
@@ -2282,12 +2284,6 @@ transparently.</p>
 <td>runtime → daemon</td>
 <td>request</td>
 <td>Display and output deltas of an executing call</td>
-</tr>
-<tr>
-<td><code>tool/stdin</code></td>
-<td>daemon → runtime</td>
-<td>request</td>
-<td>Bytes for an interactive call's stdin</td>
 </tr>
 <tr>
 <td><code>tool/cancel</code></td>
@@ -2502,10 +2498,6 @@ a notification.</p>
 <td>As for prepare.</td>
 </tr>
 <tr>
-<td><code>stdin</code></td>
-<td>The daemon forwards stdin with <code>tool/stdin</code>.</td>
-</tr>
-<tr>
 <td><code>background</code></td>
 <td>The call may start background jobs.</td>
 </tr>
@@ -2529,10 +2521,9 @@ a notification.</p>
 each answer, so output reaches the daemon's capture in order, the daemon's
 capture limits reach the tool, and every chunk precedes the execute reply.
 The daemon owns capture, previews, and artifact retention.</p>
-<p><code>tool/stdin</code> carries <code>prepared_id</code>, base64 <code>data</code> (at most 1 MiB decoded), and
-<code>eof</code>. <code>tool/cancel</code> cancels the call; it still answers its execute request.
-The runtime registers an execution as the request arrives, so stdin and
-cancellation sent right after execute reach it.</p>
+<p><code>tool/cancel</code> cancels the call; it still answers its execute request. The
+runtime registers an execution as the request arrives, so a cancellation sent
+right after execute reaches it.</p>
 <h3 id="background-jobs">Background jobs<a class="headerlink" href="#background-jobs" title="Permanent link">&para;</a></h3>
 <p>A call that starts a background job (such as <code>bash</code> with <code>background</code>)
 reserves it with <code>job/started</code> (<code>prepared_id</code>, <code>job</code>); the daemon reserves its
