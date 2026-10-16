@@ -2385,7 +2385,7 @@ only notification path, and they stay a daemon-side plugin feature.</p>
 </tr>
 <tr>
 <td><strong>Runtime kind</strong></td>
-<td><code>global</code> or <code>coding</code> in this milestone. A runtime reports its own kind in <code>runtime/initialize</code>; templates do not declare it.</td>
+<td>A free-form label a runtime declares for itself in <code>runtime/initialize</code>, such as <code>global</code> or <code>coding</code>; templates do not declare it. The daemon only displays it: behaviour follows from what a runtime reports (its workspace, tools, and skills), never from its kind, so runtimes of new kinds need no daemon change.</td>
 </tr>
 <tr>
 <td><strong>Runtime template</strong></td>
@@ -2436,9 +2436,10 @@ only notification path, and they stay a daemon-side plugin feature.</p>
 </tr>
 </tbody>
 </table>
-<p>Plugins exist only on the daemon, hosted by the global runtime. MCP hosting
-is a feature of the coding kind, not of the runtime contract: coding runtimes
-host MCP servers, and future runtime kinds need not. No runtime hosts plugins.</p>
+<p>Plugins exist only on the daemon, hosted by the global runtime. Hosting MCP
+servers is up to each runtime, not part of the runtime contract: coding
+runtimes host them, and a runtime that does not rejects a template that lists
+some. No runtime hosts plugins.</p>
 <p>Rules:</p>
 <ul>
 <li>The global runtime never offers <code>read</code>, <code>write</code>, <code>edit</code>, or <code>bash</code>. Those
@@ -2480,7 +2481,7 @@ host MCP servers, and future runtime kinds need not. No runtime hosts plugins.</
 <li>Templates do not declare a kind. The command decides what runs, and the
   runtime reports its kind in <code>runtime/initialize</code>, so there is one source of
   truth. The <code>mcp</code> table is still parsed strictly when the configuration
-  loads; a runtime whose kind hosts no MCP servers rejects a nonempty one at
+  loads; a runtime that hosts no MCP servers rejects a nonempty one at
   initialize.</li>
 <li>A template whose command contains <code>{workspace}</code> needs a workspace: attach
   and session creation require one. A template without the placeholder takes
@@ -2637,8 +2638,15 @@ the existing <code>OperationChanged</code> path.</p>
   specific than an unqualified one at the same resource specificity.</li>
 <li>The selector matches the runtime ID, not the attachment name, so it is
   stable across sessions.</li>
-<li>Permission actions stay the fixed <code>PermissionAction</code> enum. Runtime tools
-  declare one of them; the runtime protocol carries the enum.</li>
+<li>Permission actions are free-form labels a tool declares
+  (<code>[a-z][a-z0-9_]{0,31}</code>), so a runtime can introduce its own, such as
+  <code>browse</code>. An action no rule names is denied, so a new runtime's tools stay
+  hidden until an agent or the session overlay grants their action. The daemon
+  gives meaning only to the actions of its own tools: <code>read</code> and <code>write</code> take
+  file paths (<code>${workspace_dir}</code>, workspace-relative resources), and
+  <code>delegate</code>, <code>message</code>, and <code>skill</code> belong to the base layer. Every other
+  action matches plain wildcard patterns. <code>unconditional</code> is reserved: no
+  runtime may declare it.</li>
 <li><code>${workspace_dir}</code> and relative resources resolve against the workspace of
   the runtime that prepared the call. Base layer and global tools have no
   workspace; path-relative patterns never match them.</li>
@@ -2693,7 +2701,7 @@ does not; it is called in-process through the same Rust trait.</p>
 <tr>
 <td><code>runtime/initialize</code></td>
 <td>daemon → runtime</td>
-<td>Version, runtime ID, requested workspace (when the template takes one), and settings: <code>tool_output</code> and <code>agent_md</code> limits and the template's MCP servers. A runtime rejects settings its kind does not support. Reply: version, kind, attachment name, canonical workspace, platform, shell, tool declarations, skills.</td>
+<td>Version, runtime ID, requested workspace (when the template takes one), and settings: <code>tool_output</code> and <code>agent_md</code> limits and the template's MCP servers. A runtime rejects settings it does not support. Reply: version, kind, attachment name, and tool declarations and skills; when they apply, canonical workspace and platform.</td>
 </tr>
 <tr>
 <td><code>runtime/tools_changed</code></td>

@@ -2155,7 +2155,7 @@ engine's <code>runtimes::remote</code> module.</p>
   with <code>-32602</code>, and the connection stays up.</li>
 </ul>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is an integer, currently <strong>1</strong>
+<p>The protocol version is an integer, currently <strong>2</strong>
 (<code>protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its version in
 <code>runtime/initialize</code>; a runtime that speaks another version fails the request
 with code <code>-32010</code> and a message naming both versions, and the daemon checks
@@ -2347,12 +2347,9 @@ ignored.</p>
 </tr>
 </tbody>
 </table>
-<p>A runtime rejects settings its kind does not support with <code>-32011</code>, as it does
-a workspace it cannot open. MCP hosting is a feature of the coding kind: a
-runtime of another kind rejects a nonempty <code>mcp_servers</code>, and the daemon
-rejects an initialize reply whose <code>kind</code> hosts no MCP servers when it sent
-some (<code>protocol::check_mcp_hosting</code>). A coding runtime parses each server
-strictly and rejects the request when one does not parse or enables OAuth,
+<p>A runtime rejects settings it does not support with <code>-32011</code>, as it does a
+workspace it cannot open; a runtime that hosts no MCP servers rejects a
+nonempty <code>mcp_servers</code>. A coding runtime parses each server strictly and rejects the request when one does not parse or enables OAuth,
 which stays with the daemon's global runtime.</p>
 <p>A coding runtime connects every enabled server before it answers: the reply
 comes once each server's first connection attempt and tool listing have
@@ -2376,7 +2373,7 @@ OAuth is never used: a remote server connects with its static headers only.</p>
 </tr>
 <tr>
 <td><code>kind</code></td>
-<td><code>global</code> or <code>coding</code>.</td>
+<td>The runtime's kind, a self-declared label such as <code>global</code> or <code>coding</code>: a lowercase ASCII letter followed by up to 15 lowercase letters, digits, or hyphens. The daemon shows it to clients and in approval reviews and never branches on it; version 1 allowed only <code>global</code> or <code>coding</code>.</td>
 </tr>
 <tr>
 <td><code>attachment_name</code></td>
@@ -2384,19 +2381,15 @@ OAuth is never used: a remote server connects with its static headers only.</p>
 </tr>
 <tr>
 <td><code>workspace</code></td>
-<td>The canonical workspace on the runtime's machine.</td>
+<td>The canonical workspace on the runtime's machine; absent for a runtime without one. <code>AGENTS.md</code> is loaded only from runtimes that report one.</td>
 </tr>
 <tr>
 <td><code>platform</code></td>
-<td>Operating system, as Rust's <code>std::env::consts::OS</code> names it.</td>
-</tr>
-<tr>
-<td><code>shell</code></td>
-<td>The shell <code>bash</code> runs.</td>
+<td>Optional: the operating system, as Rust's <code>std::env::consts::OS</code> names it, for a runtime where it matters. Shown in the system prompt's <code>&lt;runtimes&gt;</code> block. Version 1 required it and also carried <code>shell</code>.</td>
 </tr>
 <tr>
 <td><code>tools.tools</code></td>
-<td>Tool declarations: <code>name</code>, <code>collision</code> (<code>prefix</code> or <code>fallback</code>), <code>permission</code> (a permission action such as <code>bash</code> or <code>read</code>), <code>description</code>, <code>parameters</code> (JSON Schema), <code>concurrency</code>, <code>result_truncation</code>, <code>output</code>.</td>
+<td>Tool declarations: <code>name</code>, <code>collision</code> (<code>prefix</code> or <code>fallback</code>), <code>permission</code>, <code>description</code>, <code>parameters</code> (JSON Schema), <code>concurrency</code>, <code>result_truncation</code>, <code>output</code>. <code>permission</code> is the action the tool is checked under: a label matching <code>[a-z][a-z0-9_]{0,31}</code>, either one the daemon's own tools use (such as <code>bash</code> or <code>read</code>, which takes file paths) or the runtime's own (such as <code>browse</code>). <code>unconditional</code> is reserved, and a reply declaring it is rejected. An action no rule names is denied, so its tools stay hidden until an agent grants it. Version 1 allowed only the nine built-in actions.</td>
 </tr>
 <tr>
 <td><code>tools.prompt_sections</code></td>
