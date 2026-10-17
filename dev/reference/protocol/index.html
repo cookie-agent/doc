@@ -2408,7 +2408,8 @@ attached; <code>session.create</code> runtime entries, <code>session.runtime.att
 <code>runtimes.reconnect</code> take an optional <code>capability</code>; <code>runtimes.list</code> returns
 <code>runtimes</code> (each runtime's lifetime, connection state, and capabilities) in
 place of <code>templates</code>, and its instances and <code>runtimes.changed</code> failures name
-their capability. A runtime now produces as <code>runtime:&lt;runtime ID&gt;</code> rather
+their capability; <code>session.create</code> takes the client's <code>cwd</code>. A runtime now
+produces as <code>runtime:&lt;runtime ID&gt;</code> rather
 than <code>runtime:&lt;attachment name&gt;</code>. Older clients are rejected.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
@@ -2521,7 +2522,7 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>session.create</code></td>
-<td>Run selection, optional <code>permission_mode</code>, optional <code>permission_rules</code> (the initial session overlay, at most 256 rules), optional <code>runtimes</code> (<code>[{ runtime_id, workspace? }]</code>), optional <code>global</code> (default <code>true</code>)</td>
+<td>Run selection, optional <code>permission_mode</code>, optional <code>permission_rules</code> (the initial session overlay, at most 256 rules), optional <code>runtimes</code> (<code>[{ runtime_id, capability?, workspace? }]</code>), optional <code>global</code> (default <code>true</code>), optional <code>cwd</code> (the client's directory)</td>
 <td>Session metadata with skipped-event diagnostics, and the session's <code>runtimes</code></td>
 </tr>
 <tr>
@@ -2750,8 +2751,11 @@ session's attachments in attach order; clients follow later changes through the
 <code>runtime_attached</code> and <code>runtime_detached</code> events of the session.</p>
 <p><code>session.create</code> attaches <code>global</code> unless <code>global</code> is <code>false</code>, then each entry
 of <code>runtimes</code> (<code>runtime_id</code>, optional <code>capability</code>, optional <code>workspace</code>) in
-order; without <code>runtimes</code> it attaches <code>local</code>'s <code>coding</code> capability at the
-daemon's working directory. An empty <code>runtimes</code> list creates a
+order; without <code>runtimes</code> it attaches <code>local</code>'s <code>coding</code> capability at <code>cwd</code>,
+or at the daemon's working directory without one. <code>cwd</code> is the client's
+directory as it names it: the session records it as its <code>cwd_identity</code>, so
+one daemon serves sessions of many directories and <code>session.list</code> with a
+<code>cwd_identity</code> shows one directory's. An empty <code>runtimes</code> list creates a
 session with no coding runtime. Instances that are not running are started
 first, and a failure creates no session.</p>
 <p><code>session.runtime.attach</code> and <code>session.runtime.detach</code> are rejected while the
