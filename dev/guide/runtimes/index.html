@@ -1154,6 +1154,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runtimes-that-dial-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes that dial in
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2099,6 +2108,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runtimes-that-dial-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtimes that dial in
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2336,7 +2354,11 @@ asks for that path.</p>
 </ul>
 <h2 id="cookie-runtime-serve"><code>cookie runtime serve</code><a class="headerlink" href="#cookie-runtime-serve" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--stdio<span class="w"> </span><span class="o">[</span>--root<span class="w"> </span>&lt;dir&gt;<span class="o">]</span>...
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>&lt;url&gt;<span class="w"> </span>--id<span class="w"> </span>&lt;runtime<span class="w"> </span>ID&gt;<span class="w"> </span><span class="o">(</span>--token<span class="w"> </span>&lt;token&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>--token-file<span class="w"> </span>&lt;path&gt;<span class="o">)</span><span class="w"> </span><span class="o">[</span>--root<span class="w"> </span>&lt;dir&gt;<span class="o">]</span>...
 </code></pre></div>
+<p>With <code>--daemon</code> it dials in instead (see
+<a href="#runtimes-that-dial-in">Runtimes that dial in</a>); the rest of this section
+describes <code>--stdio</code>.</p>
 <p>Serves this machine's runtime over standard input and output with the
 <a href="../../reference/runtime-protocol/">runtime protocol</a>: the <code>coding</code> capability
 for every workspace the daemon opens. <code>--root</code> (repeatable) limits <code>coding</code>
@@ -2347,6 +2369,32 @@ machine it runs on. Standard output carries only protocol messages and
 diagnostics go to standard error. It exits on <code>runtime/shutdown</code> or when
 standard input closes. A template normally runs it; running it by hand is
 only useful for debugging.</p>
+<h2 id="runtimes-that-dial-in">Runtimes that dial in<a class="headerlink" href="#runtimes-that-dial-in" title="Permanent link">&para;</a></h2>
+<p>A runtime can also run on its own and connect to the daemon, instead of the
+daemon starting it. It needs no template: it names itself, and sessions
+attach it like any other runtime while it is connected.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># On the daemon's machine: a durable token, and a listener the runtime reaches.</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cookie<span class="w"> </span>daemon<span class="w"> </span>--listen<span class="w"> </span><span class="m">0</span>.0.0.0:7419<span class="w"> </span>--token-file<span class="w"> </span>~/.cookie-agent/daemon-token
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># On labpc: dial in as `labpc` and stay connected.</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>ws://laptop:7419/ws<span class="w"> </span>--id<span class="w"> </span>labpc<span class="w"> </span>--token-file<span class="w"> </span>~/daemon-token
+</code></pre></div>
+<ul>
+<li><strong>Identity.</strong> <code>--id</code> is the runtime ID, <code>[a-z][a-z0-9_]{0,31}</code>. It must
+  not be <code>global</code>, <code>local</code>, or a configured <code>[runtimes.&lt;id&gt;]</code>, and only one
+  runtime may be connected under an ID at a time.</li>
+<li><strong>Token.</strong> The runtime presents the daemon's token (<code>--token</code>,
+  <code>COOKIE_DAEMON_TOKEN</code>, or <code>--token-file</code>). Give the daemon a
+  <code>--token-file</code> so the token survives its restarts.</li>
+<li><strong>Reconnecting.</strong> The runtime reconnects after every drop, waiting
+  1 s, 2 s, 4 s, and so on up to 30 s. While it is away, its instances go
+  <code>reconnecting</code> and then <code>failed</code>, and their tools leave the sessions' tool
+  lists; when it dials in again, the daemon reopens them over the new
+  connection. <code>runtimes.list</code> shows it with lifetime <code>dial_in</code>.</li>
+<li><strong>MCP servers.</strong> It hosts its own machine's MCP servers: those of
+  <code>[runtimes.local.mcp]</code> in that machine's <code>config.toml</code>.</li>
+<li><strong>Roots.</strong> <code>--root</code> limits its workspaces, as for <code>--stdio</code>.</li>
+</ul>
 
 
 

@@ -1964,11 +1964,37 @@ omitted fields use the defaults below. See <a href="../../guide/configuration/">
 Unknown fields fail. The port accepts <code>0</code> through <code>65535</code>; <code>0</code> asks the OS for
 an available port, so clients must use the actual bound port. <code>cookie daemon
 --port &lt;N&gt;</code> overrides the configured port for that run (including <code>--port 0</code>).</p>
-<p>The binary only binds IPv4 loopback. Remote exposure is not an implemented run
-mode. Each daemon run generates a fresh in-memory bearer token and prints it
-once as its first stdout line (<code>daemon-ready {"url":...,"token":...}</code>); clients
-connect with <code>--token</code> or <code>COOKIE_DAEMON_TOKEN</code>. The token is never persisted.
-See the <a href="../../guide/security/#daemon-authentication-token">security contract</a>.</p>
+<p>By default the daemon binds IPv4 loopback at the configured port. Each run
+generates a fresh in-memory bearer token and prints it once as its first
+stdout line (<code>daemon-ready {"url":...,"token":...}</code>); clients connect with
+<code>--token</code> or <code>COOKIE_DAEMON_TOKEN</code>. See the
+<a href="../../guide/security/#daemon-authentication-token">security contract</a>.</p>
+<p>For clients and runtimes on other machines, <code>cookie daemon</code> takes:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--listen &lt;addr:port&gt;</code></td>
+<td>Bind this address instead, such as <code>0.0.0.0:7419</code>. Without TLS the token crosses the network in the clear, so a plaintext listener belongs on a private network such as a VPN. Conflicts with <code>--port</code>.</td>
+</tr>
+<tr>
+<td><code>--tls-cert &lt;path&gt;</code>, <code>--tls-key &lt;path&gt;</code></td>
+<td>Serve <code>wss</code> with this PEM certificate chain and private key; the ready line then shows a <code>wss://</code> URL. Both or neither.</td>
+</tr>
+<tr>
+<td><code>--token-file &lt;path&gt;</code></td>
+<td>Use the token this file holds, or create the file (owner-only, <code>0600</code> on Unix) with a fresh token when it does not exist, so the token survives restarts. Dial-in runtimes need it to reconnect after a daemon restart.</td>
+</tr>
+</tbody>
+</table>
+<p>The daemon serves clients on <code>/ws</code> and <a href="../../guide/runtimes/#runtimes-that-dial-in">dial-in runtimes</a>
+on <code>/runtime?id=&lt;runtime ID&gt;</code>. Both present the same bearer token; a request
+carrying a browser <code>Origin</code> header is refused.</p>
 <table>
 <thead>
 <tr>
@@ -1983,7 +2009,7 @@ See the <a href="../../guide/security/#daemon-authentication-token">security con
 <td><code>host</code></td>
 <td>string</td>
 <td><code>"127.0.0.1"</code></td>
-<td>Interface the daemon listens on. Must be non-empty and at most 255 characters. The <code>cookie</code> binary additionally requires exactly <code>"127.0.0.1"</code> at startup.</td>
+<td>Interface the daemon listens on. Must be non-empty and at most 255 characters. The <code>cookie</code> binary additionally requires exactly <code>"127.0.0.1"</code> at startup; use <code>--listen</code> to bind another address.</td>
 </tr>
 <tr>
 <td><code>port</code></td>

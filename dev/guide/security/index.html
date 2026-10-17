@@ -2289,11 +2289,19 @@ will use that path. Treat the parent storage location as trusted and remove
 unexpected state before starting the daemon. Neither platform protects secrets
 from privileged code such as <code>root</code>, <code>SYSTEM</code>, or an elevated administrator.</p>
 <h3 id="daemon-authentication-token">Daemon authentication token<a class="headerlink" href="#daemon-authentication-token" title="Permanent link">&para;</a></h3>
-<p>The daemon binds only to IPv4 loopback and validates every WebSocket handshake
-with a constant-time compare of a bearer token. There is no token file: at
-startup the daemon draws a fresh 32-byte token from the operating system,
-keeps it only in process memory, and dies with it. It prints the token exactly
-once, inside the first stdout line:</p>
+<p>The daemon validates every WebSocket handshake, from clients and from
+dial-in runtimes alike, with a constant-time compare of a bearer token, and
+refuses requests that carry a browser <code>Origin</code> header. It binds IPv4 loopback
+unless <code>--listen</code> names another address; off loopback, serve TLS
+(<code>--tls-cert</code>, <code>--tls-key</code>) or keep the listener on a private network, since
+a plaintext <code>ws://</code> connection carries the token in the clear. Anyone holding
+the token is a fully trusted client and may also offer a runtime. By default
+there is no token file: at startup the daemon draws a fresh 32-byte token from
+the operating system, keeps it only in process memory, and dies with it.
+<code>--token-file</code> instead keeps a durable token in an owner-only file, which a
+runtime that dials in needs to reconnect after a daemon restart; protect that
+file like any credential. The daemon prints the token exactly once, inside the
+first stdout line:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>daemon-ready {"url":"ws://127.0.0.1:&lt;port&gt;/ws","token":"&lt;43-char base64url&gt;"}
 </code></pre></div>
 <p>Clients receive the secret through a private stdout/pipe handoff or a human
