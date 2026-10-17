@@ -922,6 +922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1422,6 +1445,75 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1863,6 +1955,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#background-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      Background calls
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#retained-tool-output" class="md-nav__link">
     <span class="md-ellipsis">
       Retained tool output
@@ -2056,6 +2157,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#background-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      Background calls
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#retained-tool-output" class="md-nav__link">
     <span class="md-ellipsis">
       Retained tool output
@@ -2129,7 +2239,7 @@ declaration.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>read</code>, <code>read_artifact</code>, <code>bash</code>, <code>webfetch</code></td>
+<td><code>read</code>, <code>read_artifact</code>, <code>bash</code>, <code>webfetch</code>, <code>stop_background</code></td>
 <td>Parallel</td>
 <td>Each call owns its execution and streaming state.</td>
 </tr>
@@ -2154,7 +2264,7 @@ declaration.</p>
 <td>Each MCP server's service mutex serializes calls to that server; different servers can overlap.</td>
 </tr>
 <tr>
-<td><code>skill</code>, <code>get_subagent_result</code>, <code>cancel_subagent</code></td>
+<td><code>skill</code>, <code>get_subagent_result</code></td>
 <td>Exclusive</td>
 <td>These calls interact with session-scoped state.</td>
 </tr>
@@ -2390,8 +2500,11 @@ accepts. The effective model must also declare the modality and limits.</p>
 </tbody>
 </table>
 <h2 id="bash">Bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h2>
-<p><code>bash</code> accepts a complete <code>command</code>, an optional <code>timeout</code> in milliseconds
-(default 120000; <code>0</code> never times out), and <code>background</code> (default <code>false</code>).
+<p><code>bash</code> accepts a complete <code>command</code> and an optional <code>timeout</code> in
+milliseconds (default 120000; <code>0</code> never times out). It is
+<a href="#background-calls">background-capable</a>: the host adds <code>background</code>
+(default <code>false</code>), and the timeout applies in the background too, so a
+command that keeps running, such as a dev server, needs <code>timeout: 0</code>.
 The command's standard input is empty: tools take no input while they run.
 Standard output and standard error are streamed separately during execution
 and retained as separate artifacts for the terminal result.</p>
@@ -2399,18 +2512,54 @@ and retained as separate artifacts for the terminal result.</p>
 Windows). When the shell exits, whatever it left in that group is killed, so
 <code>cmd &amp;</code> and <code>nohup cmd &amp;</code> do not outlive the call; only a process that leaves
 the group, such as one started with <code>setsid</code>, does.</p>
-<p>With <code>background: true</code> the call returns as soon as the command starts. Its
-result names the process ID, which is also the process group, so
-<code>kill -- -PID</code> stops the job early (<code>taskkill //T //F //PID PID</code> on Windows). The job keeps the same timeout and process-group
-cleanup. When it exits, the engine accepts one producer message owned by
-<code>tool { tool_call_id }</code> that steers into the active run or wakes the idle
-session: a <code>&lt;background_bash from="PID"&gt;</code> block with the command, the exit
-status and duration, and the job's standard output and standard error previewed
-exactly like a tool result: the first and last lines of each stream, with a
-<code>read_artifact</code> hint into the retained artifact for anything omitted. The job reports only after its
-starting call is committed as completed. It is killed without a report if that
-call is cancelled before it commits, if a revert removes the call, if its
-session is deleted, or when the daemon stops.</p>
+<p>A bash call reaches its detach point as soon as its command runs; its detach
+note is <code>Process &lt;pid&gt;</code>. In the background it keeps its timeout and
+process-group cleanup.</p>
+<h2 id="background-calls">Background calls<a class="headerlink" href="#background-calls" title="Permanent link">&para;</a></h2>
+<p>A tool that declares <code>background</code> support (<code>bash</code>, <code>delegate_subagent</code>, and
+a runtime's own tools that declare it) can run in the background, as the <a href="../../specs/background-tools/">background tool calls
+spec</a> describes:</p>
+<ul>
+<li><strong>The host owns the argument.</strong> It adds <code>background</code> (a boolean, defaulting
+  to the tool's <code>background_default</code>) to the tool's schema and removes it
+  before the tool prepares the call, so the tool never sees it and an
+  approval covers the call either way.</li>
+<li><strong>Detaching.</strong> A call the model starts with <code>background: true</code>, or one the
+  user moves to the background (<code>run.tool_background</code>; the TUI's background
+  button), detaches once the tool reaches its detach point. A call that
+  finishes first returns as an ordinary result. Detaching commits an
+  immediate result for the call, <code>Started in the background as job
+  job_1a2b3c4d. …</code> or <code>User manually moved this call to the background; it
+  is still running as job job_1a2b3c4d. …</code>, ending with <code>Stop it with
+  stop_background(job_1a2b3c4d).</code> and followed by the tool's note, and
+  the run goes on. Cancelling the run no longer reaches the call.</li>
+<li><strong>Reporting.</strong> When the call ends, the engine accepts one producer message
+  owned by <code>tool { tool_call_id }</code> that steers into the active run or wakes
+  the idle session: <code>&lt;background_result job="…" tool="…" status="…"&gt;</code>
+  wrapping exactly what the foreground result would have said, its output
+  previewed with a <code>read_artifact</code> hint into the retained output for
+  anything omitted. <code>status</code> is <code>completed</code>, <code>failed</code>, or <code>stopped</code>. The
+  call reports only after its immediate result is committed; a revert past
+  the call, deleting its session, or the daemon stopping kills it without a
+  report.</li>
+<li><strong>Stopping.</strong> <code>stop_background</code> (<code>job</code>) stops a background call of the
+  session tree and returns once it has ended; it needs no permission and is
+  published only while a background-capable tool is. A user stops one with
+  <code>session.background.stop</code>. Either way the call still reports, with
+  <code>status="stopped"</code> and a first line saying who stopped it.</li>
+<li><strong>Subagents report themselves.</strong> A <code>delegate_subagent</code> call in the
+  background, or moved there, gets no job: its immediate result names the
+  subagent's handle, and every turn the subagent finishes reports to the
+  parent as a <code>&lt;subagent_report handle="…" status="…"&gt;</code> producer message
+  owned by <code>subagent { session_id }</code>, keyed by the turn's run ID so it
+  reports once. A foreground call's first turn is its tool result instead.
+  The subagent's running turn lists among the parent's background calls
+  under its handle, and <code>stop_background</code> with the handle cancels that turn
+  (<code>status="cancelled"</code>; an idle subagent is an error). Cancelling the
+  parent's run does not reach its subagents: a foreground call it was
+  waiting on ends cancelled with the detach note, and the subagent reports
+  its turn as if the call had been moved to the background.</li>
+</ul>
 <h2 id="retained-tool-output">Retained tool output<a class="headerlink" href="#retained-tool-output" title="Permanent link">&para;</a></h2>
 <p>Tools declare <code>ToolOutputDeclaration::Single</code> or an ordered list of 1 to 8 named
 streams. Names are unique, case-sensitive ASCII path segments, 1 to 64 bytes,
@@ -2558,17 +2707,17 @@ target IDs and agent descriptions into the run's system prompt under
 <code>&lt;tool_instructions provider="builtin.delegate"&gt;</code>. The list uses the same depth
 ceiling and enabled-target filtering as <code>delegate_subagent</code>; no section is added
 when no target is available.</p>
-<p><code>delegate_subagent</code>, <code>get_subagent_result</code>, and <code>cancel_subagent</code> address
-subagents by a short tree-unique <strong>handle</strong> (<code>&lt;agent_type&gt;_&lt;8 hex&gt;</code>, e.g.
+<p><code>delegate_subagent</code>, <code>get_subagent_result</code>, <code>stop_background</code>, and
+<code>send_message</code> address subagents by a short tree-unique <strong>handle</strong> (<code>&lt;agent_type&gt;_&lt;8 hex&gt;</code>, e.g.
 <code>explore_1a2b3c4d</code>) or a full session UUID. A handle is generated when the
 session is created and resolves only within the caller's tree; a partial handle,
 another tree's handle, or a fabricated value is rejected with a self-repairing
 error that lists the live candidates as
-<code>handle — description — status</code> plus their UUIDs. Start and completion notices
+<code>handle — description — status</code> plus their UUIDs. Detach notes and reports
 pre-wrap the handle, for example
-<code>Subagent started. [subagent session explore_1a2b3c4d]</code> and
+<code>[subagent session explore_1a2b3c4d] Each time its turn ends you get a &lt;subagent_report handle="explore_1a2b3c4d"&gt;. …</code> and
 <code>[subagent session explore_1a2b3c4d; completed; 79 lines; use get_subagent_result with session_id "explore_1a2b3c4d" for the full output]</code>.
-The completion notice previews the report per
+The report previews the turn's final message per
 <a href="../../engine/subagent_output/"><code>[subagent_output]</code></a>, with its line breaks and
 tabs kept and other control characters folded to spaces. A report over the limit
 shows its first and last lines around a marker such as
@@ -2660,7 +2809,8 @@ There is no inbox tool.</p>
 and tool call, so a retried call returns the original <code>message_id</code> and
 delivers once. Two loop-safety guards reject sends, and each can be disabled:
 <code>max_hops &lt;= 0</code> turns off hop counting (hop metadata is internal and never
-appears in the delivered envelope), and <code>max_inflight_per_pair = 0</code> turns off
+appears in the delivered envelope; mail between a parent and its direct child
+adds no hop, and subagent reports are not messages), and <code>max_inflight_per_pair = 0</code> turns off
 the per-pair window. A pair message counts as unacknowledged while accepted,
 admitted, claimed, or released, and is acknowledged once consumed or
 discarded. See <a href="../../engine/messaging/">Agent Messaging</a> for the settings and

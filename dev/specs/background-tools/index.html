@@ -16,7 +16,7 @@
         <link rel="prev" href="../runtimes/">
       
       
-        <link rel="next" href="../tool-output-streams/">
+        <link rel="next" href="../external-producers/">
       
       
       <link rel="icon" href="../../assets/logo.svg">
@@ -922,6 +922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1662,6 +1685,75 @@
   
   
     <li class="md-nav__item">
+      <a href="../external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../tool-output-streams/" class="md-nav__link">
         
   
@@ -2297,7 +2389,8 @@
 
 
 <h1 id="background-tool-calls">Background Tool Calls<a class="headerlink" href="#background-tool-calls" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved, not implemented</strong> (decisions of 2026-10-16). This document is the
+<p>Status: <strong>implemented</strong> (decisions of 2026-10-16; all three phases landed 2026-10-16).
+Sections 1, 7.1, and the "today" notes describe the design this replaced. This document is the
 governing specification for running supported tool calls in the background,
 whether the model asks for it or the user moves a running call there.
 Section <a href="#11-decisions">Decisions</a> records what review settled.</p>
@@ -2424,13 +2517,18 @@ background_default: false</code> and drop their own <code>background</code> argu
 </ul>
 <h3 id="42-what-the-host-does">4.2 What the host does<a class="headerlink" href="#42-what-the-host-does" title="Permanent link">&para;</a></h3>
 <p>The engine already awaits each executing call in one <code>select!</code> loop
-(<code>runtime/tool_execution.rs</code>). Detach is one more branch of that loop:</p>
+(<code>runtime/tool_execution.rs</code>). Detach is one more branch of that loop.</p>
+<p>A background-capable tool marks its <strong>detach point</strong>: once it has started
+its work (bash right after spawning its command), it calls
+<code>ToolExecutionContext::detachable(note)</code> with an optional <strong>detach note</strong>, a
+line for the immediate result (bash: the process ID; <code>delegate_subagent</code>:
+the subagent handle). A remote runtime forwards it as <code>tool/detachable</code>
+(section 8). The engine detaches only at or after that point: a call the
+model started in the background detaches as soon as it reaches it, a user's
+request waits for it, and a call that finishes first simply returns its
+result in the foreground. Detaching:</p>
 <ol>
-<li>It tells the tool the call is detached and gets back an optional <strong>detach
-   note</strong>: a line for the immediate result (bash: the process ID;
-   <code>delegate_subagent</code>: the subagent handle). In-process tools answer through
-   an optional detach hook on the prepared tool; remote runtimes through
-   <code>tool/detach</code> (section 8). The call's execution is otherwise untouched.</li>
+<li>Reads the detach note. The call's execution is otherwise untouched.</li>
 <li>It commits the call as completed with the immediate result (4.3).</li>
 <li>It moves the call's execution future, its output capture, and its
    progress channel into a background call under the existing background-job
@@ -2449,10 +2547,11 @@ the run (Esc) after detach leaves the background call running.</p>
 <ul>
 <li>Model-started: <code>Started in the background as job &lt;job&gt;. You will get a
   &lt;background_result job="&lt;job&gt;"&gt; with its result when it finishes; do not
-  wait for it or run it again.</code></li>
+  wait for it or run it again. Stop it with stop_background(&lt;job&gt;).</code></li>
 <li>User-moved: <code>User manually moved this call to the background; it is still
   running as job &lt;job&gt;. You will get a &lt;background_result job="&lt;job&gt;"&gt; with
-  its result when it finishes; do not wait for it or run it again.</code></li>
+  its result when it finishes; do not wait for it or run it again. Stop it
+  with stop_background(&lt;job&gt;).</code></li>
 </ul>
 <p>The detach note, when present, follows on its own line. The result's metadata
 carries <code>{"background": {"job": "&lt;job&gt;", "by": "model" | "user"}}</code> so clients
@@ -2613,11 +2712,18 @@ than stopping a running one.</p>
 <h3 id="75-bookkeeping">7.5 Bookkeeping<a class="headerlink" href="#75-bookkeeping" title="Permanent link">&para;</a></h3>
 <p>Per-invocation completion tracking (<code>DelegateFinishedV2</code>, the background
 monitors, slots, and the queue) stays for admission and concurrency. What
-changes is delivery: the per-invocation <code>&lt;subagent_notification&gt;</code> and its
-<code>Delegation { invocation_id }</code> producer are replaced by the per-run report of
-7.2, raised wherever the engine ends a run of a delegated session. History
-replay renders legacy <code>&lt;subagent_notification&gt;</code> messages as they were
-recorded.</p>
+changes is delivery: the engine raises the per-run report of 7.2 wherever it
+appends the end of a run of a delegated session
+(<code>engine/src/runtime/subagent_reports.rs</code>). One run reports elsewhere, with
+the same <code>&lt;subagent_report&gt;</code> body: the first run of a delegation started with
+<code>background: true</code> still reports through its invocation's completion, owned by
+<code>Delegation { invocation_id }</code>, so its queue, slot, and restart recovery stay
+as they were. A run reports through the <code>Subagent</code> owner unless that
+invocation path or a foreground call's tool result already carries it. A
+foreground call the parent stops waiting for, by detach or by its run being
+cancelled, hands its child to a background monitor that counts toward
+<code>max_concurrency</code> as 7.3 says. History replay renders legacy
+<code>&lt;subagent_notification&gt;</code> messages as they were recorded.</p>
 <h2 id="8-bash-stdin-and-the-runtime-protocol">8. <code>bash</code>, stdin, and the runtime protocol<a class="headerlink" href="#8-bash-stdin-and-the-runtime-protocol" title="Permanent link">&para;</a></h2>
 <p><strong><code>bash</code>.</strong> One code path: <code>execute_background</code> goes, and so do the
 <code>background</code> and <code>interactive</code> arguments. <code>timeout</code> is unchanged: it kills
@@ -2627,8 +2733,8 @@ life, foreground and background alike. Detaching does not touch it, so a call
 the user moves to the background after 90 seconds is still killed 30 seconds
 later unless the model set a longer <code>timeout</code>. The tool description tells the
 model to pass <code>timeout: 0</code> for long-lived background commands such as dev
-servers. The detach note is the process ID: <code>Process &lt;pid&gt;; stop it with
-stop_background</code>.</p>
+servers. The detach note is the process ID: <code>Process &lt;pid&gt;</code>; the
+immediate result already says how to stop the call by its job ID.</p>
 <p><strong>stdin is removed</strong> from tools entirely: <code>ToolExecutionContext::stdin</code>,
 <code>ToolStdin</code>, <code>StdinWrite</code>, the engine's hard-coded <code>call.name == "bash"</code>
 interactive check, the client RPC <code>run.tool_stdin</code>, the TUI's stdin input,
@@ -2645,7 +2751,7 @@ request. A later feature may bring interactive input back in another form.</p>
 <tbody>
 <tr>
 <td>Added</td>
-<td><code>tool/detach</code> (daemon → runtime, request): <code>prepared_id</code>; reply <code>{ "note": string? }</code>. The call keeps executing and still answers its <code>tool/execute</code> request when it ends.</td>
+<td><code>tool/detachable</code> (runtime → daemon, notification): <code>prepared_id</code>, optional <code>note</code>. The call reached its detach point; it keeps executing and still answers its <code>tool/execute</code> request when it ends.</td>
 </tr>
 <tr>
 <td>Added</td>
@@ -2729,7 +2835,7 @@ move.</p>
    detach branch, per-call cancellation, immediate and background results;
    <code>stop_background</code> and optional tool permissions (6.1); <code>bash</code> on one code
    path with its detach note; stdin
-   removed; <code>tool/detach</code> and the removal of <code>job/*</code>; <code>run.tool_background</code>,
+   removed; <code>tool/detachable</code> and the removal of <code>job/*</code>; <code>run.tool_background</code>,
    <code>session.background.list</code>/<code>stop</code>, and <code>background.changed</code>; the TUI's
    background button, bar, and panel. Runtime protocol 3, client protocol 42.</li>
 <li><strong>Subagents.</strong> <code>delegate_subagent</code> as a background-capable tool;

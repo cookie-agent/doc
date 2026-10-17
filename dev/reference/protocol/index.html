@@ -922,6 +922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1422,6 +1445,75 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/tool-output-streams/" class="md-nav__link">
         
   
@@ -1771,6 +1863,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#model-availability" class="md-nav__link">
     <span class="md-ellipsis">
       Model availability
@@ -2090,6 +2191,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#model-availability" class="md-nav__link">
     <span class="md-ellipsis">
       Model availability
@@ -2270,13 +2380,39 @@ rules, overlays, grants, approval requests, and <code>session.permission.get</co
 name a runtime's own actions; <code>session.permission.get</code> lists the built-in
 actions, then the actions of the session's tools, then any other action a rule
 names. Protocol 42 removed <code>run.tool_stdin</code>: tools no longer take input while
-they run. It also made tool permissions optional: a tool may declare no
+they run. It added background calls: <code>run.tool_background</code>,
+<code>session.background.list</code>, <code>session.background.stop</code>, and the
+<code>background.changed</code> notification, and the <code>subagent { session_id }</code>
+producer owner of the <code>&lt;subagent_report&gt;</code> a subagent sends its parent after
+every turn. It also made tool permissions optional: a tool may declare no
 permission, so it is always published and every call allowed, and the
 <code>permission_name</code> the <code>tool_before_call</code> plugin hook receives is <code>null</code> for
-such a tool. Older clients are rejected.</p>
+such a tool. Protocol 43 replaced the <code>plugin { plugin }</code> producer owner
+with <code>external { source, name }</code>: <code>source</code> is <code>plugin:&lt;name&gt;</code> or
+<code>runtime:&lt;attachment name&gt;</code>, and <code>name</code> is the producer's own label, so a
+plugin or runtime may run any number of named producers (see the <a href="../../specs/external-producers/">external
+producers spec</a>). Stored <code>plugin</code> owners
+decode as <code>external</code> with name <code>default</code>. <code>session.producers</code> returns
+<code>sources</code> (the recovery state of each producer source) in place of
+<code>plugin_recovery</code>, and a source that cannot recover records a
+<code>producer_diagnostic</code> event. Protocol 44 added <code>plugins.list</code>,
+<code>plugins.restart</code>, and the <code>plugins.changed</code> notification (see
+<a href="#plugins">Plugins</a>), and the <code>engine_diagnostic</code> event, which replaces the
+<code>plugin_diagnostic</code> automatic compaction used to record under the name
+<code>engine:auto-compact</code>. It removed the built-in <code>plugin</code> permission action:
+plugin tools declare their own actions, and a rule naming <code>plugin</code> is an
+ordinary label that governs nothing. Protocol 45 added runtime capabilities (see the
+<a href="../../specs/runtime-capabilities/">runtime capabilities spec</a>): a
+<code>RuntimeAttachment</code> and a <code>runtime_attached</code> event name the <code>capability</code>
+attached; <code>session.create</code> runtime entries, <code>session.runtime.attach</code>, and
+<code>runtimes.reconnect</code> take an optional <code>capability</code>; <code>runtimes.list</code> returns
+<code>runtimes</code> (each runtime's lifetime, connection state, and capabilities) in
+place of <code>templates</code>, and its instances and <code>runtimes.changed</code> failures name
+their capability. A runtime now produces as <code>runtime:&lt;runtime ID&gt;</code> rather
+than <code>runtime:&lt;attachment name&gt;</code>. Older clients are rejected.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 42.</p>
+members of protocol 45.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
@@ -2294,7 +2430,7 @@ data. No request headers or credential dumps are added. See
 <a href="../../guide/run/#error-details">Error details</a> for display and upstream limits.</p>
 <h2 id="tool-emitted-messages">Tool-emitted messages<a class="headerlink" href="#tool-emitted-messages" title="Permanent link">&para;</a></h2>
 <p>Protocol 16 introduced optional <code>additional_messages</code> to <code>PersistedToolResult</code>,
-preserved in protocol 42 alongside independent display and output references. The
+preserved in protocol 45 alongside independent display and output references. The
 field is an ordered array of at most four messages. Each message has role
 <code>system</code> or <code>user</code> and one or more ordered <code>text</code> or <code>file</code> content parts. Empty
 arrays are omitted on the wire; event validation bounds text and attachment
@@ -2416,7 +2552,7 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <tr>
 <td><code>session.producers</code></td>
 <td>Session ID</td>
-<td>Runtime <code>producers</code> and <code>plugin_recovery</code> inspection</td>
+<td>Runtime <code>producers</code> and <code>sources</code> (producer source recovery) inspection</td>
 </tr>
 <tr>
 <td><code>session.usage</code></td>
@@ -2465,7 +2601,7 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>session.runtime.attach</code></td>
-<td>Session ID, <code>runtime_id</code>, <code>workspace</code> when the template takes one</td>
+<td>Session ID, <code>runtime_id</code>, optional <code>capability</code>, <code>workspace</code> when the capability takes one</td>
 <td>The new <code>attachment</code> and the session's <code>runtimes</code></td>
 </tr>
 <tr>
@@ -2480,8 +2616,18 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>runtimes.reconnect</code></td>
-<td><code>runtime_id</code>, <code>workspace</code> when the template takes one</td>
+<td><code>runtime_id</code>, optional <code>capability</code>, <code>workspace</code> when the capability takes one</td>
 <td>The <code>instance</code> afterwards, as <code>runtimes.list</code> reports it</td>
+</tr>
+<tr>
+<td><code>plugins.list</code></td>
+<td>Empty object</td>
+<td>The configured <code>plugins</code>, in hook order</td>
+</tr>
+<tr>
+<td><code>plugins.restart</code></td>
+<td>Plugin <code>name</code></td>
+<td>Empty object, once the restart is under way</td>
 </tr>
 <tr>
 <td><code>session.set_permission_mode</code></td>
@@ -2549,6 +2695,21 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td><code>cancelled</code> boolean</td>
 </tr>
 <tr>
+<td><code>run.tool_background</code></td>
+<td>Run ID, tool call ID</td>
+<td><code>accepted</code> boolean: false unless the call is an executing call of a background-capable tool; it detaches at its detach point (see <a href="../tools/#background-calls">Background calls</a>)</td>
+</tr>
+<tr>
+<td><code>session.background.list</code></td>
+<td>Session ID</td>
+<td>The session's background <code>calls</code></td>
+</tr>
+<tr>
+<td><code>session.background.stop</code></td>
+<td>Session ID, <code>job</code></td>
+<td>Empty, once the call has ended; it still reports to the model, as stopped by the user. An unknown or finished job is an error</td>
+</tr>
+<tr>
 <td><code>events.subscribe</code></td>
 <td>Session ID, optional cursor and <code>cursor_timestamp</code>, optional <code>limit</code></td>
 <td>Stored events after the cursor, or <code>stale_cursor</code>; starts notifications on the final page (see <a href="../events/#subscriptions">Subscriptions</a>)</td>
@@ -2578,44 +2739,66 @@ a top-level entry, and stays reachable via <code>session.tree</code>, <code>sess
 <code>session.get</code>, and <code>session.resume</code>.</p>
 <h3 id="runtimes">Runtimes<a class="headerlink" href="#runtimes" title="Permanent link">&para;</a></h3>
 <p>A session uses the tools and workspace context of the
-<a href="../../specs/runtimes/">runtimes</a> it is attached to. A <code>RuntimeAttachment</code> is
-<code>{ name, runtime_id, kind, workspace? }</code>: the session-unique attachment <code>name</code>
-(also the tool prefix on name collisions), the template's <code>runtime_id</code>, the
-runtime's <code>kind</code> (a label the runtime declares, such as <code>global</code> or <code>coding</code>;
-the daemon never branches on it), and the canonical <code>workspace</code> the
+<a href="../../specs/runtime-capabilities/">runtime capabilities</a> it is attached to. A
+<code>RuntimeAttachment</code> is <code>{ name, runtime_id, capability, kind, workspace? }</code>:
+the session-unique attachment <code>name</code> (also the tool prefix on name
+collisions), the <code>runtime_id</code>, the runtime's <code>capability</code> the session uses,
+the capability's <code>kind</code> (a label the runtime declares, such as <code>global</code> or
+<code>coding</code>; the daemon never branches on it), and the canonical <code>workspace</code> the
 runtime reported, if any. The session create, get, and resume results carry the
 session's attachments in attach order; clients follow later changes through the
 <code>runtime_attached</code> and <code>runtime_detached</code> events of the session.</p>
 <p><code>session.create</code> attaches <code>global</code> unless <code>global</code> is <code>false</code>, then each entry
-of <code>runtimes</code> in order; without <code>runtimes</code> it attaches <code>local</code>, the coding
-runtime for the daemon's working directory. An empty <code>runtimes</code> list creates a
+of <code>runtimes</code> (<code>runtime_id</code>, optional <code>capability</code>, optional <code>workspace</code>) in
+order; without <code>runtimes</code> it attaches <code>local</code>'s <code>coding</code> capability at the
+daemon's working directory. An empty <code>runtimes</code> list creates a
 session with no coding runtime. Instances that are not running are started
 first, and a failure creates no session.</p>
 <p><code>session.runtime.attach</code> and <code>session.runtime.detach</code> are rejected while the
-session has an active run (<code>session running</code>). Attach starts the instance when
-needed and records nothing when that fails. The attachment's name is the name
-the instance reports (<code>global</code>, or <code>&lt;runtime ID&gt;_&lt;workspace basename&gt;</code> for a
-coding runtime), suffixed <code>_2</code>, <code>_3</code>, ... when the session already has an
-attachment of that name; attaching an instance a session already has is an
-error. A template whose definition takes a workspace requires <code>workspace</code>;
-for any other template, including <code>global</code> and <code>local</code>, supplying one is an
-error. Attaching a runtime ID without a template is an <code>unknown runtime</code>
-error. Besides <code>global</code> and <code>local</code>, the templates are the configured
-<a href="../../guide/runtimes/"><code>[runtimes.&lt;id&gt;]</code></a> tables. The daemon passes <code>workspace</code>
+session has an active run (<code>session running</code>). Attach connects the runtime
+and opens the capability's instance when needed, and records nothing when
+that fails. Without <code>capability</code> it attaches the runtime's only capability;
+a runtime that offers several asks for one, naming them. The attachment's
+name is the name the instance reports (<code>global</code>, or
+<code>&lt;runtime ID&gt;_&lt;workspace basename&gt;</code> for a <code>coding</code> instance), suffixed <code>_2</code>,
+<code>_3</code>, ... when the session already has an attachment of that name; attaching
+an instance a session already has is an error. A capability that takes a
+workspace requires <code>workspace</code>, except <code>local</code>'s <code>coding</code>, which opens at the
+daemon's working directory without one; a capability that takes none
+refuses one. Attaching a runtime ID without a template is an
+<code>unknown runtime</code> error. Besides <code>global</code> and <code>local</code>, the runtimes are the
+configured <a href="../../guide/runtimes/"><code>[runtimes.&lt;id&gt;]</code></a> tables. The daemon passes <code>workspace</code>
 to the runtime exactly as given; the attachment records the canonical path
 the runtime reported, and two spellings of one workspace share an instance.</p>
-<p><code>runtimes.list</code> returns each template's <code>runtime_id</code> and whether it
-<code>takes_workspace</code>, and each instance's <code>runtime_id</code>, reported
+<p><code>runtimes.list</code> returns each runtime as a <code>RuntimeListing</code>: its <code>runtime_id</code>;
+its <code>lifetime</code> (<code>builtin</code> for <code>global</code> and <code>local</code>, <code>spawned</code> for a
+template); whether the daemon is <code>connected</code> to it now; its <code>capabilities</code>
+(<code>name</code>, <code>kind</code>, <code>takes_workspace</code>, <code>description</code>), empty until it has
+connected once; its <code>platform</code>; and a <code>message</code> saying why its last attempt
+to connect failed. Each instance has its <code>runtime_id</code>, <code>capability</code>, reported
 <code>attachment_name</code>, <code>kind</code>, <code>workspace</code>, and <code>platform</code> once started, its
 <code>status</code> (<code>starting</code>, <code>ready</code>, <code>reconnecting</code>, <code>failed</code>, or <code>stopped</code>), and a
 failure <code>message</code>.</p>
 <p><code>runtimes.reconnect</code> retries an instance now: a <code>failed</code> instance is started
 again, under a new generation, and keeps its identity; an instance that is not
 running is started; a <code>ready</code> or <code>reconnecting</code> one is left as it is.
-<code>workspace</code> follows the attach rule, and for a failed instance it is the
+<code>capability</code> and <code>workspace</code> follow the attach rule, and for a failed instance it is the
 <code>workspace</code> that <code>runtimes.list</code> reports. A start that fails is an error with
 the reason, and is also reported in <code>runtimes.changed</code>. Retrying <code>global</code>
 also retries its failed MCP servers.</p>
+<h3 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
+<p><code>plugins.list</code> returns every configured <a href="../../guide/plugins/">plugin</a> in the
+order its hooks run. A <code>PluginInfo</code> is <code>{ name, state, reason?, tools,
+hooks, subscribe_events, subscribe_bus, publish_bus, producer_messaging,
+dropped_events, stderr? }</code>: its <code>state</code> (<code>disabled</code>, <code>starting</code>,
+<code>connected</code>, <code>reconnecting</code>, <code>failed</code>, or <code>stopped</code>), why it failed or last
+disconnected, the tools and hooks it declares, what it streams and
+publishes, whether its producer messaging is open, how many notifications it
+dropped for falling behind, and the tail of its standard error.</p>
+<p><code>plugins.restart</code> starts a plugin again now: a <code>failed</code> or reconnecting
+plugin is started at once, and a <code>connected</code> one is stopped and started. An
+unknown or disabled plugin is an error (<code>plugin request rejected</code>). Status
+changes arrive as <code>plugins.changed</code>.</p>
 <h3 id="model-availability">Model availability<a class="headerlink" href="#model-availability" title="Permanent link">&para;</a></h3>
 <p>Protocol 24 (runtime snapshot schema 6) makes unusable models visible instead
 of silently dropping them. <code>snapshot.models</code> still lists only selectable
@@ -2641,8 +2824,7 @@ models. Each <code>ProviderDescriptor</code> additionally carries:</p>
 are root-only; producer inspection is available for any owned session.
 Goal/producer request shapes remain unchanged. Session protocol 18 added declared
 tool-output channels, terminal output
-references, and independent UI display. Plugin extension <code>0.0.7</code> uses typed
-terminal single/named output and final display; package versions are unchanged.</p>
+references, and independent UI display.</p>
 <table>
 <thead>
 <tr>
@@ -2679,18 +2861,18 @@ terminal single/named output and final display; package versions are unchanged.<
 </tr>
 <tr>
 <td>Runtime inspection</td>
-<td><code>SessionProducersParams/Result</code>, <code>session_producers</code>, <code>ProducerRegistration</code>, <code>PluginRecoveryState</code></td>
+<td><code>SessionProducersParams/Result</code>, <code>session_producers</code>, <code>ProducerRegistration</code>, <code>ProducerSourceState</code></td>
 <td>Session runtime snapshot, not global catalog snapshot or persistence</td>
 </tr>
 <tr>
-<td>Plugin messaging</td>
-<td><code>ExtensionProducer{Register,Send,Discard,Unregister}Params/Result</code></td>
-<td>Engine request handlers; SDK mirrors register/send/discard/unregister</td>
+<td>Producer messaging</td>
+<td><code>Producer{Register,Send,Discard,Unregister}Params/Result</code></td>
+<td><code>producer/*</code> requests of plugins and runtimes; SDK mirrors register/send/discard/unregister</td>
 </tr>
 <tr>
 <td>Recovery handshake</td>
-<td><code>ExtensionRecoveryStartParams</code>, <code>ExtensionRecoveryCompleteParams/Result</code>, <code>ExtensionRecoveryOutcome</code></td>
-<td><code>plugin/recovery/start</code> engine notification (no deadline/response); plugin completion request</td>
+<td><code>RecoveryStartParams</code>, <code>RecoveryCompleteParams/Result</code>, <code>RecoveryOutcome</code></td>
+<td><code>producer/recovery/start</code> daemon notification (no deadline/response); completion request</td>
 </tr>
 </tbody>
 </table>
@@ -2723,7 +2905,7 @@ checklist revision <code>r+1</code>, then completion revision <code>r+2</code>, 
 state. Recovery repairs a missing completion event after a committed all-finished
 checklist. Empty checklists never complete through this rule.</p>
 <p>See <a href="../events/#goal-and-producer-contracts">Events</a> for admission/commit
-coverage and owned-message discard, and <a href="../../development/plugins/#producer-messaging-contracts">Plugins</a>
+coverage and owned-message discard, and <a href="../../development/plugins/#producers">Plugin development</a>
 for method names, idempotency, recovery, and the no-implicit-registration requirement.</p>
 <h3 id="user-steering">User steering<a class="headerlink" href="#user-steering" title="Permanent link">&para;</a></h3>
 <p><code>run.steer</code> requires an active target run. It immediately appends
@@ -2833,10 +3015,26 @@ the title, and continues with new physical sequences.</p>
 <td><code>runtimes.changed</code></td>
 <td>A runtime template was registered or an instance's status changed; optional <code>failures</code></td>
 </tr>
+<tr>
+<td><code>background.changed</code></td>
+<td>A subscribed session's background calls changed: <code>session_id</code> and its current <code>calls</code></td>
+</tr>
+<tr>
+<td><code>plugins.changed</code></td>
+<td>A plugin's status changed; an empty object</td>
+</tr>
 </tbody>
 </table>
+<p>A background call in <code>session.background.list</code> and <code>background.changed</code> is
+<code>{ job, tool, tool_call_id, display?, started_at, detached_at, by }</code>: the job
+ID, the tool's name as the model called it, the call it came from, its
+display argument, when the call started and when it moved to the background,
+and who moved it (<code>model</code> or <code>user</code>). The list lives in the daemon, so it
+never shows a call a daemon restart killed. <code>background.changed</code> reaches only
+connections subscribed to the session; one that falls behind gets every
+subscribed session's list again.</p>
 <h3 id="daemon-wide-changes">Daemon-wide changes<a class="headerlink" href="#daemon-wide-changes" title="Permanent link">&para;</a></h3>
-<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, and <code>runtimes.changed</code> reach every connection
+<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, <code>runtimes.changed</code>, and <code>plugins.changed</code> reach every connection
 from its handshake on, whether or not it subscribed to any session, so each
 client sharing a daemon stays current with what the others do. Clients ignore
 notification methods they do not know.</p>
@@ -2885,7 +3083,8 @@ null <code>previous_revision</code>, the current snapshot, and the reason <code>
 client that holds a different revision refetches <code>runtime.snapshot.get</code> rather
 than trusting either. A status <code>mcp.changed</code> is an empty object;
 bursts coalesce into one notification, and a client refetches <code>mcp.server.list</code>.
-<code>runtimes.changed</code> works the same way for <code>runtimes.list</code>.</p>
+<code>runtimes.changed</code> and <code>plugins.changed</code> work the same way for
+<code>runtimes.list</code> and <code>plugins.list</code>.</p>
 <h3 id="connection-failures">Connection failures<a class="headerlink" href="#connection-failures" title="Permanent link">&para;</a></h3>
 <p>When an MCP server fails to connect, or drops and does not reconnect, and when
 a runtime instance fails to start, the daemon sends one notification for it

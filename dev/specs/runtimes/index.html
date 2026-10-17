@@ -922,6 +922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1689,6 +1712,75 @@
   
   
     <li class="md-nav__item">
+      <a href="../external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../tool-output-streams/" class="md-nav__link">
         
   
@@ -2384,7 +2476,9 @@ another machine (labpc over ssh) end to end.</p>
 <p><strong>Out of scope:</strong> a persistent or discoverable daemon, runtimes that dial in,
 channel adapters (chat apps), schedulers and other openclaw-style triggers,
 web clients, and runtime kinds other than <code>coding</code>. Producer messages are the
-only notification path, and they stay a daemon-side plugin feature.</p>
+only notification path, and in this milestone they stayed a daemon-side
+plugin feature; runtime protocol 4 later opened them to runtimes (see
+<a href="../external-producers/">external producers</a>).</p>
 <h2 id="2-vocabulary">2. Vocabulary<a class="headerlink" href="#2-vocabulary" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2617,6 +2711,11 @@ treated as colliding.</p>
   <code>local_web_bash</code> back into <code>bash</code>.</li>
 <li>A runtime tool that collides with a base layer name is published as
   <code>&lt;attachment&gt;_&lt;name&gt;</code>; the base tool keeps its name.</li>
+<li>An <code>override</code> tool keeps the bare name, and the other tools of that name
+  are prefixed (or hidden, if <code>fallback</code>). Several overrides of one name are
+  all prefixed, with a diagnostic. An override never takes a base layer
+  name. Each plugin composes as its own source, prefixed with the plugin's
+  name (see the <a href="../plugins-v1/">plugins spec</a>).</li>
 <li><code>fallback</code> tools are hidden whenever a non-fallback tool offers the same
   name. When both declare the same parameters schema, as both <code>webfetch</code>
   tools do, the model sees no change.</li>
@@ -2752,19 +2851,14 @@ does not; it is called in-process through the same Rust trait.</p>
 <td>Display deltas and output chunks under today's 64 KiB / 8-stream bounds. The daemon owns capture and artifact retention.</td>
 </tr>
 <tr>
-<td><code>tool/stdin</code>, <code>tool/cancel</code></td>
+<td><code>tool/cancel</code></td>
 <td>daemon → runtime</td>
-<td>As today's <code>ToolStdin</code> and cancellation token.</td>
+<td>As the call's cancellation token.</td>
 </tr>
 <tr>
-<td><code>job/started</code>, <code>job/progress</code>, <code>job/completed</code></td>
+<td><code>tool/detachable</code></td>
 <td>runtime → daemon</td>
-<td>Background jobs (bash <code>background</code>). The daemon commits completions as today.</td>
-</tr>
-<tr>
-<td><code>job/kill</code></td>
-<td>daemon → runtime</td>
-<td>Revert or delete killed the owning call.</td>
+<td>An executing call reached its detach point. Superseded <code>tool/stdin</code> and the <code>job/*</code> messages in runtime protocol 3 (see <a href="../background-tools/">background tool calls</a>).</td>
 </tr>
 <tr>
 <td><code>mcp/changed</code></td>
@@ -2785,9 +2879,9 @@ does not; it is called in-process through the same Rust trait.</p>
 </table>
 <p><code>ToolPreparationContext.cwd</code> and <code>workspace_root</code> disappear from the daemon
 side; the runtime fills them from its own workspace.</p>
-<p>Producer messaging stays a daemon-side plugin feature. Runtimes report back
-to sessions only through background-job completions; a later runtime kind
-that needs general producer messages adds them to this protocol then.</p>
+<p>Runtime protocol 4 adds producer messaging for runtimes: a runtime that
+declares it may send producer messages to the sessions attached to it (see
+<a href="../external-producers/">external producers</a>).</p>
 <h2 id="10-lifecycle-and-failure">10. Lifecycle and failure<a class="headerlink" href="#10-lifecycle-and-failure" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The <code>global</code> and <code>local</code> instances start with the daemon. Other instances
@@ -2795,9 +2889,8 @@ that needs general producer messages adds them to this protocol then.</p>
   are attached, and stay up until the daemon exits.</li>
 <li>Connection, reconnection, and failure follow section 6.4.</li>
 <li>Runtime stderr is captured into bounded diagnostics, as plugin stderr is.</li>
-<li>When a runtime drops, calls in flight fail with a new <code>runtime_unavailable</code>
-  failure code and running background jobs complete as failed ("runtime
-  exited"). Tool calls are never retried transparently.</li>
+<li>When a runtime drops, calls in flight, backgrounded ones included, fail
+  with a new <code>runtime_unavailable</code> failure code. Tool calls are never retried transparently.</li>
 <li>Instance status (<code>starting</code>, <code>ready</code>, <code>reconnecting</code>, <code>failed</code>, <code>stopped</code>)
   is visible to clients (section 11).</li>
 </ul>

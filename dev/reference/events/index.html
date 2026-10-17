@@ -922,6 +922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1405,6 +1428,75 @@
   
   <span class="md-ellipsis">
     Background tool calls
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
     
   </span>
   
@@ -2088,12 +2180,16 @@ origin class. This keeps the origin grammar restricted to <code>user</code>, <co
 <td><code>plugin_event_added</code>, <code>plugin_diagnostic</code></td>
 </tr>
 <tr>
+<td>Engine</td>
+<td><code>engine_diagnostic</code></td>
+</tr>
+<tr>
 <td>Goals</td>
 <td><code>goal_activated</code>, <code>goal_checklist_revised</code>, <code>goal_lifecycle_changed</code></td>
 </tr>
 <tr>
 <td>Producer messaging</td>
-<td><code>producer_message_accepted</code>, <code>producer_message_admitted</code>, <code>producer_messages_claimed</code>, <code>producer_messages_released</code>, <code>producer_message_consumed</code>, <code>producer_message_discarded</code></td>
+<td><code>producer_message_accepted</code>, <code>producer_diagnostic</code>, <code>producer_message_admitted</code>, <code>producer_messages_claimed</code>, <code>producer_messages_released</code>, <code>producer_message_consumed</code>, <code>producer_message_discarded</code></td>
 </tr>
 <tr>
 <td>User input</td>
@@ -2246,9 +2342,12 @@ items, including while paused.</p>
 <p>Handling of older stored checklist items containing an <code>id</code> is pending core
 implementation verification. No specific compatibility decoder or migration is
 promised here; the versionless best-effort session-history contract still applies.</p>
-<p><code>ProducerOwner</code> is tagged by <code>type</code>: <code>plugin { plugin }</code>,
+<p><code>ProducerOwner</code> is tagged by <code>type</code>: <code>external { source, name }</code> (a plugin's
+or a runtime's named producer; a stored <code>plugin { plugin }</code> decodes as
+<code>external { source: "plugin:&lt;plugin&gt;", name: "default" }</code>),
 <code>delegation { invocation_id }</code>, <code>goal { goal_id }</code>,
-<code>goal_control { goal_id }</code>, <code>agent { session_id }</code>, or <code>tool { tool_call_id }</code>. It identifies a specific
+<code>goal_control { goal_id }</code>, <code>agent { session_id }</code>, <code>tool { tool_call_id }</code>, or
+<code>subagent { session_id }</code> (a child's <code>&lt;subagent_report&gt;</code>, keyed by its run ID). It identifies a specific
 stable owner, not a volatile registration or merely an owner kind. Accepted events
 are the sole authoritative message body/mode storage, including deferred queue
 sends while a run is active. Registration records are never session events.
@@ -2258,9 +2357,9 @@ and reminder invalidation. Accepted agent-owned messages may carry optional
 <code>agent_hop</code> metadata for the messaging loop guard. It is absent on non-agent
 producers and legacy agent mail, is not rendered in the agent-visible envelope,
 and does not participate in idempotency comparison.
-<code>Tool { tool_call_id }</code> owns the single completion report of a background job
-started by that tool call. Its accepted message carries the job's captured
-output as <code>retained_output</code>, the same shape a tool result uses, and the body
+<code>Tool { tool_call_id }</code> owns the single <code>&lt;background_result&gt;</code> of that tool
+call once it ran in the background. Its accepted message carries the call's
+captured output as <code>retained_output</code>, the same shape a tool result uses, and the body
 previews it the way a tool result does. Recording the reference on the event is what keeps
 those artifacts alive; plugins cannot supply <code>retained_output</code>.</p>
 <p>The optional accepted-event
@@ -2320,8 +2419,10 @@ Cross-event ownership, at-most-once consumption, and commit coverage are engine
 invariants, not properties a single-event decoder can verify.</p>
 <p>Goal state and unconsumed messages must survive compaction. Fork copies durable
 branch data, never registrations; revert reconciles only the visible branch.
-Failed/disabled recovery notices use the additive <code>PluginDiagnosticKind</code> values
-<code>recovery_failed</code> and <code>recovery_disabled</code>, not persisted readiness/registration records.</p>
+Failed/disabled recovery notices are runless <code>producer_diagnostic { source, kind,
+message }</code> events with <code>kind</code> <code>recovery_failed</code> or <code>recovery_disabled</code>, not
+persisted readiness/registration records. Logs from before external producers
+record them as <code>plugin_diagnostic</code> events of those kinds.</p>
 <h3 id="existing-event-behavior">Existing event behavior<a class="headerlink" href="#existing-event-behavior" title="Permanent link">&para;</a></h3>
 <p><code>model_replay_evaluated</code> records, for one model attempt, the replay decision
 for each history entry of its request. Every attempt re-evaluates the whole
@@ -2354,10 +2455,18 @@ runtimes, which belong to <code>local</code>). The file contributes no context.<
 JSON <code>payload</code>. Plugin-originated payloads are capped at 256 KiB, names at 128 characters, and the
 complete serialized event at 272 KiB; per-plugin/session rate and byte quotas apply. The event is normal
 branch content: it survives reopen and fork, is visible to model history and compaction, and is
-tombstoned by revert. <code>plugin_diagnostic</code> records operational notices such as interception
-timeouts, hook blocks, invalid modifications, oversized publications, and dropped stream counts.
-Current model-bound plugin sends must use an explicitly registered producer;
-<code>plugin/emit</code> cannot append model-visible session publications. Bus traffic is unchanged.</p>
+tombstoned by revert. It is no longer written: model-bound plugin sends use an explicitly
+registered producer, and <code>plugin/emit</code> publishes to the bus only.</p>
+<p><code>plugin_diagnostic { plugin, kind, message, count }</code> records a plugin's operational notices,
+coalesced by <code>count</code>. <code>kind</code> is <code>interception_timeout</code>, <code>interception_crash</code> (the plugin was not
+connected or exited during the hook), <code>interception_rejected</code> (it answered with an error or a
+malformed result), <code>hook_blocked</code>, <code>invalid_modification</code>, <code>oversized_event</code>, <code>event_drop</code>,
+<code>context_mismatch</code>, or <code>rate_limited</code>. <code>unsupported_capability</code> (the removed
+<code>provider_before_headers</code> hook), <code>recovery_failed</code>, and <code>recovery_disabled</code> are only in old logs.</p>
+<p><code>engine_diagnostic { kind, message }</code> is a runless notice of something the engine itself turned
+off for the session. Its one <code>kind</code>, <code>auto_compaction_disabled</code>, is written when automatic context
+compaction failed three times in a row and stays off for the rest of the run. Logs written before
+it record the same notice as a <code>plugin_diagnostic</code> of plugin <code>engine:auto-compact</code>.</p>
 <p>Delegation persistence includes <code>delegate_queued</code> and <code>delegate_finished</code>. The completion event is
 written to the parent run and carries <code>{ session_id, status, preview, short_id,
 total_lines }</code>; <code>short_id</code> is the optional child handle so replay can render the
@@ -2399,9 +2508,11 @@ do not cross this upgrade.</p>
 <p>The runless <code>runtime_attached</code> and <code>runtime_detached</code> events record the
 session's <a href="../../specs/runtimes/#5-session-attachments">runtime attachments</a>.
 <code>runtime_attached</code> carries the session-unique attachment <code>name</code>, the
-<code>runtime_id</code> of the template, the <code>kind</code> label the runtime declared (such as
-<code>global</code> or <code>coding</code>), and,
-when the runtime has one, the canonical <code>workspace</code> it reported.
+<code>runtime_id</code>, the <code>capability</code> attached, the <code>kind</code> label the capability
+declared (such as <code>global</code> or <code>coding</code>), and, when the instance has one, the
+canonical <code>workspace</code> it reported. An event written before capabilities has no
+<code>capability</code> and reads as <code>global</code> for the <code>global</code> runtime and <code>coding</code>
+otherwise.
 <code>runtime_detached</code> carries the <code>name</code> it removes. The attachment set is the fold
 of these events in log order; a session's creation writes one
 <code>runtime_attached</code> per initial attachment together with <code>session_created</code>, so
@@ -2443,7 +2554,9 @@ control characters; a request whose names do not fit is still sent, without
 a record. The TUI shows the latest record as a collapsible tools block under
 the system prompt.</p>
 <p><code>tool_call_started</code> records the single/named output declaration, including
-arbitrary named streams.
+arbitrary named streams, and <code>background: true</code> when the call's tool supports
+the background, so a client may offer to move the running call there
+(<code>run.tool_background</code>); the field is absent otherwise and in older logs.
 <code>tool_call_progress</code> is live-only. It contains a control-free status <code>message</code>
 and optional UI-only <code>display</code>. Display deltas append; terminal <code>result.display</code>
 replaces them. Historical <code>output_chunk</code> fields still decode, but current
