@@ -1613,9 +1613,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#9-open-questions" class="md-nav__link">
+  <a href="#9-review" class="md-nav__link">
     <span class="md-ellipsis">
-      9. Open questions
+      9. Review
     </span>
   </a>
   
@@ -2150,9 +2150,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#9-open-questions" class="md-nav__link">
+  <a href="#9-review" class="md-nav__link">
     <span class="md-ellipsis">
-      9. Open questions
+      9. Review
     </span>
   </a>
   
@@ -2178,8 +2178,8 @@
 
 
 <h1 id="live-engine-configuration">Live Engine Configuration<a class="headerlink" href="#live-engine-configuration" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-17), awaiting review of the
-<a href="#9-open-questions">open questions</a>.</p>
+<p>Status: <strong>draft</strong> (2026-10-17); open questions decided, see
+<a href="#9-review">Review</a>.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>A daemon now runs for days and serves clients on other machines, but its
 configuration is read once at start: changing an agent document or a
@@ -2202,6 +2202,11 @@ without a restart wherever it can:</p>
   here moves or exposes them.</li>
 <li>Provider setup values (endpoint, region, project) are not secret: the
   <code>safe_to_project</code> distinction is removed, and every client shows them.</li>
+<li>Clients edit whole documents and, in <code>config.toml</code>, single keys.</li>
+<li>Hand edits apply on an explicit reload; there is no file watcher.</li>
+<li><code>[runtimes]</code> and <code>[plugins]</code> changes are reported as needing a restart;
+  making them live is a follow-up.</li>
+<li>The TUI edits documents in <code>$VISUAL</code>/<code>$EDITOR</code>.</li>
 </ul>
 <p><strong>Out of scope:</strong> project-level configuration (the daemon still reads only
 the user root), skills (still re-read when a runtime instance starts), the
@@ -2352,6 +2357,13 @@ falls back to the built-in title agent instead of failing.</p>
     otherwise.</li>
 <li><code>{"delete": {path, expected_fingerprint}}</code>: remove a document. Removing
     the last document of a preset removes its directory.</li>
+<li><code>{"set": {key, value}}</code>: set one key of <code>config.toml</code>. <code>key</code> is the path
+    of table and key names (<code>["context_compaction", "threshold"]</code>,
+    <code>["mcp", "servers", "docs", "command"]</code>); <code>value</code> is JSON mapped to TOML
+    (string, integer, float, boolean, array, or object as an inline table),
+    and <code>null</code> removes the key. The edit goes through <code>toml_edit</code>, so the
+    rest of the file, comments included, is untouched. A <code>set</code> and a <code>put</code>
+    of <code>config.toml</code> in one change set are refused.</li>
 </ul>
 <p><code>path</code> is <code>config.toml</code>, <code>agents/&lt;id&gt;.md</code>, or <code>agents/&lt;preset&gt;/&lt;id&gt;.md</code>;
   anything else is refused.
@@ -2393,8 +2405,9 @@ falls back to the built-in title agent instead of failing.</p>
   <code>d</code> deletes one, <code>r</code> runs <code>config.reload</code>. Because the text travels over the
   protocol, this works against a remote daemon.</li>
 <li><strong>CLI.</strong> <code>cookie config edit [&lt;path&gt;]</code> (default <code>config.toml</code>) does the
-  same in the terminal; <code>cookie config reload</code> and <code>cookie config status</code>
-  report the status.</li>
+  same in the terminal; <code>cookie config set &lt;dotted.key&gt; &lt;TOML value&gt;</code> and
+  <code>cookie config unset &lt;dotted.key&gt;</code> send a single <code>set</code>;
+  <code>cookie config reload</code> and <code>cookie config status</code> report the status.</li>
 </ul>
 <h2 id="7-phases">7. Phases<a class="headerlink" href="#7-phases" title="Permanent link">&para;</a></h2>
 <p>Each phase lands as its own commit, with every gate, docs, and tests.</p>
@@ -2405,8 +2418,9 @@ falls back to the built-in title agent instead of failing.</p>
    capture, <code>apply_configuration</code> for the live parts, restart-required
    status, <code>config.reload</code>, <code>config_revision</code>. The MCP writer's validation
    moves from a temporary directory to <code>load_from_tree</code>.</li>
-<li><strong>Writes:</strong> <code>config.get</code> / <code>config.apply</code> with the set-atomic commit and
-   rollback; <code>mcp.server.persist</code> on the same path, including removals.</li>
+<li><strong>Writes:</strong> <code>config.get</code> / <code>config.apply</code> (<code>put</code>, <code>delete</code>, <code>set</code>) with
+   the set-atomic commit and rollback; <code>mcp.server.persist</code> on the same path,
+   including removals.</li>
 <li><strong>Clients:</strong> TUI <code>/config</code> and <code>cookie config</code>.</li>
 </ol>
 <h2 id="8-tests">8. Tests<a class="headerlink" href="#8-tests" title="Permanent link">&para;</a></h2>
@@ -2419,23 +2433,21 @@ falls back to the built-in title agent instead of failing.</p>
   back as documented; restart-required parts are reported only when they
   differ.</li>
 <li>Protocol: conflicts on revision and fingerprint, a change set that is only
-  valid as a whole, rollback when a write fails, refused paths.</li>
+  valid as a whole, rollback when a write fails, refused paths; <code>set</code> keeps
+  comments and other keys, removes with <code>null</code>, and is refused for a value
+  that fails validation.</li>
 <li>Provider fixes: per-provider task slots, the retry on a catalog conflict,
   each error code, and that the server wipes received credentials.</li>
 </ul>
-<h2 id="9-open-questions">9. Open questions<a class="headerlink" href="#9-open-questions" title="Permanent link">&para;</a></h2>
+<h2 id="9-review">9. Review<a class="headerlink" href="#9-review" title="Permanent link">&para;</a></h2>
+<p>Decided 2026-10-17:</p>
 <ol>
-<li><strong>Edit unit.</strong> Whole documents (TOML and Markdown text, edited in an
-   editor), as above, or structured edits of single keys
-   (<code>config.set {path: ["context_compaction", "threshold"], value}</code>) as well?
-   Recommendation: whole documents only; key edits can come later.</li>
-<li><strong>Hand edits.</strong> An explicit <code>config.reload</code> (above) or a file watcher that
-   reloads on its own? Recommendation: explicit reload, no watcher.</li>
-<li><strong><code>runtimes</code> and <code>plugins</code>.</strong> Report them as restart-required (above), or
-   make them live in this spec (register and unregister templates, start and
-   stop plugins)? Recommendation: restart-required now, live in a follow-up.</li>
-<li><strong>Editing in the TUI.</strong> <code>$EDITOR</code> (above) or an editor built into the TUI?
-   Recommendation: <code>$EDITOR</code>.</li>
+<li><strong>Edit unit:</strong> whole documents and single-key <code>set</code> edits of
+   <code>config.toml</code>, both in <code>config.apply</code>.</li>
+<li><strong>Hand edits:</strong> explicit <code>config.reload</code>; no file watcher.</li>
+<li><strong><code>runtimes</code> and <code>plugins</code>:</strong> restart required for now; live in a
+   follow-up.</li>
+<li><strong>TUI editing:</strong> <code>$VISUAL</code>/<code>$EDITOR</code>.</li>
 </ol>
 
 
