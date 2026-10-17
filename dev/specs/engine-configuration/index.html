@@ -1621,6 +1621,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#10-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2158,6 +2167,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#10-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2178,8 +2196,8 @@
 
 
 <h1 id="live-engine-configuration">Live Engine Configuration<a class="headerlink" href="#live-engine-configuration" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-17); open questions decided, see
-<a href="#9-review">Review</a>.</p>
+<p>Status: <strong>implemented</strong> (2026-10-17; decisions in <a href="#9-review">Review</a>, see
+<a href="#10-implementation-notes">Implementation notes</a>).</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>A daemon now runs for days and serves clients on other machines, but its
 configuration is read once at start: changing an agent document or a
@@ -2449,6 +2467,37 @@ falls back to the built-in title agent instead of failing.</p>
    follow-up.</li>
 <li><strong>TUI editing:</strong> <code>$VISUAL</code>/<code>$EDITOR</code>.</li>
 </ol>
+<h2 id="10-implementation-notes">10. Implementation notes<a class="headerlink" href="#10-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Landed in four commits: the provider fixes (client protocol 46), reloading
+(47: <code>config.reload</code>, <code>config_revision</code>), reading and writing (48:
+<code>config.get</code>, <code>config.apply</code>), and the clients. Where it differs from the
+sections above:</p>
+<ul>
+<li><strong>What a run keeps.</strong> A run keeps what it captures at admission: its agent
+  and delegated children's registry, result limits, retry policy, and
+  delegation depth. Other settings (approval timeout, loop warning,
+  compaction, delegation concurrency, messaging) apply from their next use,
+  also inside a run in progress, rather than the run holding a whole
+  configuration generation.</li>
+<li><strong>Revisions.</strong> <code>config_revision</code> is part of <code>runtime_revision</code>, so a
+  settings-only change publishes a new runtime revision.</li>
+<li><strong><code>config.reload</code></strong> answers <code>{status}</code>; a configuration that fails
+  validation is reported in <code>status.error</code> rather than as an RPC error.
+  <code>config.get</code> also lists <code>empty_presets</code>.</li>
+<li><strong>Errors.</strong> A refused <code>config.apply</code> is JSON-RPC error <code>-32040</code> with data
+  <code>{code: conflict | invalid_configuration | invalid_change, message}</code>.</li>
+<li><strong>A refused TUI edit</strong> is not reopened at once: the panel shows why, marks
+  the document <em>not applied</em>, and Enter reopens the rejected text.
+  <code>cookie config edit</code> asks whether to edit again.</li>
+<li><strong><code>cookie config remove &lt;path&gt;</code></strong> was added for parity with the TUI's
+  delete.</li>
+<li><strong>Writer.</strong> <code>write_tree</code> writes the changed documents in path order and
+  restores the earlier ones when a later write fails; the old temporary
+  validation directory is gone, so <code>write_server_token</code> and every write
+  validate in memory with the agent documents.</li>
+<li><strong>Persisting MCP servers</strong> drops the runtime-layer entry once the file holds
+  it, so the server's source becomes the user file.</li>
+</ul>
 
 
 
