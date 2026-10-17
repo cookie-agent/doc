@@ -1958,16 +1958,20 @@ Complete <code>config.toml</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[server]</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"127.0.0.1"</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7419</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;43-char base64url&gt;"</span>
 </code></pre></div>
 <p>Omission keeps the defaults. An authored table replaces them completely;
 omitted fields use the defaults below. See <a href="../../guide/configuration/">config.toml</a>.
 Unknown fields fail. The port accepts <code>0</code> through <code>65535</code>; <code>0</code> asks the OS for
 an available port, so clients must use the actual bound port. <code>cookie daemon
 --port &lt;N&gt;</code> overrides the configured port for that run (including <code>--port 0</code>).</p>
-<p>By default the daemon binds IPv4 loopback at the configured port. Each run
-generates a fresh in-memory bearer token and prints it once as its first
-stdout line (<code>daemon-ready {"url":...,"token":...}</code>); clients connect with
-<code>--token</code> or <code>COOKIE_DAEMON_TOKEN</code>. See the
+<p>By default the daemon binds IPv4 loopback at the configured port. Its bearer
+token is <code>[server] token</code>: when the configuration has none, the daemon
+generates one at its first start and writes it there, so it stays the same
+across restarts. It also prints it in its first stdout line
+(<code>daemon-ready {"url":...,"token":...}</code>). Clients and dial-in runtimes on this
+machine read it from the same <code>config.toml</code>; elsewhere, pass <code>--token</code>, set
+<code>COOKIE_DAEMON_TOKEN</code>, or copy it into that machine's <code>[server] token</code>. See the
 <a href="../../guide/security/#daemon-authentication-token">security contract</a>.</p>
 <p>For clients and runtimes on other machines, <code>cookie daemon</code> takes:</p>
 <table>
@@ -1985,10 +1989,6 @@ stdout line (<code>daemon-ready {"url":...,"token":...}</code>); clients connect
 <tr>
 <td><code>--tls-cert &lt;path&gt;</code>, <code>--tls-key &lt;path&gt;</code></td>
 <td>Serve <code>wss</code> with this PEM certificate chain and private key; the ready line then shows a <code>wss://</code> URL. Both or neither.</td>
-</tr>
-<tr>
-<td><code>--token-file &lt;path&gt;</code></td>
-<td>Use the token this file holds, or create the file (owner-only, <code>0600</code> on Unix) with a fresh token when it does not exist, so the token survives restarts. Dial-in runtimes need it to reconnect after a daemon restart.</td>
 </tr>
 </tbody>
 </table>
@@ -2016,6 +2016,12 @@ carrying a browser <code>Origin</code> header is refused.</p>
 <td>integer</td>
 <td><code>7419</code></td>
 <td>TCP port for the WebSocket daemon.</td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td>string</td>
+<td><em>(none)</em></td>
+<td>The daemon's bearer token, exactly 43 base64url characters. The daemon writes a fresh one here when there is none; clients and dial-in runtimes on this machine use it when given no <code>--token</code>.</td>
 </tr>
 </tbody>
 </table>
