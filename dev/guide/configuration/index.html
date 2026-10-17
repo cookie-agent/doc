@@ -719,6 +719,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#changes-while-the-daemon-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changes while the daemon runs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#strictness-and-limits" class="md-nav__link">
     <span class="md-ellipsis">
       Strictness and limits
@@ -2051,6 +2060,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#changes-while-the-daemon-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changes while the daemon runs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#strictness-and-limits" class="md-nav__link">
     <span class="md-ellipsis">
       Strictness and limits
@@ -2195,6 +2213,46 @@ independently.</p>
 and so on, never <code>[runtime.messaging]</code> or another nested spelling. Older docs
 used the <code>[runtime.messaging]</code> form; a nested table such as that is an unknown
 top-level field and fails strict validation.</p>
+<h2 id="changes-while-the-daemon-runs">Changes while the daemon runs<a class="headerlink" href="#changes-while-the-daemon-runs" title="Permanent link">&para;</a></h2>
+<p>The daemon reads <code>config.toml</code> and the agent documents when it starts. After
+editing them by hand, reload them with the <code>config.reload</code> protocol method; a
+configuration that fails validation is not applied, the daemon keeps running
+on the one it has, and the reload reports the error. A reload applies:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>When it takes effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool_output</code>, <code>subagent_output</code>, <code>agent_md</code>, <code>loop_warning</code>, <code>approval</code>, <code>model_retry</code>, <code>context_compaction</code>, <code>session_title</code>, <code>delegation</code>, <code>messaging</code>, <code>producers</code></td>
+<td>At once, from each setting's next use; a run keeps the result limits, retry policy, and delegation depth it started with</td>
+</tr>
+<tr>
+<td>Agent documents and presets</td>
+<td>At once for new runs; a run in progress keeps its agent, and its delegated children resolve against the agents it started with</td>
+</tr>
+<tr>
+<td><code>providers</code>, <code>headers</code></td>
+<td>At once: models are recompiled</td>
+</tr>
+<tr>
+<td><code>mcp</code></td>
+<td>At once: changed servers restart, removed ones stop; servers added or changed at runtime (<code>/mcp</code>) stay on top</td>
+</tr>
+<tr>
+<td><code>tool_output</code> for runtime instances</td>
+<td>When an instance next starts or reconnects</td>
+</tr>
+<tr>
+<td><code>server</code>, <code>plugins</code>, <code>runtimes</code></td>
+<td>Only after the daemon restarts; the reload reports them as needing a restart</td>
+</tr>
+</tbody>
+</table>
+<p>Skills are not reloaded.</p>
 <h2 id="strictness-and-limits">Strictness and limits<a class="headerlink" href="#strictness-and-limits" title="Permanent link">&para;</a></h2>
 <p>Every authored file is parsed strictly. Unknown keys, leftover <code>schema</code> or
 <code>schema_version</code> keys, wrong types, and malformed content are hard errors with an
