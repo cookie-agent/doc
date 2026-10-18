@@ -2263,19 +2263,19 @@ tool's name and parameter schema when the server is built.</p>
 object on Windows), with the daemon's environment plus the plugin's <code>env</code>,
 and sends <code>plugin/initialize</code> within <code>startup_timeout_ms</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="s2">"2.0"</span><span class="p">,</span><span class="nt">"id"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"method"</span><span class="p">:</span><span class="s2">"plugin/initialize"</span><span class="p">,</span><span class="nt">"params"</span><span class="p">:{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"engine_version"</span><span class="p">:</span><span class="s2">"0.3.0"</span><span class="p">,</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="nt">"engine_version"</span><span class="p">:</span><span class="s2">"0.3.0"</span><span class="p">,</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">"capabilities"</span><span class="p">:{</span><span class="nt">"producer_messaging"</span><span class="p">:</span><span class="kc">false</span><span class="p">}}}</span>
 </code></pre></div>
 <p><code>capabilities.producer_messaging</code> is true when the plugin's configuration
 enables producers. The plugin answers with the same protocol version, its
 configured name, its own version, its capabilities, and its tools:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="s2">"2.0"</span><span class="p">,</span><span class="nt">"id"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"result"</span><span class="p">:{</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"name"</span><span class="p">:</span><span class="s2">"issues"</span><span class="p">,</span><span class="nt">"version"</span><span class="p">:</span><span class="s2">"1.2.0"</span><span class="p">,</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="nt">"name"</span><span class="p">:</span><span class="s2">"issues"</span><span class="p">,</span><span class="nt">"version"</span><span class="p">:</span><span class="s2">"1.2.0"</span><span class="p">,</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">"capabilities"</span><span class="p">:{</span><span class="nt">"producer_messaging"</span><span class="p">:</span><span class="kc">false</span><span class="p">,</span><span class="nt">"subscribe_events"</span><span class="p">:</span><span class="kc">false</span><span class="p">,</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">"subscribe_bus"</span><span class="p">:</span><span class="kc">false</span><span class="p">,</span><span class="nt">"publish_bus"</span><span class="p">:</span><span class="kc">false</span><span class="p">,</span><span class="nt">"intercept"</span><span class="p">:[</span><span class="s2">"tool_before_call"</span><span class="p">]},</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">"tools"</span><span class="p">:{</span><span class="nt">"tools"</span><span class="p">:[],</span><span class="nt">"prompt_sections"</span><span class="p">:[]}}}</span>
 </code></pre></div>
-<p>The protocol version is the integer <code>1</code> and must match exactly; a different
+<p>The protocol version is the integer <code>2</code> and must match exactly; a different
 version or name fails the start. Capabilities are fixed for the connection;
 <code>tools</code> is the runtime protocol's <code>RuntimeTools</code>.</p>
 <p>Request IDs are integers. Every frame is at most 48 MiB, parsed strictly,
@@ -2453,8 +2453,9 @@ sent another. Each hook is a request <code>plugin/intercept/&lt;hook&gt;</code>:
 plugin sees it, and an invalid one is skipped with a diagnostic. A hook that
 times out, whose plugin is not connected or exits, or that answers with an
 error or a malformed result <strong>fails open</strong>: the operation goes on, later
-plugins still run, and the session records a <code>plugin_diagnostic</code>
-(<code>interception_timeout</code>, <code>interception_crash</code>, or <code>interception_rejected</code>).
+plugins still run, and the session records a <code>diagnostic</code> of source
+<code>plugin:&lt;name&gt;</code> (<code>interception_timeout</code>, <code>interception_crash</code>, or
+<code>interception_rejected</code>).
 A block stops later hooks.</p>
 <p><code>tool_before_call</code> and <code>tool_after_result</code> carry the call's <code>origin</code>:
 <code>{"kind":"base"}</code> for a daemon base tool, or

@@ -2382,9 +2382,9 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over an authenticated WebSocket at <code>/ws</code>.
-Protocol 48 is current-only. A client must call <code>handshake</code> before any other
+Protocol 49 is current-only. A client must call <code>handshake</code> before any other
 method:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">48</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tui"</span><span class="p">,</span><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;uuid&gt;"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">49</span><span class="p">,</span><span class="w"> </span><span class="nt">"client"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tui"</span><span class="p">,</span><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;uuid&gt;"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p><code>client.kind</code> names the client program: a lowercase letter followed by up to 15
 lowercase letters, digits, or hyphens (the shipped clients use <code>tui</code> and <code>cli</code>).
@@ -2404,8 +2404,7 @@ protocol 36 added the <code>resync</code> runtime change reason. Protocol 37 mad
 <code>client_fork_id</code>, and added <code>session.compact.cancel</code>. Protocol 38 added
 <code>session.select_model</code> and the <code>session_model_selected</code> event. Protocol 39
 removed the workspace configuration layer: the <code>workspace</code> agent document source
-and the <code>workspace_file</code> MCP configuration source and target are gone (session
-logs that recorded a <code>workspace</code> document source still read it as <code>user</code>).
+and the <code>workspace_file</code> MCP configuration source and target are gone.
 Protocol 40 added runtime attachments (see <a href="#runtimes">Runtimes</a>):
 <code>session.create</code> takes <code>runtimes</code> and <code>global</code>, the session create, get, and
 resume results carry the session's <code>runtimes</code>, <code>session.runtime.attach</code>,
@@ -2437,13 +2436,12 @@ such a tool. Protocol 43 replaced the <code>plugin { plugin }</code> producer ow
 with <code>external { source, name }</code>: <code>source</code> is <code>plugin:&lt;name&gt;</code> or
 <code>runtime:&lt;attachment name&gt;</code>, and <code>name</code> is the producer's own label, so a
 plugin or runtime may run any number of named producers (see the <a href="../../specs/external-producers/">external
-producers spec</a>). Stored <code>plugin</code> owners
-decode as <code>external</code> with name <code>default</code>. <code>session.producers</code> returns
+producers spec</a>). <code>session.producers</code> returns
 <code>sources</code> (the recovery state of each producer source) in place of
 <code>plugin_recovery</code>, and a source that cannot recover records a
-<code>producer_diagnostic</code> event. Protocol 44 added <code>plugins.list</code>,
+<code>producer_diagnostic</code> event (now a <code>diagnostic</code>). Protocol 44 added <code>plugins.list</code>,
 <code>plugins.restart</code>, and the <code>plugins.changed</code> notification (see
-<a href="#plugins">Plugins</a>), and the <code>engine_diagnostic</code> event, which replaces the
+<a href="#plugins">Plugins</a>), and the <code>engine_diagnostic</code> event (now a <code>diagnostic</code>), which replaces the
 <code>plugin_diagnostic</code> automatic compaction used to record under the name
 <code>engine:auto-compact</code>. It removed the built-in <code>plugin</code> permission action:
 plugin tools declare their own actions, and a rule naming <code>plugin</code> is an
@@ -2468,16 +2466,36 @@ nothing produced. Protocol 47 added <code>config.reload</code> and the snapshot'
 <code>runtime.changed</code> with <code>config_reloaded</code>, and <code>agent_reloaded</code> when an agent
 document changed. Protocol 48 added <code>config.get</code> and <code>config.apply</code>, and
 <code>mcp.server.persist</code> writes through <code>config.apply</code>'s path (persisting a
-runtime removal deletes the server's table). Older clients are rejected.</p>
+runtime removal deletes the server's table). Protocol 49 changed session
+history (see <a href="../events/">Events</a>): it removed the legacy events
+<code>session_reverted</code>, <code>context_rehydrated</code>, <code>plugin_event_added</code>,
+<code>tool_stdin_submitted</code>, <code>delegate_finished</code>, and the positional
+<code>user_input_recalled</code>; <code>user_input_recalled_v2</code> took the plain name
+<code>user_input_recalled</code>; <code>runtime_attached.capability</code>, the <code>agent_md_loaded</code>
+<code>attachment</code>, and the runtime ID of approval requests and tree grants became
+required; and the legacy decoders of older logs are gone, so sessions written
+before protocol 49 no longer open. It merged the event set: <code>diagnostic</code>
+replaces <code>plugin_diagnostic</code>, <code>producer_diagnostic</code>, <code>engine_diagnostic</code>, and
+<code>agent_md_skipped</code>; <code>run_finished</code> the four run terminal events;
+<code>internal_agent_finished</code> the four internal-agent terminal events;
+<code>delegation_progressed</code> <code>delegation_started</code>, <code>delegation_run_started</code>,
+<code>delegation_run_attached</code>, and <code>delegate_queued</code>; <code>delegation_finished</code>
+absorbs <code>delegate_finished_v2</code>; and <code>approval_step</code> and <code>approval_finalized</code>
+replace the six approval lifecycle events. Every event type is a state or an
+audit event, and stored records of audit events carry <code>"skippable": true</code>; a
+session holding a state event this build does not know is render-only, and
+requests that would change it fail with <code>session_requires_newer_engine</code>.
+<code>session_created</code> carries <code>history_format</code>. Tool results lost <code>truncation</code>,
+which nothing set. Older clients are rejected.</p>
 <p>The unreleased MCP approval methods and their <code>pending_approval</code> and <code>rejected</code>
 server states were removed before any release. They are not compatibility
-members of protocol 48.</p>
+members of protocol 49.</p>
 <h2 id="error-diagnostics">Error diagnostics<a class="headerlink" href="#error-diagnostics" title="Permanent link">&para;</a></h2>
 <p><code>ModelErrorSummary.response_body</code> is an optional <code>DiagnosticText</code> that preserves
 the supplied content, with terminal/Unicode format controls removed or replaced
 and a maximum of 4,096 UTF-8 bytes, including any truncation marker. Newlines and
 tabs are permitted. It is used for terminal,
-fallback, and internal-agent model failures. <code>run_failed</code> keeps its short <code>error</code>
+fallback, and internal-agent model failures. A failed <code>run_finished</code> keeps its short <code>error</code>
 and optionally includes <code>model_error</code> and <code>resolved_model</code>. Missing fields in old
 events default to null and are omitted when serialized; this is an additive
 event change without a protocol version bump.</p>
@@ -3032,7 +3050,7 @@ reduce the queue with <code>cookie_agent_protocol::QueuedInputs</code>, as the d
 <p><code>session.recall_input</code> takes back one pending steered input or one queued input
 by its seq. Only the client whose origin admitted it may do so: another client
 gets <code>{ "outcome": "not_owner" }</code>. A pending input is withdrawn with
-<code>user_input_recalled_v2</code> and a queued one with <code>user_input_queue_recalled</code>; both
+<code>user_input_recalled</code> and a queued one with <code>user_input_queue_recalled</code>; both
 return <code>{ "outcome": "recalled", "input" }</code>. An input that was already promoted,
 started, or voided returns <code>{ "outcome": "gone" }</code>.</p>
 <p><code>run.start</code> on a session whose run is active fails with code <code>-32602</code> and
@@ -3049,9 +3067,7 @@ nothing but its <code>run_started</code> goes too), closes any run, tool call, i
 agent, or approval the cut left open, and deletes the subagent sessions created
 by removed delegations; a running one refuses the revert. Later appends reuse
 the freed sequence numbers. Subscribers receive a <code>rewound</code> notification (see
-<a href="../events/#subscriptions">Subscriptions</a>). Logs from before protocol 28 may
-still hold <code>session_reverted</code> markers, which readers apply as before: each hides
-what followed its target on the branch visible when it was written.</p>
+<a href="../events/#subscriptions">Subscriptions</a>).</p>
 <p><code>session.fork</code> takes a <code>client_fork_id</code>: while the daemon runs, a retry with the
 same key and target returns the first fork instead of making another, and the
 same key with a different target is an <code>idempotency_conflict</code>.

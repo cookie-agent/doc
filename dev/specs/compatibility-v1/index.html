@@ -2136,6 +2136,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase C
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3119,6 +3128,15 @@
   <a href="#phase-b" class="md-nav__link">
     <span class="md-ellipsis">
       Phase B
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase C
     </span>
   </a>
   
@@ -4716,6 +4734,75 @@ the version constants stay <code>0.x</code> and change freely.</p>
   <code>ModelSnapshotManifestV1</code> is no longer exported (it is not on any surface),
   and <code>ProviderConnectParams</code> now is: its schema describes the credential
   fields' shape, never a value.</li>
+</ul>
+<h3 id="phase-c">Phase C<a class="headerlink" href="#phase-c" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Runless recall.</strong> The positional <code>user_input_recalled { input }</code> was
+  still written: a cancelled queued child's runless steers were withdrawn
+  with it. The plain-named <code>user_input_recalled { user_input_seq, input }</code>
+  therefore also exists runless, naming a runless admission, and readers
+  match every recall by its admission sequence.</li>
+<li><strong>Attachments.</strong> With the "no attach events" rule gone, a session's
+  attachment set is exactly the fold of its attach and detach events, and a
+  session created with no attachment writes no attachment event.</li>
+<li><strong>Event storage.</strong> Without revert markers the visible branch is the whole
+  log, so the engine keeps one event list instead of a physical and a
+  visible one.</li>
+<li><strong>One delegation finish.</strong> <code>delegation_finished</code> is written where the
+  control record was, for every delegation, and carries the teaser. It is
+  not model history. Every background completion already accepted its steer
+  producer message before the old <code>delegate_finished_v2</code>, so the old
+  suppression rule always applied to current writes; written at the control
+  point, the merged record would otherwise appear in a request assembled
+  before the acceptance and the result would reach the model twice. The
+  result reaches the model once, as the tool result or the accepted producer
+  message, and a restart re-drives a missing acceptance as before.
+  <code>ParentRunFacts</code> loses <code>notified</code>: a background delegation counts as
+  notified once its producer message is accepted.</li>
+<li><strong>Approval cancellation.</strong> The pair <code>approval_cancelled</code> +
+  <code>approval_finalized</code> the engine wrote for a system withdrawal is one
+  <code>approval_finalized { outcome: cancelled { reason_code } }</code>, whose final
+  decision is derived (<code>expired</code> for <code>approval_expired</code>, else <code>cancelled</code>;
+  source <code>system</code>). A user's cancel stays a <code>decided</code> outcome, since its
+  source is the user.</li>
+<li><strong>Open inner enums.</strong> <code>RunOutcome</code>, <code>InternalAgentOutcome</code>,
+  <code>DelegationStage</code>, <code>ApprovalStep</code>, and <code>ApprovalFinalization</code> are open
+  (<code>Open&lt;T&gt;</code>, with cheap named tags from a new <code>open_enum!</code> form). Unknown
+  run and internal-agent outcomes read as interrupted, an unknown approval
+  outcome as cancelled, and unknown stages and steps change nothing.</li>
+<li><strong>Diagnostics.</strong> <code>diagnostic.kind</code> is a snake-case label of at most 64
+  bytes; <code>count</code> is present only from 2; <code>detail</code> is at most 16 KiB. The
+  agent-md notice is <code>engine:agent-md</code> / <code>agent_md_too_large</code>, its message the
+  text the TUI used to compose, and the source of a plugin's notice is
+  <code>plugin:&lt;name&gt;</code>. The Rust kind catalogs (<code>PluginDiagnosticKind</code>,
+  <code>ProducerDiagnosticKind</code>, <code>EngineDiagnosticKind</code>) stay as writer helpers.</li>
+<li><strong><code>skippable</code> is derived.</strong> <code>StoredEvent</code> has no <code>skippable</code> field: it is
+  serialized from the payload's class and checked against it when read, so a
+  value built in memory cannot disagree with its payload. A step of
+  <code>approval_step</code> this build does not know accepts either value. The
+  classes: <code>diagnostic</code>, <code>skill_invocation_noted</code>, <code>user_input_transformed</code>,
+  <code>model_request_prepared</code>, <code>model_tools_published</code>, <code>model_output_started</code>,
+  <code>model_replay_evaluated</code>, and the <code>doom_loop</code> approval step are audit;
+  everything else is state (live-only events are never stored).</li>
+<li><strong>Render-only.</strong> The event log refuses every append and truncation of a
+  render-only log (<code>EventLogError::RequiresNewerEngine</code>), which covers
+  automatic compaction, titles, and recovery; <code>run.start</code>,
+  <code>session.submit_input</code>, revert, fork, and compaction also check before they
+  start work. Adoption skips the restart repairs. A fork is refused because
+  it would drop the records this build cannot read. The server answers with
+  the registry's <code>session_requires_newer_engine</code> (<code>-32000</code>), naming the
+  <code>event</code> or the <code>history_format</code>.</li>
+<li><strong>History format.</strong> A <code>session_created</code> without <code>history_format</code> fails as
+  the existing unsupported-era corrupt-log error; a higher one with
+  <code>session_requires_newer_engine</code>; a lower one with
+  <code>EventLogError::UnsupportedHistoryFormat</code>, which phase D replaces with
+  conversion.</li>
+<li><strong><code>truncation</code>.</strong> Every writer left a tool result's <code>truncation</code> null
+  since retained output moved to <code>retained_output</code>; its readers (the model's
+  tool-result JSON, the TUI, the compaction retry hint) served old logs only.
+  The field and <code>ToolOutputTruncation</code> are gone. <code>PersistedToolResult</code> is
+  also the <code>tool/execute</code> result, so the runtime protocol moves to 6
+  (<code>0.6.0</code>); the plugin protocol already moved to 2 in this step.</li>
 </ul>
 
 

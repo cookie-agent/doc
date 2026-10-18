@@ -401,55 +401,52 @@
 <a href=#401 id=401 data-nosnippet>401</a>                        projection.messages[index].discarded_seq = <span class="prelude-val">Some</span>(event.seq);
 <a href=#402 id=402 data-nosnippet>402</a>                    }
 <a href=#403 id=403 data-nosnippet>403</a>                }
-<a href=#404 id=404 data-nosnippet>404</a>                EventPayload::RunCompleted { .. }
-<a href=#405 id=405 data-nosnippet>405</a>                | EventPayload::RunFailed { .. }
-<a href=#406 id=406 data-nosnippet>406</a>                | EventPayload::RunCancelled { .. }
-<a href=#407 id=407 data-nosnippet>407</a>                | EventPayload::RunInterrupted { .. } =&gt; {
-<a href=#408 id=408 data-nosnippet>408</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(run_id) = event.run_id {
-<a href=#409 id=409 data-nosnippet>409</a>                        terminal_runs.insert(run_id);
-<a href=#410 id=410 data-nosnippet>410</a>                    }
-<a href=#411 id=411 data-nosnippet>411</a>                }
-<a href=#412 id=412 data-nosnippet>412</a>                <span class="kw">_ </span>=&gt; {}
-<a href=#413 id=413 data-nosnippet>413</a>            }
-<a href=#414 id=414 data-nosnippet>414</a>        }
-<a href=#415 id=415 data-nosnippet>415</a>        projection
-<a href=#416 id=416 data-nosnippet>416</a>    }
-<a href=#417 id=417 data-nosnippet>417</a>
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">fn </span>reject(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seq: u64, reason: <span class="kw-2">&amp;</span>str) {
-<a href=#419 id=419 data-nosnippet>419</a>        <span class="self">self</span>.invalid.push((seq, reason.to_owned()));
-<a href=#420 id=420 data-nosnippet>420</a>    }
-<a href=#421 id=421 data-nosnippet>421</a>}
-<a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a><span class="kw">fn </span>is_terminal(status: GoalStatus) -&gt; bool {
-<a href=#424 id=424 data-nosnippet>424</a>    <span class="macro">matches!</span>(status, GoalStatus::Completed | GoalStatus::Cancelled)
-<a href=#425 id=425 data-nosnippet>425</a>}
-<a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a><span class="kw">fn </span>valid_lifecycle_change(goal: <span class="kw-2">&amp;</span>GoalState, status: GoalStatus) -&gt; bool {
-<a href=#428 id=428 data-nosnippet>428</a>    <span class="kw">match </span>(goal.status, status) {
-<a href=#429 id=429 data-nosnippet>429</a>        (GoalStatus::Active, GoalStatus::Paused | GoalStatus::Cancelled)
-<a href=#430 id=430 data-nosnippet>430</a>        | (GoalStatus::Paused, GoalStatus::Active | GoalStatus::Cancelled) =&gt; <span class="bool-val">true</span>,
-<a href=#431 id=431 data-nosnippet>431</a>        (GoalStatus::Active | GoalStatus::Paused, GoalStatus::Completed) =&gt; {
-<a href=#432 id=432 data-nosnippet>432</a>            !goal.items.is_empty() &amp;&amp; goal.items.iter().all(|item| item.finished)
-<a href=#433 id=433 data-nosnippet>433</a>        }
-<a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#435 id=435 data-nosnippet>435</a>    }
-<a href=#436 id=436 data-nosnippet>436</a>}
-<a href=#437 id=437 data-nosnippet>437</a>
-<a href=#438 id=438 data-nosnippet>438</a><span class="kw">fn </span>valid_reminder_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, reminder: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>GoalReminderIdentity&gt;) -&gt; bool {
-<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">match </span>(owner, reminder) {
-<a href=#440 id=440 data-nosnippet>440</a>        (ProducerOwner::Goal { goal_id }, <span class="prelude-val">Some</span>(reminder)) =&gt; <span class="kw-2">*</span>goal_id == reminder.goal_id,
-<a href=#441 id=441 data-nosnippet>441</a>        (ProducerOwner::Goal { .. }, <span class="prelude-val">None</span>) | (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; <span class="bool-val">false</span>,
-<a href=#442 id=442 data-nosnippet>442</a>        (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>}
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a><span class="doccomment">/// Hop metadata belongs exclusively to agent mail. A malformed durable event
-<a href=#447 id=447 data-nosnippet>447</a>/// that stamps it onto plugin, goal, or delegation mail is quarantined so it
-<a href=#448 id=448 data-nosnippet>448</a>/// cannot inflate an agent chain it never joined.
-<a href=#449 id=449 data-nosnippet>449</a></span><span class="kw">const fn </span>valid_hop_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, agent_hop: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; bool {
-<a href=#450 id=450 data-nosnippet>450</a>    agent_hop.is_none() || <span class="macro">matches!</span>(owner, ProducerOwner::Agent { .. })
-<a href=#451 id=451 data-nosnippet>451</a>}
-<a href=#452 id=452 data-nosnippet>452</a>
-<a href=#453 id=453 data-nosnippet>453</a><span class="attr">#[cfg(test)]
-<a href=#454 id=454 data-nosnippet>454</a></span><span class="kw">mod </span>tests;
+<a href=#404 id=404 data-nosnippet>404</a>                EventPayload::RunFinished { .. } =&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(run_id) = event.run_id {
+<a href=#406 id=406 data-nosnippet>406</a>                        terminal_runs.insert(run_id);
+<a href=#407 id=407 data-nosnippet>407</a>                    }
+<a href=#408 id=408 data-nosnippet>408</a>                }
+<a href=#409 id=409 data-nosnippet>409</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#410 id=410 data-nosnippet>410</a>            }
+<a href=#411 id=411 data-nosnippet>411</a>        }
+<a href=#412 id=412 data-nosnippet>412</a>        projection
+<a href=#413 id=413 data-nosnippet>413</a>    }
+<a href=#414 id=414 data-nosnippet>414</a>
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="kw">fn </span>reject(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seq: u64, reason: <span class="kw-2">&amp;</span>str) {
+<a href=#416 id=416 data-nosnippet>416</a>        <span class="self">self</span>.invalid.push((seq, reason.to_owned()));
+<a href=#417 id=417 data-nosnippet>417</a>    }
+<a href=#418 id=418 data-nosnippet>418</a>}
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a><span class="kw">fn </span>is_terminal(status: GoalStatus) -&gt; bool {
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="macro">matches!</span>(status, GoalStatus::Completed | GoalStatus::Cancelled)
+<a href=#422 id=422 data-nosnippet>422</a>}
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a><span class="kw">fn </span>valid_lifecycle_change(goal: <span class="kw-2">&amp;</span>GoalState, status: GoalStatus) -&gt; bool {
+<a href=#425 id=425 data-nosnippet>425</a>    <span class="kw">match </span>(goal.status, status) {
+<a href=#426 id=426 data-nosnippet>426</a>        (GoalStatus::Active, GoalStatus::Paused | GoalStatus::Cancelled)
+<a href=#427 id=427 data-nosnippet>427</a>        | (GoalStatus::Paused, GoalStatus::Active | GoalStatus::Cancelled) =&gt; <span class="bool-val">true</span>,
+<a href=#428 id=428 data-nosnippet>428</a>        (GoalStatus::Active | GoalStatus::Paused, GoalStatus::Completed) =&gt; {
+<a href=#429 id=429 data-nosnippet>429</a>            !goal.items.is_empty() &amp;&amp; goal.items.iter().all(|item| item.finished)
+<a href=#430 id=430 data-nosnippet>430</a>        }
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#432 id=432 data-nosnippet>432</a>    }
+<a href=#433 id=433 data-nosnippet>433</a>}
+<a href=#434 id=434 data-nosnippet>434</a>
+<a href=#435 id=435 data-nosnippet>435</a><span class="kw">fn </span>valid_reminder_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, reminder: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>GoalReminderIdentity&gt;) -&gt; bool {
+<a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">match </span>(owner, reminder) {
+<a href=#437 id=437 data-nosnippet>437</a>        (ProducerOwner::Goal { goal_id }, <span class="prelude-val">Some</span>(reminder)) =&gt; <span class="kw-2">*</span>goal_id == reminder.goal_id,
+<a href=#438 id=438 data-nosnippet>438</a>        (ProducerOwner::Goal { .. }, <span class="prelude-val">None</span>) | (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; <span class="bool-val">false</span>,
+<a href=#439 id=439 data-nosnippet>439</a>        (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#440 id=440 data-nosnippet>440</a>    }
+<a href=#441 id=441 data-nosnippet>441</a>}
+<a href=#442 id=442 data-nosnippet>442</a>
+<a href=#443 id=443 data-nosnippet>443</a><span class="doccomment">/// Hop metadata belongs exclusively to agent mail. A malformed durable event
+<a href=#444 id=444 data-nosnippet>444</a>/// that stamps it onto plugin, goal, or delegation mail is quarantined so it
+<a href=#445 id=445 data-nosnippet>445</a>/// cannot inflate an agent chain it never joined.
+<a href=#446 id=446 data-nosnippet>446</a></span><span class="kw">const fn </span>valid_hop_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, agent_hop: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; bool {
+<a href=#447 id=447 data-nosnippet>447</a>    agent_hop.is_none() || <span class="macro">matches!</span>(owner, ProducerOwner::Agent { .. })
+<a href=#448 id=448 data-nosnippet>448</a>}
+<a href=#449 id=449 data-nosnippet>449</a>
+<a href=#450 id=450 data-nosnippet>450</a><span class="attr">#[cfg(test)]
+<a href=#451 id=451 data-nosnippet>451</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
