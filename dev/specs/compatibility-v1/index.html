@@ -2117,6 +2117,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#15-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      15. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase B
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3081,6 +3105,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#15-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      15. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase B
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3785,18 +3833,19 @@ deleted.</p>
 <code>user_input_queued</code>, <code>user_input_queue_recalled</code>, <code>user_input_queue_voided</code>,
 <code>message_injected</code>, and <code>session_model_selected</code>. So does every other event
 not listed above.</p>
-<p><strong>To verify while implementing, before merging:</strong></p>
+<p><strong>Checked against the code (2026-10-18):</strong></p>
 <ul>
-<li><code>delegate_queued</code> is keyed by child <code>session_id</code> and has no
-  <code>invocation_id</code>. Confirm each queued record maps to exactly one invocation.</li>
-<li><code>delegate_child_terminated</code> carries no invocation. Confirm which session it
-  is written to and whether it folds into <code>delegation_finished</code> or stays.</li>
-<li><code>producer_diagnostic</code> of kind <code>recovery_failed</code> holds goal continuation.
-  If any projection derives state from it, it stays a typed state event
-  instead of becoming a <code>diagnostic</code>.</li>
+<li><code>delegate_queued</code> is written on the parent, in the parent run, when the
+  invocation is at hand, so <code>delegation_progressed { stage: queued }</code> carries
+  its <code>invocation_id</code>. Tree loading pairs queued children with their parent
+  run through the invocation's <code>delegation_progressed { stage: started }</code>.</li>
+<li><code>delegate_child_terminated</code> is written runless to the <em>child</em> session and
+  sets the child's own status. It is not a parent-side delegation record, so
+  it stays as is.</li>
+<li><code>producer_diagnostic</code> is read only by the validator and the TUI. The goal
+  hold lives in memory, not in a projection, so the event merges into
+  <code>diagnostic</code>.</li>
 </ul>
-<p>If a check fails, that row is left as is, and the spec is updated before the
-code.</p>
 <h3 id="83-internal-types-out-of-history">8.3 Internal types out of history<a class="headerlink" href="#83-internal-types-out-of-history" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>session_created</code>, <code>run_started</code>, <code>delegation_reserved</code>, and
@@ -4610,6 +4659,63 @@ the version constants stay <code>0.x</code> and change freely.</p>
   tool).</li>
 <li><strong><code>guide/configuration.md</code>:</strong> <code>[server] allowed_origins</code>.</li>
 <li><strong><code>guide/sessions.md</code>:</strong> <code>cookie sessions upgrade</code>.</li>
+</ul>
+<h2 id="15-implementation-notes">15. Implementation notes<a class="headerlink" href="#15-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Deviations and choices made while implementing, by phase.</p>
+<h3 id="phase-b">Phase B<a class="headerlink" href="#phase-b" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Names.</strong> The semver type is <code>SemVer</code>; the exact numeric
+  <code>ProtocolVersion</code> keeps its name and wire until the handshakes switch
+  (phases E and F), which then remove it. <code>CLIENT_PROTOCOL_VERSION</code> (<code>0.48.0</code>),
+  <code>PLUGIN_PROTOCOL_VERSION</code> (<code>0.1.0</code>), and <code>RUNTIME_PROTOCOL_VERSION</code>
+  (<code>0.5.0</code>) are crate-root constants; the old <code>u32</code>
+  <code>runtime_protocol::RUNTIME_PROTOCOL_VERSION</code> lives on beside them until
+  then. <code>peer_protocol_version</code> reads a handshake's version from raw JSON.</li>
+<li><strong><code>Open&lt;T&gt;</code>.</strong> A known tag with a malformed body is a decoding error, not
+  <code>Unknown</code>: <code>Unknown</code> means "from a newer peer". Tolerant readers (the
+  history loader) handle the error where they know what to skip. The known
+  tags come from the enum's own schema, so <code>open_enum!(tagged T, tag = "…")</code>
+  cannot drift from its serde attributes.</li>
+<li><strong>Display blocks.</strong> Cutting needs an <code>omitted</code> count on every cuttable
+  kind, not only <code>diff</code> and <code>table</code>: <code>text</code>, <code>markdown</code>, <code>code</code>,
+  <code>file_excerpt</code>, and <code>terminal</code> carry <code>omitted_lines</code>, and <code>key_value</code>
+  carries <code>omitted_entries</code>. <code>terminal</code> blocks are cut by line within their
+  segments, so a single long segment still keeps its head. <code>json</code>, <code>media</code>,
+  <code>link</code>, and <code>session_ref</code> cannot be cut and are dropped when they do not
+  fit. The budget leaves room for the blocks after a cut block when they fit
+  whole. <code>diff.change</code> and the terminal <code>stream</code> are open (unknown reads as
+  <code>modified</code> and <code>stdout</code>); <code>as_of</code> and the hunk line <code>op</code> are closed.</li>
+<li><strong>Progress delta.</strong> <code>append</code> names no stream in 12.3, yet a terminal
+  append goes to "the same stream", so <code>append</code> has an optional <code>stream</code>
+  (default <code>stdout</code>; an error on a <code>text</code> block).</li>
+<li><strong>Strict commands with shared types.</strong> New types that also flow as
+  information (<code>ArtifactRef</code>, <code>UserContent</code>, display blocks) do not deny
+  unknown fields. Commands that embed them (<code>run.start</code> content) need their
+  strictness from the decoder (an unknown-field check that names the JSON
+  path) rather than from <code>deny_unknown_fields</code>.</li>
+<li><strong>Error registry.</strong> Today's <code>-32011</code> covers both a repeated initialize
+  and a rejected one, so both <code>already_initialized</code> and
+  <code>initialize_rejected</code> are registered. <code>version_mismatch</code> stays until the
+  runtime handshake answers <code>unsupported_protocol</code>. <code>config_apply_refused</code>
+  carries the refusal as <code>reason</code> (<code>conflict</code>, <code>invalid_configuration</code>,
+  <code>invalid_change</code>). <code>idempotency_conflict</code> is one code across run, rename,
+  approval, fork, and provider requests, with the request's IDs as optional
+  fields. Templates may name only required fields.</li>
+<li><strong>Checker rules beyond the table.</strong> A required field that became optional
+  is major for information and minor for commands; a closed enum that became
+  open is minor and the reverse major; <code>additionalProperties</code> going from
+  <code>false</code> to allowed is major for information and minor for commands, and
+  the reverse major for commands; any <code>type</code> change (nullability included)
+  and any <code>patternProperties</code> change is major. Before the freeze (<code>0.x</code> in
+  the baseline and the generated set) the baseline must equal the generated
+  set exactly and findings are only reported, as phases C to G change the
+  wire freely.</li>
+<li><strong>Surfaces.</strong> The plugin surface omits <code>capability/tools_changed</code> and
+  <code>mcp/changed</code>, which the daemon still accepts from plugins until 9.2
+  removes them. The events baseline's <code>version</code> records the client version.
+  <code>ModelSnapshotManifestV1</code> is no longer exported (it is not on any surface),
+  and <code>ProviderConnectParams</code> now is: its schema describes the credential
+  fields' shape, never a value.</li>
 </ul>
 
 

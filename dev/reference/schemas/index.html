@@ -1914,6 +1914,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Schemas
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1925,6 +1938,34 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#baselines-and-the-checker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Baselines and the checker
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1981,6 +2022,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#baselines-and-the-checker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Baselines and the checker
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2024,9 +2082,19 @@ emit only their current version and reject unsupported versions.</p>
 <td style="text-align: right;">unversioned current shape</td>
 </tr>
 <tr>
-<td>Protocol</td>
-<td style="text-align: right;">19</td>
-<td style="text-align: right;">19</td>
+<td>Client protocol</td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">48</td>
+</tr>
+<tr>
+<td>Plugin protocol</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Runtime protocol</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
 </tr>
 <tr>
 <td>Events and session JSONL</td>
@@ -2040,8 +2108,8 @@ emit only their current version and reject unsupported versions.</p>
 </tr>
 <tr>
 <td>Runtime snapshot</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">5</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">6</td>
 </tr>
 <tr>
 <td>Catalog cache</td>
@@ -2065,17 +2133,51 @@ emit only their current version and reject unsupported versions.</p>
 </tr>
 </tbody>
 </table>
+<p>The three protocols are moving to semver versions, as the
+<a href="../../specs/compatibility-v1/">compatibility specification</a> describes. Until
+their handshakes switch, the exact numbers above stay on the wire; the semver
+constants <code>CLIENT_PROTOCOL_VERSION</code>, <code>PLUGIN_PROTOCOL_VERSION</code>, and
+<code>RUNTIME_PROTOCOL_VERSION</code> (<code>0.48.0</code>, <code>0.1.0</code>, and <code>0.5.0</code>) are what the
+baselines below record. They stay <code>0.x</code> until the protocols freeze at <code>1.0.0</code>.</p>
 <p>Agent snapshots embedded in readable events upconvert supported historical
 shapes before validation. Delegation lifecycle records are ordinary parent
 session events; the removed <code>delegations.jsonl</code> surface and its schema versions
 are not read.</p>
-<p>The protocol crate exports a JSON Schema set for the wire roots on demand
-through <code>cargo run -p cookie_agent_protocol --example generate -- --output
-&lt;directory&gt;</code>; no generated tree is checked in.
-<code>crates/protocol/scripts/check-schema-additive.sh</code> regenerates the schemas into
-a temporary directory and enforces that the event payload and extension
-protocol only ever grow relative to the checked-in baselines. The
-<a href="../api/">Rust API documentation</a> describes the public Rust types; the
+<h2 id="baselines-and-the-checker">Baselines and the checker<a class="headerlink" href="#baselines-and-the-checker" title="Permanent link">&para;</a></h2>
+<p><code>crates/protocol/compat/</code> holds one baseline per surface: <code>client</code>, <code>plugin</code>,
+<code>runtime</code>, and <code>events</code> (the <code>EventPayload</code> set, which the client and plugin
+protocols both deliver; its <code>version</code> records the client version). Each holds:</p>
+<ul>
+<li><code>version</code>: the surface's version when the baseline was taken;</li>
+<li><code>methods.json</code>: every method and notification with its direction (<code>to_daemon</code>
+  or <code>from_daemon</code>), its kind (<code>request</code> or <code>notification</code>), and the names of
+  its params and result schema roots, plus <code>information</code>: roots that flow as
+  information without a method of their own, such as error data;</li>
+<li><code>schemas/&lt;Root&gt;.schema.json</code>: the JSON Schema of every root.</li>
+</ul>
+<p><code>cargo run -p cookie_agent_protocol --example generate -- --output &lt;directory&gt;</code>
+writes the same layout from the current code; the method registry it reads is
+<code>surface_methods</code> in <code>crates/protocol/src/bindings.rs</code>.</p>
+<p><code>crates/protocol/scripts/check-schema-additive.sh</code> generates the set into a
+temporary directory and compares it with the baselines using
+<code>crates/protocol/scripts/check-compat.py</code>, then runs the checker's mutation
+test, <code>test-check-compat.py</code>. The checker gives each type a role from
+<code>methods.json</code>: params sent to the daemon are commands, while params the daemon
+sends and every result are information. It walks nested definitions and
+computes the version bump each change requires under the rules of section 7.1
+of the specification; open enums are marked <code>"x-open": true</code>.</p>
+<ul>
+<li><strong>Before the freeze</strong> (a <code>0.x</code> version), the baselines must equal the
+  generated set exactly, and rule findings are reported without failing.
+  After any change to a wire type, method, or version constant, run
+  <code>crates/protocol/scripts/update-compat-baseline.sh</code> and commit the result.</li>
+<li><strong>From <code>1.0.0</code></strong>, every rule is enforced: the version constant must carry at
+  least the required bump against the baseline's <code>version</code>, an information
+  type with <code>additionalProperties: false</code> fails outright, and new event tags
+  are recorded only through the update script, which refuses an insufficient
+  bump.</li>
+</ul>
+<p>The <a href="../api/">Rust API documentation</a> describes the public Rust types; the
 <a href="../protocol/">protocol reference</a> summarizes the active method surface.</p>
 
 
