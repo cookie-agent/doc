@@ -1844,9 +1844,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtimes-block" class="md-nav__link">
+  <a href="#runtimes-in-tool-descriptions" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtimes block
+      Runtimes in tool descriptions
     </span>
   </a>
   
@@ -2096,9 +2096,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtimes-block" class="md-nav__link">
+  <a href="#runtimes-in-tool-descriptions" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtimes block
+      Runtimes in tool descriptions
     </span>
   </a>
   
@@ -2168,12 +2168,9 @@ agent but is not copied into prompt text.</p>
 <p>For a root or delegated run, the engine composes the model request in this order:</p>
 <ol>
 <li>The selected agent document body becomes <code>AgentSnapshot.composed_prompt</code>.</li>
-<li>The session's runtime attachments are appended as a single <code>&lt;runtimes&gt;</code>
-   block so the model knows which runtimes it can use and where relative paths
-   resolve. The prompt and document fingerprints are updated.</li>
-<li>Trusted in-process tool providers may append bounded behavioral-policy
-   sections. Sections retain provider provenance and update both prompt and
-   document fingerprints.</li>
+<li>Tool providers may append bounded behavioral-policy sections. Sections
+   retain provider provenance and update both prompt and document
+   fingerprints.</li>
 <li>If skills are visible to the model, a generated available-skills listing is
    appended to that prompt. The prompt and document fingerprints are updated.</li>
 <li><code>agent_before_start</code> plugins run in configured order. A plugin can replace the
@@ -2186,8 +2183,8 @@ agent but is not copied into prompt text.</p>
    session history.</li>
 </ol>
 <p>Appended blocks are joined by a markdown horizontal rule (<code>\n\n---\n\n</code>) so the
-boundaries between the authored body, the runtimes block, tool-provider
-sections, the skills listing, and a plugin addendum are visible. The authored
+boundaries between the authored body, tool-provider sections, the skills
+listing, and a plugin addendum are visible. The authored
 body is first and carries no leading separator; a plugin <code>replace_system_prompt</code>
 replaces the whole prompt instead of appending to it.</p>
 <p>The resulting agent snapshot is frozen in <code>run_started</code>. Model retries and
@@ -2197,25 +2194,26 @@ for the first attempt and refreshes session events only when a later attempt
 needs current history.</p>
 <h2 id="fingerprints">Fingerprints<a class="headerlink" href="#fingerprints" title="Permanent link">&para;</a></h2>
 <p>The document fingerprint covers the agent identity, strict frontmatter, and
-body. The prompt fingerprint covers prompt text only. The runtimes block,
-tool-provider sections, skill listings, and plugin composition update the
-effective fingerprints before
+body. The prompt fingerprint covers prompt text only. Tool-provider
+sections, skill listings, and plugin composition update the effective
+fingerprints before
 <code>run_started</code> is persisted. Model-attempt events record the prompt fingerprint,
 and replay validation rejects attempt attribution that contradicts the frozen
 run snapshot.</p>
 <p>AGENTS.md context is intentionally excluded from the system-prompt fingerprint. It
 has its own durable event, provenance, and user-role boundary.</p>
 <h2 id="tool-provider-sections">Tool-provider sections<a class="headerlink" href="#tool-provider-sections" title="Permanent link">&para;</a></h2>
-<p>Reviewed in-process providers can contribute cross-tool behavioral policy at
-run admission. Each section is normalized, validated, and rendered with an
+<p>Tool providers can contribute cross-tool behavioral policy at run admission:
+built-in providers, plugins, and runtimes over the runtime protocol. Each section is normalized, validated, and rendered with an
 engine-derived identity:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;tool_instructions provider="builtin.delegate"&gt;
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Available subagents:
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>- sub-fixer: Coder for anything that touches code
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>&lt;/tool_instructions&gt;
 </code></pre></div>
-<p>Providers contribute in composition order: the base layer, then the global
-runtime, then the local coding runtime, each in registration order.
+<p>Providers contribute in composition order: the base layer, then each runtime
+the session attaches, in attach order (plugins under <code>global</code>), each in
+registration order.
 Declaration order determines section order within a provider. Bodies are limited to 8 KiB per section,
 16 KiB per provider, and 32 KiB across all providers. Any invalid content or
 overflow rejects run admission instead of truncating or omitting policy. The
@@ -2228,22 +2226,19 @@ reviewed and trusted like other installed code.</p>
 <p>MCP providers are architecturally excluded. Remote MCP output remains delimited
 data and typed tool metadata; it cannot contribute durable system instructions,
 and no configuration switch enables that path.</p>
-<h2 id="runtimes-block">Runtimes block<a class="headerlink" href="#runtimes-block" title="Permanent link">&para;</a></h2>
-<p>The block lists every attachment of the session in attach order, with its
-kind, and for a coding runtime its canonical workspace and platform. Each entry
-also says whether, at admission, any of the runtime's tools is published under
-its attachment prefix because another runtime or the base layer offers the same
-name:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>&lt;runtimes&gt;
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>&lt;runtime name="global" kind="global" prefixed="false"/&gt;
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>&lt;runtime name="local_web" kind="coding" workspace="/home/me/web" platform="linux" prefixed="true"/&gt;
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>&lt;runtime name="labpc_api" kind="coding" workspace="/home/me/api" platform="linux" prefixed="true"/&gt;
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>&lt;/runtimes&gt;
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>File tools and bash of a coding runtime resolve relative paths against its workspace. Use workspace-relative paths for files inside it. When several runtimes offer a tool with one name, each is published as `&lt;runtime name&gt;_&lt;tool&gt;`; `prefixed="true"` marks a runtime whose tools carry that prefix.
+<h2 id="runtimes-in-tool-descriptions">Runtimes in tool descriptions<a class="headerlink" href="#runtimes-in-tool-descriptions" title="Permanent link">&para;</a></h2>
+<p>The system prompt does not list the session's runtimes. With one runtime
+besides <code>global</code> there is nothing to tell apart: its tools keep their own
+descriptions, and relative paths resolve against its workspace. When a
+session attaches more than one runtime besides <code>global</code>, the description of
+each of their tools ends with a note naming the runtime it runs in:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Runs in runtime `labpc_api` on linux, in the workspace `/home/me/api`; relative paths resolve against it.
 </code></pre></div>
-<p>Attribute values are XML-escaped. The block is frozen with the prompt: an
-attachment added or removed after admission changes the next run's block, not
-the current one.</p>
+<p>A runtime without a workspace says <code>Runs in runtime</code><name><code>.</code> The notes are
+part of the tool definitions sent with each request, not the system prompt,
+so attaching or detaching a runtime changes the tool definitions (and their
+cache breakpoint) rather than the system turn. Tools offered under one name by
+several runtimes are still published as <code>&lt;runtime name&gt;_&lt;tool&gt;</code>.</p>
 <h2 id="agentsmd-context-turn">AGENTS.md context turn<a class="headerlink" href="#agentsmd-context-turn" title="Permanent link">&para;</a></h2>
 <p>At each root run start where AGENTS.md loading is on (the run agent's
 <code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>), each coding runtime the
@@ -2310,12 +2305,12 @@ cached prefix rather than using an isolated cache namespace. See the
 <tbody>
 <tr>
 <td>Root</td>
-<td>Selected authored agent body, or the concise built-in default coding prompt; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Selected authored agent body, or the concise built-in default coding prompt; optional tool-provider sections, skill listing, and plugin composition</td>
 <td>Root-only AGENTS.md context turn, loaded skill bodies, then session history</td>
 </tr>
 <tr>
 <td>Delegated</td>
-<td>Frozen delegated agent body; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Frozen delegated agent body; optional tool-provider sections, skill listing, and plugin composition</td>
 <td>No filesystem AGENTS.md context load. Explicit inherited user/assistant text and ordinary child history remain separate turns.</td>
 </tr>
 <tr>
@@ -2334,11 +2329,10 @@ the built-in backend while retaining the same isolated invocation contract.</p>
 server instructions, filesystem inventories, or generic operational boilerplate.
 Tools and MCP capabilities are represented by typed request definitions and
 permission policy. Runtime state belongs in events or request fields. The narrow
-exceptions are the frozen runtimes block, which is needed to resolve relative
-paths and to tell runtimes apart, and the bounded set of authored behavioral-policy sections from
-trusted local providers: reviewed local code supplies them, fingerprints cover
-them, and the admitted run freezes them. The runtimes block is XML-escaped and skipped rather than truncated if the
-composed prompt is already at the byte limit. Changing, externally controlled, or redundant information remains in
+exception is the bounded set of authored behavioral-policy sections from
+tool providers: fingerprints cover them, and the admitted run freezes them.
+Which runtime a tool runs in is told in that tool's description (see
+<a href="#runtimes-in-tool-descriptions">Runtimes in tool descriptions</a>). Changing, externally controlled, or redundant information remains in
 typed fields or explicit context turns.</p>
 <p>See <a href="../../guide/agents/">Agents</a>, <a href="../events/">Events</a>, and
 <a href="../../guide/configuration/">Configuration</a>.</p>
