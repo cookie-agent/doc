@@ -1844,9 +1844,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtimes-in-tool-descriptions" class="md-nav__link">
+  <a href="#runtimes" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtimes in tool descriptions
+      Runtimes
     </span>
   </a>
   
@@ -2096,9 +2096,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtimes-in-tool-descriptions" class="md-nav__link">
+  <a href="#runtimes" class="md-nav__link">
     <span class="md-ellipsis">
-      Runtimes in tool descriptions
+      Runtimes
     </span>
   </a>
   
@@ -2168,6 +2168,9 @@ agent but is not copied into prompt text.</p>
 <p>For a root or delegated run, the engine composes the model request in this order:</p>
 <ol>
 <li>The selected agent document body becomes <code>AgentSnapshot.composed_prompt</code>.</li>
+<li>Where the session's runtimes work is appended (see <a href="#runtimes">Runtimes</a>):
+   the working directory, or the list of runtimes when there are several. The
+   prompt and document fingerprints are updated.</li>
 <li>Tool providers may append bounded behavioral-policy sections. Sections
    retain provider provenance and update both prompt and document
    fingerprints.</li>
@@ -2183,8 +2186,8 @@ agent but is not copied into prompt text.</p>
    session history.</li>
 </ol>
 <p>Appended blocks are joined by a markdown horizontal rule (<code>\n\n---\n\n</code>) so the
-boundaries between the authored body, tool-provider sections, the skills
-listing, and a plugin addendum are visible. The authored
+boundaries between the authored body, the runtimes block, tool-provider
+sections, the skills listing, and a plugin addendum are visible. The authored
 body is first and carries no leading separator; a plugin <code>replace_system_prompt</code>
 replaces the whole prompt instead of appending to it.</p>
 <p>The resulting agent snapshot is frozen in <code>run_started</code>. Model retries and
@@ -2194,9 +2197,9 @@ for the first attempt and refreshes session events only when a later attempt
 needs current history.</p>
 <h2 id="fingerprints">Fingerprints<a class="headerlink" href="#fingerprints" title="Permanent link">&para;</a></h2>
 <p>The document fingerprint covers the agent identity, strict frontmatter, and
-body. The prompt fingerprint covers prompt text only. Tool-provider
-sections, skill listings, and plugin composition update the effective
-fingerprints before
+body. The prompt fingerprint covers prompt text only. The runtimes block,
+tool-provider sections, skill listings, and plugin composition update the
+effective fingerprints before
 <code>run_started</code> is persisted. Model-attempt events record the prompt fingerprint,
 and replay validation rejects attempt attribution that contradicts the frozen
 run snapshot.</p>
@@ -2226,19 +2229,31 @@ reviewed and trusted like other installed code.</p>
 <p>MCP providers are architecturally excluded. Remote MCP output remains delimited
 data and typed tool metadata; it cannot contribute durable system instructions,
 and no configuration switch enables that path.</p>
-<h2 id="runtimes-in-tool-descriptions">Runtimes in tool descriptions<a class="headerlink" href="#runtimes-in-tool-descriptions" title="Permanent link">&para;</a></h2>
-<p>The system prompt does not list the session's runtimes. With one runtime
-besides <code>global</code> there is nothing to tell apart: its tools keep their own
-descriptions, and relative paths resolve against its workspace. When a
-session attaches more than one runtime besides <code>global</code>, the description of
-each of their tools ends with a note naming the runtime it runs in:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Runs in runtime `labpc_api` on linux, in the workspace `/home/me/api`; relative paths resolve against it.
+<h2 id="runtimes">Runtimes<a class="headerlink" href="#runtimes" title="Permanent link">&para;</a></h2>
+<p><code>global</code> (MCP servers, plugins, the fallback <code>webfetch</code>) is available to every
+session and is never mentioned. What the model is told about the other
+runtimes depends on how many the session attaches:</p>
+<ul>
+<li><strong>One</strong> (the usual case): the prompt gains only where it works, and tool
+  descriptions are left as the runtime wrote them:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Working directory: /home/me/web
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Platform: linux
 </code></pre></div>
-<p>A runtime without a workspace says <code>Runs in runtime</code><name><code>.</code> The notes are
-part of the tool definitions sent with each request, not the system prompt,
-so attaching or detaching a runtime changes the tool definitions (and their
-cache breakpoint) rather than the system turn. Tools offered under one name by
-several runtimes are still published as <code>&lt;runtime name&gt;_&lt;tool&gt;</code>.</p>
+<p>A runtime without a workspace adds nothing.
+- <strong>Several:</strong> the prompt says so and lists them, and the description of each
+  of their tools ends with <code>Runs on runtime</code><name><code>.</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>This session has several runtimes attached. Each tool's description names the runtime it runs on, and file tools and bash resolve relative paths against that runtime's workspace. A tool several runtimes offer is named `&lt;runtime&gt;_&lt;tool&gt;`.
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>&lt;runtimes&gt;
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>&lt;runtime name="local_web" kind="coding" workspace="/home/me/web" platform="linux"/&gt;
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>&lt;runtime name="labpc_api" kind="coding" workspace="/home/me/api" platform="linux"/&gt;
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>&lt;/runtimes&gt;
+</code></pre></div>
+<p>Attribute values are XML-escaped. The block is frozen with the prompt: an
+attachment added or removed after admission changes the next run's block,
+while the tool descriptions follow the attachments at once. The block is
+skipped rather than truncated if the composed prompt is already at its byte
+limit.</p>
 <h2 id="agentsmd-context-turn">AGENTS.md context turn<a class="headerlink" href="#agentsmd-context-turn" title="Permanent link">&para;</a></h2>
 <p>At each root run start where AGENTS.md loading is on (the run agent's
 <code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>), each coding runtime the
@@ -2249,18 +2264,18 @@ attachment. Files larger than 2 MiB are skipped and surfaced as
 <code>AgentMdSkipped</code> warning events. History replays the latest run's entries, the
 latest event per attachment, as one user turn, wrapped in a
 <code>&lt;system-reminder&gt;</code> block with each file delimited as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;system-reminder&gt;
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>As you answer the user's questions, you can use the following context:
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a># AGENTS.md
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Codebase and user instructions are shown below. Be sure to adhere to these instructions.
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>&lt;contents from="/abs/path/AGENTS.md"&gt;
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>...
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>&lt;/contents&gt;
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>&lt;/system-reminder&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>&lt;system-reminder&gt;
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>As you answer the user's questions, you can use the following context:
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a># AGENTS.md
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>Codebase and user instructions are shown below. Be sure to adhere to these instructions.
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>&lt;contents from="/abs/path/AGENTS.md"&gt;
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>...
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>&lt;/contents&gt;
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>&lt;/system-reminder&gt;
 </code></pre></div>
 <p>With more than one attachment each <code>&lt;contents&gt;</code> element also carries a
 <code>runtime="&lt;attachment&gt;"</code> attribute. Events written before runtimes carry no
@@ -2305,12 +2320,12 @@ cached prefix rather than using an isolated cache namespace. See the
 <tbody>
 <tr>
 <td>Root</td>
-<td>Selected authored agent body, or the concise built-in default coding prompt; optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Selected authored agent body, or the concise built-in default coding prompt; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>Root-only AGENTS.md context turn, loaded skill bodies, then session history</td>
 </tr>
 <tr>
 <td>Delegated</td>
-<td>Frozen delegated agent body; optional tool-provider sections, skill listing, and plugin composition</td>
+<td>Frozen delegated agent body; runtimes block, optional tool-provider sections, skill listing, and plugin composition</td>
 <td>No filesystem AGENTS.md context load. Explicit inherited user/assistant text and ordinary child history remain separate turns.</td>
 </tr>
 <tr>
@@ -2329,10 +2344,10 @@ the built-in backend while retaining the same isolated invocation contract.</p>
 server instructions, filesystem inventories, or generic operational boilerplate.
 Tools and MCP capabilities are represented by typed request definitions and
 permission policy. Runtime state belongs in events or request fields. The narrow
-exception is the bounded set of authored behavioral-policy sections from
-tool providers: fingerprints cover them, and the admitted run freezes them.
-Which runtime a tool runs in is told in that tool's description (see
-<a href="#runtimes-in-tool-descriptions">Runtimes in tool descriptions</a>). Changing, externally controlled, or redundant information remains in
+exceptions are the frozen runtimes block, which says where relative paths
+resolve and tells several runtimes apart, and the bounded set of authored
+behavioral-policy sections from tool providers: fingerprints cover them, and
+the admitted run freezes them. Changing, externally controlled, or redundant information remains in
 typed fields or explicit context turns.</p>
 <p>See <a href="../../guide/agents/">Agents</a>, <a href="../events/">Events</a>, and
 <a href="../../guide/configuration/">Configuration</a>.</p>
