@@ -2418,7 +2418,11 @@ communication graph: siblings can only talk if the parent chose to introduce
 them, and an agent cannot enumerate the tree to find targets on its own.</p>
 <p>Every inbound message envelope carries the sender's handle when one exists,
 so a recipient can reply directly with <code>send_message</code>. Older sessions without
-a handle use the full sender UUID in the reply hint.</p>
+a handle use the full sender UUID in the reply hint. Mail from a parent to its
+own child is the exception: every turn a child finishes already reaches its
+parent as a <code>&lt;subagent_report&gt;</code> (or as the foreground delegation's result), so
+the child answers in its final answer, and a <code>send_message</code> reply would arrive
+twice.</p>
 <h3 id="message-envelope">Message Envelope<a class="headerlink" href="#message-envelope" title="Permanent link">&para;</a></h3>
 <p>The durable body (<code>ProducerMessageAccepted.body</code>) is readable text rendered
 into the recipient prompt as a user-turn materialization (repo convention:
@@ -2429,8 +2433,17 @@ tool-emitted system input materializes as a user turn):</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[use<span class="w"> </span>`send_message(to="explore_1a2b3c4d",<span class="w"> </span>...)`<span class="w"> </span>to<span class="w"> </span>reply]
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">&lt;/agent_message&gt;</span>
 </code></pre></div>
-<p>The <code>from</code> attribute identifies the sender in both variants. The reply hint
-appears only when the recipient's <code>send_message</code> tool is exposed. The original
+<p>Mail from the recipient's parent carries this hint instead, whether or not
+the recipient can send messages:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">&lt;agent_message</span><span class="w"> </span><span class="na">from=</span><span class="s">"main"</span><span class="nt">&gt;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Also<span class="w"> </span>check<span class="w"> </span>the<span class="w"> </span>tests
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>[reply<span class="w"> </span>in<span class="w"> </span>your<span class="w"> </span>final<span class="w"> </span>answer:<span class="w"> </span>it<span class="w"> </span>reaches<span class="w"> </span>`main`<span class="w"> </span>when<span class="w"> </span>this<span class="w"> </span>turn<span class="w"> </span>ends]
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">&lt;/agent_message&gt;</span>
+</code></pre></div>
+<p>The <code>from</code> attribute identifies the sender in every variant. The
+<code>send_message</code> hint appears only when the recipient's <code>send_message</code> tool is
+exposed. The original
 body is preserved as written; the engine adds only the envelope and optional
 hint. The recipient is implicit — the envelope only ever
 appears in the session it was delivered to. Message IDs, sender UUIDs, agent
@@ -2582,12 +2595,12 @@ guard checks and acceptance are serialized inside the recipient actor.</p>
 messaging is not overloaded onto <code>Delegate</code>, so steering a child and messaging
 an agent remain independently controllable.</p>
 <p>Rule shape (agent-doc frontmatter):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">message</span><span class="p">:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="s">"child"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">      </span><span class="c1"># my delegated children</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="s">"parent"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">     </span><span class="c1"># the agent that delegated me</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="s">"sibling"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span><span class="w">      </span><span class="c1"># other children of my parent</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span><span class="w">           </span><span class="c1"># any other same-tree peer (grandparent, uncle, ...)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">message</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="s">"child"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">      </span><span class="c1"># my delegated children</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="s">"parent"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">     </span><span class="c1"># the agent that delegated me</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="s">"sibling"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span><span class="w">      </span><span class="c1"># other children of my parent</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span><span class="w">           </span><span class="c1"># any other same-tree peer (grandparent, uncle, ...)</span>
 </code></pre></div>
 <ul>
 <li>The permission resource label is the <strong>recipient's relationship to the
@@ -2604,12 +2617,12 @@ an agent remain independently controllable.</p>
 <li><code>ask</code> routes through the existing approval store and TUI approval flow.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[messaging]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">max_hops</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w">                  </span><span class="c1"># &lt;= 0 disables the hop guard (default); hop counting is internal metadata</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">max_body_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span><span class="w">        </span><span class="c1"># tighter than the 256 KiB plugin cap; agent mail should be terse</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">max_pending_per_session</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">  </span><span class="c1"># pending agent mail per recipient; overflow → send rejected</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">max_inflight_per_pair</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w">     </span><span class="c1"># 0 disables the per-pair in-flight window</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[messaging]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">max_hops</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w">                  </span><span class="c1"># &lt;= 0 disables the hop guard (default); hop counting is internal metadata</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">max_body_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span><span class="w">        </span><span class="c1"># tighter than the 256 KiB plugin cap; agent mail should be terse</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">max_pending_per_session</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">  </span><span class="c1"># pending agent mail per recipient; overflow → send rejected</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">max_inflight_per_pair</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w">     </span><span class="c1"># 0 disables the per-pair in-flight window</span>
 </code></pre></div>
 <p><strong>Inbox overflow</strong> (decided): <code>max_pending_per_session</code> counts only <strong>pending
 agent mail</strong> (accepted, admitted, claimed, or released, but not yet consumed or
