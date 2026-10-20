@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Incoming","RpcError"],"struct":["IncomingNotification","IncomingRequest","LineTransport","Peer"]};
+window.SIDEBAR_ITEMS = {"constant":["CLOSE_GRACE"],"enum":["Incoming","RpcError"],"struct":["IncomingNotification","IncomingRequest","LineTransport","Peer"]};

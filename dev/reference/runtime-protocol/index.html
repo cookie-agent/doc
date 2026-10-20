@@ -2188,6 +2188,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Connections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dial-in-refusals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dial-in refusals
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3329,6 +3344,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Connections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dial-in-refusals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dial-in refusals
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3576,13 +3606,63 @@ protocol over either:</p>
   <code>/runtime?id=&lt;runtime ID&gt;</code> endpoint with the daemon's bearer token in an
   <code>Authorization: Bearer</code> header, one message per text frame. The daemon
   then sends <code>runtime/initialize</code> exactly as for a spawned runtime, with no
-  MCP servers: a dial-in runtime hosts its own. An ID the daemon configures,
-  or one already connected, is refused by closing the connection. A request
-  with an <code>Origin</code> header is refused with HTTP 403, and one without the
-  right token with 401. A dial-in runtime gets 30 seconds to answer
-  <code>runtime/initialize</code> and each <code>capability/open</code>, and 3 seconds to answer
-  <code>runtime/shutdown</code>.</li>
+  MCP servers: a dial-in runtime hosts its own. A dial-in runtime gets 30
+  seconds to answer <code>runtime/initialize</code> and each <code>capability/open</code>, and 3
+  seconds to answer <code>runtime/shutdown</code>. See <a href="#dial-in-refusals">Dial-in refusals</a>
+  for how the daemon refuses one. Either end that ends the connection sends a close
+  frame, normal closure (1000), and waits up to 2 seconds for the other's
+  answer; a runtime that stops does so before it exits. The daemon reads a
+  normal closure, going away (1001), or a close frame without a code as the
+  runtime disconnecting, and another code, or a connection that ended
+  without a close frame, as a failure with that code or error.</li>
 </ul>
+<h3 id="dial-in-refusals">Dial-in refusals<a class="headerlink" href="#dial-in-refusals" title="Permanent link">&para;</a></h3>
+<p>Since 1.2.0 the daemon says why it refuses a runtime that dials in, and
+whether dialing in again can succeed (<code>runtime_protocol::dial_in</code>). A
+request it can refuse from the request alone is answered before the
+WebSocket upgrade with an HTTP status and the reason as the plain-text body:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Reason</th>
+<th>Permanent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td>The runtime ID does not match <code>[a-z][a-z0-9_]{0,31}</code>.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>401</td>
+<td>The bearer token is missing or wrong.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>403</td>
+<td>The ID is reserved (<code>global</code>, <code>local</code>) or names a <code>[runtimes.&lt;id&gt;]</code> template the daemon configures, or the request carries an <code>Origin</code> header.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>409</td>
+<td>A runtime is connected under the ID, or being accepted under it, now. The daemon may not have noticed yet that an earlier connection of the same runtime ended.</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>A runtime that fails <code>runtime/initialize</code> after the upgrade, such as one of
+another major version or one that does not answer in time, sees the daemon
+close the connection with code 1011 and the reason as the close frame's
+reason, cut to the frame's 123 bytes. That refusal is not permanent.</p>
+<p>A runtime stops dialing in after a permanent refusal and dials in again,
+after a wait, after any other, including a status this table does not list,
+such as one a proxy answers with. <code>cookie runtime serve --daemon</code> prints the
+reason either way, exits with an error on a permanent refusal, and checks
+its own ID first, so a malformed or reserved one never reaches the daemon.
+A daemon before 1.2.0 closes the connection after the upgrade without a
+reason for an ID it refuses, which a runtime can only treat as transient.</p>
 <h2 id="framing">Framing<a class="headerlink" href="#framing" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>JSON-RPC 2.0</strong>, one message per frame: a frame of an in-memory transport,
@@ -3681,7 +3761,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.1.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.2.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -3718,7 +3798,11 @@ adapter family and model capabilities with <code>turn.model</code> (see
 <a href="#toolprepare"><code>tool/prepare</code></a>). 1.0.0 froze the protocol: no <code>0.x</code> build
 connects to a 1.x one. 1.1.0 added the optional <code>machine</code> of
 <code>runtime/initialize</code>'s result, which the daemon groups runtimes into
-machines by.</p>
+machines by. 1.2.0 made the daemon's answers to a refused dial-in part of
+the protocol: HTTP statuses with the reason before the upgrade, close code
+1011 with the reason after it, and which of them are permanent (see
+<a href="#dial-in-refusals">Dial-in refusals</a>). Its messages did not change; the
+version records the contract a runtime may now rely on to stop dialing in.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a

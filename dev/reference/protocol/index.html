@@ -3682,7 +3682,9 @@ A connection that authenticated with the header but has not handshaken gets
 client) is unaffected. One with an <code>Origin</code> header is refused with HTTP 403
 unless <a href="../../engine/server/"><code>[server] allowed_origins</code></a> allows that origin.
 Dial-in runtimes on <code>/runtime</code> always authenticate with the header, and a
-request there with an <code>Origin</code> header is refused.</p>
+request there with an <code>Origin</code> header is refused. Refusals there name their
+reason in the response body or the close frame (see
+<a href="../runtime-protocol/#dial-in-refusals">Dial-in refusals</a>).</p>
 <h2 id="decoding">Decoding<a class="headerlink" href="#decoding" title="Permanent link">&para;</a></h2>
 <p>The daemon and its clients read what they receive by its role (see the
 <a href="../../specs/compatibility-v1/">compatibility spec</a> section 4):</p>
@@ -4296,11 +4298,16 @@ directory as it names it: the session records it as its <code>cwd_identity</code
 one daemon serves sessions of many directories and <code>session.list</code> with a
 <code>cwd_identity</code> shows one directory's. An empty <code>runtimes</code> list creates a
 session with no coding runtime. Instances that are not running are started
-first, and a failure creates no session.</p>
+first, and a failure creates no session and records no instance.</p>
 <p><code>session.runtime.attach</code> and <code>session.runtime.detach</code> are rejected while the
 session has an active run (<code>session running</code>). Attach connects the runtime
 and opens the capability's instance when needed, and records nothing when
-that fails. Without <code>capability</code> it attaches the runtime's only capability;
+that fails: neither an attachment nor, for an instance that never opened, a
+<code>failed</code> instance in <code>runtimes.list</code>. The error says which step failed:
+<code>runtime `&lt;id&gt;` failed to start: &lt;reason&gt;</code> when the runtime could not be
+reached, and <code>runtime `&lt;id&gt;` could not open `&lt;capability&gt;` for workspace
+`&lt;workspace&gt;`: &lt;reason&gt;</code> with the runtime's own reason when it refused the
+workspace, such as one outside the directories it serves. Without <code>capability</code> it attaches the runtime's only capability;
 a runtime that offers several asks for one, naming them. The attachment's
 name is the name the instance reports (<code>global</code>, or
 <code>&lt;runtime ID&gt;_&lt;workspace basename&gt;</code> for a <code>coding</code> instance), suffixed <code>_2</code>,
@@ -4321,7 +4328,10 @@ its <code>lifetime</code> (<code>builtin</code> for <code>global</code> and <cod
 template, <code>dial_in</code> for a runtime that connected on its own); whether the daemon is <code>connected</code> to it now; its <code>capabilities</code>
 (<code>name</code>, <code>kind</code>, <code>takes_workspace</code>, <code>description</code>), empty until it has
 connected once; its <code>platform</code>; its <code>machine</code> (see <a href="#machines">Machines</a>);
-and a <code>message</code> saying why its last attempt to connect failed. Each instance has its <code>runtime_id</code>, <code>capability</code>, reported
+and a <code>message</code> saying why its last attempt to connect failed, or, for a
+dial-in runtime that went away, <code>runtime `&lt;id&gt;` disconnected: &lt;reason&gt;</code>,
+where a runtime that stopped cleanly gives <code>the other end closed the
+connection</code>. Each instance has its <code>runtime_id</code>, <code>capability</code>, reported
 <code>attachment_name</code>, <code>kind</code>, <code>workspace</code>, and <code>platform</code> once started, its
 <code>status</code> (<code>starting</code>, <code>ready</code>, <code>reconnecting</code>, <code>failed</code>, or <code>stopped</code>), and a
 failure <code>message</code>.</p>
@@ -4330,7 +4340,9 @@ again, under a new generation, and keeps its identity; an instance that is not
 running is started; a <code>ready</code> or <code>reconnecting</code> one is left as it is.
 <code>capability</code> and <code>workspace</code> follow the attach rule, and for a failed instance it is the
 <code>workspace</code> that <code>runtimes.list</code> reports. A start that fails is an error with
-the reason, and is also reported in <code>runtimes.changed</code>. Retrying <code>global</code>
+the reason, worded as for attach. An instance <code>runtimes.list</code> already showed
+stays <code>failed</code> with the new reason, which <code>runtimes.changed</code> reports; one it
+did not show stays unrecorded. Retrying <code>global</code>
 also retries its failed MCP servers.</p>
 <h3 id="machines">Machines<a class="headerlink" href="#machines" title="Permanent link">&para;</a></h3>
 <p>Every runtime belongs to one <strong>machine</strong>, the computer it runs on (see the
