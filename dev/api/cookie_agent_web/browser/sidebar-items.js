@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["copy_text","forget","load","load_tab","on_system_scheme_change","on_visible","page_fragment","page_href","page_origin","replace_fragment","select_text","set_dark","store","store_tab","system_prefers_dark"]};
+window.SIDEBAR_ITEMS = {"fn":["copy_text","follow_visual_viewport","forget","load","load_tab","on_system_scheme_change","on_visible","page_fragment","page_href","page_origin","replace_fragment","select_text","set_dark","store","store_tab","system_prefers_dark"]};

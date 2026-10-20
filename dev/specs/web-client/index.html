@@ -1832,6 +1832,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w5-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W5 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deviations-across-the-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deviations across the phases
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2815,6 +2833,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w5-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W5 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deviations-across-the-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deviations across the phases
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2840,16 +2876,18 @@
 
 
 <h1 id="web-client-and-local-daemon-use">Web Client and Local Daemon Use<a class="headerlink" href="#web-client-and-local-daemon-use" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-19), being implemented. The decisions in
-<a href="#1-goal-and-scope">section 1</a> come from the planning discussion of
-2026-10-19, and no questions are open
+<p>Status: <strong>implemented</strong> (2026-10-20), in phases L and W0 to W5; what landed
+and where it differs from the plan is in
+<a href="#16-implementation-notes">section 16</a>, with a summary of the deviations at
+its end. The decisions in <a href="#1-goal-and-scope">section 1</a> come from the
+planning discussion of 2026-10-19, and no questions are open
 (<a href="#15-open-questions">section 15</a>). The spec builds on the
 <a href="../compatibility-v1/">compatibility spec</a>, which froze the client protocol and
 added browser authentication, and on the
 <a href="../runtime-capabilities/">runtime capabilities spec</a>, which added the
 listening daemon.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
-<p>Today the TUI is the only interactive client. This spec adds a browser client
+<p>Before this spec the TUI was the only interactive client. This spec adds a browser client
 that does everything the TUI does that a browser can do. It works on a phone
 and on a desktop, against a daemon on the same machine or on another one.</p>
 <p>It also makes plain <code>cookie</code> use a daemon already running on the machine
@@ -2989,16 +3027,17 @@ side only.</p>
     <a href="../../reference/protocol/#handshake-and-authentication">protocol reference</a>
     describes.
   - A close before the handshake reply is reported like a refused native
-    upgrade. A 403 caused by the origin check is shown as "this page's
-    origin is not in <code>[server] allowed_origins</code>" when the browser exposes
-    enough to tell. Otherwise it is shown as a generic connection failure
-    with that hint.
+    upgrade. A browser exposes no HTTP status for a refused upgrade (Firefox
+    reports close code 1006), so an origin refusal cannot be told from
+    others: the page shows every refusal before the handshake with the
+    <code>allowed_origins</code> hint naming its own origin.
 - <strong>Reconnect</strong> uses the same backoff (500 ms rising to 10 s) and the same
   <code>ClientIdentity</code> across reconnects, so this tab's origin stays stable. The
   instance id lives in <code>sessionStorage</code>, so each tab is its own client, the
   same as each TUI process.
 - <strong>CI.</strong> A job runs <code>cargo check --target wasm32-unknown-unknown</code> for
-  <code>cookie_agent_protocol</code> (client features) and <code>cookie_agent_client_state</code>.</p>
+  <code>cookie_agent_protocol</code> (client features) and <code>cookie_agent_client_state</code>,
+  and clippy over them; the <code>web</code> job runs the browser tests (section 12).</p>
 <h2 id="5-shared-client-state">5. Shared client state<a class="headerlink" href="#5-shared-client-state" title="Permanent link">&para;</a></h2>
 <p>The reducer and view state move from <code>crates/tui/src/state/</code> into
 <code>crates/client_state</code>, and the TUI uses them from there. Their tests move
@@ -3108,8 +3147,10 @@ with them (<code>state/tests.rs</code>).</p>
     <code>crates/tui/src/theme.rs</code>. Light and dark variants use Tailwind's
     <code>dark:</code> variant, following the system setting or the user's override.</li>
 <li>Other web assets come in through Trunk's standard asset pipeline too:
-    the highlighter script, fonts, icons, and the manifest are Trunk assets
-    with hashed names, not hand-copied files.</li>
+    the highlighter script, fonts, icons, and the manifest are copied by
+    Trunk, not by hand. Copied files keep their names (the manifest names
+    its icons by path), so they are revalidated rather than cached forever
+    (section 7.1).</li>
 <li>JetBrains Mono for code. Fonts are bundled, not loaded from Google.</li>
 </ul>
 <h2 id="7-hosting-and-authentication">7. Hosting and authentication<a class="headerlink" href="#7-hosting-and-authentication" title="Permanent link">&para;</a></h2>
@@ -3120,9 +3161,13 @@ with them (<code>state/tests.rs</code>).</p>
 <li><code>GET /</code> returns <code>index.html</code>.</li>
 <li>The bundle's files are served at their paths.</li>
 <li><code>/ws</code> and <code>/runtime</code> keep their meaning, and any other path is a 404.</li>
-<li>Bundle files have hashed names and are sent with
-    <code>Cache-Control: immutable</code>. <code>index.html</code> is sent with <code>no-cache</code>, so a
-    restarted daemon's page always matches its own build.</li>
+<li>Files whose names carry Trunk's content hash (the WebAssembly module,
+    its glue, the stylesheet) are sent with <code>Cache-Control: immutable</code>.
+    <code>index.html</code> and the files Trunk copies under their own names (fonts,
+    highlighter, manifest, icons) are sent with <code>no-cache</code> and an <code>ETag</code>, so
+    a restarted daemon's page always matches its own build.</li>
+<li>A compressible file is sent gzip-compressed to a browser that takes
+    gzip; there is no Brotli.</li>
 <li><strong>Serving the page needs no token.</strong> The page holds no secret. Every
   connection it opens still authenticates in the handshake.</li>
 <li><strong>One listener for both.</strong> The page and <code>/ws</code> share the daemon's TCP
@@ -3143,8 +3188,9 @@ with them (<code>state/tests.rs</code>).</p>
     "add <code>"&lt;location.origin&gt;"</code> to <code>[server] allowed_origins</code> in the
     daemon's <code>config.toml</code> and restart it". It quotes its own origin
     exactly.</li>
-<li>When <code>allowed_origins</code> is empty, the daemon's ready line says the web
-    page needs an entry before it can connect.</li>
+<li>When <code>allowed_origins</code> is empty, the daemon says, in a log line after
+    its ready line, that the web page needs an entry before it can
+    connect.</li>
 <li><strong>Plain <code>cookie</code></strong> opens no port and serves nothing.</li>
 </ul>
 <h3 id="72-the-connect-screen">7.2 The connect screen<a class="headerlink" href="#72-the-connect-screen" title="Permanent link">&para;</a></h3>
@@ -3190,8 +3236,8 @@ both open on one connect screen.</p>
   reads <code>#token=</code>, stores the token in <code>localStorage</code> under the daemon URL,
   and removes the fragment from the address bar.</li>
 <li><strong>Fallback:</strong> a paste box on the connect screen.</li>
-<li><strong>The daemon's ready line</strong> also prints the page URL, without the token.
-  The token is already printed separately.</li>
+<li><strong>The daemon's ready line</strong> is unchanged, since supervisors parse it. The
+  page URL, without the token, follows it as a log line.</li>
 <li><strong>Forget:</strong> a "Forget this daemon" action deletes the stored token.</li>
 </ul>
 <h2 id="8-feature-parity">8. Feature parity<a class="headerlink" href="#8-feature-parity" title="Permanent link">&para;</a></h2>
@@ -3327,10 +3373,14 @@ where each feature lands.</p>
   44 px, nothing scrolls sideways, and long lines in code, diff, and
   terminal blocks scroll inside their block.</li>
 <li><strong>Home screen.</strong></li>
-<li>The bundle has a web app manifest and icons, so it can be added to the
-    home screen.</li>
+<li>The bundle has a web app manifest and icons (any and maskable, 192 and
+    512 px, an SVG, and an Apple touch icon), <code>display: standalone</code>, and a
+    theme colour for light and dark, so it can be added to the home screen.</li>
 <li>A service worker is not part of this spec. It would need a secure
     context and adds caching the daemon's version matching does not want.</li>
+<li><strong>On-screen keyboard.</strong> The page's frame and sheets take the visual
+  viewport's height, which the keyboard shrinks, so the composer and an
+  open sheet stay above it; the frame keeps clear of safe-area insets.</li>
 <li><strong>Background tabs.</strong></li>
 <li>A phone suspends background tabs. On <code>visibilitychange</code> to visible,
     the client checks its connection and reconnects through the shared
@@ -3347,11 +3397,12 @@ where each feature lands.</p>
 <li>runs <code>trunk build --release</code> for <code>crates/web</code>, with <code>wasm-opt</code> for
     size;</li>
 <li>copies the result to <code>crates/web_assets/bundle/</code>, which git ignores;</li>
-<li>is pinned to the trunk and <code>wasm-bindgen</code> versions in <code>Cargo.lock</code>, and
-    to the Tailwind version in <code>Trunk.toml</code>. Trunk downloads that Tailwind
-    CLI on first use, so CI caches Trunk's tool directory.</li>
-<li><strong>Bundle size.</strong> The budget is tracked in CI and reported, not enforced,
-  in phase W1, with a limit set once W2 shows a realistic size.</li>
+<li>is pinned to trunk 0.21.14, to the <code>wasm-bindgen</code> version in
+    <code>Cargo.lock</code>, and to the Tailwind version in <code>Trunk.toml</code>. Trunk
+    downloads its tools on first use, so CI caches Trunk's tool directory.</li>
+<li><strong>Bundle size.</strong> <code>scripts/build-web.sh</code> fails when the bundle, gzipped,
+  is over its budget of 1,700,000 bytes; CI reports the sizes in the job
+  summary.</li>
 <li><strong>Regular gates</strong> (<code>cargo build/test/clippy --workspace</code>, both
   toolchains) build the native side only and use the placeholder page.
   If the chosen Leptos release needs a Rust newer than 1.88, phase W1
@@ -3359,9 +3410,11 @@ where each feature lands.</p>
   Clippy gate in CI and <code>AGENTS.md</code>, so <code>crates/web</code> is checked like
   every other crate.</li>
 <li><strong>New CI jobs:</strong></li>
-<li>the wasm <code>cargo check</code> of section 4;</li>
-<li><code>scripts/build-web.sh</code>;</li>
-<li>headless browser tests (section 12).</li>
+<li><code>wasm</code>: the wasm <code>cargo check</code> and clippy of section 4;</li>
+<li><code>web</code>: wasm clippy of the page, <code>scripts/build-web.sh</code>, and both
+    headless-Firefox suites (section 12) with pinned Firefox, geckodriver,
+    and <code>wasm-bindgen-test-runner</code>, keeping the scenario screenshots of a
+    failure.</li>
 <li><strong>Release.</strong></li>
 <li>The release workflow builds the bundle before cargo-dist builds
     <code>cookie</code>, so every release binary embeds the real page.</li>
@@ -3396,15 +3449,19 @@ where each feature lands.</p>
   the TUI's rendering snapshots stay, and new web rendering tests cover
   each display block kind's HTML.</li>
 <li><strong>Protocol client on wasm.</strong></li>
-<li><code>wasm-bindgen-test</code> in headless Chrome and Firefox covers the browser
-    transport: handshake with token, refused origin, reconnect, and replay
-    across a gap.</li>
+<li><code>wasm-bindgen-test</code> in headless Firefox (<code>scripts/test-wasm-client.sh</code>)
+    covers the browser transport: handshake with token, refused origin,
+    reconnect, and replay across a gap. Chrome is not run.</li>
 <li>It runs against a real <code>cookie daemon</code> started by the test harness
     with a scripted provider.</li>
-<li><strong>End-to-end.</strong> A small set of headless browser scenarios covers:
-  connect via <code>#token=</code>, start a run, approve a tool, steer, queue,
-  cancel, attach an image, fork, and open a subagent. A narrow viewport
-  variant covers the phone layout.</li>
+<li><strong>End-to-end.</strong> Headless-Firefox scenarios (<code>scripts/test-web-page.sh</code>)
+  against real daemons and a scripted model cover connecting via
+  <code>#token=</code>, runs, approvals, steering, queueing, cancelling, subagents,
+  fork and revert, compaction, goals, background calls, attachments and
+  media, skills, permissions, every management panel, a suspended tab's
+  reconnect, read-only snapshots, the refused origin, and the manifest.
+  Every view is audited at 360 and 390 px portrait and a landscape phone
+  size for sideways scroll, clipped controls, and touch targets.</li>
 <li><strong>Server.</strong></li>
 <li>Bundle serving: paths, cache headers, the 404 rule.</li>
 <li><code>/ws</code> and <code>/runtime</code> precedence.</li>
@@ -3415,11 +3472,11 @@ where each feature lands.</p>
   the origin hint after a refused connection.</li>
 </ul>
 <h2 id="13-plain-cookie-and-a-local-daemon">13. Plain <code>cookie</code> and a local daemon<a class="headerlink" href="#13-plain-cookie-and-a-local-daemon" title="Permanent link">&para;</a></h2>
-<p>Today plain <code>cookie</code> always starts a private daemon inside its own process,
-even when <code>cookie daemon</code> is already running on the machine. That private
-daemon cannot open a session the other one owns: it shows the session as a
-read-only snapshot. Its own sessions are invisible to the web client and to
-every other client of the running daemon.</p>
+<p>Before this change, plain <code>cookie</code> always started a private daemon inside its
+own process, even when <code>cookie daemon</code> was already running on the machine.
+That private daemon could not open a session the other one owned: it showed
+the session as a read-only snapshot. Its own sessions were invisible to the
+web client and to every other client of the running daemon.</p>
 <p>From this change, plain <code>cookie</code> follows the decisions in section 1:</p>
 <ol>
 <li>find a daemon running on this machine and connect to it (13.1);</li>
@@ -4309,6 +4366,83 @@ geckodriver in CI (W5).</p>
 </ul>
 <p>All pass, and the screenshots were checked.</p>
 </li>
+</ul>
+<h3 id="phase-w5-2026-10-20">Phase W5 (2026-10-20)<a class="headerlink" href="#phase-w5-2026-10-20" title="Permanent link">&para;</a></h3>
+<p>Phone polish, the home screen, the end-to-end suites in CI, and the
+documentation. There is no wire change.</p>
+<ul>
+<li><strong>Phones.</strong> A new audit in <code>scripts/test-web-page.sh</code> opens every view
+  and sheet (the transcript, sessions, every picker, and every panel) at
+  360 × 640 and 390 × 844 portrait and 844 × 390 landscape. It fails on
+  sideways scroll, a control the screen's edge cuts off, or a target under
+  44 px. Firefox windows are at least 500 px wide, so a narrower screen is
+  that window with the page zoomed in, which needs geckodriver's
+  <code>--allow-system-access</code>. It found, and the page now fixes:</li>
+<li>the composer's Send button cut off at 360 px: the text field could not
+    shrink. The composer now wraps its buttons below the field when the
+    field would be narrower than 12rem;</li>
+<li>buttons narrower than 44 px (attach, camera, the command menu, the
+    send menu, the permission effects): every button has a 44 px minimum
+    width;</li>
+<li>session rows squeezed into each other in a short landscape sidebar:
+    rows no longer shrink;</li>
+<li>the header wrapping its title and buttons over three lines: shorter
+    labels ("Forget", the theme's name) below the <code>sm</code> breakpoint.</li>
+<li><strong>The on-screen keyboard.</strong> The page keeps <code>--app-height</code> at the visual
+  viewport's height, which a phone's keyboard shrinks while <code>100dvh</code> may
+  not, and sizes its frame and sheets from it; the viewport meta asks for
+  <code>interactive-widget=resizes-content</code> and <code>viewport-fit=cover</code>, and the
+  frame pads by the safe-area insets. Firefox cannot raise a keyboard, so
+  this is checked by reading, not by a scenario.</li>
+<li><strong>Background tabs.</strong> A scenario pauses the daemon (<code>SIGSTOP</code>), hides and
+  shows the tab, sees the page give up on the silent connection, resumes
+  the daemon, and sees the page reconnect and restore its session.</li>
+<li><strong>Home screen.</strong> <code>crates/web/assets/manifest.webmanifest</code>
+  (<code>display: standalone</code>, relative <code>start_url</code> and <code>scope</code>), icons drawn
+  from the logo by <code>scripts/web-icons.py</code> (any and maskable 192 and
+  512 px PNGs, the SVG, and an Apple touch icon, palette-reduced to 22 KB
+  together), and <code>theme-color</code> for light and dark. Trunk copies them under
+  their own names; the daemon serves them with <code>no-cache</code>, and the CSP's
+  <code>default-src 'self'</code> already covers the manifest. A scenario checks the
+  manifest's content type and that every icon it names is served.</li>
+<li><strong>CI.</strong> The <code>web</code> job now also installs Firefox 157.0.1
+  (<code>browser-actions/setup-firefox</code>), geckodriver 0.37.1 (checked by
+  SHA-256), and <code>wasm-bindgen-test-runner</code> 0.2.126 (<code>install-action</code>,
+  matching <code>Cargo.lock</code>; the suite checks the match), then runs
+  <code>scripts/test-wasm-client.sh</code> and <code>scripts/test-web-page.sh</code>, uploading
+  the scenario screenshots when a step fails. <code>release_integrity</code> pins
+  these gates, and <code>AGENTS.md</code> lists the two suites.</li>
+<li><strong>Size.</strong> The bundle is 4.07 MB, 1.64 MB gzipped, within the 1.7 MB
+  budget; the manifest and icons add 23 KB.</li>
+<li><strong>Docs.</strong> <code>guide/web.md</code> is the complete guide (phones, the home screen,
+  and what the page does not do, besides every panel and command);
+  <code>engine/server.md</code>, <code>guide/run.md</code>, <code>architecture.md</code>, and the README
+  describe the web client as it is; sections 1 to 14 of this spec now
+  match what landed.</li>
+</ul>
+<h3 id="deviations-across-the-phases">Deviations across the phases<a class="headerlink" href="#deviations-across-the-phases" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Notices of plain <code>cookie</code></strong> render as rows below the transcript, not in
+  the status row (L).</li>
+<li><strong>Refused connections</strong> cannot be told apart in a browser (close code
+  1006, no HTTP status), so every refusal before the handshake shows the
+  <code>allowed_origins</code> hint (W0a, W1).</li>
+<li><strong>Browser tests run in Firefox only,</strong> not Chrome (W0a, W5).</li>
+<li><strong>Caching:</strong> only files whose names carry Trunk's hash are immutable;
+  copied files are revalidated (W1).</li>
+<li><strong>The ready line is unchanged;</strong> the page address and the
+  empty-<code>allowed_origins</code> warning follow it as log lines (W1).</li>
+<li><strong>Gzip only,</strong> no Brotli (W2).</li>
+<li><strong>Shared code:</strong> the subscription machine, panel rules, and labels moved
+  to <code>client_state</code> over the phases; the ownership bookkeeping stayed in
+  each client (W2–W4).</li>
+<li><strong>Commands:</strong> <code>/approvals</code> and <code>/mode</code> exist only in the page; <code>/goal
+  pause|resume|cancel</code> and typed arguments replace palette steps (W2, W3).</li>
+<li><strong>Editors</strong> are in-page text areas, and a refused config edit stays open
+  (W4).</li>
+<li><strong>The budget</strong> is 1.7 MB gzipped: 1.9 MB in W2, 1.5 MB after W3's size
+  work, then 1.6 MB with W3's features and 1.7 MB with W4's panels, each
+  raise with its reason recorded (W2–W4).</li>
 </ul>
 
 
