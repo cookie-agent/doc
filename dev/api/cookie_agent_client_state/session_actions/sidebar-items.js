@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["block_full","display_full","next_permission_mode","permission_mode_label"],"struct":["FullContentRead"]};

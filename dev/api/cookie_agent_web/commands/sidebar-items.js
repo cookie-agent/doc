@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["COMMANDS"],"enum":["Command"],"fn":["completions","parse"],"struct":["CommandSpec"]};

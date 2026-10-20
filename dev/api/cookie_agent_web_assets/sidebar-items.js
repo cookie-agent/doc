@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["assets","get","is_built"],"struct":["Asset"]};
+window.SIDEBAR_ITEMS = {"fn":["assets","content_security_policy","get","is_built"],"struct":["Asset"]};

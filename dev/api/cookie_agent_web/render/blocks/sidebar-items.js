@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["block_html","diff_html","display_html"],"struct":["BlockPlace"]};

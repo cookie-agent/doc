@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["RECENT_SUBSCRIBED_TREES","RECONNECT_FIRST_DELAY","RECONNECT_MAX_DELAY","SUBSCRIPTION_RETRY_DELAY"],"fn":["next_reconnect_delay"],"struct":["RecentTrees"]};
+window.SIDEBAR_ITEMS = {"constant":["RECENT_SUBSCRIBED_TREES","RECONNECT_FIRST_DELAY","RECONNECT_MAX_DELAY","SUBSCRIPTION_RETRY_DELAY"],"enum":["SubscribeIntent","SubscriptionOutcome","SubscriptionState"],"fn":["next_reconnect_delay"],"struct":["RecentTrees","Subscribe","Subscriptions"]};

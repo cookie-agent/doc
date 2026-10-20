@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DAEMON_URL_KEY","IDENTITY_KEY","THEME_KEY"],"fn":["connects_by_itself","daemon_url_for_page","fragment_without_token","refused_before_handshake_hint","token_from_fragment","token_key"]};
+window.SIDEBAR_ITEMS = {"constant":["DAEMON_URL_KEY","EVENT_LEVEL_KEY","IDENTITY_KEY","THEME_KEY"],"fn":["connects_by_itself","daemon_url_for_page","fragment_without_token","refused_before_handshake_hint","token_from_fragment","token_key"]};

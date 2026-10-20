@@ -1805,6 +1805,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w2-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W2 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2756,6 +2765,15 @@
   <a href="#phase-w1-2026-10-19" class="md-nav__link">
     <span class="md-ellipsis">
       Phase W1 (2026-10-19)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-w2-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W2 (2026-10-20)
     </span>
   </a>
   
@@ -3866,6 +3884,152 @@ paths that moved.</p>
 </li>
 <li><strong>Not in CI.</strong> The browser test is not a CI job yet, because it needs
     Firefox and geckodriver; W5's end-to-end suite adds them.</li>
+</ul>
+<h3 id="phase-w2-2026-10-20">Phase W2 (2026-10-20)<a class="headerlink" href="#phase-w2-2026-10-20" title="Permanent link">&para;</a></h3>
+<p>Core chat landed as specified, with no wire change.</p>
+<ul>
+<li><strong>Moved into <code>cookie_agent_client_state</code>.</strong></li>
+<li><strong>The subscription state machine (<code>subscriptions::Subscriptions</code>).</strong> It
+    covers subscribing, live, and recovering, a resubscribe once ownership
+    arrives, the recent-tree release, and recovery after a failure.<ul>
+<li>Its methods return the <code>events.subscribe</code> requests to send (a
+  <code>Subscribe</code> with its attempt), and the client reports each outcome
+  back (<code>finish</code>, <code>note_replay_end</code>, <code>release</code>, <code>recovery_failed</code>).
+  The client owns the clock and the RPCs.</li>
+<li>The TUI drives it from <code>ui/app/subscriptions.rs</code>. The <code>watch</code> its
+  session switch waits on stays in the TUI, keyed by session.</li>
+<li>The TUI's tests are unchanged except that
+  <code>app.next_subscription_attempt</code> reads
+  <code>app.subscriptions.last_attempt()</code>.</li>
+</ul>
+</li>
+<li><strong><code>session_actions</code>, also switched over in the TUI:</strong><ul>
+<li>installing an <code>approval.list</code> into the store;</li>
+<li>the permission-mode cycle and its labels;</li>
+<li>toggling and finishing the complete content of a cut block
+  (<code>toggle_full_content</code>, <code>finish_full_content</code>,
+  <code>FullContentState::of_read</code>, <code>block_full</code>).</li>
+</ul>
+</li>
+<li><strong>Ownership bookkeeping stayed in each client (deviation).</strong> The
+    generation map and the owned and read-only sets stayed, because the
+    TUI's tests read and write those <code>HashSet</code>s and <code>HashMap</code>s directly. The
+    web client keeps the same small bookkeeping over the shared
+    <code>ownership::classify_session</code>.</li>
+<li><strong>The page</strong> (<code>crates/web/src/{workspace,views}.rs</code>):</li>
+<li><strong>Sessions:</strong> a list with a directory filter fed by the sessions'
+    <code>cwd_identity</code> (all directories by default) and live
+    <code>sessions.changed</code>.</li>
+<li><strong>New session:</strong> a draft whose first message creates the session. It
+    attaches <code>global</code> and <code>local</code>'s <code>coding</code> at the named directory, or
+    takes the daemon's defaults, and applies the draft's mode.</li>
+<li><strong>Ownership:</strong> read-only snapshots for sessions another process owns.</li>
+<li><strong>The shared reducer,</strong> fed by every delivery, with voided input
+    restored to the composer.</li>
+<li><strong>Composer:</strong><ul>
+<li>Enter, Alt+Enter, Shift+Enter, Ctrl+J, Escape, and Up, mapped by the
+  pure <code>keys::composer_action</code>;</li>
+<li>Send, with a long press or the ▾ menu to queue;</li>
+<li>the queue strip with recall;</li>
+<li><code>run.cancel</code>;</li>
+<li>one <code>session.submit_input</code> per message.</li>
+</ul>
+</li>
+<li><strong>Approvals:</strong> answered at their revision and fingerprint, refreshed
+    on <code>approvals_changed</code>.</li>
+<li><strong>Pickers:</strong> agent, model and variant, and preset, from the
+    <code>runtime.snapshot.get</code> / <code>runtime.changed</code> chain. The draft is
+    published after 300 ms and yields to another client's pick.</li>
+<li><strong>Status bar:</strong> the permission mode and its cycle, the cost (from
+    <code>session.usage</code>, debounced 250 ms as in the TUI), the <code>/usage</code> panel
+    with the session and its tree, and the context size.</li>
+<li><strong><code>/events</code>:</strong> the level filter, kept in <code>localStorage</code>.</li>
+<li><strong>Commands:</strong> the TUI's names and aliases for W2's commands (<code>/new</code>,
+    <code>/sessions</code> with <code>/resume</code>, <code>/load</code>, <code>/continue</code>, <code>/agent</code>, <code>/model</code>,
+    <code>/preset</code>, <code>/usage</code>, <code>/cancel</code>, <code>/events</code>), plus two with no TUI
+    command of the same name: <code>/approvals</code> (the TUI docks approvals over
+    the composer) and <code>/mode</code> (the TUI cycles the mode from its bottom
+    bar). The ☰ menu lists them all.</li>
+<li><strong>Transcript HTML</strong> (<code>crates/web/src/render/</code>): pure functions, tested
+  natively.</li>
+<li><strong>Markdown</strong> comes from <code>MarkdownBlock</code> events. Raw HTML becomes text;
+    links are kept only for <code>http</code>, <code>https</code>, <code>mailto</code>, and relative URLs,
+    and open in a new tab without an opener; images become links.</li>
+<li><strong>Display blocks:</strong> every kind has its own renderer, and none branches
+    on a tool name.<ul>
+<li>Diffs number lines from the hunks' starts.</li>
+<li>Terminal SGR becomes spans: classes for the 16 standard colours in
+  both palettes, inline styles for 256-colour and RGB.</li>
+<li>Media blocks are read with <code>artifact.read</code> into <code>Blob</code> URLs.</li>
+<li>A block of a kind this build does not know renders nothing, as in
+  the TUI. The daemon already turns a newer kind into its <code>text</code>
+  fallback for an older client.</li>
+</ul>
+</li>
+<li><strong>Interaction.</strong> Interactive parts carry <code>data-action</code> attributes,
+    which one click handler dispatches.</li>
+<li><strong>Re-rendering.</strong> The page re-renders only items whose <code>item_key</code> (the
+    item's version, its tools' revisions, expansion, and the level filter)
+    changed.</li>
+<li><strong>Highlighting.</strong> highlight.js 11.12.0 is vendored with its BSD-3-Clause
+  licence and checked against the npm <code>sha512</code> integrity, with no CDN.</li>
+<li>It is copied by Trunk and loaded on the first code block that names its
+    language, through <code>js_sys</code> calls.</li>
+<li>Its token colours come from the palette, light and dark.</li>
+<li><strong>Serving.</strong></li>
+<li><code>web_assets</code>' build script gzips each compressible file. The daemon
+    sends that copy when <code>Accept-Encoding</code> takes gzip, with
+    <code>Vary: Accept-Encoding</code> and an <code>ETag</code> of its own. Brotli is left out:
+    it would need another crate, and gzip covers every browser.</li>
+<li><strong>CSP.</strong> Every response carries a Content-Security-Policy:<ul>
+<li><code>script-src 'self' 'wasm-unsafe-eval'</code> plus a hash of Trunk's inline
+  loader, computed at build time;</li>
+<li><code>connect-src 'self' ws: wss:</code>;</li>
+<li><code>img-src</code> and <code>media-src</code> with <code>blob:</code>;</li>
+<li><code>style-src 'unsafe-inline'</code>, which inline terminal colours need;</li>
+<li>no objects, base URI, framing, or form targets.</li>
+</ul>
+</li>
+<li><strong>Size.</strong> The bundle is 4.28 MB, 1.65 MB gzipped. Of that, the wasm is
+  3.88 MB (1.40 MB gzipped), highlight.js 43 KB gzipped, and the fonts
+  187 KB.</li>
+<li><code>scripts/build-web.sh</code> now fails over a budget of 1,900,000 bytes
+    gzipped, which CI enforces in the <code>web</code> job.</li>
+<li><strong>Tests.</strong></li>
+<li><strong>Native web tests:</strong><ul>
+<li>every block kind's HTML;</li>
+<li>markdown sanitization (raw HTML escaped, <code>javascript:</code> links
+  neutralized, images as links, code language classes);</li>
+<li>SGR to spans;</li>
+<li>diff line numbers;</li>
+<li>the composer key mapping and the slash commands;</li>
+<li>the event-level filter and item keys.</li>
+</ul>
+</li>
+<li><strong><code>client_state</code> tests:</strong> every transition of the subscription
+    machine, and the mode cycle.</li>
+<li><strong>Server tests:</strong> gzip negotiation and revalidation of the compressed
+    copy, and the CSP on every response.</li>
+<li>
+<p><strong><code>scripts/test-web-page.sh</code>.</strong> It now runs a scripted OpenAI-compatible
+    model (<code>scripts/web-e2e/mock-model.py</code>) behind a daemon whose agent asks
+    before <code>bash</code>. <code>scripts/web-e2e/scenarios.py</code> drives headless Firefox
+    through:</p>
+<ul>
+<li>connecting from the <code>cookie web</code> link;</li>
+<li>a new session with streamed, highlighted markdown;</li>
+<li>a tool call approved from the approvals sheet, with its terminal
+  output;</li>
+<li>steering a slow run, queueing behind it with Alt+Enter, and
+  cancelling it with Escape, after which the unsent messages return to
+  the composer;</li>
+<li>a 375 px window with no sideways scroll and the sessions sheet;</li>
+<li>the origin hint from a daemon that allows no origin.</li>
+</ul>
+<p>All pass, and the screenshots were checked.
+  - <strong>Not in CI yet.</strong> The browser scenarios still need Firefox and
+geckodriver in CI (W5).</p>
+</li>
 </ul>
 
 

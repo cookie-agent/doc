@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["App","start"],"mod":["browser","connect","connection","theme"]};
+window.SIDEBAR_ITEMS = {"fn":["App","start"],"mod":["browser","commands","connect","connection","keys","render","theme","workspace"]};

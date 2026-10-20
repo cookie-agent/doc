@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["hint_icon","item_html","item_key"],"struct":["TranscriptView"]};

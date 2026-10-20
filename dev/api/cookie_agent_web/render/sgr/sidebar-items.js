@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Colour"],"fn":["push_sgr_html"],"struct":["Rendition"]};

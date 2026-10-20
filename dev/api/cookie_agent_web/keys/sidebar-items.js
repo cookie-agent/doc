@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ComposerAction"],"fn":["composer_action"],"struct":["KeyPress"]};
