@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "description": "A content-addressed artifact in a session tree's store: a user upload, a\ntool attachment, or the full content of a truncated display block.",
+      "properties": {
+        "byte_length": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "filename": {
+          "description": "The name the file was attached under, without a directory.",
+          "maxLength": 255,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media_type": {
+          "description": "The media type sniffed from the content, such as `image/png`.",
+          "maxLength": 255,
+          "minLength": 3,
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lowercase hex SHA-256 of the bytes.",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "byte_length",
+        "media_type"
+      ],
+      "type": "object"
+    },
+    "UserContent": {
+      "description": "A user's input: a nonempty list of parts.",
+      "items": {
+        "$ref": "#/$defs/UserContentPart"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "UserContentPart": {
+      "description": "One part of a user's input.",
+      "oneOf": [
+        {
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "artifact": {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            "type": {
+              "const": "file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "artifact"
+          ],
+          "type": "object"
+        }
+      ],
+      "x-open": true
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What `session.recall_input` did. A client reads it open: an outcome it\ndoes not know fails the call with [`crate::ClientError::UnknownOutcome`].",
+  "oneOf": [
+    {
+      "description": "The input was withdrawn; its content is returned for editing.",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/UserContent"
+        },
+        "outcome": {
+          "const": "recalled",
+          "type": "string"
+        }
+      },
+      "required": [
+        "outcome",
+        "content"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The input is no longer pending or queued: the model already saw it,\na run started with it, or it was voided.",
+      "properties": {
+        "outcome": {
+          "const": "gone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "outcome"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Another client submitted the input; only its author can recall it.",
+      "properties": {
+        "outcome": {
+          "const": "not_owner",
+          "type": "string"
+        }
+      },
+      "required": [
+        "outcome"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "SessionRecallInputResult",
+  "x-open": true
+}

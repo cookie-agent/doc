@@ -8,7 +8,7 @@
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a></span><span class="kw">use </span>std::borrow::Borrow;
 <a href=#10 id=10 data-nosnippet>10</a>
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use crate</span>::{ClientRunId, EventOrigin, EventPayload, RunSelection, StoredEvent};
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use crate</span>::{ClientRunId, EventOrigin, EventPayload, RunSelection, StoredEvent, UserContent};
 <a href=#12 id=12 data-nosnippet>12</a>
 <a href=#13 id=13 data-nosnippet>13</a><span class="doccomment">/// One input waiting in a session's queue.
 <a href=#14 id=14 data-nosnippet>14</a></span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a>    </span><span class="kw">pub </span>queued_seq: u64,
 <a href=#18 id=18 data-nosnippet>18</a>    <span class="doccomment">/// Who queued it; absent only on records written without an origin.
 <a href=#19 id=19 data-nosnippet>19</a>    </span><span class="kw">pub </span>origin: <span class="prelude-ty">Option</span>&lt;EventOrigin&gt;,
-<a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">pub </span>input: String,
+<a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">pub </span>content: UserContent,
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">pub </span>selection: RunSelection,
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="kw">pub </span>client_run_id: ClientRunId,
 <a href=#23 id=23 data-nosnippet>23</a>    <span class="kw">pub </span>queued_at: jiff::Timestamp,
@@ -60,13 +60,13 @@
 <a href=#60 id=60 data-nosnippet>60</a>    ) -&gt; Vec&lt;QueuedInput&gt; {
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">match </span>payload {
 <a href=#62 id=62 data-nosnippet>62</a>            EventPayload::UserInputQueued {
-<a href=#63 id=63 data-nosnippet>63</a>                input,
+<a href=#63 id=63 data-nosnippet>63</a>                content,
 <a href=#64 id=64 data-nosnippet>64</a>                selection,
 <a href=#65 id=65 data-nosnippet>65</a>                client_run_id,
 <a href=#66 id=66 data-nosnippet>66</a>            } =&gt; <span class="self">self</span>.entries.push(QueuedInput {
 <a href=#67 id=67 data-nosnippet>67</a>                queued_seq: seq,
 <a href=#68 id=68 data-nosnippet>68</a>                origin: origin.cloned(),
-<a href=#69 id=69 data-nosnippet>69</a>                input: input.clone(),
+<a href=#69 id=69 data-nosnippet>69</a>                content: content.clone(),
 <a href=#70 id=70 data-nosnippet>70</a>                selection: selection.clone(),
 <a href=#71 id=71 data-nosnippet>71</a>                client_run_id: client_run_id.clone(),
 <a href=#72 id=72 data-nosnippet>72</a>                queued_at: timestamp,
@@ -151,7 +151,7 @@
 <a href=#151 id=151 data-nosnippet>151</a>            seq,
 <a href=#152 id=152 data-nosnippet>152</a>            origin,
 <a href=#153 id=153 data-nosnippet>153</a>            EventPayload::UserInputQueued {
-<a href=#154 id=154 data-nosnippet>154</a>                input: input.into(),
+<a href=#154 id=154 data-nosnippet>154</a>                content: <span class="kw">crate</span>::UserContent::text(input),
 <a href=#155 id=155 data-nosnippet>155</a>                selection: selection(),
 <a href=#156 id=156 data-nosnippet>156</a>                client_run_id: ClientRunId::new(<span class="macro">format!</span>(<span class="string">"queued-{seq}"</span>)).unwrap(),
 <a href=#157 id=157 data-nosnippet>157</a>            },
@@ -178,7 +178,7 @@
 <a href=#178 id=178 data-nosnippet>178</a>            queue
 <a href=#179 id=179 data-nosnippet>179</a>                .entries()
 <a href=#180 id=180 data-nosnippet>180</a>                .iter()
-<a href=#181 id=181 data-nosnippet>181</a>                .map(|entry| entry.input.as_str())
+<a href=#181 id=181 data-nosnippet>181</a>                .map(|entry| entry.content.as_plain_text().into_owned())
 <a href=#182 id=182 data-nosnippet>182</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
 <a href=#183 id=183 data-nosnippet>183</a>            [<span class="string">"first"</span>, <span class="string">"third"</span>]
 <a href=#184 id=184 data-nosnippet>184</a>        );
@@ -205,7 +205,7 @@
 <a href=#205 id=205 data-nosnippet>205</a>            <span class="macro">assert_eq!</span>(
 <a href=#206 id=206 data-nosnippet>206</a>                voided
 <a href=#207 id=207 data-nosnippet>207</a>                    .iter()
-<a href=#208 id=208 data-nosnippet>208</a>                    .map(|entry| entry.input.as_str())
+<a href=#208 id=208 data-nosnippet>208</a>                    .map(|entry| entry.content.as_plain_text().into_owned())
 <a href=#209 id=209 data-nosnippet>209</a>                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
 <a href=#210 id=210 data-nosnippet>210</a>                [<span class="string">"first"</span>, <span class="string">"second"</span>]
 <a href=#211 id=211 data-nosnippet>211</a>            );

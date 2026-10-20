@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://cookie-agent.github.io/doc/dev/guide/security/">
       
       
-        <link rel="prev" href="../../reference/schemas/">
+        <link rel="prev" href="../../reference/compatibility/">
       
       
       
@@ -456,6 +456,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Attaching Media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../compaction/" class="md-nav__link">
         
   
@@ -531,6 +554,29 @@
   
   <span class="md-ellipsis">
     Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory
     
   </span>
   
@@ -926,6 +972,29 @@
   
   <span class="md-ellipsis">
     External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory [memory]
     
   </span>
   
@@ -1397,6 +1466,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/web-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web client and local daemon use
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/runtimes/" class="md-nav__link">
         
   
@@ -1834,6 +1949,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/protocol-changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Protocol changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Errors
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/runtime-protocol/" class="md-nav__link">
         
   
@@ -1909,6 +2070,29 @@
   
   <span class="md-ellipsis">
     Schemas
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compatibility
     
   </span>
   
@@ -2335,13 +2519,25 @@ will use that path. Treat the parent storage location as trusted and remove
 unexpected state before starting the daemon. Neither platform protects secrets
 from privileged code such as <code>root</code>, <code>SYSTEM</code>, or an elevated administrator.</p>
 <h3 id="daemon-authentication-token">Daemon authentication token<a class="headerlink" href="#daemon-authentication-token" title="Permanent link">&para;</a></h3>
-<p>The daemon validates every WebSocket handshake, from clients and from
-dial-in runtimes alike, with a constant-time compare of a bearer token, and
-refuses requests that carry a browser <code>Origin</code> header. It binds IPv4 loopback
-unless <code>--listen</code> names another address; off loopback, serve TLS
+<p>The daemon authenticates every connection, from clients and from dial-in
+runtimes alike, with a constant-time compare of a bearer token. A runtime
+presents it in the <code>Authorization</code> header of its WebSocket upgrade; a client
+presents it there or in its <code>handshake</code> request, which is how a web page
+authenticates, since browsers cannot set WebSocket headers. A client
+connection that has not authenticated may send only <code>handshake</code>, is closed
+after a wrong token, and is closed after 10 seconds without one. It binds IPv4
+loopback unless <code>--listen</code> names another address; off loopback, serve TLS
 (<code>--tls-cert</code>, <code>--tls-key</code>) or keep the listener on a private network, since
 a plaintext <code>ws://</code> connection carries the token in the clear. Anyone holding
 the token is a fully trusted client and may also offer a runtime.</p>
+<p><strong>Web pages.</strong> A request with a browser <code>Origin</code> header is refused unless
+<code>[server] allowed_origins</code> lists that origin (see <a href="../../engine/server/">Server</a>).
+The default list is empty, so no web page can open a connection. Listing an
+origin lets that site's pages try; they still need the token. With <code>"*"</code>, any
+page in any browser on a machine that can reach the daemon can open a
+connection, and the token is the only protection. A page served over HTTPS can
+only connect to a <code>wss://</code> daemon. Runtimes never connect from a web page: a
+request to <code>/runtime</code> with an <code>Origin</code> header is always refused.</p>
 <p>The token is durable: it is <code>[server] token</code> in the user <code>config.toml</code>. When
 the configuration has none, the daemon draws a fresh 32-byte token from the
 operating system at its first start and writes it there, rewriting the file
@@ -2351,8 +2547,11 @@ runtime that dials in can reconnect after one. The WebSocket subcommands
 read it from the same file unless given <code>--token</code> / <code>COOKIE_DAEMON_TOKEN</code>.
 Any process that can read your <code>config.toml</code> can therefore connect to the
 daemon; keep the file private, and replace the token (delete the line and
-restart the daemon) if it leaks. The daemon also prints the token in its first
-stdout line:</p>
+restart the daemon) if it leaks. Plain <code>cookie</code> sends the token to whatever
+listens at <code>[server] host</code> and <code>port</code> when it looks for a running daemon (see
+<a href="../run/#a-daemon-already-running">A daemon already running</a>), as
+<code>cookie attach</code> with default settings does; it looks only when the token is
+set. The daemon also prints the token in its first stdout line:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>daemon-ready {"url":"ws://127.0.0.1:&lt;port&gt;/ws","token":"&lt;43-char base64url&gt;"}
 </code></pre></div>
 <p>A supervisor that logs daemon stdout verbatim persists the token in its

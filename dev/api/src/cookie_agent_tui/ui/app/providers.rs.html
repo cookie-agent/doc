@@ -282,7 +282,7 @@
 <a href=#282 id=282 data-nosnippet>282</a>        // modal and the focus where they are so the user can correct the
 <a href=#283 id=283 data-nosnippet>283</a>        // offending value and press Enter again. Only a failed connect RPC
 <a href=#284 id=284 data-nosnippet>284</a>        // escalates to the persistent full-message error state.
-<a href=#285 id=285 data-nosnippet>285</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(catalog_revision) = <span class="self">self</span>.catalog_revision.clone() <span class="kw">else </span>{
+<a href=#285 id=285 data-nosnippet>285</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(catalog_revision) = <span class="self">self</span>.catalog_view_revision.clone() <span class="kw">else </span>{
 <a href=#286 id=286 data-nosnippet>286</a>            <span class="kw">let </span>error = <span class="string">"Catalog revision is unavailable."</span>.to_owned();
 <a href=#287 id=287 data-nosnippet>287</a>            form.error = <span class="prelude-val">Some</span>(error.clone());
 <a href=#288 id=288 data-nosnippet>288</a>            <span class="self">self</span>.status = error;
@@ -324,7 +324,7 @@
 <a href=#324 id=324 data-nosnippet>324</a>            client_connect_id: ClientConnectId::new(Uuid::now_v7().to_string())
 <a href=#325 id=325 data-nosnippet>325</a>                .expect(<span class="string">"uuid-derived client connect id"</span>),
 <a href=#326 id=326 data-nosnippet>326</a>            provider_id: provider.id.clone(),
-<a href=#327 id=327 data-nosnippet>327</a>            expected_catalog_revision: catalog_revision,
+<a href=#327 id=327 data-nosnippet>327</a>            expected_revision: catalog_revision,
 <a href=#328 id=328 data-nosnippet>328</a>            setup_values,
 <a href=#329 id=329 data-nosnippet>329</a>            auth_method,
 <a href=#330 id=330 data-nosnippet>330</a>            auth_values,
@@ -389,63 +389,62 @@
 <a href=#389 id=389 data-nosnippet>389</a>            <span class="self">self</span>.status = <span class="string">"Runtime snapshot unavailable; retry before disconnecting."</span>.into();
 <a href=#390 id=390 data-nosnippet>390</a>            <span class="kw">return</span>;
 <a href=#391 id=391 data-nosnippet>391</a>        };
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>baseline = <span class="prelude-val">Some</span>(snapshot.runtime_revision.clone());
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>baseline = <span class="prelude-val">Some</span>(snapshot.revision.clone());
 <a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>params = ProviderDisconnectParams {
 <a href=#394 id=394 data-nosnippet>394</a>            provider_id: provider.id.clone(),
-<a href=#395 id=395 data-nosnippet>395</a>            expected_runtime_revision: snapshot.runtime_revision.clone(),
-<a href=#396 id=396 data-nosnippet>396</a>            expected_provider_state_revision: snapshot.provider_state_revision.clone(),
-<a href=#397 id=397 data-nosnippet>397</a>            expected_connection_generation: provider
-<a href=#398 id=398 data-nosnippet>398</a>                .durable_connection
-<a href=#399 id=399 data-nosnippet>399</a>                .as_ref()
-<a href=#400 id=400 data-nosnippet>400</a>                .map(|connection| connection.connection_generation),
-<a href=#401 id=401 data-nosnippet>401</a>            client_request_id: ClientRequestId::new(Uuid::now_v7().to_string())
-<a href=#402 id=402 data-nosnippet>402</a>                .expect(<span class="string">"uuid-derived client request id"</span>),
-<a href=#403 id=403 data-nosnippet>403</a>        };
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.clear_connect_secrets();
-<a href=#405 id=405 data-nosnippet>405</a>        <span class="self">self</span>.modal = Modal::None;
-<a href=#406 id=406 data-nosnippet>406</a>        <span class="self">self</span>.provider_operations.insert(
-<a href=#407 id=407 data-nosnippet>407</a>            provider.id.clone(),
-<a href=#408 id=408 data-nosnippet>408</a>            ProviderOperation::InProgress(ProviderAction::Disconnect),
-<a href=#409 id=409 data-nosnippet>409</a>        );
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"disconnect provider {}…"</span>, provider.id);
-<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
-<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
-<a href=#413 id=413 data-nosnippet>413</a>        <span class="kw">let </span>provider_id = provider.id.clone();
-<a href=#414 id=414 data-nosnippet>414</a>        <span class="kw">let </span>task = tokio::spawn(<span class="kw">async move </span>{
-<a href=#415 id=415 data-nosnippet>415</a>            <span class="kw">let </span><span class="kw-2">mut </span>attempt = <span class="number">0_usize</span>;
-<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>outcome = <span class="kw">loop </span>{
-<a href=#417 id=417 data-nosnippet>417</a>                <span class="kw">match </span>client.disconnect_provider(params.clone()).<span class="kw">await </span>{
-<a href=#418 id=418 data-nosnippet>418</a>                    <span class="prelude-val">Ok</span>(result) =&gt; {
-<a href=#419 id=419 data-nosnippet>419</a>                        <span class="kw">break </span>ProviderMutationOutcome::Disconnected {
-<a href=#420 id=420 data-nosnippet>420</a>                            provider_id,
-<a href=#421 id=421 data-nosnippet>421</a>                            baseline,
-<a href=#422 id=422 data-nosnippet>422</a>                            runtime: Box::new(result.runtime.snapshot),
-<a href=#423 id=423 data-nosnippet>423</a>                        };
-<a href=#424 id=424 data-nosnippet>424</a>                    }
-<a href=#425 id=425 data-nosnippet>425</a>                    <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#426 id=426 data-nosnippet>426</a>                        <span class="kw">if </span>retry_store_contention_once(attempt, <span class="kw-2">&amp;</span>error) {
-<a href=#427 id=427 data-nosnippet>427</a>                            attempt += <span class="number">1</span>;
-<a href=#428 id=428 data-nosnippet>428</a>                            <span class="kw">continue</span>;
-<a href=#429 id=429 data-nosnippet>429</a>                        }
-<a href=#430 id=430 data-nosnippet>430</a>                        <span class="kw">break </span>ProviderMutationOutcome::Failed {
-<a href=#431 id=431 data-nosnippet>431</a>                            provider_id,
-<a href=#432 id=432 data-nosnippet>432</a>                            action: ProviderAction::Disconnect,
-<a href=#433 id=433 data-nosnippet>433</a>                            error: store_contention_message(<span class="kw-2">&amp;</span>error, <span class="string">"providers"</span>),
-<a href=#434 id=434 data-nosnippet>434</a>                        };
-<a href=#435 id=435 data-nosnippet>435</a>                    }
-<a href=#436 id=436 data-nosnippet>436</a>                }
-<a href=#437 id=437 data-nosnippet>437</a>            };
-<a href=#438 id=438 data-nosnippet>438</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::ProviderMutationFinished { outcome });
-<a href=#439 id=439 data-nosnippet>439</a>        });
-<a href=#440 id=440 data-nosnippet>440</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(previous) = <span class="self">self</span>.connect_tasks.insert(provider.id, task) {
-<a href=#441 id=441 data-nosnippet>441</a>            previous.abort();
-<a href=#442 id=442 data-nosnippet>442</a>        }
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>
-<a href=#445 id=445 data-nosnippet>445</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>abort_connect_work(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">for </span>(<span class="kw">_</span>, task) <span class="kw">in </span><span class="self">self</span>.connect_tasks.drain() {
-<a href=#447 id=447 data-nosnippet>447</a>            task.abort();
-<a href=#448 id=448 data-nosnippet>448</a>        }
-<a href=#449 id=449 data-nosnippet>449</a>    }
-<a href=#450 id=450 data-nosnippet>450</a>}
+<a href=#395 id=395 data-nosnippet>395</a>            expected_revision: snapshot.revision.clone(),
+<a href=#396 id=396 data-nosnippet>396</a>            expected_connection_generation: provider
+<a href=#397 id=397 data-nosnippet>397</a>                .durable_connection
+<a href=#398 id=398 data-nosnippet>398</a>                .as_ref()
+<a href=#399 id=399 data-nosnippet>399</a>                .map(|connection| connection.connection_generation),
+<a href=#400 id=400 data-nosnippet>400</a>            client_request_id: ClientRequestId::new(Uuid::now_v7().to_string())
+<a href=#401 id=401 data-nosnippet>401</a>                .expect(<span class="string">"uuid-derived client request id"</span>),
+<a href=#402 id=402 data-nosnippet>402</a>        };
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="self">self</span>.clear_connect_secrets();
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.modal = Modal::None;
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="self">self</span>.provider_operations.insert(
+<a href=#406 id=406 data-nosnippet>406</a>            provider.id.clone(),
+<a href=#407 id=407 data-nosnippet>407</a>            ProviderOperation::InProgress(ProviderAction::Disconnect),
+<a href=#408 id=408 data-nosnippet>408</a>        );
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"disconnect provider {}…"</span>, provider.id);
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>provider_id = provider.id.clone();
+<a href=#413 id=413 data-nosnippet>413</a>        <span class="kw">let </span>task = tokio::spawn(<span class="kw">async move </span>{
+<a href=#414 id=414 data-nosnippet>414</a>            <span class="kw">let </span><span class="kw-2">mut </span>attempt = <span class="number">0_usize</span>;
+<a href=#415 id=415 data-nosnippet>415</a>            <span class="kw">let </span>outcome = <span class="kw">loop </span>{
+<a href=#416 id=416 data-nosnippet>416</a>                <span class="kw">match </span>client.disconnect_provider(params.clone()).<span class="kw">await </span>{
+<a href=#417 id=417 data-nosnippet>417</a>                    <span class="prelude-val">Ok</span>(result) =&gt; {
+<a href=#418 id=418 data-nosnippet>418</a>                        <span class="kw">break </span>ProviderMutationOutcome::Disconnected {
+<a href=#419 id=419 data-nosnippet>419</a>                            provider_id,
+<a href=#420 id=420 data-nosnippet>420</a>                            baseline,
+<a href=#421 id=421 data-nosnippet>421</a>                            runtime: Box::new(result.runtime.snapshot),
+<a href=#422 id=422 data-nosnippet>422</a>                        };
+<a href=#423 id=423 data-nosnippet>423</a>                    }
+<a href=#424 id=424 data-nosnippet>424</a>                    <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#425 id=425 data-nosnippet>425</a>                        <span class="kw">if </span>retry_store_contention_once(attempt, <span class="kw-2">&amp;</span>error) {
+<a href=#426 id=426 data-nosnippet>426</a>                            attempt += <span class="number">1</span>;
+<a href=#427 id=427 data-nosnippet>427</a>                            <span class="kw">continue</span>;
+<a href=#428 id=428 data-nosnippet>428</a>                        }
+<a href=#429 id=429 data-nosnippet>429</a>                        <span class="kw">break </span>ProviderMutationOutcome::Failed {
+<a href=#430 id=430 data-nosnippet>430</a>                            provider_id,
+<a href=#431 id=431 data-nosnippet>431</a>                            action: ProviderAction::Disconnect,
+<a href=#432 id=432 data-nosnippet>432</a>                            error: store_contention_message(<span class="kw-2">&amp;</span>error, <span class="string">"providers"</span>),
+<a href=#433 id=433 data-nosnippet>433</a>                        };
+<a href=#434 id=434 data-nosnippet>434</a>                    }
+<a href=#435 id=435 data-nosnippet>435</a>                }
+<a href=#436 id=436 data-nosnippet>436</a>            };
+<a href=#437 id=437 data-nosnippet>437</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::ProviderMutationFinished { outcome });
+<a href=#438 id=438 data-nosnippet>438</a>        });
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(previous) = <span class="self">self</span>.connect_tasks.insert(provider.id, task) {
+<a href=#440 id=440 data-nosnippet>440</a>            previous.abort();
+<a href=#441 id=441 data-nosnippet>441</a>        }
+<a href=#442 id=442 data-nosnippet>442</a>    }
+<a href=#443 id=443 data-nosnippet>443</a>
+<a href=#444 id=444 data-nosnippet>444</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>abort_connect_work(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="kw">for </span>(<span class="kw">_</span>, task) <span class="kw">in </span><span class="self">self</span>.connect_tasks.drain() {
+<a href=#446 id=446 data-nosnippet>446</a>            task.abort();
+<a href=#447 id=447 data-nosnippet>447</a>        }
+<a href=#448 id=448 data-nosnippet>448</a>    }
+<a href=#449 id=449 data-nosnippet>449</a>}
 </code></pre></div></section></main></body></html>

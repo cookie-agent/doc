@@ -1,0 +1,226 @@
+{
+  "$defs": {
+    "ProducerOwner": {
+      "description": "Stable identity used with session + idempotency key for durable deduplication.\nExternal identifies a producer outside the daemon, a plugin or a runtime:\nthe engine derives `source` from the authenticated connection, never from\nsend parameters, and the sender chooses `name` when it registers. The\nconnection epoch that authorizes live sends is runtime-only and never part\nof this durable owner or the deduplication key.\nGoalControl identifies engine-authored lifecycle steering, not a continuation\nreminder; its accepted messages survive goal-controller teardown.\nAgent identifies an in-tree agent mail sender; the session identity is\nengine-derived from the executing tool context, never from model arguments.\nTool identifies the background result of one tool call that ran in the\nbackground; the call identity is engine-derived from the executing tool\ncontext, never from model arguments.\nSubagent identifies a delegated session reporting its finished turns to\nits parent.\nThe owner is durable and participates in `(session, owner, key)` dedup.",
+      "oneOf": [
+        {
+          "description": "A plugin's or a runtime's named producer.",
+          "properties": {
+            "name": {
+              "description": "A producer's label, chosen by its sender at registration.",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "Who produces from outside the daemon: `plugin:<name>` or `runtime:<attachment name>`.",
+              "maxLength": 512,
+              "minLength": 1,
+              "pattern": "^[a-z]+:[^\\p{Cc}\\p{Cf}]+$",
+              "type": "string"
+            },
+            "type": {
+              "const": "external",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "source",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "invocation_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "delegation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "invocation_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "goal_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "goal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "goal_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "goal_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "goal_control",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "goal_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "session_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "agent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "session_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "tool_call_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "tool_call_id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A delegated session reporting a finished turn to its parent.",
+          "properties": {
+            "session_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "subagent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "session_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProducerRegistration": {
+      "description": "Read-only runtime record. Never persist or restore a registration ID.\nA fresh registration is required on each process start, even for retries.",
+      "properties": {
+        "age_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "producer_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "producer_owner": {
+          "$ref": "#/$defs/ProducerOwner"
+        },
+        "session_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "producer_id",
+        "producer_owner",
+        "session_id",
+        "age_ms"
+      ],
+      "type": "object"
+    },
+    "ProducerSourceState": {
+      "description": "Runtime startup readiness of a producer source (a producer-capable plugin\nor runtime), not a durable producer record or recovery blob.\nFailed/disabled means external work is unknown, not that work is complete.",
+      "properties": {
+        "source": {
+          "description": "Who produces from outside the daemon: `plugin:<name>` or `runtime:<attachment name>`.",
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[a-z]+:[^\\p{Cc}\\p{Cf}]+$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ProducerSourceStatus"
+        }
+      },
+      "required": [
+        "source",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ProducerSourceStatus": {
+      "description": "The recovery state of a producer source: whether it has restored the\nexternal work it tracks since it connected.",
+      "oneOf": [
+        {
+          "enum": [
+            "starting",
+            "ready",
+            "failed",
+            "disabled"
+          ],
+          "type": "string"
+        }
+      ],
+      "x-open": true
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "producers": {
+      "items": {
+        "$ref": "#/$defs/ProducerRegistration"
+      },
+      "type": "array"
+    },
+    "sources": {
+      "description": "The recovery state of every producer source the session can hear from.",
+      "items": {
+        "$ref": "#/$defs/ProducerSourceState"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "producers",
+    "sources"
+  ],
+  "title": "SessionProducersResult",
+  "type": "object"
+}

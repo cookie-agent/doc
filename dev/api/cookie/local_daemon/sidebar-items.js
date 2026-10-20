@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CONNECT_DEADLINE","HANDSHAKE_DEADLINE"],"enum":["Probe","RuntimeChoice"],"fn":["choose_runtime","daemon_address","failure_reason","probe","probe_within","runtime_for","same_machine","version_notice"],"struct":["LocalDaemon"]};

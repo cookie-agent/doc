@@ -1,0 +1,170 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "description": "A content-addressed artifact in a session tree's store: a user upload, a\ntool attachment, or the full content of a truncated display block.",
+      "properties": {
+        "byte_length": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "filename": {
+          "description": "The name the file was attached under, without a directory.",
+          "maxLength": 255,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media_type": {
+          "description": "The media type sniffed from the content, such as `image/png`.",
+          "maxLength": 255,
+          "minLength": 3,
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lowercase hex SHA-256 of the bytes.",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "byte_length",
+        "media_type"
+      ],
+      "type": "object"
+    },
+    "RunSelection": {
+      "properties": {
+        "agent": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$",
+          "type": "string"
+        },
+        "model": {
+          "description": "One exact base or named-variant model selection.",
+          "properties": {
+            "model": {
+              "maxLength": 512,
+              "minLength": 3,
+              "pattern": "^[a-z0-9][a-z0-9._-]{0,127}/[^/\\s\\u0000-\\u001f\\u007f-\\u009f\\[\\]]+(?:/[^/\\s\\u0000-\\u001f\\u007f-\\u009f\\[\\]]+)*$",
+              "type": "string"
+            },
+            "variant": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^(?!base$)[a-z0-9][a-z0-9._-]{0,63}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "model",
+            "variant"
+          ],
+          "type": "object"
+        },
+        "preset": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "agent",
+        "model"
+      ],
+      "type": "object"
+    },
+    "UserContent": {
+      "description": "A user's input: a nonempty list of parts.",
+      "items": {
+        "$ref": "#/$defs/UserContentPart"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "UserContentPart": {
+      "description": "One part of a user's input.",
+      "oneOf": [
+        {
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "artifact": {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            "type": {
+              "const": "file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "artifact"
+          ],
+          "type": "object"
+        }
+      ],
+      "x-open": true
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client_run_id": {
+      "description": "Bounded run idempotency key.",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\p{Cc}\\p{Cf}]+$",
+      "type": "string"
+    },
+    "content": {
+      "$ref": "#/$defs/UserContent",
+      "description": "The user's input: text and file parts, each file an artifact of the\nsession tree's store (`artifact.upload.*`)."
+    },
+    "reset_fallback": {
+      "type": "boolean"
+    },
+    "selection": {
+      "$ref": "#/$defs/RunSelection"
+    },
+    "session_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "client_run_id",
+    "selection",
+    "content"
+  ],
+  "title": "RunStartParams",
+  "type": "object"
+}

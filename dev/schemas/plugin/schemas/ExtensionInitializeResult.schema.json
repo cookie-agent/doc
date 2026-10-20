@@ -1,0 +1,288 @@
+{
+  "$defs": {
+    "ExtensionHookOnError": {
+      "description": "What the daemon does when a call of a hook fails: the plugin times out,\nis not connected or exits, answers with an error, or answers with a\nresult that does not decode (an unknown action included).\n\nOpen: a policy this build does not know reads as `block`, the stricter\none.",
+      "oneOf": [
+        {
+          "const": "allow",
+          "description": "The operation goes on as if the plugin had not intercepted it.",
+          "type": "string"
+        },
+        {
+          "const": "block",
+          "description": "The operation is blocked or refused.",
+          "type": "string"
+        }
+      ],
+      "x-open": true
+    },
+    "ExtensionIntercept": {
+      "description": "One hook a plugin intercepts.",
+      "properties": {
+        "hook": {
+          "description": "The name of a hook, as a snake-case label.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string"
+        },
+        "on_error": {
+          "$ref": "#/$defs/ExtensionHookOnError",
+          "default": "allow",
+          "description": "`allow` when absent."
+        }
+      },
+      "required": [
+        "hook"
+      ],
+      "type": "object"
+    },
+    "ExtensionPluginCapabilities": {
+      "properties": {
+        "intercept": {
+          "description": "The hooks the plugin intercepts, each at most once. The daemon skips\nan entry it cannot read, whose hook it does not know, or that repeats\na hook, with a diagnostic.",
+          "items": {
+            "$ref": "#/$defs/ExtensionIntercept"
+          },
+          "type": "array"
+        },
+        "producer_messaging": {
+          "type": "boolean"
+        },
+        "publish_bus": {
+          "type": "boolean"
+        },
+        "subscribe_bus": {
+          "type": "boolean"
+        },
+        "subscribe_events": {
+          "description": "The types of the session events the plugin receives; empty for none.\nThe daemon skips a pattern it cannot read, with a diagnostic.",
+          "items": {
+            "description": "Event types: a type, a prefix ending in `*`, or `*` for every type.",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^(\\*|[a-z][a-z0-9_]*\\*?)$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "producer_messaging",
+        "subscribe_events",
+        "subscribe_bus",
+        "publish_bus",
+        "intercept"
+      ],
+      "type": "object"
+    },
+    "PromptSectionDeclaration": {
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "type": "object"
+    },
+    "RuntimeTools": {
+      "description": "A runtime's tools and their prompt sections.",
+      "properties": {
+        "prompt_sections": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PromptSectionDeclaration"
+          },
+          "type": "array"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/ToolDeclaration"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "type": "object"
+    },
+    "ToolCollision": {
+      "description": "How a tool behaves when another source offers the same name.\n\nOpen: a mode this build does not know reads as `prefix`.",
+      "oneOf": [
+        {
+          "const": "fallback",
+          "description": "Hidden whenever a non-fallback tool with the same name is published.",
+          "type": "string"
+        },
+        {
+          "const": "override",
+          "description": "Takes the bare name, and the tool it collides with is published under\nits own source's prefix (or hidden, if it is `fallback`). Two\n`override` tools with one name are both prefixed.",
+          "type": "string"
+        },
+        {
+          "const": "prefix",
+          "description": "Takes the bare name unless another source's tool already does; then\nit is published as `<source>_<name>`.",
+          "type": "string"
+        }
+      ],
+      "x-open": true
+    },
+    "ToolConcurrency": {
+      "description": "Declares whether calls to a tool may overlap with sibling calls from one model turn.\n\nOpen: a value this build does not know reads as `exclusive`, the most\nconservative.",
+      "enum": [
+        "parallel",
+        "exclusive"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ToolDeclaration": {
+      "description": "A tool as a runtime declares it.",
+      "properties": {
+        "background": {
+          "description": "The tool supports the background (`docs/site/specs/background-tools.md`).",
+          "type": "boolean"
+        },
+        "background_default": {
+          "description": "Whether a call runs in the background when the model omits the\nargument; only valid with `background`.",
+          "type": "boolean"
+        },
+        "collision": {
+          "$ref": "#/$defs/ToolCollision",
+          "default": "prefix"
+        },
+        "concurrency": {
+          "$ref": "#/$defs/ToolConcurrency",
+          "default": "exclusive"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "output": {
+          "$ref": "#/$defs/ToolOutputDeclaration",
+          "default": {
+            "kind": "single"
+          }
+        },
+        "parameters": {
+          "description": "JSON Schema of the arguments."
+        },
+        "permission": {
+          "description": "The fixed permission action the tool is checked under; absent for a\ntool that needs no permission.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result_truncation": {
+          "$ref": "#/$defs/ToolResultTruncationPolicy",
+          "default": "bounded"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "parameters"
+      ],
+      "type": "object"
+    },
+    "ToolOutputDeclaration": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "single",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "named",
+              "type": "string"
+            },
+            "streams": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "streams"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ToolResultTruncationPolicy": {
+      "description": "Open: a policy this build does not know reads as `bounded`, so the\ndaemon still bounds the result.",
+      "enum": [
+        "opt_out",
+        "bounded"
+      ],
+      "type": "string",
+      "x-open": true
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "capabilities": {
+      "$ref": "#/$defs/ExtensionPluginCapabilities"
+    },
+    "features": {
+      "default": [],
+      "description": "What the plugin's own configuration enables. None are defined yet;\nthe daemon ignores one it does not know, with a diagnostic.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "name": {
+      "type": "string"
+    },
+    "protocol_version": {
+      "description": "The plugin's [`crate::PLUGIN_PROTOCOL_VERSION`].",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "tools": {
+      "$ref": "#/$defs/RuntimeTools",
+      "default": {
+        "prompt_sections": [],
+        "tools": []
+      },
+      "description": "The plugin's tools and their prompt sections, declared as a runtime\ndeclares them; it runs them with the runtime protocol's `tool/*`\nmessages."
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "protocol_version",
+    "name",
+    "version",
+    "capabilities"
+  ],
+  "title": "ExtensionInitializeResult",
+  "type": "object"
+}

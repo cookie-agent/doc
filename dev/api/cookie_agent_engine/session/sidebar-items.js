@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SessionError"],"struct":["RunProjection","SessionProjection","SessionStore","SessionSummary","TailOwner"]};
+window.SIDEBAR_ITEMS = {"enum":["SessionError","TreeUpgrade"],"fn":["upgrade_sessions"],"struct":["RunProjection","SessionProjection","SessionStore","SessionSummary","TailOwner","TreeConversion"]};

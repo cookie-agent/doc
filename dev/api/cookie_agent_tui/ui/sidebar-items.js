@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run_attached","run_with_client","run_with_new_session"],"struct":["App","SessionPlacement"],"type":["Reconnector"]};
+window.SIDEBAR_ITEMS = {"fn":["run_attached","run_with_client","run_with_new_session"],"struct":["App","ConnectionView","SessionPlacement"],"type":["Reconnector"]};

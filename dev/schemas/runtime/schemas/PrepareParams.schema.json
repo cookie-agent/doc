@@ -1,0 +1,162 @@
+{
+  "$defs": {
+    "MediaDelivery": {
+      "description": "How an attachment of a kind reaches the model.\n\nOpen: a delivery this build does not know reads as `unknown`, which a\ntool cannot use: it does not attach the kind.",
+      "oneOf": [
+        {
+          "enum": [
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "tool_result",
+          "description": "As an attachment of the tool result.",
+          "type": "string"
+        },
+        {
+          "const": "user_message",
+          "description": "As a user message after the tool result, for an adapter whose tool\nresults cannot carry the kind.",
+          "type": "string"
+        }
+      ],
+      "x-open": true
+    },
+    "ToolInputMedia": {
+      "description": "One media kind a tool may return to the turn's model. The limits are\neffective: the lowest of the model's capability, its adapter family's\ndelivery limit, and the attachment caps.",
+      "properties": {
+        "delivery": {
+          "$ref": "#/$defs/MediaDelivery"
+        },
+        "kind": {
+          "description": "A media kind, such as `image`.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": "string"
+        },
+        "max_bytes": {
+          "description": "The largest accepted file.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mime_types": {
+          "description": "The media types accepted, such as `image/png`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "mime_types",
+        "max_bytes",
+        "delivery"
+      ],
+      "type": "object"
+    },
+    "ToolTurn": {
+      "description": "The agent and model of one tool batch, as a runtime or plugin sees them.",
+      "properties": {
+        "agent": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$",
+          "type": "string"
+        },
+        "model": {
+          "$ref": "#/$defs/ToolTurnModel"
+        }
+      },
+      "required": [
+        "agent",
+        "model"
+      ],
+      "type": "object"
+    },
+    "ToolTurnModel": {
+      "description": "The model of a tool batch: what a tool needs to word its results and to\ndecide which media it may return. Nothing about the model's provider\nbeyond its adapter label.",
+      "properties": {
+        "adapter": {
+          "description": "The adapter label, such as `openai-responses`.",
+          "pattern": "^[a-z][a-z0-9-]{0,31}$",
+          "type": "string"
+        },
+        "input_media": {
+          "default": [],
+          "description": "The media kinds the model accepts from a tool, with their effective\nlimits and how each reaches the model; a kind not listed is not\naccepted. Empty for a model that takes text only.",
+          "items": {
+            "$ref": "#/$defs/ToolInputMedia"
+          },
+          "type": "array"
+        },
+        "model": {
+          "maxLength": 512,
+          "minLength": 3,
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}/[^/\\s\\u0000-\\u001f\\u007f-\\u009f\\[\\]]+(?:/[^/\\s\\u0000-\\u001f\\u007f-\\u009f\\[\\]]+)*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "adapter"
+      ],
+      "type": "object"
+    },
+    "WireToolCall": {
+      "properties": {
+        "arguments": true,
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name the runtime knows the tool by.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "arguments"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One turn's calls to one runtime, prepared together so calls on the same\ntarget chain.",
+  "properties": {
+    "calls": {
+      "items": {
+        "$ref": "#/$defs/WireToolCall"
+      },
+      "type": "array"
+    },
+    "instance": {
+      "description": "The capability instance the calls go to; absent for a plugin, whose\nconnection has one implicit instance.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "run": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "session": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "turn": {
+      "$ref": "#/$defs/ToolTurn"
+    }
+  },
+  "required": [
+    "session",
+    "run",
+    "turn",
+    "calls"
+  ],
+  "title": "PrepareParams",
+  "type": "object"
+}

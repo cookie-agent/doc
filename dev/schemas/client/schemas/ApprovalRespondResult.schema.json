@@ -1,0 +1,653 @@
+{
+  "$defs": {
+    "ApprovalBoundary": {
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "exact",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "prefix": {
+              "type": "string"
+            },
+            "type": {
+              "const": "command_prefix",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "prefix"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "root_session_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": {
+              "const": "delegation_tree",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "root_session_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ApprovalCapability": {
+      "properties": {
+        "action": {
+          "description": "Permission action a tool declares, such as `read`, `bash`, or a runtime's own action.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": "string"
+        },
+        "operation": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._:-]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "operation"
+      ],
+      "type": "object"
+    },
+    "ApprovalConstraints": {
+      "properties": {
+        "allow_once": {
+          "type": "boolean"
+        },
+        "allow_tree_grant": {
+          "type": "boolean"
+        },
+        "cancellable": {
+          "type": "boolean"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "allow_once",
+        "allow_tree_grant",
+        "cancellable",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "ApprovalDecisionSource": {
+      "description": "A value this build does not know reads as `system`.",
+      "enum": [
+        "policy",
+        "model",
+        "internal_agent",
+        "permission_mode",
+        "tree_grant",
+        "user",
+        "doom_loop_guard",
+        "system"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalEvaluation": {
+      "properties": {
+        "effect": {
+          "$ref": "#/$defs/PermissionEffect"
+        },
+        "resource_digest": {
+          "$ref": "#/$defs/PreparedResourceDigest"
+        },
+        "trace": {
+          "$ref": "#/$defs/DecisionTrace"
+        }
+      },
+      "required": [
+        "resource_digest",
+        "effect",
+        "trace"
+      ],
+      "type": "object"
+    },
+    "ApprovalFeedback": {
+      "properties": {
+        "message": {
+          "description": "Control-free bounded safe error text.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^[^\\p{Cc}\\p{Cf}]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "ApprovalFinalDecision": {
+      "properties": {
+        "feedback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalFeedback"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcome": {
+          "$ref": "#/$defs/ApprovalFinalOutcome"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ApprovalReasonCode"
+        },
+        "source": {
+          "$ref": "#/$defs/ApprovalDecisionSource"
+        },
+        "tree_grant_id": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "outcome",
+        "source",
+        "reason_code",
+        "feedback",
+        "tree_grant_id"
+      ],
+      "type": "object"
+    },
+    "ApprovalFinalOutcome": {
+      "description": "A value this build does not know reads as `cancelled`.",
+      "enum": [
+        "approved",
+        "rejected",
+        "expired",
+        "cancelled"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalInternalDecision": {
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/ApprovalInternalDecisionKind"
+        },
+        "evaluations": {
+          "items": {
+            "$ref": "#/$defs/ApprovalEvaluation"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ApprovalReasonCode"
+        },
+        "source": {
+          "$ref": "#/$defs/ApprovalDecisionSource"
+        }
+      },
+      "required": [
+        "decision",
+        "source",
+        "reason_code",
+        "evaluations"
+      ],
+      "type": "object"
+    },
+    "ApprovalInternalDecisionKind": {
+      "description": "A value this build does not know reads as `ask`: asking the user.",
+      "enum": [
+        "allow",
+        "deny",
+        "escalate",
+        "ask"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalReasonCode": {
+      "description": "A value this build does not know reads as `system_error`.",
+      "enum": [
+        "policy_allowed",
+        "policy_denied",
+        "policy_requires_approval",
+        "model_requested",
+        "internal_agent_allowed",
+        "internal_agent_denied",
+        "auto_approve_n_rejected",
+        "auto_approve_y_approved",
+        "yolo_approved",
+        "tree_grant_matched",
+        "user_approved_once",
+        "user_approved_tree",
+        "user_rejected",
+        "user_cancelled",
+        "request_cancelled",
+        "doom_loop_detected",
+        "constraint_violation",
+        "operation_changed",
+        "prepared_capability_lost",
+        "unsupported_platform",
+        "approval_expired",
+        "escalated",
+        "unattended",
+        "system_error"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalRecord": {
+      "properties": {
+        "final_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalFinalDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "internal_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalInternalDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/ApprovalRequest"
+        },
+        "session_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus"
+        },
+        "user_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalUserDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "session_id",
+        "request",
+        "status",
+        "internal_decision",
+        "user_decision",
+        "final_decision"
+      ],
+      "type": "object"
+    },
+    "ApprovalRequest": {
+      "properties": {
+        "approval_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "constraints": {
+          "$ref": "#/$defs/ApprovalConstraints"
+        },
+        "evaluations": {
+          "items": {
+            "$ref": "#/$defs/ApprovalEvaluation"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        },
+        "operation": {
+          "$ref": "#/$defs/PreparedOperationIdentity"
+        },
+        "operation_fingerprint": {
+          "$ref": "#/$defs/OperationFingerprint"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "runtime_id": {
+          "description": "Runtime ID of the tool the request is for; `null` for the base\nlayer.",
+          "maxLength": 32,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool_call_id": {
+          "description": "The tool call the request is for, whose `tool_call_started` carries\nthe call's presentation.",
+          "format": "uuid",
+          "type": "string"
+        },
+        "trigger": {
+          "$ref": "#/$defs/ApprovalTrigger"
+        }
+      },
+      "required": [
+        "approval_id",
+        "revision",
+        "tool_call_id",
+        "trigger",
+        "operation_fingerprint",
+        "operation",
+        "evaluations",
+        "constraints",
+        "runtime_id"
+      ],
+      "type": "object"
+    },
+    "ApprovalResourceSource": {
+      "description": "A value this build does not know reads as `primary_operation`.",
+      "enum": [
+        "secondary_operation",
+        "model_request",
+        "doom_loop_guard",
+        "primary_operation"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalStatus": {
+      "description": "A value this build does not know reads as `cancelled`: a cancelled approval,\nwhich takes no answer.",
+      "enum": [
+        "pending",
+        "escalated",
+        "approved",
+        "rejected",
+        "expired",
+        "cancelled"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalTrigger": {
+      "description": "A value this build does not know reads as `permission_policy`.",
+      "enum": [
+        "model_tool_approval",
+        "internal_agent",
+        "doom_loop",
+        "permission_policy"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "ApprovalUserDecision": {
+      "description": "A value this build does not know reads as `cancel`.",
+      "enum": [
+        "approve_once",
+        "approve_tree",
+        "reject",
+        "cancel"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "DecisionTrace": {
+      "properties": {
+        "action": {
+          "description": "Permission action a tool declares, such as `read`, `bash`, or a runtime's own action.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": "string"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/MatchedPermissionRule"
+          },
+          "type": "array"
+        },
+        "effect": {
+          "$ref": "#/$defs/PermissionEffect"
+        },
+        "normalized_resource": {
+          "type": "string"
+        },
+        "precedence_reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "normalized_resource",
+        "candidates",
+        "effect",
+        "precedence_reason"
+      ],
+      "type": "object"
+    },
+    "MatchedPermissionRule": {
+      "properties": {
+        "action": {
+          "description": "Permission action a tool declares, such as `read`, `bash`, or a runtime's own action.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": "string"
+        },
+        "effect": {
+          "$ref": "#/$defs/PermissionEffect"
+        },
+        "resource": {
+          "description": "Current wildcard grammar: '*' matches any characters, '?' matches one character, and the exact '${workspace_dir}' expression is allowed; controls, globstar, escapes, classes, and every other brace form are forbidden. Runtime deserialization additionally enforces a maximum of 4096 UTF-8 bytes; x-cookie-agent-maxUtf8Bytes records that byte limit because JSON Schema maxLength counts Unicode code points.",
+          "minLength": 1,
+          "pattern": "^(?:\\$\\{workspace_dir\\}|[^\\u0000-\\u001f\\u007f-\\u009f\\\\\\[\\]\\{\\}])+$",
+          "type": "string",
+          "x-cookie-agent-maxUtf8Bytes": 4096
+        },
+        "runtime": {
+          "description": "The rule's runtime selector, when it has one.",
+          "maxLength": 32,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_layer": {
+          "description": "Stable lowercase machine-readable code.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_layer",
+        "action",
+        "resource",
+        "effect"
+      ],
+      "type": "object"
+    },
+    "OperationFingerprint": {
+      "properties": {
+        "digest": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest"
+      ],
+      "type": "object"
+    },
+    "PermissionEffect": {
+      "description": "A value this build does not know reads as `ask`: asking, the effect that\nnever runs a call unapproved.",
+      "enum": [
+        "allow",
+        "deny",
+        "ask"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "PreparedApprovalResource": {
+      "properties": {
+        "binding_digest": {
+          "$ref": "#/$defs/PreparedResourceDigest"
+        },
+        "binding_lifetime": {
+          "$ref": "#/$defs/PreparedBindingLifetime"
+        },
+        "boundary": {
+          "$ref": "#/$defs/ApprovalBoundary"
+        },
+        "canonical": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._:-]*$",
+          "type": "string"
+        },
+        "capability": {
+          "description": "Permission action a tool declares, such as `read`, `bash`, or a runtime's own action.",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ApprovalResourceSource"
+        }
+      },
+      "required": [
+        "capability",
+        "canonical",
+        "binding_digest",
+        "binding_lifetime",
+        "boundary",
+        "source"
+      ],
+      "type": "object"
+    },
+    "PreparedBindingLifetime": {
+      "description": "A value this build does not know reads as `process_local`: a binding that is\nnever restart-stable.",
+      "enum": [
+        "restart_stable",
+        "process_local"
+      ],
+      "type": "string",
+      "x-open": true
+    },
+    "PreparedCapabilityLifetime": {
+      "enum": [
+        "process_local"
+      ],
+      "type": "string"
+    },
+    "PreparedOperationIdentity": {
+      "properties": {
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/ApprovalCapability"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        },
+        "capability_lifetime": {
+          "$ref": "#/$defs/PreparedCapabilityLifetime"
+        },
+        "execution_context_digest": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "normalized_arguments_digest": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "resources": {
+          "items": {
+            "$ref": "#/$defs/PreparedApprovalResource"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "normalized_arguments_digest",
+        "capabilities",
+        "resources",
+        "execution_context_digest",
+        "capability_lifetime"
+      ],
+      "type": "object"
+    },
+    "PreparedResourceDigest": {
+      "properties": {
+        "digest": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "approval": {
+      "$ref": "#/$defs/ApprovalRecord"
+    },
+    "client_response_id": {
+      "description": "Bounded approval response idempotency key.",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\p{Cc}\\p{Cf}]+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_response_id",
+    "approval"
+  ],
+  "title": "ApprovalRespondResult",
+  "type": "object"
+}

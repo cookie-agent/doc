@@ -4,10 +4,10 @@
 <a href=#4 id=4 data-nosnippet>4</a>
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>cookie_agent_protocol::{
 <a href=#6 id=6 data-nosnippet>6</a>    AuthCredentialDescriptor, AuthMethodId, AvailableModelDescriptor, CatalogAge, CatalogSource,
-<a href=#7 id=7 data-nosnippet>7</a>    EffectiveAuthState, ModelUnavailableKind, ProviderConfigurationState, ProviderCredentialValues,
-<a href=#8 id=8 data-nosnippet>8</a>    ProviderDescriptor, ProviderPresence, ProviderSupportState, RuntimeSnapshotV1, SafeSetupValue,
-<a href=#9 id=9 data-nosnippet>9</a>    SetupFieldDescriptor, SetupFieldId, UnavailableModelDescriptor, parse_setup_value,
-<a href=#10 id=10 data-nosnippet>10</a>    setup_value_text,
+<a href=#7 id=7 data-nosnippet>7</a>    EffectiveAuthState, ModelCatalogView, ModelUnavailableKind, ProviderConfigurationState,
+<a href=#8 id=8 data-nosnippet>8</a>    ProviderCredentialValues, ProviderDescriptor, ProviderPresence, ProviderSupportState,
+<a href=#9 id=9 data-nosnippet>9</a>    SafeSetupValue, SetupFieldDescriptor, SetupFieldId, UnavailableModelDescriptor,
+<a href=#10 id=10 data-nosnippet>10</a>    parse_setup_value, setup_value_text,
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>serde::{Serialize, ser::SerializeMap <span class="kw">as _</span>};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>zeroize::Zeroizing;
@@ -551,11 +551,11 @@
 <a href=#551 id=551 data-nosnippet>551</a>
 <a href=#552 id=552 data-nosnippet>552</a><span class="doccomment">/// One-line catalog provenance: source, age when stale, quarantine counts,
 <a href=#553 id=553 data-nosnippet>553</a>/// and the last refresh error when there is one.
-<a href=#554 id=554 data-nosnippet>554</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>catalog_status_line(snapshot: <span class="kw-2">&amp;</span>RuntimeSnapshotV1) -&gt; String {
-<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>state = <span class="kw-2">&amp;</span>snapshot.catalog_state;
+<a href=#554 id=554 data-nosnippet>554</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>catalog_status_line(snapshot: <span class="kw-2">&amp;</span>ModelCatalogView) -&gt; String {
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>state = <span class="kw-2">&amp;</span>snapshot.catalog;
 <a href=#556 id=556 data-nosnippet>556</a>    <span class="kw">let </span><span class="kw-2">mut </span>parts = <span class="macro">vec!</span>[<span class="macro">format!</span>(
 <a href=#557 id=557 data-nosnippet>557</a>        <span class="string">"Catalog: {}"</span>,
-<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">match </span>snapshot.catalog_source {
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">match </span>snapshot.catalog.source {
 <a href=#559 id=559 data-nosnippet>559</a>            CatalogSource::Network =&gt; <span class="string">"models.dev (network)"</span>,
 <a href=#560 id=560 data-nosnippet>560</a>            CatalogSource::Cache =&gt; <span class="string">"models.dev (cache)"</span>,
 <a href=#561 id=561 data-nosnippet>561</a>            CatalogSource::Bootstrap =&gt; <span class="string">"bundled bootstrap"</span>,
@@ -566,7 +566,7 @@
 <a href=#566 id=566 data-nosnippet>566</a>        CatalogAge::OlderThanSevenDays =&gt; parts.push(<span class="string">"older than 7 days"</span>.to_owned()),
 <a href=#567 id=567 data-nosnippet>567</a>        CatalogAge::OlderThanThirtyDays =&gt; parts.push(<span class="string">"older than 30 days"</span>.to_owned()),
 <a href=#568 id=568 data-nosnippet>568</a>    }
-<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">if </span>state.stale &amp;&amp; snapshot.catalog_source == CatalogSource::Cache {
+<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">if </span>state.stale &amp;&amp; snapshot.catalog.source == CatalogSource::Cache {
 <a href=#570 id=570 data-nosnippet>570</a>        parts.push(<span class="string">"stale"</span>.to_owned());
 <a href=#571 id=571 data-nosnippet>571</a>    }
 <a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">if </span>state.model_quarantine_count &gt; <span class="number">0 </span>{
@@ -601,10 +601,10 @@
 <a href=#601 id=601 data-nosnippet>601</a>}
 <a href=#602 id=602 data-nosnippet>602</a>
 <a href=#603 id=603 data-nosnippet>603</a><span class="doccomment">/// Whether the catalog line should read as a warning rather than metadata.
-<a href=#604 id=604 data-nosnippet>604</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>catalog_needs_attention(snapshot: <span class="kw-2">&amp;</span>RuntimeSnapshotV1) -&gt; bool {
-<a href=#605 id=605 data-nosnippet>605</a>    snapshot.catalog_state.last_error.is_some()
-<a href=#606 id=606 data-nosnippet>606</a>        || snapshot.catalog_state.age != CatalogAge::Current
-<a href=#607 id=607 data-nosnippet>607</a>        || snapshot.catalog_source == CatalogSource::Bootstrap
+<a href=#604 id=604 data-nosnippet>604</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>catalog_needs_attention(snapshot: <span class="kw-2">&amp;</span>ModelCatalogView) -&gt; bool {
+<a href=#605 id=605 data-nosnippet>605</a>    snapshot.catalog.last_error.is_some()
+<a href=#606 id=606 data-nosnippet>606</a>        || snapshot.catalog.age != CatalogAge::Current
+<a href=#607 id=607 data-nosnippet>607</a>        || snapshot.catalog.source == CatalogSource::Bootstrap
 <a href=#608 id=608 data-nosnippet>608</a>}
 <a href=#609 id=609 data-nosnippet>609</a>
 <a href=#610 id=610 data-nosnippet>610</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>action_name(action: ProviderAction) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {

@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "description": "A content-addressed artifact in a session tree's store: a user upload, a\ntool attachment, or the full content of a truncated display block.",
+      "properties": {
+        "byte_length": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "filename": {
+          "description": "The name the file was attached under, without a directory.",
+          "maxLength": 255,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media_type": {
+          "description": "The media type sniffed from the content, such as `image/png`.",
+          "maxLength": 255,
+          "minLength": 3,
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lowercase hex SHA-256 of the bytes.",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256",
+        "byte_length",
+        "media_type"
+      ],
+      "type": "object"
+    },
+    "ExtensionMessageEndAction": {
+      "enum": [
+        "keep",
+        "replace"
+      ],
+      "type": "string"
+    },
+    "HookAssistantPart": {
+      "description": "One part of an assistant message, as `message_end` sees it. The view\nleaves out sources, provider-run tool results, approvals, extensions, and\nmetadata. Open: a part of a type the plugin does not know reads as\n[`crate::Open::Unknown`]; the daemon refuses one in a replacement.",
+      "oneOf": [
+        {
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Visible reasoning, as text.",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "const": "reasoning",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "arguments": true,
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "const": "tool_call",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "name",
+            "arguments"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A file, as metadata only; a replacement may name only the message's\nown files.",
+          "properties": {
+            "artifact": {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            "type": {
+              "const": "file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "artifact"
+          ],
+          "type": "object"
+        }
+      ],
+      "x-open": true
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/ExtensionMessageEndAction"
+    },
+    "content": {
+      "description": "With `replace`, the message's content. A part returned exactly as\nsent keeps its metadata, and the parts the view leaves out keep their\nplace after it.",
+      "items": {
+        "$ref": "#/$defs/HookAssistantPart"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "title": "ExtensionMessageEndResult",
+  "type": "object"
+}

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MachineCommand"],"fn":["machine_block","machine_lines","run_machine","run_machine_with"]};
