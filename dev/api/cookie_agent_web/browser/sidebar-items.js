@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["forget","load","load_tab","on_system_scheme_change","on_visible","page_fragment","page_href","page_origin","replace_fragment","set_dark","store","store_tab","system_prefers_dark"]};

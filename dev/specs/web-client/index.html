@@ -435,6 +435,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guide/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guide/sessions/" class="md-nav__link">
         
   
@@ -1773,6 +1796,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w1-2026-10-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W1 (2026-10-19)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2715,6 +2747,15 @@
   <a href="#phase-w0b-2026-10-19" class="md-nav__link">
     <span class="md-ellipsis">
       Phase W0b (2026-10-19)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-w1-2026-10-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W1 (2026-10-19)
     </span>
   </a>
   
@@ -3723,6 +3764,109 @@ paths that moved.</p>
     share, so no redraw re-renders what it did not before.
 - <strong>CI.</strong> The <code>wasm</code> job also checks <code>cookie_agent_client_state</code> and runs
   clippy over it.</p>
+<h3 id="phase-w1-2026-10-19">Phase W1 (2026-10-19)<a class="headerlink" href="#phase-w1-2026-10-19" title="Permanent link">&para;</a></h3>
+<p>Landed as specified, with no wire change and no configuration change.</p>
+<ul>
+<li><strong>Leptos and MSRV.</strong> Leptos 0.8.22 is the current stable release; 0.9 is
+  a release candidate. It declares <code>rust-version = 1.88</code>, and its
+  dependencies build on 1.88, so the workspace MSRV is unchanged.</li>
+<li><strong><code>crates/web</code></strong> (<code>cookie_agent_web</code>, not published) is the client-side
+  rendered Leptos page.</li>
+<li>It contains:<ul>
+<li>the connect screen (URL fill, <code>#token=</code> handling, paste box, "Forget
+  this daemon", automatic connect, the origin hint after a refusal
+  before the handshake);</li>
+<li>the connected state, showing the daemon's address and versions;</li>
+<li>redial with <code>client_state</code>'s backoff under the tab's identity, kept
+  in <code>sessionStorage</code>;</li>
+<li>a check on <code>visibilitychange</code>;</li>
+<li>the theme toggle.</li>
+</ul>
+</li>
+<li>It compiles natively, where only the browser connect is a stub. Native
+    tests cover <code>connect</code> (URL fill, fragment, auto-connect, hint) and
+    <code>theme</code>.</li>
+<li><strong>Styling.</strong></li>
+<li>Trunk's <code>rel="tailwind-css"</code> asset runs Tailwind 4.3.3, pinned in
+    <code>Trunk.toml</code> with wasm-bindgen 0.2.126 (Cargo.lock's) and wasm-opt
+    <code>version_131</code>.</li>
+<li><code>style/main.css</code> defines the landing palette as <code>@theme</code> colour
+    tokens, <code>@source</code>s <code>src</code>, and makes <code>dark:</code> follow a <code>dark</code> class set
+    from the system setting or the stored override.</li>
+<li>JetBrains Mono (regular and bold, with its OFL licence) is bundled
+    through Trunk's <code>copy-dir</code>.</li>
+<li><strong>Build.</strong> <code>scripts/build-web.sh</code> checks the pinned trunk (0.21.14) and
+  wasm-bindgen versions, then builds with a new <code>web</code> cargo profile
+  (<code>opt-level = "z"</code>, fat LTO, <code>panic = "abort"</code>) and <code>wasm-opt -Oz</code>.</li>
+<li>It copies the result to <code>crates/web_assets/bundle/</code> and prints sizes.</li>
+<li><code>wasm-opt</code> needs the feature flags current Rust emits (bulk memory and
+    others), passed in <code>index.html</code>.</li>
+<li>W1's bundle is 3.24 MB, 1.24 MB gzipped. Most of it is the 3.0 MB
+    wasm, mainly the protocol crate's types.</li>
+<li>The daemon serves it uncompressed. Precompressed serving and a size
+    budget are left for W2, which section 10 allows.</li>
+<li><strong><code>crates/web_assets</code></strong> embeds the bundle through a build script that
+  writes a table of path, content type, immutability, <code>ETag</code>, and bytes.</li>
+<li>It falls back to a placeholder <code>index.html</code>.</li>
+<li>It is published with the bundle through <code>include</code>. Cargo counts the
+    git-ignored bundle as uncommitted, so the release publishes this one
+    crate with <code>--allow-dirty</code>.</li>
+<li><strong>Server.</strong> A fallback route serves the page, with <code>/ws</code> and <code>/runtime</code>
+  explicit and so taking precedence. Anything else, or a method other than
+  GET or HEAD, is a 404.</li>
+<li><strong>Caching (deviation).</strong> Spec 7.1 assumed every bundle file has a
+    hashed name, but Trunk does not hash files copied with <code>copy-dir</code>
+    (here, the fonts). So a file is sent <code>immutable</code> only when its name
+    carries Trunk's hash, and <code>no-cache</code> with an <code>ETag</code> otherwise, like
+    <code>index.html</code>.</li>
+<li><strong>Headers.</strong> Every file carries <code>nosniff</code>.</li>
+<li><strong>No origin special case.</strong> The page's own <code>/ws</code> connection follows
+    <code>allowed_origins</code>.</li>
+<li><strong>Ready line.</strong> The machine-readable <code>daemon-ready</code> line is unchanged,
+  because its format is pinned for supervisors. The page's address and the
+  empty-<code>allowed_origins</code> warning follow it as human log lines.</li>
+<li><strong><code>cookie web</code>.</strong> It prints <code>&lt;page&gt;#token=&lt;token&gt;</code>, resolving the daemon
+  like <code>cookie attach</code>. <code>--open</code> runs <code>xdg-open</code>, <code>open</code>, or <code>start</code>.
+  <code>cookie_agent_server::page_url</code> derives the page from the client URL,
+  for this command and the ready lines.</li>
+<li><strong>CI and release.</strong></li>
+<li><strong>A <code>web</code> CI job:</strong><ul>
+<li>installs trunk through <code>install-action</code>;</li>
+<li>caches <code>~/.cache/trunk</code>;</li>
+<li>runs wasm32 clippy on <code>cookie_agent_web</code>;</li>
+<li>runs <code>scripts/build-web.sh</code>, with the sizes in the job summary.</li>
+</ul>
+</li>
+<li><strong>The release workflow:</strong><ul>
+<li>builds the bundle once (<code>build-web</code>);</li>
+<li>hands it to every <code>dist</code> build job and to <code>publish-crates</code>;</li>
+<li>attaches <code>cookie-agent-web.tar.gz</code> to the release.</li>
+</ul>
+</li>
+<li><code>AGENTS.md</code> lists the wasm clippy gate and the build script.</li>
+<li><strong>Tests.</strong></li>
+<li><strong>Server:</strong><ul>
+<li>every page path, its content type, cache rule, and <code>ETag</code>
+  revalidation;</li>
+<li>404s for other paths and methods;</li>
+<li><code>/ws</code> and <code>/runtime</code> precedence;</li>
+<li>the page's origin refused without an <code>allowed_origins</code> entry and
+  accepted with one.</li>
+</ul>
+</li>
+<li><strong>CLI:</strong> <code>cookie web</code> derivation and the ready-line page lines.</li>
+<li><strong>Browser:</strong> <code>scripts/test-web-page.sh</code> runs two real daemons, one
+    allowing the page's origin and one allowing none, and drives headless
+    Firefox through geckodriver. It passes:<ul>
+<li>the page connects by itself from the <code>cookie web</code> link, shows the
+  connected state, removes the fragment, and stores the token;</li>
+<li>against the refusing daemon, it quotes its exact origin as the entry
+  to add.</li>
+</ul>
+</li>
+<li><strong>Not in CI.</strong> The browser test is not a CI job yet, because it needs
+    Firefox and geckodriver; W5's end-to-end suite adds them.</li>
+</ul>
 
 
 

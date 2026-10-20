@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["READY_LINE_PREFIX"],"enum":["AllowedOrigins","ServerError","TokenError"],"fn":["generate_token","load_tls","ready_line"],"struct":["RunningServer","Server"],"type":["TlsConfig"]};
+window.SIDEBAR_ITEMS = {"constant":["READY_LINE_PREFIX"],"enum":["AllowedOrigins","ServerError","TokenError"],"fn":["generate_token","load_tls","page_url","ready_line"],"struct":["RunningServer","Server"],"type":["TlsConfig"]};
