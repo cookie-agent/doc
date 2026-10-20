@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a>//! server, TUI, and tools already depend on that low-level crate. Placing it in
 <a href=#5 id=5 data-nosnippet>5</a>//! `cookie_agent_config` would create a dependency cycle with models.
 <a href=#6 id=6 data-nosnippet>6</a>
-<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>std::path::PathBuf;
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>std::path::{Path, PathBuf};
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>thiserror::Error;
 <a href=#10 id=10 data-nosnippet>10</a>
@@ -109,25 +109,119 @@
 <a href=#109 id=109 data-nosnippet>109</a>    <span class="prelude-val">Some</span>(id)
 <a href=#110 id=110 data-nosnippet>110</a>}
 <a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a><span class="attr">#[cfg(test)]
-<a href=#113 id=113 data-nosnippet>113</a></span><span class="kw">mod </span>tests {
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="attr">#[test]
-<a href=#115 id=115 data-nosnippet>115</a>    </span><span class="kw">fn </span>user_data_root_is_below_home() {
-<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span>home = <span class="kw">super</span>::home_dir().expect(<span class="string">"home directory"</span>);
-<a href=#117 id=117 data-nosnippet>117</a>        <span class="macro">assert_eq!</span>(
-<a href=#118 id=118 data-nosnippet>118</a>            <span class="kw">super</span>::user_data_root().expect(<span class="string">"user data root"</span>),
-<a href=#119 id=119 data-nosnippet>119</a>            home.join(<span class="string">".cookie-agent"</span>)
-<a href=#120 id=120 data-nosnippet>120</a>        );
-<a href=#121 id=121 data-nosnippet>121</a>    }
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="attr">#[test]
-<a href=#124 id=124 data-nosnippet>124</a>    </span><span class="kw">fn </span>the_machine_id_is_a_stable_opaque_digest() {
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(id) = <span class="kw">super</span>::machine_id() <span class="kw">else </span>{
-<a href=#126 id=126 data-nosnippet>126</a>            <span class="kw">return</span>;
-<a href=#127 id=127 data-nosnippet>127</a>        };
-<a href=#128 id=128 data-nosnippet>128</a>        <span class="macro">assert_eq!</span>(id.len(), <span class="number">32</span>);
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="macro">assert!</span>(id.bytes().all(|byte| byte.is_ascii_hexdigit()), <span class="string">"{id}"</span>);
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::machine_id().as_deref(), <span class="prelude-val">Some</span>(id.as_str()));
-<a href=#131 id=131 data-nosnippet>131</a>    }
-<a href=#132 id=132 data-nosnippet>132</a>}
+<a href=#112 id=112 data-nosnippet>112</a><span class="doccomment">/// `path` canonicalized for showing and comparing: on Windows without the
+<a href=#113 id=113 data-nosnippet>113</a>/// `\\?\` verbatim prefix `std::fs::canonicalize` adds, whenever the path
+<a href=#114 id=114 data-nosnippet>114</a>/// means the same without it (see [`simplified`]); elsewhere exactly what
+<a href=#115 id=115 data-nosnippet>115</a>/// `canonicalize` returns. Every canonical path a person or a model reads,
+<a href=#116 id=116 data-nosnippet>116</a>/// such as a workspace root or a session's directory, comes from here, so
+<a href=#117 id=117 data-nosnippet>117</a>/// they all compare equal.
+<a href=#118 id=118 data-nosnippet>118</a>///
+<a href=#119 id=119 data-nosnippet>119</a>/// # Errors
+<a href=#120 id=120 data-nosnippet>120</a>///
+<a href=#121 id=121 data-nosnippet>121</a>/// Fails as `canonicalize` does, for example when the path does not exist.
+<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">pub fn </span>canonicalize(path: <span class="kw-2">&amp;</span>Path) -&gt; std::io::Result&lt;PathBuf&gt; {
+<a href=#123 id=123 data-nosnippet>123</a>    path.canonicalize().map(simplified)
+<a href=#124 id=124 data-nosnippet>124</a>}
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a><span class="doccomment">/// `path` without the Windows verbatim prefix (`\\?\C:\…` becomes `C:\…`,
+<a href=#127 id=127 data-nosnippet>127</a>/// `\\?\UNC\server\share\…` becomes `\\server\share\…`) when the path
+<a href=#128 id=128 data-nosnippet>128</a>/// means the same without it: shorter than `MAX_PATH`, and with no component
+<a href=#129 id=129 data-nosnippet>129</a>/// a non-verbatim path would read differently (a device name such as `CON`,
+<a href=#130 id=130 data-nosnippet>130</a>/// or a name ending in a dot or a space). Other paths, and every path on
+<a href=#131 id=131 data-nosnippet>131</a>/// other platforms, are returned unchanged.
+<a href=#132 id=132 data-nosnippet>132</a></span><span class="attr">#[must_use]
+<a href=#133 id=133 data-nosnippet>133</a></span><span class="kw">pub fn </span>simplified(path: PathBuf) -&gt; PathBuf {
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">if </span>!<span class="macro">cfg!</span>(windows) {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">return </span>path;
+<a href=#136 id=136 data-nosnippet>136</a>    }
+<a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">match </span>path.to_str().and_then(simplified_windows) {
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="prelude-val">Some</span>(simple) =&gt; PathBuf::from(simple),
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="prelude-val">None </span>=&gt; path,
+<a href=#140 id=140 data-nosnippet>140</a>    }
+<a href=#141 id=141 data-nosnippet>141</a>}
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a><span class="doccomment">/// The non-verbatim spelling of the Windows path `path`, when it has one
+<a href=#144 id=144 data-nosnippet>144</a>/// that means the same.
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">fn </span>simplified_windows(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">const </span>MAX_PATH: usize = <span class="number">260</span>;
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">let </span>simple = <span class="kw">if let </span><span class="prelude-val">Some</span>(rest) = path.strip_prefix(<span class="string">r"\\?\UNC\"</span>) {
+<a href=#148 id=148 data-nosnippet>148</a>        <span class="macro">format!</span>(<span class="string">r"\\{rest}"</span>)
+<a href=#149 id=149 data-nosnippet>149</a>    } <span class="kw">else </span>{
+<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span>rest = path.strip_prefix(<span class="string">r"\\?\"</span>)<span class="question-mark">?</span>;
+<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>bytes = rest.as_bytes();
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">if </span>bytes.len() &lt; <span class="number">3 </span>|| !bytes[<span class="number">0</span>].is_ascii_alphabetic() || <span class="kw-2">&amp;</span>bytes[<span class="number">1</span>..<span class="number">3</span>] != <span class="string">b":\\" </span>{
+<a href=#153 id=153 data-nosnippet>153</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#154 id=154 data-nosnippet>154</a>        }
+<a href=#155 id=155 data-nosnippet>155</a>        rest.to_owned()
+<a href=#156 id=156 data-nosnippet>156</a>    };
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">if </span>simple.len() &gt;= MAX_PATH || simple.contains(<span class="string">'/'</span>) {
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#159 id=159 data-nosnippet>159</a>    }
+<a href=#160 id=160 data-nosnippet>160</a>    <span class="kw">let </span>reserved = |name: <span class="kw-2">&amp;</span>str| {
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>stem = name
+<a href=#162 id=162 data-nosnippet>162</a>            .split(<span class="string">'.'</span>)
+<a href=#163 id=163 data-nosnippet>163</a>            .next()
+<a href=#164 id=164 data-nosnippet>164</a>            .unwrap_or(name)
+<a href=#165 id=165 data-nosnippet>165</a>            .trim_end()
+<a href=#166 id=166 data-nosnippet>166</a>            .to_ascii_uppercase();
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">matches!</span>(
+<a href=#168 id=168 data-nosnippet>168</a>            stem.as_str(),
+<a href=#169 id=169 data-nosnippet>169</a>            <span class="string">"CON" </span>| <span class="string">"PRN" </span>| <span class="string">"AUX" </span>| <span class="string">"NUL" </span>| <span class="string">"CONIN$" </span>| <span class="string">"CONOUT$"
+<a href=#170 id=170 data-nosnippet>170</a>        </span>) || ((stem.starts_with(<span class="string">"COM"</span>) || stem.starts_with(<span class="string">"LPT"</span>))
+<a href=#171 id=171 data-nosnippet>171</a>            &amp;&amp; stem.len() == <span class="number">4
+<a href=#172 id=172 data-nosnippet>172</a>            </span>&amp;&amp; stem.as_bytes()[<span class="number">3</span>].is_ascii_digit())
+<a href=#173 id=173 data-nosnippet>173</a>    };
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">let </span>components = simple
+<a href=#175 id=175 data-nosnippet>175</a>        .trim_start_matches(<span class="string">'\\'</span>)
+<a href=#176 id=176 data-nosnippet>176</a>        .split(<span class="string">'\\'</span>)
+<a href=#177 id=177 data-nosnippet>177</a>        .skip(<span class="number">1</span>)
+<a href=#178 id=178 data-nosnippet>178</a>        .filter(|component| !component.is_empty());
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">for </span>component <span class="kw">in </span>components {
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">if </span>component.ends_with(<span class="string">'.'</span>) || component.ends_with(<span class="string">' '</span>) || reserved(component) {
+<a href=#181 id=181 data-nosnippet>181</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#182 id=182 data-nosnippet>182</a>        }
+<a href=#183 id=183 data-nosnippet>183</a>    }
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="prelude-val">Some</span>(simple)
+<a href=#185 id=185 data-nosnippet>185</a>}
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a><span class="attr">#[cfg(test)]
+<a href=#188 id=188 data-nosnippet>188</a></span><span class="kw">mod </span>tests {
+<a href=#189 id=189 data-nosnippet>189</a>    <span class="attr">#[test]
+<a href=#190 id=190 data-nosnippet>190</a>    </span><span class="kw">fn </span>a_verbatim_path_is_simplified_when_it_means_the_same() {
+<a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">let </span>simple = |path: <span class="kw-2">&amp;</span>str| <span class="kw">super</span>::simplified_windows(path);
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="macro">assert_eq!</span>(
+<a href=#193 id=193 data-nosnippet>193</a>            simple(<span class="string">r"\\?\C:\Users\me\work"</span>).as_deref(),
+<a href=#194 id=194 data-nosnippet>194</a>            <span class="prelude-val">Some</span>(<span class="string">r"C:\Users\me\work"</span>)
+<a href=#195 id=195 data-nosnippet>195</a>        );
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="macro">assert_eq!</span>(
+<a href=#197 id=197 data-nosnippet>197</a>            simple(<span class="string">r"\\?\UNC\server\share\work"</span>).as_deref(),
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="prelude-val">Some</span>(<span class="string">r"\\server\share\work"</span>)
+<a href=#199 id=199 data-nosnippet>199</a>        );
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"C:\Users\me"</span>), <span class="prelude-val">None</span>, <span class="string">"not verbatim"</span>);
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\con.txt"</span>), <span class="prelude-val">None</span>, <span class="string">"a device name"</span>);
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\trailing."</span>), <span class="prelude-val">None</span>, <span class="string">"a trailing dot"</span>);
+<a href=#203 id=203 data-nosnippet>203</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\Volume{0}\work"</span>), <span class="prelude-val">None</span>, <span class="string">"not a drive"</span>);
+<a href=#204 id=204 data-nosnippet>204</a>        <span class="kw">let </span>long = <span class="macro">format!</span>(<span class="string">r"\\?\C:\{}"</span>, <span class="string">"a"</span>.repeat(<span class="number">300</span>));
+<a href=#205 id=205 data-nosnippet>205</a>        <span class="macro">assert_eq!</span>(simple(<span class="kw-2">&amp;</span>long), <span class="prelude-val">None</span>, <span class="string">"longer than MAX_PATH"</span>);
+<a href=#206 id=206 data-nosnippet>206</a>    }
+<a href=#207 id=207 data-nosnippet>207</a>
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="attr">#[test]
+<a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">fn </span>user_data_root_is_below_home() {
+<a href=#210 id=210 data-nosnippet>210</a>        <span class="kw">let </span>home = <span class="kw">super</span>::home_dir().expect(<span class="string">"home directory"</span>);
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="macro">assert_eq!</span>(
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="kw">super</span>::user_data_root().expect(<span class="string">"user data root"</span>),
+<a href=#213 id=213 data-nosnippet>213</a>            home.join(<span class="string">".cookie-agent"</span>)
+<a href=#214 id=214 data-nosnippet>214</a>        );
+<a href=#215 id=215 data-nosnippet>215</a>    }
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="attr">#[test]
+<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>the_machine_id_is_a_stable_opaque_digest() {
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(id) = <span class="kw">super</span>::machine_id() <span class="kw">else </span>{
+<a href=#220 id=220 data-nosnippet>220</a>            <span class="kw">return</span>;
+<a href=#221 id=221 data-nosnippet>221</a>        };
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="macro">assert_eq!</span>(id.len(), <span class="number">32</span>);
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="macro">assert!</span>(id.bytes().all(|byte| byte.is_ascii_hexdigit()), <span class="string">"{id}"</span>);
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::machine_id().as_deref(), <span class="prelude-val">Some</span>(id.as_str()));
+<a href=#225 id=225 data-nosnippet>225</a>    }
+<a href=#226 id=226 data-nosnippet>226</a>}
 </code></pre></div></section></main></body></html>
