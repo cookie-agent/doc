@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["GoalCommand"],"fn":["action_label","goal_actions","needs_selection","status_name"]};

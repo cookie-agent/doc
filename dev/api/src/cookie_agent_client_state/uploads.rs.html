@@ -120,58 +120,100 @@
 <a href=#120 id=120 data-nosnippet>120</a>    <span class="macro">format!</span>(<span class="string">"could not attach {name}: {error}"</span>)
 <a href=#121 id=121 data-nosnippet>121</a>}
 <a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a><span class="doccomment">/// Uploads `bytes` into `session_id`'s store in chunks sent one after
-<a href=#124 id=124 data-nosnippet>124</a>/// another, as `filename` when given, returning the reference a `file` part
-<a href=#125 id=125 data-nosnippet>125</a>/// names. A refusal says why in terms of `name`; a failed chunk cancels the
-<a href=#126 id=126 data-nosnippet>126</a>/// upload.
-<a href=#127 id=127 data-nosnippet>127</a></span><span class="kw">pub async fn </span>upload(
-<a href=#128 id=128 data-nosnippet>128</a>    client: <span class="kw-2">&amp;</span>Client,
-<a href=#129 id=129 data-nosnippet>129</a>    session_id: SessionId,
-<a href=#130 id=130 data-nosnippet>130</a>    name: <span class="kw-2">&amp;</span>str,
-<a href=#131 id=131 data-nosnippet>131</a>    filename: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#132 id=132 data-nosnippet>132</a>    bytes: <span class="kw-2">&amp;</span>[u8],
-<a href=#133 id=133 data-nosnippet>133</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactRef, String&gt; {
-<a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">let </span>begun = client
-<a href=#135 id=135 data-nosnippet>135</a>        .begin_upload(cookie_agent_protocol::ArtifactUploadBeginParams {
-<a href=#136 id=136 data-nosnippet>136</a>            session_id,
-<a href=#137 id=137 data-nosnippet>137</a>            byte_length: bytes.len() <span class="kw">as </span>u64,
-<a href=#138 id=138 data-nosnippet>138</a>            filename,
-<a href=#139 id=139 data-nosnippet>139</a>        })
-<a href=#140 id=140 data-nosnippet>140</a>        .<span class="kw">await
-<a href=#141 id=141 data-nosnippet>141</a>        </span>.map_err(|error| upload_refusal(name, <span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="kw">let </span>chunk = usize::try_from(
-<a href=#143 id=143 data-nosnippet>143</a>        begun
-<a href=#144 id=144 data-nosnippet>144</a>            .chunk_bytes
-<a href=#145 id=145 data-nosnippet>145</a>            .clamp(<span class="number">1</span>, cookie_agent_protocol::ARTIFACT_CHUNK_BYTES),
-<a href=#146 id=146 data-nosnippet>146</a>    )
-<a href=#147 id=147 data-nosnippet>147</a>    .unwrap_or(usize::MAX);
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">for </span>piece <span class="kw">in </span>bytes.chunks(chunk) {
-<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>sent = client
-<a href=#152 id=152 data-nosnippet>152</a>            .upload_chunk(cookie_agent_protocol::ArtifactUploadChunkParams {
-<a href=#153 id=153 data-nosnippet>153</a>                upload_id: begun.upload_id.clone(),
-<a href=#154 id=154 data-nosnippet>154</a>                offset: offset <span class="kw">as </span>u64,
-<a href=#155 id=155 data-nosnippet>155</a>                data: base64::engine::general_purpose::STANDARD.encode(piece),
-<a href=#156 id=156 data-nosnippet>156</a>            })
-<a href=#157 id=157 data-nosnippet>157</a>            .<span class="kw">await</span>;
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = sent {
-<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let _ </span>= client
-<a href=#160 id=160 data-nosnippet>160</a>                .cancel_upload(cookie_agent_protocol::ArtifactUploadCancelParams {
-<a href=#161 id=161 data-nosnippet>161</a>                    upload_id: begun.upload_id.clone(),
-<a href=#162 id=162 data-nosnippet>162</a>                })
-<a href=#163 id=163 data-nosnippet>163</a>                .<span class="kw">await</span>;
-<a href=#164 id=164 data-nosnippet>164</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(upload_refusal(name, <span class="kw-2">&amp;</span>error));
-<a href=#165 id=165 data-nosnippet>165</a>        }
-<a href=#166 id=166 data-nosnippet>166</a>        offset += piece.len();
-<a href=#167 id=167 data-nosnippet>167</a>    }
-<a href=#168 id=168 data-nosnippet>168</a>    client
-<a href=#169 id=169 data-nosnippet>169</a>        .finish_upload(cookie_agent_protocol::ArtifactUploadFinishParams {
-<a href=#170 id=170 data-nosnippet>170</a>            upload_id: begun.upload_id,
-<a href=#171 id=171 data-nosnippet>171</a>            sha256: cookie_agent_protocol::Sha256Digest::of_bytes(bytes).to_string(),
-<a href=#172 id=172 data-nosnippet>172</a>        })
-<a href=#173 id=173 data-nosnippet>173</a>        .<span class="kw">await
-<a href=#174 id=174 data-nosnippet>174</a>        </span>.map(|finished| finished.artifact)
-<a href=#175 id=175 data-nosnippet>175</a>        .map_err(|error| upload_refusal(name, <span class="kw-2">&amp;</span>error))
-<a href=#176 id=176 data-nosnippet>176</a>}
+<a href=#123 id=123 data-nosnippet>123</a><span class="doccomment">/// The limits a `media_too_large` refusal names, so a client can offer to
+<a href=#124 id=124 data-nosnippet>124</a>/// shrink the file to them.
+<a href=#125 id=125 data-nosnippet>125</a></span><span class="attr">#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">pub struct </span>RefusedLimits {
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">pub </span>max_bytes: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">pub </span>max_dimension: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+<a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">pub </span>max_pixels: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+<a href=#130 id=130 data-nosnippet>130</a>}
+<a href=#131 id=131 data-nosnippet>131</a>
+<a href=#132 id=132 data-nosnippet>132</a><span class="kw">impl </span>RefusedLimits {
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="doccomment">/// The limits of `error` when it is a `media_too_large` refusal.
+<a href=#134 id=134 data-nosnippet>134</a>    </span><span class="kw">pub fn </span>of(error: <span class="kw-2">&amp;</span>ClientError) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">if </span>!error.is(<span class="kw-2">&amp;</span>cookie_agent_protocol::errors::MEDIA_TOO_LARGE) {
+<a href=#136 id=136 data-nosnippet>136</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#137 id=137 data-nosnippet>137</a>        }
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="kw">let </span>data = error.error_data()<span class="question-mark">?</span>;
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="kw">let </span>number = |field: <span class="kw-2">&amp;</span>str| data.fields.get(field).and_then(serde_json::Value::as_u64);
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
+<a href=#141 id=141 data-nosnippet>141</a>            max_bytes: number(<span class="string">"max_bytes"</span>),
+<a href=#142 id=142 data-nosnippet>142</a>            max_dimension: number(<span class="string">"max_dimension"</span>).and_then(|side| u32::try_from(side).ok()),
+<a href=#143 id=143 data-nosnippet>143</a>            max_pixels: number(<span class="string">"max_pixels"</span>),
+<a href=#144 id=144 data-nosnippet>144</a>        })
+<a href=#145 id=145 data-nosnippet>145</a>    }
+<a href=#146 id=146 data-nosnippet>146</a>}
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a><span class="doccomment">/// Why an upload failed: the status line, and the limits when the daemon
+<a href=#149 id=149 data-nosnippet>149</a>/// refused the file as too large.
+<a href=#150 id=150 data-nosnippet>150</a></span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
+<a href=#151 id=151 data-nosnippet>151</a></span><span class="kw">pub struct </span>UploadFailure {
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">pub </span>message: String,
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">pub </span>too_large: <span class="prelude-ty">Option</span>&lt;RefusedLimits&gt;,
+<a href=#154 id=154 data-nosnippet>154</a>}
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a><span class="kw">impl </span>UploadFailure {
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">fn </span>of(name: <span class="kw-2">&amp;</span>str, error: <span class="kw-2">&amp;</span>ClientError) -&gt; <span class="self">Self </span>{
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="self">Self </span>{
+<a href=#159 id=159 data-nosnippet>159</a>            message: upload_refusal(name, error),
+<a href=#160 id=160 data-nosnippet>160</a>            too_large: RefusedLimits::of(error),
+<a href=#161 id=161 data-nosnippet>161</a>        }
+<a href=#162 id=162 data-nosnippet>162</a>    }
+<a href=#163 id=163 data-nosnippet>163</a>}
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a><span class="doccomment">/// Uploads `bytes` into `session_id`'s store in chunks sent one after
+<a href=#166 id=166 data-nosnippet>166</a>/// another, as `filename` when given, returning the reference a `file` part
+<a href=#167 id=167 data-nosnippet>167</a>/// names. A refusal says why in terms of `name`; a failed chunk cancels the
+<a href=#168 id=168 data-nosnippet>168</a>/// upload.
+<a href=#169 id=169 data-nosnippet>169</a></span><span class="kw">pub async fn </span>upload(
+<a href=#170 id=170 data-nosnippet>170</a>    client: <span class="kw-2">&amp;</span>Client,
+<a href=#171 id=171 data-nosnippet>171</a>    session_id: SessionId,
+<a href=#172 id=172 data-nosnippet>172</a>    name: <span class="kw-2">&amp;</span>str,
+<a href=#173 id=173 data-nosnippet>173</a>    filename: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#174 id=174 data-nosnippet>174</a>    bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#175 id=175 data-nosnippet>175</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactRef, UploadFailure&gt; {
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">let </span>begun = client
+<a href=#177 id=177 data-nosnippet>177</a>        .begin_upload(cookie_agent_protocol::ArtifactUploadBeginParams {
+<a href=#178 id=178 data-nosnippet>178</a>            session_id,
+<a href=#179 id=179 data-nosnippet>179</a>            byte_length: bytes.len() <span class="kw">as </span>u64,
+<a href=#180 id=180 data-nosnippet>180</a>            filename,
+<a href=#181 id=181 data-nosnippet>181</a>        })
+<a href=#182 id=182 data-nosnippet>182</a>        .<span class="kw">await
+<a href=#183 id=183 data-nosnippet>183</a>        </span>.map_err(|error| UploadFailure::of(name, <span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">let </span>chunk = usize::try_from(
+<a href=#185 id=185 data-nosnippet>185</a>        begun
+<a href=#186 id=186 data-nosnippet>186</a>            .chunk_bytes
+<a href=#187 id=187 data-nosnippet>187</a>            .clamp(<span class="number">1</span>, cookie_agent_protocol::ARTIFACT_CHUNK_BYTES),
+<a href=#188 id=188 data-nosnippet>188</a>    )
+<a href=#189 id=189 data-nosnippet>189</a>    .unwrap_or(usize::MAX);
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">for </span>piece <span class="kw">in </span>bytes.chunks(chunk) {
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>sent = client
+<a href=#194 id=194 data-nosnippet>194</a>            .upload_chunk(cookie_agent_protocol::ArtifactUploadChunkParams {
+<a href=#195 id=195 data-nosnippet>195</a>                upload_id: begun.upload_id.clone(),
+<a href=#196 id=196 data-nosnippet>196</a>                offset: offset <span class="kw">as </span>u64,
+<a href=#197 id=197 data-nosnippet>197</a>                data: base64::engine::general_purpose::STANDARD.encode(piece),
+<a href=#198 id=198 data-nosnippet>198</a>            })
+<a href=#199 id=199 data-nosnippet>199</a>            .<span class="kw">await</span>;
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = sent {
+<a href=#201 id=201 data-nosnippet>201</a>            <span class="kw">let _ </span>= client
+<a href=#202 id=202 data-nosnippet>202</a>                .cancel_upload(cookie_agent_protocol::ArtifactUploadCancelParams {
+<a href=#203 id=203 data-nosnippet>203</a>                    upload_id: begun.upload_id.clone(),
+<a href=#204 id=204 data-nosnippet>204</a>                })
+<a href=#205 id=205 data-nosnippet>205</a>                .<span class="kw">await</span>;
+<a href=#206 id=206 data-nosnippet>206</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(UploadFailure::of(name, <span class="kw-2">&amp;</span>error));
+<a href=#207 id=207 data-nosnippet>207</a>        }
+<a href=#208 id=208 data-nosnippet>208</a>        offset += piece.len();
+<a href=#209 id=209 data-nosnippet>209</a>    }
+<a href=#210 id=210 data-nosnippet>210</a>    client
+<a href=#211 id=211 data-nosnippet>211</a>        .finish_upload(cookie_agent_protocol::ArtifactUploadFinishParams {
+<a href=#212 id=212 data-nosnippet>212</a>            upload_id: begun.upload_id,
+<a href=#213 id=213 data-nosnippet>213</a>            sha256: cookie_agent_protocol::Sha256Digest::of_bytes(bytes).to_string(),
+<a href=#214 id=214 data-nosnippet>214</a>        })
+<a href=#215 id=215 data-nosnippet>215</a>        .<span class="kw">await
+<a href=#216 id=216 data-nosnippet>216</a>        </span>.map(|finished| finished.artifact)
+<a href=#217 id=217 data-nosnippet>217</a>        .map_err(|error| UploadFailure::of(name, <span class="kw-2">&amp;</span>error))
+<a href=#218 id=218 data-nosnippet>218</a>}
 </code></pre></div></section></main></body></html>

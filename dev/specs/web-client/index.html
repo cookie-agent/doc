@@ -1814,6 +1814,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w3-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W3 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2774,6 +2783,15 @@
   <a href="#phase-w2-2026-10-20" class="md-nav__link">
     <span class="md-ellipsis">
       Phase W2 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-w3-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W3 (2026-10-20)
     </span>
   </a>
   
@@ -4031,6 +4049,146 @@ paths that moved.</p>
 geckodriver in CI (W5).</p>
 </li>
 </ul>
+<h3 id="phase-w3-2026-10-20">Phase W3 (2026-10-20)<a class="headerlink" href="#phase-w3-2026-10-20" title="Permanent link">&para;</a></h3>
+<p>Session depth landed as specified, with no wire change.</p>
+<ul>
+<li><strong>Moved into shared crates.</strong></li>
+<li><strong><code>cookie_agent_protocol::media_sniff</code>.</strong> Recognizing and validating
+    media from its content (<code>validate_upload</code>, the image, PDF, audio, and
+    video checks, the caps) moved out of <code>runtime_api::media</code>, which
+    re-exports it. The page sniffs a file exactly as the daemon will.</li>
+<li><strong><code>client_state::permissions</code>:</strong> the <code>/permissions</code> table rows
+    (<code>permission_rows</code>, <code>permission_actions</code>, the effect and source labels)
+    and a draft's rules (<code>set_draft_rule</code>, <code>remove_draft_rule</code>). The TUI
+    uses them.</li>
+<li><strong><code>client_state::uploads</code>.</strong> <code>upload</code> now returns an <code>UploadFailure</code>
+    whose <code>too_large</code> carries the limits a <code>media_too_large</code> refusal names
+    (<code>RefusedLimits</code>), so the page can offer a downscale to them. The TUI
+    keeps showing the message.</li>
+<li><strong><code>SessionState::user_files</code>:</strong> the files each user message attached,
+    by its sequence, for inline display.</li>
+<li><strong>The page</strong> (<code>crates/web/src/workspace/</code>, <code>views/depth.rs</code>):</li>
+<li><strong>Subagents.</strong> The Agents panel in the sidebar (and the sessions
+    sheet) shows the viewed session's <code>session.tree</code>, foldable per session,
+    with <code>/agent-panel show|hide|auto</code> as in the TUI: <code>auto</code> shows it while
+    a delegate is live or a child is viewed.<ul>
+<li>The tree is re-read on <code>tool_call_linked</code>, <code>run_finished</code>,
+  <code>delegation_progressed</code>, <code>delegation_finished</code>,
+  <code>delegate_child_terminated</code>, and a finished replay of any session in
+  it.</li>
+<li>Its live sessions are subscribed, sharing the root's ownership.</li>
+<li>A <code>session_ref</code> or tree row opens the child. Its root comes from the
+  shown tree, the session list, or <code>session.get</code>'s origin.</li>
+</ul>
+</li>
+<li><strong>History edits.</strong> A user message's ⋯ menu copies it
+    (<code>navigator.clipboard</code>, else the text is selected), reverts to before
+    it (<code>session.revert</code> with <code>expected_last_seq</code>, confirmed first; the
+    <code>rewound</code> notification rebuilds the transcript and the text returns to
+    the composer; <code>stale_revert</code> is explained), or forks at it
+    (<code>session.fork</code> with a <code>client_fork_id</code>, then opens the fork).
+    <code>/compact [focus]</code> compacts; Escape and <code>/cancel</code> cancel a compaction
+    outside a run (<code>session.compact.cancel</code>).</li>
+<li><strong>Goal.</strong> The goal bar shows the root's goal with the actions its
+    status allows. <code>/goal &lt;objective&gt;</code> sets it with the draft's selection;
+    <code>/goal pause|resume|cancel</code> reads <code>session.goal.get</code> and changes it at
+    its revision. Goals are root-only and read-only snapshots offer none.
+    Only <code>goal_*</code> events change the bar.</li>
+<li><strong>Background.</strong> A running call with <code>backgroundable</code> offers
+    "⇲ background" (<code>run.tool_background</code>). <code>session.background.list</code>
+    is read after each subscribe and <code>background.changed</code> keeps it
+    current. The bar and the <code>/background</code> sheet list the calls with their
+    age and stop one (<code>session.background.stop</code>); the sheet closes with
+    the last call.</li>
+<li><strong>Media.</strong> <code>/attach</code> and 📎 open a file input whose <code>accept</code> lists the
+    selected model's <code>input_media</code> types; 📷 (narrow screens, image models
+    only) opens one with <code>capture</code>. Drop and paste attach too. Nothing is
+    offered for a model without input media.<ul>
+<li>Each file is sniffed and checked against the model
+  (<code>attach::assess</code>), then uploaded at once through the shared chunked
+  <code>upload</code> (a new session is created first, as in the TUI), and shown
+  as a chip.</li>
+<li>An image over the model's or the daemon's limits, or refused by the
+  daemon as <code>media_too_large</code>, is offered "Downscale and attach?". It
+  is decoded and redrawn through a canvas, as JPEG when the model takes
+  it (else PNG), at the size <code>attach::downscale_target</code> computes, and
+  smaller again until it fits. Video is never re-encoded.</li>
+<li>Attachments of user messages and <code>media_file</code> parts of assistant
+  messages render inline through the same <code>artifact.read</code> → <code>Blob</code>
+  placeholders as media blocks.</li>
+</ul>
+</li>
+<li><strong>Skills.</strong> <code>/skills [search]</code> lists <code>skills.list</code>, ranked as the TUI
+    ranks them (<code>skills::matching_skills</code>). Running one checks it with
+    <code>skills.get</code>, then submits <code>encode_skill_submission</code>.</li>
+<li><strong>Permissions.</strong> <code>/permissions</code> shows the effective rules by action
+    with their source. An effect click or the new-rule form sets an
+    override (<code>session.permission.set</code>), and × clears one. While a new
+    session is composed, the same table edits the draft's rules, previewed
+    with <code>session.permission.preview</code> and sent as <code>permission_rules</code> on
+    <code>session.create</code>.</li>
+<li><strong><code>/events</code> default.</strong> The level the page starts with is the TUI's
+    (<code>EventLevel::DEFAULT_MINIMUM</code>, warnings), so <code>[I]</code> rows are hidden by
+    default; a stored choice still wins.</li>
+<li><strong>Fixes found on the way.</strong></li>
+<li><strong>Item keys include the session.</strong> Item IDs repeat across sessions, so
+    switching between two sessions of the same shape showed the first
+    one's cached rows.</li>
+<li><strong>Following the transcript.</strong> It stops only when the user scrolls up
+    (wheel, touch, or the scrollbar), not when a re-rendered row or a new
+    bar briefly moves the scroll position.</li>
+<li><strong>Deviations.</strong></li>
+<li><strong><code>/goal pause|resume|cancel</code></strong> are typed arguments. The TUI's palette
+    asks only for an objective and puts the controls on the bar; the page
+    has both.</li>
+<li><strong>The skill arguments, compaction focus, and goal objective</strong> are typed
+    after the command (<code>/skills gre</code>, <code>/compact keep the API notes</code>), or in
+    the sheet, instead of a palette step.</li>
+<li><strong>Fork and revert</strong> are offered on any user message the session's
+    owner can edit, child sessions included, as the daemon decides what is
+    allowed.</li>
+<li><strong>Size.</strong> Profiled with <code>twiggy</code> on an unstripped <code>web</code> build, the wasm
+  was mostly serde code, plus two things the page never needed:</li>
+<li><code>regex</code>, used only for the control-character table in
+    <code>diagnostics</code>. It is now a hand-written table, checked against the
+    regex in a native test.</li>
+<li>Runtime schema generation, used by <code>open_enum!</code> to list a tagged
+    enum's tags. The tags are now listed in each <code>open_enum!</code> and checked
+    against the schema in a native test.</li>
+</ul>
+<p>Together they were about 1 MB of the wasm: before W3 it was 3.88 MB
+  (1.40 MB gzipped), and without them 2.85 MB (1.06 MB gzipped). With all of W3 it is 3.19 MB (1.20 MB
+  gzipped), and the bundle 3.60 MB (1.45 MB gzipped). The budget in
+  <code>scripts/build-web.sh</code> is now 1,600,000 bytes gzipped (from 1,900,000).
+- <strong>Tests.</strong>
+  - <strong>Native:</strong> tree rows and folding and the <code>auto</code> panel; <code>/goal</code>
+    arguments and the bar's actions; skill ranking; the <code>accept</code> list, the
+    assessment of a file (attach, downscale, refuse), downscale targets
+    and refused-limit tightening; attachment names; the permission rows
+    and draft rules; <code>user_files</code>; session-scoped item keys; the slash
+    commands with arguments.
+  - <strong><code>scripts/test-web-page.sh</code></strong> now gives the daemon a model that takes
+    images, a <code>helper</code> subagent, a <code>greet</code> skill, an image in the
+    workspace, and a session made by <code>cookie run</code> before the daemon
+    started. The scenarios add:
+    - a delegation shown in the Agents panel (<code>/agent-panel show</code>), its
+      <code>session_ref</code> opening the child, and folding;
+    - a fork at the first message and a revert of the last, with its text
+      back in the composer;
+    - <code>/compact</code> with a focus;
+    - <code>/goal</code> set, then paused from the bar;
+    - a slow <code>bash</code> call approved, moved to the background, listed with
+      <code>/background</code>, and stopped;
+    - an image attached from the file input, and one too large downscaled
+      on acceptance, both shown inline in the sent message;
+    - a <code>read</code> of an image whose media block shows inline;
+    - <code>/skills</code> search and run;
+    - a session permission override added and removed, and a draft rule
+      previewed for a new session;
+    - the <code>cookie run</code> session, whose owner lock the scenario holds as
+      another process would, opening as a read-only snapshot.</p>
+<div class="highlight"><pre><span></span><code>All pass, and the screenshots were checked.
+</code></pre></div>
 
 
 

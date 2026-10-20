@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Panel"],"fn":["level_from_storage"],"struct":["UsageView","Workspace"]};
+window.SIDEBAR_ITEMS = {"enum":["Panel"],"fn":["level_from_storage"],"struct":["DownscaleOffer","UsageView","UserMenu","Workspace"]};

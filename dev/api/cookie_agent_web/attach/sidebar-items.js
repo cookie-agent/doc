@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Assessment"],"fn":["accept_attribute","accepts_images","assess","downscale_target","image_limits","shrink_again","tightened"],"struct":["ImageLimits"]};

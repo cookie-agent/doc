@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EFFECTS"],"fn":["effect_label","permission_actions","permission_rows","remove_draft_rule","set_draft_rule","source_label"],"struct":["PermissionRow"]};
