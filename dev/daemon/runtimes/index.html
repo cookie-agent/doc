@@ -3429,7 +3429,13 @@ name and tools.</p>
   expands a leading <code>~</code> in it.</li>
 <li><strong>Environment.</strong> The process inherits the daemon's environment, which <code>ssh</code>
   needs for <code>SSH_AUTH_SOCK</code> and similar variables, plus <code>env</code>. Names must be
-  nonempty without <code>=</code> or NUL.</li>
+  nonempty without <code>=</code> or NUL. <code>ssh</code> finds its configuration, keys, and
+  <code>known_hosts</code> through that environment's <code>HOME</code>, so a daemon run with
+  another <code>HOME</code> (a scratch or service home) needs
+  <code>env = { HOME = "/home/me" }</code> in the template, or the files named on its
+  command line as absolute paths, since no shell expands <code>~</code> there:
+  <code>-F /home/me/.ssh/config</code>, <code>-i /home/me/.ssh/id_ed25519</code>, and
+  <code>-o UserKnownHostsFile=/home/me/.ssh/known_hosts</code>.</li>
 <li><strong>MCP servers</strong> are parsed with the <a href="../../extend/mcp/">MCP server schema</a>, and a
   server that enables OAuth (<code>oauth = true</code> or an <code>oauth</code> table) is rejected:
   OAuth credentials live on the daemon and are available to top-level <code>[mcp]</code>
@@ -3495,8 +3501,12 @@ asks for that path.</p>
   reason. <code>runtimes.list</code> shows why the runtime last failed to connect.</li>
 <li><strong>Diagnostics.</strong> The process's standard error is captured into a bounded
   buffer (its last 32 lines, at most 4 KiB). Failure reasons end with that
-  tail, so an <code>ssh</code> or <code>cookie runtime</code> error shows up in the TUI. Nothing of
-  it is written to the daemon's own terminal.</li>
+  tail, so an <code>ssh</code> or <code>cookie runtime</code> error shows up in the TUI. The
+  daemon does not copy the process's standard error to its own as it
+  arrives, but when a session is created, opened, or starts a run while one
+  of its attachments is unavailable, the daemon writes
+  <code>cookie-agent: session &lt;id&gt;: runtime `&lt;attachment&gt;` is unavailable: &lt;reason&gt;</code>
+  to its standard error, and that reason ends with the tail.</li>
 <li><strong>Drop.</strong> When the process exits or its pipe closes, calls in flight fail
   with <code>runtime_unavailable</code> (a backgrounded call reports the failure as its
   background result), and the daemon starts the process again up to 3 times
