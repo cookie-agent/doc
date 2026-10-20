@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["display_line_count","goal_status_label","producer_mode_label","producer_owner_label","producer_summary"]};

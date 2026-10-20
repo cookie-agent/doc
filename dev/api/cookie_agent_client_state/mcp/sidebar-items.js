@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["McpTransport","PersistChoice"],"fn":["definition_display","edit_refusal","is_global","new_definition","runtime_label","sort_servers","source_label","state_label"],"struct":["McpFields"]};

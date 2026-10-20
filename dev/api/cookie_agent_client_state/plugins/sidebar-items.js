@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["plugin_detail","plugin_event_status","state_label"]};

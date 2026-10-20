@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NEW_AGENT"],"enum":["ConfigApplyOutcome"],"fn":["config_rows","document_text","new_agent_refusal","reload_status","restart_note"],"struct":["ConfigApplyReport","ConfigRow"]};

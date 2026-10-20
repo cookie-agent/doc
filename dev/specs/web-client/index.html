@@ -1823,6 +1823,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#phase-w4-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W4 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2792,6 +2801,15 @@
   <a href="#phase-w3-2026-10-20" class="md-nav__link">
     <span class="md-ellipsis">
       Phase W3 (2026-10-20)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-w4-2026-10-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase W4 (2026-10-20)
     </span>
   </a>
   
@@ -4189,6 +4207,109 @@ geckodriver in CI (W5).</p>
       another process would, opening as a read-only snapshot.</p>
 <div class="highlight"><pre><span></span><code>All pass, and the screenshots were checked.
 </code></pre></div>
+<h3 id="phase-w4-2026-10-20">Phase W4 (2026-10-20)<a class="headerlink" href="#phase-w4-2026-10-20" title="Permanent link">&para;</a></h3>
+<p>Management landed as specified, with no wire change.</p>
+<ul>
+<li><strong>Moved into <code>cookie_agent_client_state</code>, with the TUI switched over:</strong></li>
+<li><code>runtimes</code>: attachment rows matched to their instances, a new session's
+    draft runtimes, the attach choices and their search, the attach and
+    retry requests, the machines view's rows, the machine actions each row
+    offers, the changes they make, and their status lines.</li>
+<li><code>mcp</code>: the server order, which servers <code>mcp.server.*</code> edits, a server
+    form as text and the definition it makes (<code>McpFields</code>), and the labels.</li>
+<li><code>providers</code>: a provider row's state, the model-availability and catalog
+    lines, the setup values and credentials a connect sends, and the
+    store-contention policy. Credentials are serialized once from the
+    caller's buffers into a zeroized buffer (<code>credential_values</code>), as the
+    TUI did.</li>
+<li><code>config</code>: the document rows, a new agent's template and path rules,
+    and what an apply or reload answered and what the panel says about it.</li>
+<li><code>memory</code>: the rows by layer and group, a new memory's template and URL
+    rules, what a write answered, and a refused delete's message.</li>
+<li><code>plugins</code>: a plugin's state and details, and its events' status line.</li>
+<li><code>tool_header</code> and <code>rows</code>: a tool call's header text, which drops an
+    argument its title already names, the hint icons, and the producer and
+    goal row labels.</li>
+<li><strong>The page</strong> (<code>crates/web/src/workspace/manage.rs</code>,
+  <code>crates/web/src/views/manage.rs</code>):</li>
+<li><strong><code>/runtime</code>:</strong> the session's attachments with their status, attach
+    (search, then a workspace when needed), detach, and retry
+    (<code>runtimes.reconnect</code>). In a new session, the draft's runtimes start as
+    <code>global</code> and <code>local</code>'s <code>coding</code> at the chosen directory (else where the
+    daemon's own <code>coding</code> instance works, from <code>runtimes.list</code>). Each opens
+    at once, and <code>session.create</code> attaches them. The <strong>Machines</strong> tab
+    renames, merges, forgets, assigns, and unassigns. The panel re-reads
+    <code>runtimes.list</code> and <code>machines.list</code> every second while open, as the TUI
+    polls, and on <code>runtimes.changed</code> and <code>machines.changed</code>.</li>
+<li><strong><code>/mcp</code>:</strong> the servers in the TUI's order with state, tools, source,
+    and error, and add, edit, enable or disable, remove, reconnect, and
+    persist. A server that needs authorization says to run
+    <code>cookie mcp auth &lt;server&gt;</code> or use the TUI. Polled every second while
+    open, and on <code>mcp.changed</code>.</li>
+<li><strong><code>/connect</code>:</strong> the catalog's providers with their state, a connect
+    form per auth method with password fields for credentials, and
+    disconnect with its confirmation. Connects go through
+    <code>connect_provider_retrying</code>, and disconnects retry once on store
+    contention, as in the TUI.</li>
+<li><strong><code>/config</code>:</strong> the documents, an in-page monospace editor, <code>config.apply</code>
+    at the revision and fingerprint read, refused edits kept to fix,
+    conflicts dropped and reloaded, new agent documents, delete, and
+    <code>config.reload</code>.</li>
+<li><strong><code>/memory</code>:</strong> the memories by layer, an in-page editor, writes at the
+    revision read, the invalid and changed outcomes with their choices
+    (edit again, reload, overwrite, drop), create, and delete with its
+    revision. It refreshes on <code>memory.changed</code> and <code>machines.changed</code>.</li>
+<li><strong><code>/plugins</code>:</strong> state and details, restart, <code>plugins.changed</code>, and
+    <code>events.plugin</code> status lines for the viewed session.</li>
+<li><strong>From the W3 review:</strong> producer messages (goal control and reminders,
+  background-call and subagent reports) render as the TUI renders them. A
+  claimed or consumed one is a folded line with its summary that opens to
+  its owner, delivery, and body. A pending or admitted one does not show
+  yet, and a discarded one shows only at the debug level. Goal activations
+  show as their <code>/goal</code> action and goal states as the objective, status,
+  and checklist. Plugin messages, AGENTS.md, loaded skills, and compactions
+  fold as in the TUI. Tool titles use the TUI's header text, so a title
+  that names its argument does not repeat it.</li>
+<li><strong>Size.</strong> <code>Client::call</code> now serializes its parameters before awaiting
+  one shared request future instead of one per parameter type, which saved
+  16 KB gzipped. The wasm is 3.63 MB (1.37 MB gzipped), and the bundle
+  4.04 MB (1.62 MB gzipped). Most of the W4 growth is each RPC's request
+  and answer code. The budget in <code>scripts/build-web.sh</code> is raised to
+  1,700,000 bytes gzipped, with that reason recorded beside it.</li>
+<li><strong>Deviations.</strong></li>
+<li><strong>Editors are in the page.</strong> <code>/config</code> and <code>/memory</code> edit in a text area
+    (section 6) instead of <code>$EDITOR</code>. A refused config edit stays open in
+    the editor rather than reopening on the next edit.</li>
+<li><strong>Provider rows</strong> say their state in words, without the TUI's key
+    hints.</li>
+<li><strong>The TUI's copy changed slightly</strong> where it now shares the web's text:
+    a refused config edit says "Not applied; edit config.toml again.", and
+    an existing new-agent or new-memory path says "exists; edit it
+    instead".</li>
+<li><strong>Tests.</strong></li>
+<li><strong>Native:</strong> <code>client_state</code> tests for the runtime, machine, config,
+    memory, MCP, and provider rules, the producer summary, and the tool
+    header; web tests for the folded producer rows and the new commands.</li>
+<li>
+<p><strong><code>scripts/test-web-page.sh</code></strong> now configures a runtime template that
+    never starts (<code>[runtimes.box]</code>) and the reference plugin. The scenarios
+    add:</p>
+<ul>
+<li>a draft runtime that fails, is retried, and is removed;</li>
+<li>a session's <code>local</code> coding attachment detached and attached again;</li>
+<li>a machine renamed;</li>
+<li>an MCP server that cannot start added, disabled, and removed;</li>
+<li>a provider connected with an API key (which never shows on the page)
+  and disconnected;</li>
+<li>a config edit with an unknown key refused, then a valid edit applied;</li>
+<li>a memory refused as invalid, created, overwritten after a change on
+  disk, and deleted;</li>
+<li>the reference plugin restarted;</li>
+<li>goal-control and background-report rows folded, and one opened.</li>
+</ul>
+<p>All pass, and the screenshots were checked.</p>
+</li>
+</ul>
 
 
 

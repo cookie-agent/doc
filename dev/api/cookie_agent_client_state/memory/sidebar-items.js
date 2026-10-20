@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NEW_MEMORY"],"enum":["MemoryRow","MemoryWriteOutcome"],"fn":["delete_refusal","layer_title","memory_name","memory_rows","message_of","new_memory_refusal"]};
