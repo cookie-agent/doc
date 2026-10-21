@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["directory_label","filter_options","matches","paths_under_home","places","places_label"],"struct":["Place"]};

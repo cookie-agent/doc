@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RECENT_LIMIT","SELECTION_KEY","SUGGESTION_LIMIT"],"enum":["CardState"],"fn":["attachment_name","cards","daemon_machine","group_key","groups","recent_from_storage","recent_key","remember","suggestions"],"struct":["Card","Group","Pick","Selection"]};
