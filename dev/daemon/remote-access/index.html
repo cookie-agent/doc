@@ -3190,7 +3190,7 @@
 
 <h1 id="remote-access">Remote access<a class="headerlink" href="#remote-access" title="Permanent link">&para;</a></h1>
 <p>This page covers reaching a daemon from other machines: listening on another
-address with TLS, allowing browser origins, and forwarding the daemon's port
+address with TLS, web clients, and forwarding the daemon's port
 through SSH, a private network, or a tunnel. <a href="../persistent/">Persistent daemon</a>
 covers starting the daemon and attaching clients to it,
 <a href="../runtimes/">Runtimes</a> the runtimes that dial in from elsewhere, and
@@ -3219,41 +3219,33 @@ covers starting the daemon and attaching clients to it,
 <p>The daemon serves clients on <code>/ws</code> and <a href="../runtimes/#runtimes-that-dial-in">dial-in runtimes</a>
 on <code>/runtime?id=&lt;runtime ID&gt;</code>. Both present the same bearer token: a runtime
 in the <code>Authorization</code> header, a client there or in its
-<a href="../../reference/protocol/#handshake-and-authentication">handshake</a>. A request
-carrying a browser <code>Origin</code> header is refused unless <code>allowed_origins</code> lists
-that origin (on <code>/runtime</code>, always).</p>
+<a href="../../reference/protocol/#handshake-and-authentication">handshake</a>. A
+request to <code>/runtime</code> carrying a browser <code>Origin</code> header is refused; <code>/ws</code>
+ignores the header.</p>
 <h2 id="web-clients">Web clients<a class="headerlink" href="#web-clients" title="Permanent link">&para;</a></h2>
-<p>A page in a browser connects with the token in its handshake, from an origin
-<code>allowed_origins</code> lists. The daemon's own page is no exception:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[server]</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">allowed_origins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"https://cookie.example"</span><span class="p">,</span><span class="w"> </span><span class="s2">"http://localhost:5173"</span><span class="p">]</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># or: allowed_origins = ["*"]</span>
-</code></pre></div>
-<p>Each entry is an origin exactly as a browser sends it in its <code>Origin</code> header:
-a lowercase <code>scheme://host</code>, with <code>:port</code> only when the port is not the
-scheme's default, and no path or trailing slash. The single entry <code>"*"</code> allows
-any origin, and combining it with other entries is a configuration error.
-With <code>"*"</code>, any page can open a connection, and the token is the only
-protection. A page served over HTTPS can only connect with <code>wss://</code>, so it
-needs the daemon's TLS options. Changing the list takes a daemon restart.</p>
+<p>A page in a browser connects with the token in its handshake. The daemon
+takes it from any origin: the daemon's own page, a page served elsewhere, or
+the daemon's page behind a proxy, which a browser reports under the proxy's
+origin. The token is the guard, so keep it secret. A page served over HTTPS
+can only connect with <code>wss://</code>, so it needs the daemon's TLS options or a
+proxy that provides them.</p>
 <h2 id="forwarding-and-tunnels">Forwarding and tunnels<a class="headerlink" href="#forwarding-and-tunnels" title="Permanent link">&para;</a></h2>
 <p>The <a href="../../clients/web/">web page</a> and <code>/ws</code> share one port, so forwarding that
 port forwards both. The page then finds the daemon at its own address.</p>
 <ul>
 <li><strong>An SSH tunnel:</strong> <code>ssh -L 7419:127.0.0.1:7419 host</code>. Open
-  <code>http://127.0.0.1:7419/</code> and allow <code>http://127.0.0.1:7419</code>.</li>
+  <code>http://127.0.0.1:7419/</code>.</li>
 <li><strong>Tailscale Serve</strong> gives the loopback daemon an HTTPS address on the
   tailnet without listening anywhere else: <code>tailscale serve --bg 7419</code>
-  serves <code>https://&lt;host&gt;.&lt;tailnet&gt;.ts.net/</code>. Allow that origin. An HTTPS
+  serves <code>https://&lt;host&gt;.&lt;tailnet&gt;.ts.net/</code>. An HTTPS
   page can be <a href="../../clients/web/#installing-as-an-app">installed as an app</a>
   on a phone.</li>
 <li><strong>Tailscale or a LAN.</strong> Run <code>cookie daemon --listen 0.0.0.0:7419</code> and
-  allow the address you open, such as <code>http://100.101.102.103:7419</code>.
+  open its address, such as <code>http://100.101.102.103:7419/</code>.
   Without TLS the token crosses the network in the clear, so keep this to a
   private network.</li>
-<li><strong>A tunnel such as cloudflared</strong> gives an HTTPS address. Point it at the
-  daemon's port, and allow the tunnel's origin, such as
-  <code>https://cookie.example.com</code>.</li>
+<li><strong>A tunnel such as cloudflared</strong> gives an HTTPS address, such as
+  <code>https://cookie.example.com</code>. Point it at the daemon's port.</li>
 <li>A page served over HTTPS connects with <code>wss://</code>. The tunnel provides
     that.</li>
 <li>A proxy may serve the daemon under a subpath, such as

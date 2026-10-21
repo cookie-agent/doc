@@ -3973,7 +3973,10 @@ listening daemon. The addendum of 2026-10-21
 adds web layout v2 and session deletion, implemented on 2026-10-21. On
 2026-10-21 the user also reversed the "no service worker" decision of
 <a href="#9-phones">section 9</a>: the page installs as an app, with a network-only
-service worker.</p>
+service worker. On 2026-10-21 the user also reversed the origin allowlist
+(sections <a href="#1-goal-and-scope">1</a> and <a href="#71-embedded-page">7.1</a>):
+<code>[server] allowed_origins</code> is gone, and <code>/ws</code> takes a connection from any
+origin, with the token as the guard.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>Before this spec the TUI was the only interactive client. This spec adds a browser client
 that does everything the TUI does that a browser can do. It works on a phone
@@ -3993,7 +3996,8 @@ daemon holds the machine's sessions, every client should see the same ones.</p>
 <li><strong>Hosting: both.</strong></li>
 <li>The daemon serves the built page.</li>
 <li>The same bundle also works from any static host, connecting to a daemon
-    whose <code>allowed_origins</code> lists that host.</li>
+    whose <code>allowed_origins</code> lists that host. (Since 2026-10-21, any daemon:
+    the allowlist is removed, see the next decision but four.)</li>
 <li><strong>Who serves the page.</strong> <code>cookie daemon</code> always serves it. Plain <code>cookie</code>
   never does: it either connects to a running daemon (section 13) or runs
   one in-process with no port. There is no
@@ -4009,7 +4013,12 @@ daemon holds the machine's sessions, every client should see the same ones.</p>
   workspace MSRV rises to match.</li>
 <li><strong>Origins: no special case.</strong> Every browser connection, the embedded
   page's included, must come from an origin <code>[server] allowed_origins</code>
-  lists. Whoever sets up the daemon decides which addresses reach it.</li>
+  lists. Whoever sets up the daemon decides which addresses reach it.
+  <strong>The user reversed this on 2026-10-21:</strong> <code>[server] allowed_origins</code> is
+  removed. <code>/ws</code> accepts an upgrade from any <code>Origin</code>, or none, because a
+  reverse proxy makes browser-origin gating pointless and the token is the
+  real guard; <code>/runtime</code> still refuses any request with an <code>Origin</code>. A
+  config that still has the key fails as an unknown key.</li>
 <li><strong>One listener.</strong> The page and <code>/ws</code> share the daemon's one TCP listener.
   Forwarding that one port (with cloudflared, Tailscale, an SSH tunnel)
   forwards both, and the connect screen fills in the daemon URL from the
@@ -4278,6 +4287,11 @@ with them (<code>state/tests.rs</code>).</p>
     <code>http://127.0.0.1:7419</code>, <code>http://192.168.1.5:7419</code>, or a tunnel's
     <code>https://cookie.example.com</code>.</li>
 <li>The daemon trusts no headers to work out where it is reachable from.</li>
+<li><strong>The user reversed this on 2026-10-21:</strong> <code>[server] allowed_origins</code> is
+    removed. <code>/ws</code> accepts an upgrade from any <code>Origin</code>, or none, because a
+    reverse proxy makes browser-origin gating pointless and the token is the
+    real guard; <code>/runtime</code> still refuses any request with an <code>Origin</code>. A
+    config that still has the key fails as an unknown key.</li>
 <li><strong>Telling the user what to add.</strong></li>
 <li>A refused connection gives the page no reason to show. When the
     handshake never happens, the connect screen names the likely cause:
@@ -4287,6 +4301,11 @@ with them (<code>state/tests.rs</code>).</p>
 <li>When <code>allowed_origins</code> is empty, the daemon says, in a log line after
     its ready line, that the web page needs an entry before it can
     connect.</li>
+<li><strong>Since 2026-10-21</strong> (the allowlist's removal) the connect screen says
+    only that the daemon refused or closed the connection before its
+    handshake, and to check the daemon URL and that the daemon is running.
+    The daemon prints the page's address after its ready line and nothing
+    about origins.</li>
 <li><strong>Plain <code>cookie</code></strong> opens no port and serves nothing.</li>
 </ul>
 <h3 id="72-the-connect-screen">7.2 The connect screen<a class="headerlink" href="#72-the-connect-screen" title="Permanent link">&para;</a></h3>
@@ -4799,7 +4818,8 @@ machine-ID check. That way the two never pick differently.</p>
 <li>highlight.js, a plain text area for editors, no project-site hosting,
   and a rising MSRV were confirmed.</li>
 <li><code>allowed_origins</code> keeps its current rules with no special case for the
-  embedded page.</li>
+  embedded page. (Reversed 2026-10-21: the allowlist is removed; see
+  section 7.1.)</li>
 </ul>
 <h2 id="16-addendum-2026-10-21-web-layout-v2-and-session-deletion">16. Addendum (2026-10-21): web layout v2 and session deletion<a class="headerlink" href="#16-addendum-2026-10-21-web-layout-v2-and-session-deletion" title="Permanent link">&para;</a></h2>
 <p>Status: <strong>implemented</strong> (2026-10-21). Session deletion (section 16.2) is a
@@ -5869,12 +5889,14 @@ documentation. There is no wire change.</p>
   the status row (L).</li>
 <li><strong>Refused connections</strong> cannot be told apart in a browser (close code
   1006, no HTTP status), so every refusal before the handshake shows the
-  <code>allowed_origins</code> hint (W0a, W1).</li>
+  <code>allowed_origins</code> hint (W0a, W1). Since 2026-10-21 it is a plain hint to
+  check the daemon URL and that the daemon is running.</li>
 <li><strong>Browser tests run in Firefox only,</strong> not Chrome (W0a, W5).</li>
 <li><strong>Caching:</strong> only files whose names carry Trunk's hash are immutable;
   copied files are revalidated (W1).</li>
 <li><strong>The ready line is unchanged;</strong> the page address and the
-  empty-<code>allowed_origins</code> warning follow it as log lines (W1).</li>
+  empty-<code>allowed_origins</code> warning follow it as log lines (W1). The warning
+  went with the allowlist on 2026-10-21.</li>
 <li><strong>Gzip only,</strong> no Brotli (W2).</li>
 <li><strong>Shared code:</strong> the subscription machine, panel rules, and labels moved
   to <code>client_state</code> over the phases; the ownership bookkeeping stayed in
