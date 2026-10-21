@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DAEMON_TOO_OLD_TO_DELETE","SESSION_DELETE_MINOR"],"enum":["SessionDeleteOutcome"],"fn":["daemon_can_delete_sessions","delete_params","delete_session"]};
