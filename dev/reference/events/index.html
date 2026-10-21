@@ -803,6 +803,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2224,6 +2247,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      Projects
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#delegation" class="md-nav__link">
     <span class="md-ellipsis">
       Delegation
@@ -3392,6 +3424,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      Projects
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#delegation" class="md-nav__link">
     <span class="md-ellipsis">
       Delegation
@@ -3705,10 +3746,16 @@ never stored.</p>
 <td>A title change</td>
 </tr>
 <tr>
+<td><code>session_project_set</code></td>
+<td>state</td>
+<td>runless</td>
+<td>The root session's <a href="#projects">project</a></td>
+</tr>
+<tr>
 <td><code>agent_md_loaded</code></td>
 <td>state</td>
 <td>run</td>
-<td>The <code>AGENTS.md</code> context of one attachment</td>
+<td>The <code>AGENTS.md</code> context of one attachment, or of the session's project</td>
 </tr>
 <tr>
 <td><code>memory_loaded</code></td>
@@ -4082,9 +4129,13 @@ such an attempt.</p>
 discovered in its workspace, each with a bounded display source, retained
 content, truncation flag, and original byte size, and the <code>attachment</code> naming
 that runtime's attachment. A run writes one event per attachment that
-returned a file. Missing or disabled context produces no event. History uses
-only the latest run's events, the latest per attachment, and replays their
-entries as one provenance-delimited user turn. Compaction pins that turn
+returned a file. A session in a <a href="#projects">project</a> with an <code>AGENTS.md</code>
+gets one more, written first, whose optional <code>project</code> (<code>{ id, name }</code>, since
+client protocol 1.8.0) names the project; its <code>attachment</code> is <code>global</code>, where
+the file lives, and its entry's source is <code>project:&lt;name&gt;/AGENTS.md</code>.
+Missing or disabled context produces no event. History uses only the latest
+run's events, the latest per attachment and the project's, and replays their
+entries as one provenance-delimited user turn, the project's first. Compaction pins that turn
 alongside loaded skill bodies. See
 <a href="../system-prompt/#agentsmd-context-turn">System Prompt Composition</a>.</p>
 <h3 id="memory-snapshots">Memory snapshots<a class="headerlink" href="#memory-snapshots" title="Permanent link">&para;</a></h3>
@@ -4124,6 +4175,10 @@ lists when. Its members, each left out when empty or false:</p>
 <td><code>machines</code></td>
 <td><code>[{ machine, attachments?, memories?: [{ url, description, keywords? }], omitted? }]</code>: the session's machines, each with an index of its memories, newest first, and how many more it has</td>
 </tr>
+<tr>
+<td><code>project</code></td>
+<td><code>{ project, overview?: { description, keywords?, body }, memories?: [{ url, description, keywords? }], omitted? }</code>: the session's project (since client protocol 1.8.0), root runs only: its name, its overview whole when it has a body and fits, and an index of its other memories, newest first, and how many more it has</td>
+</tr>
 </tbody>
 </table>
 <p>An event without <code>agent</code> is empty: memory is no longer available, and the
@@ -4133,6 +4188,14 @@ turn, and compaction pins it like that turn; the text depends on the event
 alone, so a replay shows exactly what the model saw. The stored event is at
 most 128 KiB of JSON; its rendered text stays within 64 KiB. See
 <a href="../system-prompt/#memory-turn">System Prompt Composition</a>.</p>
+<h3 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h3>
+<p><code>session_project_set { project? }</code> is a runless state event a root session
+records when it moves into <code>project</code>, or out of any project when <code>project</code>
+is absent, and with its creation when it is created in one (client protocol
+1.8.0). <code>SessionMeta.project</code> is its fold, so a rebuilt metadata cache keeps
+it; a log without one reads as being in no project. Delegated sessions never
+record it: they belong to their root's project. See
+<a href="../protocol/#projects">Projects</a>.</p>
 <p><code>diagnostic { source, kind, message, count?, detail? }</code> is a notice about the
 engine, a plugin, or a runtime: something it turned off, could not do, or
 dropped. <code>source</code> is <code>engine:&lt;area&gt;</code>, <code>plugin:&lt;name&gt;</code>, or <code>runtime:&lt;id&gt;</code>;

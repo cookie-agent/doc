@@ -803,6 +803,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3466,6 +3489,10 @@ latest event per attachment, as one user turn, wrapped in a
 <p>With more than one attachment each <code>&lt;contents&gt;</code> element also carries a
 <code>runtime="&lt;attachment&gt;"</code> attribute. Events written before runtimes carry no
 attachment and count as the <code>local</code> runtime's.</p>
+<p>A session in a project gets the project's <code>AGENTS.md</code> first, before every
+workspace's, as <code>&lt;contents from="project:&lt;name&gt;/AGENTS.md"&gt;</code> without a
+<code>runtime</code> attribute. Its <code>agent_md_loaded</code> event names the attachment
+<code>global</code>, where the file lives, and the project.</p>
 <p>Making this context a turn rather than system text keeps the stable system
 cache key independent of normal repository edits, preserves per-file
 provenance, and lets compaction pin the turn alongside loaded skill bodies. The
@@ -3477,8 +3504,9 @@ agent or the session overlay has an <code>allow</code> or <code>ask</code> rule 
 a snapshot of it as one user turn right after the AGENTS.md turn. The
 snapshot is taken at run admission and recorded as a <code>memory_loaded</code> event
 only when something it depends on changed: the session has none yet, a
-compaction finished since the latest one, the session's machines, the run's
-agent, whether memory is available, or whether the run may write it. History
+compaction finished since the latest one, the session's machines, the
+session's project or its name, the run's agent, whether memory is available,
+or whether the run may write it. History
 renders the latest event only, and compaction pins the turn like the AGENTS.md
 turn. Writes during the session, and edits the user makes from a client,
 change the files but not the turn until the next of those points, so the
@@ -3526,15 +3554,35 @@ prompt cache survives them. When memory stops being available, an empty
   file first, until <code>[memory] snapshot_index_bytes</code> of rendered section is
   used; the rest are counted.</li>
 <li>A section with nothing to show keeps its heading and says <code>None.</code></li>
-<li>Attribute values escape <code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, and <code>"</code>; text escapes only a <code>&lt;</code>
-  that starts <code>memory</code>, <code>machine</code>, or <code>system-reminder</code> (with or without
-  <code>/</code>, in any case), so a note cannot open or close an element.</li>
+<li>A root run of a session in a project gets a last section, and its search
+  paragraph reads <code>This session's project notes are listed below. Search
+  memory (memory_search) for other projects only when the task reaches into
+  them.</code> instead:</li>
 </ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>## Project cookie-agent
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>This session belongs to the cookie-agent project.
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>&lt;memory url="project://cookie-agent/overview" description="Overview of the `cookie-agent` project, loaded in full into its sessions"&gt;
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>A coding agent harness in Rust.
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>&lt;/memory&gt;
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>Other memories of this project (read with memory_read):
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>- project://cookie-agent/release: How releases are cut [keywords: release]
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>- 2 more; search with layer "project".
+</code></pre></div>
+<p>The overview is left out when its body is empty; one too long for
+  <code>[memory] snapshot_user_bytes</code>, which it shares with the user section, is
+  listed in the index instead. The index lists the project's other memories,
+  newest first, within <code>[memory] snapshot_index_bytes</code>, which it shares with
+  the machines section and uses first; without any it says <code>None.</code>
+- Attribute values escape <code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, and <code>"</code>; text escapes only a <code>&lt;</code>
+  that starts <code>memory</code>, <code>machine</code>, or <code>system-reminder</code> (with or without
+  <code>/</code>, in any case), so a note cannot open or close an element.</p>
 <p>A delegated run's turn holds only its own agent's section, and its paragraphs
 say so:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Only your own agent's notes are shown here. Search memory (memory_search) for the user's preferences, the project, and the machines your task touches. Read a listed memory with memory_read.
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>You may save only lessons about doing your job as this agent, in agent://reviewer: memory_write to create it, memory_edit to change it. Keep it short and current: update an entry rather than adding a near-duplicate. Never save secrets.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Only your own agent's notes are shown here. Search memory (memory_search) for the user's preferences, the project, and the machines your task touches. Read a listed memory with memory_read.
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>You may save only lessons about doing your job as this agent, in agent://reviewer: memory_write to create it, memory_edit to change it. Keep it short and current: update an entry rather than adding a near-duplicate. Never save secrets.
 </code></pre></div>
 <h2 id="cache-breakpoints">Cache breakpoints<a class="headerlink" href="#cache-breakpoints" title="Permanent link">&para;</a></h2>
 <p>For capable Anthropic adaptors, cache strategy is structural rather than text

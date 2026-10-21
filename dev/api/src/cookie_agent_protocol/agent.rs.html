@@ -474,7 +474,7 @@
 <a href=#474 id=474 data-nosnippet>474</a>}
 <a href=#475 id=475 data-nosnippet>475</a>
 <a href=#476 id=476 data-nosnippet>476</a><span class="kw">struct </span>AgentDescriptionSchema;
-<a href=#477 id=477 data-nosnippet>477</a><span class="kw">struct </span>AgentPresetNameSchema;
+<a href=#477 id=477 data-nosnippet>477</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>AgentPresetNameSchema;
 <a href=#478 id=478 data-nosnippet>478</a><span class="kw">struct </span>AgentPromptSchema;
 <a href=#479 id=479 data-nosnippet>479</a><span class="kw">impl </span>JsonSchema <span class="kw">for </span>AgentDescriptionSchema {
 <a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">fn </span>inline_schema() -&gt; bool {
@@ -564,71 +564,73 @@
 <a href=#564 id=564 data-nosnippet>564</a>        })
 <a href=#565 id=565 data-nosnippet>565</a>}
 <a href=#566 id=566 data-nosnippet>566</a>
-<a href=#567 id=567 data-nosnippet>567</a><span class="kw">fn </span>deserialize_optional_preset&lt;<span class="lifetime">'de</span>, D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;, D::Error&gt;
-<a href=#568 id=568 data-nosnippet>568</a><span class="kw">where
-<a href=#569 id=569 data-nosnippet>569</a>    </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
-<a href=#570 id=570 data-nosnippet>570</a>{
-<a href=#571 id=571 data-nosnippet>571</a>    <span class="kw">let </span>preset = <span class="prelude-ty">Option</span>::&lt;String&gt;::deserialize(deserializer)<span class="question-mark">?</span>;
-<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">if </span>preset
-<a href=#573 id=573 data-nosnippet>573</a>        .as_deref()
-<a href=#574 id=574 data-nosnippet>574</a>        .is_some_and(|name| !valid_preset_name(name))
-<a href=#575 id=575 data-nosnippet>575</a>    {
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(serde::de::Error::custom(AgentSchemaError::InvalidPreset));
-<a href=#577 id=577 data-nosnippet>577</a>    }
-<a href=#578 id=578 data-nosnippet>578</a>    <span class="prelude-val">Ok</span>(preset)
-<a href=#579 id=579 data-nosnippet>579</a>}
-<a href=#580 id=580 data-nosnippet>580</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>AgentDescriptor {
-<a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">fn </span>deserialize&lt;D&gt;(d: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
-<a href=#582 id=582 data-nosnippet>582</a>    <span class="kw">where
-<a href=#583 id=583 data-nosnippet>583</a>        </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
-<a href=#584 id=584 data-nosnippet>584</a>    {
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="attr">#[derive(Deserialize)]
-<a href=#586 id=586 data-nosnippet>586</a>        </span><span class="kw">struct </span>Wire {
-<a href=#587 id=587 data-nosnippet>587</a>            id: AgentId,
-<a href=#588 id=588 data-nosnippet>588</a>            <span class="attr">#[serde(default)]
-<a href=#589 id=589 data-nosnippet>589</a>            </span>preset: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#590 id=590 data-nosnippet>590</a>            description: String,
-<a href=#591 id=591 data-nosnippet>591</a>            mode: AgentMode,
-<a href=#592 id=592 data-nosnippet>592</a>            enabled: bool,
-<a href=#593 id=593 data-nosnippet>593</a>            runnable_as_root: bool,
-<a href=#594 id=594 data-nosnippet>594</a>            <span class="attr">#[serde(deserialize_with = <span class="string">"crate::deserialize_required_model_selections"</span>)]
-<a href=#595 id=595 data-nosnippet>595</a>            </span>resolved_fallback: Vec&lt;ModelSelection&gt;,
-<a href=#596 id=596 data-nosnippet>596</a>            delegation_targets: Vec&lt;AgentId&gt;,
-<a href=#597 id=597 data-nosnippet>597</a>        }
-<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">let </span>w = Wire::deserialize(d)<span class="question-mark">?</span>;
-<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">let </span>value = <span class="self">Self </span>{
-<a href=#600 id=600 data-nosnippet>600</a>            id: w.id,
-<a href=#601 id=601 data-nosnippet>601</a>            preset: w.preset,
-<a href=#602 id=602 data-nosnippet>602</a>            description: w.description,
-<a href=#603 id=603 data-nosnippet>603</a>            mode: w.mode,
-<a href=#604 id=604 data-nosnippet>604</a>            enabled: w.enabled,
-<a href=#605 id=605 data-nosnippet>605</a>            runnable_as_root: w.runnable_as_root,
-<a href=#606 id=606 data-nosnippet>606</a>            resolved_fallback: w.resolved_fallback,
-<a href=#607 id=607 data-nosnippet>607</a>            delegation_targets: w.delegation_targets,
-<a href=#608 id=608 data-nosnippet>608</a>        };
-<a href=#609 id=609 data-nosnippet>609</a>        value.validate().map_err(serde::de::Error::custom)<span class="question-mark">?</span>;
-<a href=#610 id=610 data-nosnippet>610</a>        <span class="prelude-val">Ok</span>(value)
-<a href=#611 id=611 data-nosnippet>611</a>    }
-<a href=#612 id=612 data-nosnippet>612</a>}
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a><span class="attr">#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-<a href=#615 id=615 data-nosnippet>615</a></span><span class="kw">pub enum </span>AgentSchemaError {
-<a href=#616 id=616 data-nosnippet>616</a>    InvalidDelegationTargets,
-<a href=#617 id=617 data-nosnippet>617</a>    InvalidDescription,
-<a href=#618 id=618 data-nosnippet>618</a>    InvalidPreset,
-<a href=#619 id=619 data-nosnippet>619</a>    InvalidPrompt,
-<a href=#620 id=620 data-nosnippet>620</a>    InvalidListBounds,
-<a href=#621 id=621 data-nosnippet>621</a>    DuplicatePermissionRule,
-<a href=#622 id=622 data-nosnippet>622</a>    DuplicateFallbackModel,
-<a href=#623 id=623 data-nosnippet>623</a>    InvalidModelBinding,
-<a href=#624 id=624 data-nosnippet>624</a>    InvalidSuffixStart,
-<a href=#625 id=625 data-nosnippet>625</a>    SelectionMismatch,
-<a href=#626 id=626 data-nosnippet>626</a>    InvalidRootRunnable,
-<a href=#627 id=627 data-nosnippet>627</a>}
-<a href=#628 id=628 data-nosnippet>628</a><span class="kw">impl </span>fmt::Display <span class="kw">for </span>AgentSchemaError {
-<a href=#629 id=629 data-nosnippet>629</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
-<a href=#630 id=630 data-nosnippet>630</a>        f.write_str(<span class="kw">match </span><span class="self">self</span>{<span class="self">Self</span>::InvalidDelegationTargets=&gt;<span class="string">"delegation targets must be a nonempty, strictly sorted unique list of at most 256 IDs"</span>,<span class="self">Self</span>::InvalidDescription=&gt;<span class="string">"agent description must be nonblank, control-free, and 1..=512 bytes"</span>,<span class="self">Self</span>::InvalidPreset=&gt;<span class="string">"agent preset must use lowercase alphanumeric segments separated by hyphens and contain at most 64 bytes"</span>,<span class="self">Self</span>::InvalidPrompt=&gt;<span class="string">"composed prompt must be nonblank and at most 128 KiB"</span>,<span class="self">Self</span>::InvalidListBounds=&gt;<span class="string">"agent list exceeds bounds or frozen fallback is empty"</span>,<span class="self">Self</span>::DuplicatePermissionRule=&gt;<span class="string">"session permission overlay rules must be unique by action and resource"</span>,<span class="self">Self</span>::DuplicateFallbackModel=&gt;<span class="string">"fallback chains may contain each model key at most once"</span>,<span class="self">Self</span>::InvalidModelBinding=&gt;<span class="string">"agent snapshot contains an invalid frozen model binding"</span>,<span class="self">Self</span>::InvalidSuffixStart=&gt;<span class="string">"selected_suffix_start must index the frozen fallback chain"</span>,<span class="self">Self</span>::SelectionMismatch=&gt;<span class="string">"run selection does not match the snapshot agent and selected fallback start"</span>,<span class="self">Self</span>::InvalidRootRunnable=&gt;<span class="string">"runnable_as_root contradicts enabled mode or fallback state"</span>})
-<a href=#631 id=631 data-nosnippet>631</a>    }
-<a href=#632 id=632 data-nosnippet>632</a>}
-<a href=#633 id=633 data-nosnippet>633</a><span class="kw">impl </span>std::error::Error <span class="kw">for </span>AgentSchemaError {}
+<a href=#567 id=567 data-nosnippet>567</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deserialize_optional_preset&lt;<span class="lifetime">'de</span>, D&gt;(
+<a href=#568 id=568 data-nosnippet>568</a>    deserializer: D,
+<a href=#569 id=569 data-nosnippet>569</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;, D::Error&gt;
+<a href=#570 id=570 data-nosnippet>570</a><span class="kw">where
+<a href=#571 id=571 data-nosnippet>571</a>    </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
+<a href=#572 id=572 data-nosnippet>572</a>{
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">let </span>preset = <span class="prelude-ty">Option</span>::&lt;String&gt;::deserialize(deserializer)<span class="question-mark">?</span>;
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">if </span>preset
+<a href=#575 id=575 data-nosnippet>575</a>        .as_deref()
+<a href=#576 id=576 data-nosnippet>576</a>        .is_some_and(|name| !valid_preset_name(name))
+<a href=#577 id=577 data-nosnippet>577</a>    {
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(serde::de::Error::custom(AgentSchemaError::InvalidPreset));
+<a href=#579 id=579 data-nosnippet>579</a>    }
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="prelude-val">Ok</span>(preset)
+<a href=#581 id=581 data-nosnippet>581</a>}
+<a href=#582 id=582 data-nosnippet>582</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>AgentDescriptor {
+<a href=#583 id=583 data-nosnippet>583</a>    <span class="kw">fn </span>deserialize&lt;D&gt;(d: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
+<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">where
+<a href=#585 id=585 data-nosnippet>585</a>        </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
+<a href=#586 id=586 data-nosnippet>586</a>    {
+<a href=#587 id=587 data-nosnippet>587</a>        <span class="attr">#[derive(Deserialize)]
+<a href=#588 id=588 data-nosnippet>588</a>        </span><span class="kw">struct </span>Wire {
+<a href=#589 id=589 data-nosnippet>589</a>            id: AgentId,
+<a href=#590 id=590 data-nosnippet>590</a>            <span class="attr">#[serde(default)]
+<a href=#591 id=591 data-nosnippet>591</a>            </span>preset: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#592 id=592 data-nosnippet>592</a>            description: String,
+<a href=#593 id=593 data-nosnippet>593</a>            mode: AgentMode,
+<a href=#594 id=594 data-nosnippet>594</a>            enabled: bool,
+<a href=#595 id=595 data-nosnippet>595</a>            runnable_as_root: bool,
+<a href=#596 id=596 data-nosnippet>596</a>            <span class="attr">#[serde(deserialize_with = <span class="string">"crate::deserialize_required_model_selections"</span>)]
+<a href=#597 id=597 data-nosnippet>597</a>            </span>resolved_fallback: Vec&lt;ModelSelection&gt;,
+<a href=#598 id=598 data-nosnippet>598</a>            delegation_targets: Vec&lt;AgentId&gt;,
+<a href=#599 id=599 data-nosnippet>599</a>        }
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">let </span>w = Wire::deserialize(d)<span class="question-mark">?</span>;
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">let </span>value = <span class="self">Self </span>{
+<a href=#602 id=602 data-nosnippet>602</a>            id: w.id,
+<a href=#603 id=603 data-nosnippet>603</a>            preset: w.preset,
+<a href=#604 id=604 data-nosnippet>604</a>            description: w.description,
+<a href=#605 id=605 data-nosnippet>605</a>            mode: w.mode,
+<a href=#606 id=606 data-nosnippet>606</a>            enabled: w.enabled,
+<a href=#607 id=607 data-nosnippet>607</a>            runnable_as_root: w.runnable_as_root,
+<a href=#608 id=608 data-nosnippet>608</a>            resolved_fallback: w.resolved_fallback,
+<a href=#609 id=609 data-nosnippet>609</a>            delegation_targets: w.delegation_targets,
+<a href=#610 id=610 data-nosnippet>610</a>        };
+<a href=#611 id=611 data-nosnippet>611</a>        value.validate().map_err(serde::de::Error::custom)<span class="question-mark">?</span>;
+<a href=#612 id=612 data-nosnippet>612</a>        <span class="prelude-val">Ok</span>(value)
+<a href=#613 id=613 data-nosnippet>613</a>    }
+<a href=#614 id=614 data-nosnippet>614</a>}
+<a href=#615 id=615 data-nosnippet>615</a>
+<a href=#616 id=616 data-nosnippet>616</a><span class="attr">#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+<a href=#617 id=617 data-nosnippet>617</a></span><span class="kw">pub enum </span>AgentSchemaError {
+<a href=#618 id=618 data-nosnippet>618</a>    InvalidDelegationTargets,
+<a href=#619 id=619 data-nosnippet>619</a>    InvalidDescription,
+<a href=#620 id=620 data-nosnippet>620</a>    InvalidPreset,
+<a href=#621 id=621 data-nosnippet>621</a>    InvalidPrompt,
+<a href=#622 id=622 data-nosnippet>622</a>    InvalidListBounds,
+<a href=#623 id=623 data-nosnippet>623</a>    DuplicatePermissionRule,
+<a href=#624 id=624 data-nosnippet>624</a>    DuplicateFallbackModel,
+<a href=#625 id=625 data-nosnippet>625</a>    InvalidModelBinding,
+<a href=#626 id=626 data-nosnippet>626</a>    InvalidSuffixStart,
+<a href=#627 id=627 data-nosnippet>627</a>    SelectionMismatch,
+<a href=#628 id=628 data-nosnippet>628</a>    InvalidRootRunnable,
+<a href=#629 id=629 data-nosnippet>629</a>}
+<a href=#630 id=630 data-nosnippet>630</a><span class="kw">impl </span>fmt::Display <span class="kw">for </span>AgentSchemaError {
+<a href=#631 id=631 data-nosnippet>631</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+<a href=#632 id=632 data-nosnippet>632</a>        f.write_str(<span class="kw">match </span><span class="self">self</span>{<span class="self">Self</span>::InvalidDelegationTargets=&gt;<span class="string">"delegation targets must be a nonempty, strictly sorted unique list of at most 256 IDs"</span>,<span class="self">Self</span>::InvalidDescription=&gt;<span class="string">"agent description must be nonblank, control-free, and 1..=512 bytes"</span>,<span class="self">Self</span>::InvalidPreset=&gt;<span class="string">"agent preset must use lowercase alphanumeric segments separated by hyphens and contain at most 64 bytes"</span>,<span class="self">Self</span>::InvalidPrompt=&gt;<span class="string">"composed prompt must be nonblank and at most 128 KiB"</span>,<span class="self">Self</span>::InvalidListBounds=&gt;<span class="string">"agent list exceeds bounds or frozen fallback is empty"</span>,<span class="self">Self</span>::DuplicatePermissionRule=&gt;<span class="string">"session permission overlay rules must be unique by action and resource"</span>,<span class="self">Self</span>::DuplicateFallbackModel=&gt;<span class="string">"fallback chains may contain each model key at most once"</span>,<span class="self">Self</span>::InvalidModelBinding=&gt;<span class="string">"agent snapshot contains an invalid frozen model binding"</span>,<span class="self">Self</span>::InvalidSuffixStart=&gt;<span class="string">"selected_suffix_start must index the frozen fallback chain"</span>,<span class="self">Self</span>::SelectionMismatch=&gt;<span class="string">"run selection does not match the snapshot agent and selected fallback start"</span>,<span class="self">Self</span>::InvalidRootRunnable=&gt;<span class="string">"runnable_as_root contradicts enabled mode or fallback state"</span>})
+<a href=#633 id=633 data-nosnippet>633</a>    }
+<a href=#634 id=634 data-nosnippet>634</a>}
+<a href=#635 id=635 data-nosnippet>635</a><span class="kw">impl </span>std::error::Error <span class="kw">for </span>AgentSchemaError {}
 </code></pre></div></section></main></body></html>
