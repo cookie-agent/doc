@@ -3124,6 +3124,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#53-where-a-session-works-badges-from-its-subagents" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.3 Where a session works: badges from its subagents
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3436,6 +3445,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#53-where-a-session-works-badges-from-its-subagents" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.3 Where a session works: badges from its subagents
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3741,6 +3759,40 @@ only where <code>global</code> is attached, and only when the run's agent may us
   directory, <code>/runtime</code> edits a draft's attachments, and project defaults
   apply as in the projects spec.</li>
 </ul>
+<h3 id="53-where-a-session-works-badges-from-its-subagents">5.3 Where a session works: badges from its subagents<a class="headerlink" href="#53-where-a-session-works-badges-from-its-subagents" title="Permanent link">&para;</a></h3>
+<p>Added 2026-10-21. A root with only <code>global</code> shows no badges, yet its
+subagents work on <code>labpc</code> and in <code>~/api</code>. The session's badges should say
+so.</p>
+<ul>
+<li><strong>The union.</strong> A root session's badges are built from its own
+  attachments together with every direct child's attachments, with
+  duplicates (same runtime, capability, and workspace) removed and
+  <code>global</code> ignored as before. The usual badge rules then apply (projects
+  spec section 9): one machine shows <code>[machine]</code> and its workspaces, and
+  several machines show their machine badges.</li>
+<li><strong>Depth 1 is enough.</strong> Only depth-1 children can be given capabilities
+  (section 2), and deeper children inherit from their parent
+  (section 2.3). So the direct children's attachments already cover the
+  whole tree, and nothing deeper is read.</li>
+<li><strong>Kept with the root, not computed per listing.</strong> <code>session.list</code> stays
+  metadata-only (tree-local sessions spec), so the union cannot be built
+  by reading the children at listing time. When a child is created, the
+  daemon adds any of its attachments the root does not yet record to a new
+  <code>SessionMeta.delegated_attachments</code>, which is folded from a durable
+  event on the root's log. A cache rebuild keeps it, and the change is
+  announced with <code>sessions.changed</code> <code>upserted</code>. The cost is one small
+  event per child that brings new attachments, and none when a child only
+  inherits.</li>
+<li><strong>Order.</strong> The root's own attachments come first, then delegated ones
+  in the order children brought them. Machine badges follow that order.</li>
+<li><strong>It only grows.</strong> A child that finishes or is evicted leaves its
+  attachments in the union: the badges say where the session has worked.
+  A detach on the root removes only the root's own attachment.</li>
+<li><strong>A child's own row</strong> in the subagent tree shows badges from its own
+  attachments only.</li>
+<li><strong>The TUI</strong> uses the same union for the project and workspace label in
+  its session picker rows.</li>
+</ul>
 <h2 id="6-prompt">6. Prompt<a class="headerlink" href="#6-prompt" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>A root with only <code>global</code>.</strong> Its system prompt has no working
@@ -3774,9 +3826,14 @@ cannot trigger through a tool. The dial-in path is therefore the one the
 docs show.</p>
 <h2 id="8-protocol-and-compatibility">8. Protocol and compatibility<a class="headerlink" href="#8-protocol-and-compatibility" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>No client, runtime, or plugin protocol change.</strong> The tool schemas are
-  model-facing. Children record their attachments with the existing
-  <code>runtime_attached</code> events.</li>
+<li><strong>Tools.</strong> The tool schemas are model-facing, so the delegation changes
+  need no protocol version. Children record their attachments with the
+  existing <code>runtime_attached</code> events.</li>
+<li><strong>Client protocol minor</strong> (additive), for section 5.3:
+  <code>SessionMeta.delegated_attachments</code> and the root event it is folded
+  from. The event is also a plugin protocol minor, since plugins see
+  events. Older daemons send nothing, so clients show the root's own
+  attachments, as today.</li>
 <li><strong>Old logs.</strong> Children that inherited the root's attachments keep them.
   Replay reads attachments from each child's own events.</li>
 <li><code>docs/site/reference/tools.md</code> is regenerated for <code>list_runtimes</code> and
@@ -3794,7 +3851,9 @@ docs show.</p>
 <li>tests;</li>
 <li>the tools reference.</li>
 <li><strong>Web:</strong> a global-only New session, the "Runtimes…" chip and sheet,
-   and project prefill through the chip.</li>
+   project prefill through the chip, and badges from the union of the
+   root's and its subagents' attachments (section 5.3). The daemon's
+   <code>delegated_attachments</code> belongs to phase 1.</li>
 <li><strong>Docs:</strong></li>
 <li>the runtimes concept page and delegation guide;</li>
 <li>the pattern in section 7, with its security note;</li>
