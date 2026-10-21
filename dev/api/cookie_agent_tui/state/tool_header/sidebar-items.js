@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["flatten_header_argument","hint_icon"]};
+window.SIDEBAR_ITEMS = {"fn":["flatten_header_argument","hint_icon","shown_arguments"]};

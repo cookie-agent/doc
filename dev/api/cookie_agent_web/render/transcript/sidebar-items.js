@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["item_html","item_key"],"struct":["Delegate","TranscriptView"]};
+window.SIDEBAR_ITEMS = {"fn":["all_output_key","item_html","item_key"],"struct":["Delegate","TranscriptView"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["escape","push_escaped","safe_link"],"mod":["blocks","markdown","sgr","transcript"]};
+window.SIDEBAR_ITEMS = {"fn":["escape","push_escaped","safe_link"],"mod":["blocks","budget","markdown","sgr","transcript"]};

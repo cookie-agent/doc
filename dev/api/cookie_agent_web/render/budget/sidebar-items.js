@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ALL_OUTPUT_LINES","OUTPUT_LINES"],"fn":["block_lines","within_budget"]};

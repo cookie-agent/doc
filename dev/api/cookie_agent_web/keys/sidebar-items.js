@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ComposerAction"],"fn":["composer_action"],"struct":["KeyPress"]};
+window.SIDEBAR_ITEMS = {"constant":["COMPOSER_MAX_LINES"],"enum":["ComposerAction","ComposerButtons"],"fn":["composer_action","composer_buttons","composer_height"],"struct":["KeyPress"]};

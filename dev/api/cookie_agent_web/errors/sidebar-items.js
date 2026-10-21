@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["describe","describe_full"],"struct":["ErrorText"]};
