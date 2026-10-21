@@ -2996,6 +2996,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.8 Addendum 2026-10-21: the registry remembers where runtimes ran
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4002,6 +4011,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.8 Addendum 2026-10-21: the registry remembers where runtimes ran
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4032,7 +4050,8 @@ listed in <a href="#1-goal-and-scope">section 1</a> and the sections that follow
 are open (<a href="#15-open-questions">section 15</a>). How each phase settled, with
 its deviations, is in <a href="#16-implementation-notes">section 16</a>; later
 decisions are dated addenda there (<a href="#166-addendum-2026-10-21-agents-clear-what-they-cannot-delete">section 16.6</a>,
-<a href="#167-addendum-2026-10-21-the-daemon-keeps-one-memory-file-per-agent">section 16.7</a>). This spec
+<a href="#167-addendum-2026-10-21-the-daemon-keeps-one-memory-file-per-agent">section 16.7</a>,
+<a href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran">section 16.8</a>). This spec
 builds on the <a href="../runtimes/">runtimes spec</a> and the
 <a href="../runtime-capabilities/">runtime capabilities spec</a>, and adds the term
 <em>machine</em> to their vocabulary.</p>
@@ -5599,6 +5618,58 @@ files (section 4.1) and the <code>No memory yet.</code> line of section 7.4.</p>
   for old events would need a new event member that every snapshot carries,
   which this change did not take on.</li>
 </ul>
+<h3 id="168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran">16.8 Addendum 2026-10-21: the registry remembers where runtimes ran<a class="headerlink" href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran" title="Permanent link">&para;</a></h3>
+<p>Approved 2026-10-21, and queued as the first step of phase 1 of
+<a href="../runtime-delegation/">delegating to runtimes</a>.</p>
+<p>Until now a runtime's machine came only from a pin or from what the
+runtime reported while connected
+(<a href="#32-machine-registry">section 3.2</a>). An ssh template that had
+connected before therefore fell back to "on no machine yet" as soon as
+it disconnected. Its badges, its <code>~/…</code> paths, and its place in the
+Machines view were all lost while it was offline.</p>
+<ul>
+<li><strong>What is remembered.</strong> When a runtime connects, <code>machines.json</code> records
+  under its runtime ID:</li>
+<li>the machine ID it reported;</li>
+<li>its platform and its home directory;</li>
+<li>when it was last seen.</li>
+</ul>
+<p>The record is rewritten whenever a reconnect reports something
+  different. Writes go through the same lock as every registry change.
+  The registry format version goes up by one, and an older file reads
+  with no records.
+- <strong>Placement.</strong> A runtime's machine is decided in this order:
+  1. its pin;
+  2. the machine its live report resolves to;
+  3. the machine its record resolves to, as a new reason, "last seen".</p>
+<p>A disconnected runtime with a record stays on that machine, shown as
+  offline. "On no machine yet" is left for runtimes that have never
+  connected. Merging or renaming machines moves remembered runtimes as it
+  moves connected ones, because records hold machine IDs, not names.
+- <strong>What clients see.</strong>
+  - <code>runtimes.list</code> gives a disconnected runtime with a record its
+    remembered <code>machine</code>, <code>platform</code> and <code>home</code>, with <code>connected: false</code>.
+  - <code>machines.list</code> lists remembered runtimes beside connected ones, each
+    with its last-seen time.
+  - <code>list_runtimes</code> places them under their machine the same way.
+- <strong>Forgetting.</strong>
+  - A new <code>machines.forget_runtime</code> drops one runtime's record. The web
+    Machines view offers it on offline runtimes as "Forget".
+  - Removing an ssh template from <code>config.toml</code> drops its record at the
+    next config reload.
+  - Dial-in runtimes, which have no config, keep their record until
+    forgotten.
+  - <code>machines.forget</code> on a machine still refuses while the machine has
+    connected runtimes or memories. Remembered offline runtimes don't
+    block it; their records are dropped with it.
+- <strong>Machines view.</strong> Each machine card lists its offline runtimes under
+  the connected ones, dimmed, with "last seen …". Dragging an offline
+  runtime onto another machine pins it there, as for any runtime.
+- <strong>Protocol.</strong> This is an additive client protocol minor:
+  - the "last seen" assignment reason;
+  - remembered runtimes and their last-seen times in <code>machines.list</code>;
+  - <code>machines.forget_runtime</code>.</p>
+<p>Older clients see what they see today.</p>
 
 
 
