@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PanelMode"],"fn":["contains","find","has_live_delegate","panel_visible","tree_rows"],"struct":["TreeRow"]};
+window.SIDEBAR_ITEMS = {"enum":["Activity","PanelMode"],"fn":["contains","delegates_of","find","has_live_delegate","panel_visible","path","subagent_label","tree_rows"],"struct":["TreeRow"]};

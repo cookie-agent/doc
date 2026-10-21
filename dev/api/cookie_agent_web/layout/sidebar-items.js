@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PRESS_SLOP","SESSION_MENU"],"enum":["HistoryStep","Layer","SettingsSection","View"],"fn":["command_view","reconcile","session_menu"],"struct":["Press"]};
