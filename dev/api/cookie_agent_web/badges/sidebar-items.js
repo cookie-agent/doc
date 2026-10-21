@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["badge_view","hue_class","runtime_dot"]};

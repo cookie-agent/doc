@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RenameCommand","TitleError"],"fn":["current_title","rename_command","rename_params","rename_session","renamed_status","title_change"]};

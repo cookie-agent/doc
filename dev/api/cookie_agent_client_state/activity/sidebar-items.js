@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["WAITING_ON_MINOR"],"enum":["SessionActivity"],"fn":["daemon_reports_waiting","session_activity"]};

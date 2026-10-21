@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BADGE_HUES"],"enum":["SessionBadge"],"fn":["badge_hue","badges_tooltip","runtime_badge","runtime_machine","session_badges"]};

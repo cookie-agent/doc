@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["all_output_key","homes_key","item_html","item_key"],"struct":["Delegate","TranscriptView"]};
+window.SIDEBAR_ITEMS = {"constant":["MODEL_TOOLS_KEY","SYSTEM_PROMPT_KEY"],"fn":["all_output_key","homes_key","item_html","item_key","pinned_rows"],"struct":["Delegate","TranscriptView"]};
