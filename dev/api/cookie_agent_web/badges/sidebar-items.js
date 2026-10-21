@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["badge_view","hue_class","runtime_dot"]};
+window.SIDEBAR_ITEMS = {"fn":["badge_line","badge_view","fit","fit_soon","hue_class","keep_fitted","runtime_dot"]};

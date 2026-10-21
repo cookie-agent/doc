@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PANEL_POLL"],"enum":["MemoryChoice","MemoryPending","Panel"],"fn":["level_from_storage"],"struct":["ConfigEdit","DownscaleOffer","MemoryEdit","UsageView","UserMenu","Workspace"]};
+window.SIDEBAR_ITEMS = {"constant":["PANEL_POLL"],"enum":["MemoryChoice","MemoryPending","Panel"],"fn":["level_from_storage"],"struct":["CardSet","ConfigEdit","DownscaleOffer","EditorFields","MemoryEdit","ProjectEditor","UsageView","UserMenu","Workspace"]};

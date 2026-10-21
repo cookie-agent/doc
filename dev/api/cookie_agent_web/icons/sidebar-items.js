@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CREDIT","CREDIT_URL"],"fn":["Glyph","hint_icon","permission_mode","row_status","session_status","svg","theme_icon","tool_status"],"struct":["GlyphProps","StatusMark"],"type":["Icon"]};
+window.SIDEBAR_ITEMS = {"constant":["CREDIT","CREDIT_URL"],"fn":["Glyph","hint_icon","permission_mode","row_status","row_status_of","session_status","svg","theme_icon","tool_status"],"struct":["GlyphProps","StatusMark"],"type":["Icon"]};
