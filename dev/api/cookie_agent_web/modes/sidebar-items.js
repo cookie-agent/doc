@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FOOTNOTE","MODES"],"fn":["choice","mode_name"],"struct":["ModeChoice"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["COMMANDS"],"enum":["Command"],"fn":["completions","parse"],"struct":["CommandSpec"]};
+window.SIDEBAR_ITEMS = {"constant":["MENU"],"enum":["Command"],"fn":["entry"],"struct":["MenuEntry"]};
