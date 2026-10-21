@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["NEW_MEMORY"],"enum":["MemoryRow","MemoryWriteOutcome"],"fn":["delete_refusal","layer_title","memory_name","memory_rows","message_of","new_memory_refusal"]};
+window.SIDEBAR_ITEMS = {"constant":["NEW_MEMORY"],"enum":["MemoryRow","MemoryWriteOutcome"],"fn":["agent_memory_parts","delete_refusal","layer_title","memory_name","memory_rows","message_of","new_memory_refusal","saved_status"],"struct":["AgentMemoryParts"]};
