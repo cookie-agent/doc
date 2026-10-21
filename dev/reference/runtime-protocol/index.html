@@ -2257,6 +2257,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#home" class="md-nav__link">
+    <span class="md-ellipsis">
+      Home
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       Lifecycle
@@ -3413,6 +3422,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#home" class="md-nav__link">
+    <span class="md-ellipsis">
+      Home
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       Lifecycle
@@ -3761,7 +3779,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.2.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.3.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -3802,7 +3820,10 @@ machines by. 1.2.0 made the daemon's answers to a refused dial-in part of
 the protocol: HTTP statuses with the reason before the upgrade, close code
 1011 with the reason after it, and which of them are permanent (see
 <a href="#dial-in-refusals">Dial-in refusals</a>). Its messages did not change; the
-version records the contract a runtime may now rely on to stop dialing in.</p>
+version records the contract a runtime may now rely on to stop dialing in.
+1.3.0 added the optional <code>home</code> of <code>runtime/initialize</code>'s result: the
+runtime's home directory, which clients show paths under as <code>~/…</code> and
+permission rules expand a leading <code>~</code> against (see <a href="#home">Home</a>).</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -3822,6 +3843,24 @@ machine named after the host name. A runtime that reports no machine gets a
 machine of its own, named after its runtime ID. The user regroups, renames,
 and merges machines from any client; a runtime never learns its machine's
 name. See the <a href="../../specs/memory/#3-machines">memory spec</a>.</p>
+<h2 id="home">Home<a class="headerlink" href="#home" title="Permanent link">&para;</a></h2>
+<p>A runtime may report its <strong>home directory</strong> in <code>runtime/initialize</code>. Paths
+are stored canonical and absolute everywhere, and the home is only how they
+are shown and how permission rules name them:</p>
+<ul>
+<li><strong>Display.</strong> Clients show a path of the runtime, such as an attachment's
+  workspace, as <code>~</code> for the home itself and <code>~/rest</code> under it, and absolute
+  otherwise. A runtime that reports no home is fine: clients show its paths
+  absolute. The daemon passes the home on as <code>home</code> in <code>runtimes.list</code> (see
+  the <a href="../protocol/#runtimes">protocol reference</a>).</li>
+<li><strong>Permission rules.</strong> A rule pattern <code>~</code> or <code>~/…</code> expands against the home
+  of the runtime the tool runs on, so <code>read: ~/notes/**</code> means the notes
+  under the home on that runtime's machine. On a runtime that reports no home
+  the pattern stays literal and matches no absolute path (see
+  <a href="../../extend/agents/#paths-under-the-home-directory">Agents</a>).</li>
+</ul>
+<p>The coding runtime expands a path argument's leading <code>~</code> against the same
+canonical home, so the path a tool reads and the rule that governs it agree.</p>
 <h2 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
 <ol>
 <li>The daemon connects (in-process: a new frame pair and a server task; a
@@ -4063,6 +4102,10 @@ or enables OAuth, which stays with the daemon's global runtime.</p>
 <tr>
 <td><code>machine</code></td>
 <td>Optional, since 1.1.0: the machine the runtime runs on, <code>{ id, host_name? }</code>. <code>id</code> is a stable, opaque ID of 1 to 128 printable ASCII bytes; runtimes reporting one ID belong to one machine. <code>host_name</code> (at most 255 bytes) names a machine the daemon has not seen. <code>cookie runtime serve</code> reports the digest <code>cookie</code> uses as its machine ID and the host name; a runtime that cannot tell leaves it out, and the daemon reads a malformed one as left out. See <a href="#machines">Machines</a>.</td>
+</tr>
+<tr>
+<td><code>home</code></td>
+<td>Optional, since 1.3.0: the home directory of the user the runtime runs as, a canonical absolute path on its machine (<code>/home/ada</code>, <code>C:\Users\ada</code>), at most 4096 bytes without control characters. The coding runtime reports its user's home, canonicalized. The daemon reads one that is not an absolute path as left out. See <a href="#home">Home</a>.</td>
 </tr>
 <tr>
 <td><code>capabilities</code></td>

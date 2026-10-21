@@ -1518,6 +1518,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#paths-under-the-home-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paths under the home directory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tool-availability-and-delegation" class="md-nav__link">
     <span class="md-ellipsis">
       Tool availability and delegation
@@ -3474,6 +3483,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#paths-under-the-home-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paths under the home directory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tool-availability-and-delegation" class="md-nav__link">
     <span class="md-ellipsis">
       Tool availability and delegation
@@ -4225,7 +4243,8 @@ against the workspace of the runtime that prepared the call; relative path
 labels resolve against it too. Base-layer and global-runtime tools have no
 workspace, so <code>${workspace_dir}</code> and relative-path patterns never match them. Ordinary absolute patterns
 such as <code>/etc/*</code> control outside-workspace paths. Permission patterns do not
-expand environment variables. A <code>*</code> matches across directory separators, so
+expand environment variables; only a leading <code>~</code> expands (see
+<a href="#paths-under-the-home-directory">Paths under the home directory</a>). A <code>*</code> matches across directory separators, so
 <code>"${workspace_dir}/*"</code> already covers nested paths such as
 <code>${workspace_dir}/crates/engine/src/lib.rs</code>; no <code>**</code> pattern is needed.</p>
 <p>Permission evaluation has no implicit filename or resource-name exceptions.
@@ -4245,6 +4264,28 @@ integrity and resource-binding checks, or govern engine configuration and prompt
 loading (such as workspace <code>AGENTS.md</code> admission). Generic approval modes and
 turn-scoped skill grants retain their documented behavior; they are not
 resource-name exceptions.</p>
+<h3 id="paths-under-the-home-directory">Paths under the home directory<a class="headerlink" href="#paths-under-the-home-directory" title="Permanent link">&para;</a></h3>
+<p>A pattern that is <code>~</code> or starts with <code>~/</code> names the home directory of the
+runtime the tool runs on, as the runtime reported it (see
+<a href="../../reference/runtime-protocol/#home">Home</a>): on a runtime whose home is
+<code>/home/ada</code>, <code>~/notes/*</code> is <code>/home/ada/notes/*</code> and <code>~</code> is <code>/home/ada</code>.
+Each runtime expands it against its own home, so one rule covers the home on
+every machine, and a <a href="#runtime-selectors">runtime selector</a> still limits it
+to one runtime:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="s">"~/notes/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">read@labpc</span><span class="p">:</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="s">"~/.ssh/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+</code></pre></div>
+<p>The expanded pattern is an ordinary absolute pattern: it governs paths
+outside the workspace, whose labels are absolute, and ranks by its expanded
+length. A path argument's own leading <code>~</code> expands against the same home, so
+<code>read("~/notes/todo.md")</code> gets the label <code>/home/ada/notes/todo.md</code>. On a
+runtime that reports no home (the base layer included) the pattern stays
+literal and matches no absolute path; <code>~user/…</code> never expands. Windows homes
+are spelled with <code>/</code>, as path labels are: <code>C:\Users\ada</code> makes <code>~/x</code>
+<code>C:/Users/ada/x</code>.</p>
 <h3 id="tool-availability-and-delegation">Tool availability and delegation<a class="headerlink" href="#tool-availability-and-delegation" title="Permanent link">&para;</a></h3>
 <p>Tools are opt-in. A permission action must have at least one <code>allow</code>
 or <code>ask</code> rule in the agent document or session overlay before that action's
@@ -4256,21 +4297,21 @@ Resource patterns and overlay precedence still decide individual calls once
 tools are visible.</p>
 <p>For example, this agent exposes read, write/edit, and bash with granular write
 and command policies while leaving delegation and MCP tools hidden:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>---
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>description: Workspace implementation agent
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>mode: primary
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>enabled: true
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>models:
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>permissions:
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  read: allow
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>  write:
-<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    "src/*": ask
-<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>  bash:
-<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    "cargo test*": allow
-<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="gu">    "cargo fmt*": allow</span>
-<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="gu">---</span>
-<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>Implement and verify requested workspace changes.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>---
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>description: Workspace implementation agent
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mode: primary
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>enabled: true
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>models:
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>permissions:
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>  read: allow
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>  write:
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    "src/*": ask
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>  bash:
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    "cargo test*": allow
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="gu">    "cargo fmt*": allow</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="gu">---</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>Implement and verify requested workspace changes.
 </code></pre></div>
 <p>MCP tools follow the same rule: the <code>mcp</code> action must contain a non-deny rule.
 Delegation tools additionally require the <code>delegate</code> map to name at least one
@@ -4353,15 +4394,15 @@ write ask. Session overlays apply on top as for any action. In a rule
 pattern, <code>agent://self</code> stands for the run's own agent: it is read as
 <code>agent://&lt;agent ID&gt;</code> before matching, in agent documents and session
 overlays alike, and ranks like that literal URL.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">memory</span><span class="p">:</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="s">"agent://reviewer"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">memory_write</span><span class="p">:</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="s">"agent://self"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="s">"project://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="s">"machine://labpc/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">memory</span><span class="p">:</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="s">"agent://reviewer"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">memory_write</span><span class="p">:</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="s">"agent://self"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="s">"project://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="s">"machine://labpc/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 </code></pre></div>
 <p>Memory needs both the <code>global</code> runtime and a visible <code>memory</code> action: an
 agent without one gets no memory tools at all, even with <code>memory_write</code>
@@ -4370,10 +4411,10 @@ whatever its rules say. See the <a href="../../specs/memory/#9-permissions">memo
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are

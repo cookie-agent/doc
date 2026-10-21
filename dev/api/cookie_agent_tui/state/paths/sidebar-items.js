@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RUNTIME_HOMES_MINOR"],"fn":["daemon_reports_runtime_homes","display_path"],"struct":["RuntimeHomes"]};

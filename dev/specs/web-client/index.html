@@ -2967,6 +2967,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#18-addendum-2026-10-21-canonical-paths-and-runtime-homes" class="md-nav__link">
+    <span class="md-ellipsis">
+      18. Addendum (2026-10-21): canonical paths and runtime homes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="18. Addendum (2026-10-21): canonical paths and runtime homes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#181-decisions-2026-10-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      18.1 Decisions (2026-10-21)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#182-what-the-web-client-does-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      18.2 What the web client does next
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3929,6 +3962,39 @@
   <a href="#deviations-across-the-phases" class="md-nav__link">
     <span class="md-ellipsis">
       Deviations across the phases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-addendum-2026-10-21-canonical-paths-and-runtime-homes" class="md-nav__link">
+    <span class="md-ellipsis">
+      18. Addendum (2026-10-21): canonical paths and runtime homes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="18. Addendum (2026-10-21): canonical paths and runtime homes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#181-decisions-2026-10-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      18.1 Decisions (2026-10-21)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#182-what-the-web-client-does-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      18.2 What the web client does next
     </span>
   </a>
   
@@ -5910,6 +5976,103 @@ documentation. There is no wire change.</p>
   with its reason recorded (W2–W4). After the UI polish of 2026-10-21 the
   release build (Rust 1.88.0) measured 1.75 MB, and the budget was raised
   to 10 MB, a backstop against runaway growth rather than a target.</li>
+</ul>
+<h2 id="18-addendum-2026-10-21-canonical-paths-and-runtime-homes">18. Addendum (2026-10-21): canonical paths and runtime homes<a class="headerlink" href="#18-addendum-2026-10-21-canonical-paths-and-runtime-homes" title="Permanent link">&para;</a></h2>
+<p>Status: <strong>protocol, daemon, and TUI implemented</strong> (2026-10-21): runtime
+protocol 1.3.0 and client protocol 1.7.0. The web client's display and its
+runtime cards build on it next, on their own branch; until then the page
+compiles against the new types and shows paths as before.</p>
+<p>The web client's directory filter listed one directory twice: the page sent
+the <code>~/x</code> the user typed as <code>cwd</code>, which the daemon stored verbatim because
+it canonicalized on its own machine and kept the text when that failed,
+while the TUI sent <code>/home/ada/x</code>. Runtimes already resolved and reported the
+canonical workspace, and nothing reported a home, so permission rules
+written <code>~/…</code> never matched either.</p>
+<h3 id="181-decisions-2026-10-21">18.1 Decisions (2026-10-21)<a class="headerlink" href="#181-decisions-2026-10-21" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Paths are stored canonical and absolute, and shown as <code>~/…</code></strong>
+   everywhere a client shows them.</li>
+<li><strong>A session's directory identity (<code>cwd_identity</code>) is its first
+   workspace attachment's canonical workspace,</strong> as the runtime reported it,
+   never the client's typed text.</li>
+<li>It is decided once, in <code>session.create</code>, after the attachments have
+     opened and before the creation event is written: the first attachment
+     in attach order whose capability reported a workspace. The daemon does
+     not branch on the attachment's kind; in practice it is the first
+     <code>coding</code> attachment.</li>
+<li>A session with no workspace attachment keeps the old rule: <code>cwd</code>
+     canonicalized on the daemon's machine, or the raw text when that fails
+     (the daemon's working directory without <code>cwd</code>).</li>
+<li>Existing sessions keep what they stored: there is no migration.</li>
+<li>Delegated children copy their parent's identity, as before.</li>
+<li><strong>Runtimes may report their home directory:</strong> an optional <code>home</code> in the
+   result of <code>runtime/initialize</code>, a canonical absolute path on the
+   runtime's machine (runtime protocol 1.2.0 → 1.3.0).</li>
+<li>It is on the result, not on <code>RuntimeMachine</code>: one machine runs
+     runtimes of several users, and the machine ID is the operating
+     system's.</li>
+<li>A reader takes an absolute POSIX or Windows path of at most 4096 bytes
+     without control characters (<code>runtime_protocol::is_valid_home</code>) and
+     reads anything else as unreported.</li>
+<li><code>cookie runtime serve</code> reports its user's home, canonicalized; the
+     built-in <code>global</code> and <code>local</code> report the daemon's. A runtime that
+     reports none is fine: clients show its paths absolute.</li>
+<li><strong>The client protocol exposes homes and attachments</strong> (client protocol
+   1.6.0 → 1.7.0; decided as 1.5.0 → 1.6.0, but <code>memory.write</code>'s <code>notice</code>
+   took 1.6.0 first):</li>
+<li><code>RuntimeListing.home</code> in <code>runtimes.list</code>. Only there, not on
+     <code>RuntimeAttachment</code>: the home belongs to the runtime, and attachments
+     are folded from the persisted <code>runtime_attached</code> events, so a home on
+     them would need a history change or go stale. A client maps an
+     attachment's <code>runtime_id</code> to its listing.</li>
+<li><code>SessionMeta.attachments</code>: the session's <code>RuntimeAttachment</code>s now
+     (<code>name</code>, <code>runtime_id</code>, <code>capability</code>, <code>kind</code>, <code>workspace</code>), so session
+     lists show and filter by runtime and workspace without a <code>session.get</code>
+     each.</li>
+<li>The daemon keeps them current on attach and detach: the metadata
+     cache is written through and <code>sessions.changed</code> <code>upserted</code> goes out.
+     Metadata an older build wrote decodes with none until the session
+     records an event.</li>
+<li>Clients gate on minor 7: the TUI fetches homes only from a 1.7 daemon
+     (<code>client_state::paths::daemon_reports_runtime_homes</code>).</li>
+<li><strong>Permission rules:</strong> a pattern <code>~</code> or <code>~/…</code> expands against the home
+   of the runtime the tool runs on, when that runtime reported one.</li>
+<li>Without a home (the base layer included) it stays literal and so
+     matches no absolute label; <code>~user/…</code> never expands.</li>
+<li>A Windows home is spelled with <code>/</code>, as path labels are.</li>
+<li>Expansion is pure and allocation-free when it does not apply. It is
+     used wherever a pattern is matched or ranked: agent and overlay rules,
+     specificity, skill grants, and the stricter-overlay check.</li>
+<li><code>action@runtime</code> selectors apply as before.</li>
+<li>The coding runtime expands a path argument's <code>~</code> against the same
+     canonical home, so labels and rules agree.</li>
+<li><strong>A shared display helper:</strong> <code>client_state::paths::display_path(path,
+   home)</code> gives <code>~</code> for the home itself, <code>~/rest</code> under it, and the absolute
+   path otherwise.</li>
+<li>A Windows path keeps its separators (<code>~\src</code>) and matches its home
+     ignoring case and either separator. There is never a <code>~</code> without a
+     home, or for a root home.</li>
+<li><code>RuntimeHomes</code> collects the homes from <code>runtimes.list</code> and names a
+     session's directory under the home of the runtime whose attachment has
+     that workspace.</li>
+<li>The TUI uses them in the bottom bar's runtime label (replacing its
+     <code>shorten_home</code>, which used the client's home and mislabelled remote
+     runtimes), the session picker's directory labels (now <code>~/…</code> rather
+     than the basename), and the <code>/runtime</code> panel's workspaces.</li>
+</ol>
+<h3 id="182-what-the-web-client-does-next">18.2 What the web client does next<a class="headerlink" href="#182-what-the-web-client-does-next" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fetch <code>runtimes.list</code> on connect and on <code>runtimes.changed</code> and
+  <code>machines.changed</code> from a 1.7 daemon, and keep <code>RuntimeHomes</code>.</li>
+<li>Show every path through <code>display_path</code> or <code>RuntimeHomes</code>: the sessions
+  list's directory names and filter labels (<code>session_directory</code>), the
+  session panel's runtimes, and the runtime cards' workspaces.</li>
+<li>Filter and group sessions by <code>cwd_identity</code> as before; it now agrees
+  across clients for new sessions. Runtime cards read
+  <code>SessionMeta.attachments</code> to show which sessions use a runtime and
+  workspace.</li>
+<li>Keep sending what the user typed as <code>cwd</code> and <code>workspace</code>; the daemon and
+  the runtime resolve it.</li>
 </ul>
 
 
