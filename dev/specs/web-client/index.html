@@ -3952,7 +3952,10 @@ added browser authentication, and on the
 <a href="../runtime-capabilities/">runtime capabilities spec</a>, which added the
 listening daemon. The addendum of 2026-10-21
 (<a href="#16-addendum-2026-10-21-web-layout-v2-and-session-deletion">section 16</a>)
-adds web layout v2 and session deletion, implemented on 2026-10-21.</p>
+adds web layout v2 and session deletion, implemented on 2026-10-21. On
+2026-10-21 the user also reversed the "no service worker" decision of
+<a href="#9-phones">section 9</a>: the page installs as an app, with a network-only
+service worker.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>Before this spec the TUI was the only interactive client. This spec adds a browser client
 that does everything the TUI does that a browser can do. It works on a phone
@@ -4236,8 +4239,9 @@ with them (<code>state/tests.rs</code>).</p>
 <li>Files whose names carry Trunk's content hash (the WebAssembly module,
     its glue, the stylesheet) are sent with <code>Cache-Control: immutable</code>.
     <code>index.html</code> and the files Trunk copies under their own names (fonts,
-    highlighter, manifest, icons) are sent with <code>no-cache</code> and an <code>ETag</code>, so
-    a restarted daemon's page always matches its own build.</li>
+    highlighter, manifest, icons, screenshots, the service worker) are sent
+    with <code>no-cache</code> and an <code>ETag</code>, so a restarted daemon's page always
+    matches its own build.</li>
 <li>A compressible file is sent gzip-compressed to a browser that takes
     gzip; there is no Brotli.</li>
 <li><strong>Serving the page needs no token.</strong> The page holds no secret. Every
@@ -4448,8 +4452,47 @@ where each feature lands.</p>
 <li>The bundle has a web app manifest and icons (any and maskable, 192 and
     512 px, an SVG, and an Apple touch icon), <code>display: standalone</code>, and a
     theme colour for light and dark, so it can be added to the home screen.</li>
-<li>A service worker is not part of this spec. It would need a secure
-    context and adds caching the daemon's version matching does not want.</li>
+<li>The spec first left a service worker out: it would need a secure
+    context and adds caching the daemon's version matching does not want.
+    <strong>The user reversed this on 2026-10-21:</strong> the page advertises itself as
+    an installable app, with a service worker that caches nothing (below).</li>
+<li><strong>Installable app (user decision, 2026-10-21).</strong> Users opening the page in
+  a browser, typically over <code>tailscale serve</code> HTTPS
+  (<code>https://&lt;host&gt;.&lt;tailnet&gt;.ts.net/</code> in front of the loopback daemon), can
+  install it to a phone or desktop.</li>
+<li><strong>Manifest.</strong> <code>name</code>, <code>short_name</code>, and <code>id</code>, <code>start_url</code>, and <code>scope</code>
+    of <code>./</code> (relative, so the page installs from any path), <code>display:
+    standalone</code>, background and theme colours, the icons above, and a
+    narrow and a wide screenshot for Chromium's richer install dialog.</li>
+<li><strong>Service worker, network-only.</strong> <code>sw.js</code> beside <code>index.html</code>, so its
+    scope is the page's directory without <code>Service-Worker-Allowed</code>. It
+    caches nothing: no Cache Storage, and its fetch handler passes the
+    page's own <code>GET</code> requests to the network (<code>respondWith(fetch(request))</code>)
+    and leaves every other request, and <code>/ws</code> and <code>/runtime</code>, to the
+    browser. The page must always match its daemon's build, which is why
+    caching stays out. It calls <code>skipWaiting</code> and <code>clients.claim</code>, and
+    <code>scripts/build-web.sh</code> stamps the build on its last line, so a new
+    build replaces it on the next load. The page registers it only in a
+    secure context, with <code>updateViaCache: "none"</code>.</li>
+<li><strong>Serving.</strong> <code>sw.js</code> keeps its name, so it is sent with <code>no-cache</code>
+    and an <code>ETag</code> like <code>index.html</code>, as <code>text/javascript</code>. The
+    Content-Security-Policy adds <code>worker-src 'self'</code> and
+    <code>manifest-src 'self'</code>.</li>
+<li><strong>Advertising it.</strong> An inline script keeps Chromium's
+    <code>beforeinstallprompt</code> (it may fire before the WebAssembly runs) and
+    prevents the mini-infobar. Settings › This browser, the connect screen,
+    and a phone's one-time dismissible banner offer <strong>Install app</strong>, which
+    opens the prompt; <code>appinstalled</code> or running standalone
+    (<code>display-mode: standalone</code>, iOS's <code>navigator.standalone</code>) hides it.
+    iOS and iPadOS have no prompt, so they get the steps instead: Share,
+    then Add to Home Screen. A page that is not a secure context cannot be
+    installed, and Settings says it needs HTTPS. The decision is pure logic
+    in <code>crates/web/src/install.rs</code>.</li>
+<li><strong>Launching.</strong> The app opens at <code>start_url</code>, which has no token, and
+    connects with the stored one. iOS keeps a home-screen app's storage
+    apart from Safari's, so there the token field takes a pasted
+    <code>cookie web</code> link once. The <code>theme-color</code> follows the page's theme,
+    the user's override included.</li>
 <li><strong>On-screen keyboard.</strong> The page's frame and sheets take the visual
   viewport's height, which the keyboard shrinks, so the composer and an
   open sheet stay above it; the frame keeps clear of safe-area insets.</li>

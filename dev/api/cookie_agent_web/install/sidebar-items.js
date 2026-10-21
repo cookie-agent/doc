@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BANNER_KEY"],"enum":["InstallOffer"],"fn":["banner_dismissed","is_ios","shows_banner"],"struct":["InstallContext"]};
