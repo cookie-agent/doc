@@ -103,83 +103,85 @@
 <a href=#103 id=103 data-nosnippet>103</a>            providers,
 <a href=#104 id=104 data-nosnippet>104</a>            skills,
 <a href=#105 id=105 data-nosnippet>105</a>            connection: <span class="prelude-val">None</span>,
-<a href=#106 id=106 data-nosnippet>106</a>        }
-<a href=#107 id=107 data-nosnippet>107</a>    }
-<a href=#108 id=108 data-nosnippet>108</a>}
-<a href=#109 id=109 data-nosnippet>109</a>
-<a href=#110 id=110 data-nosnippet>110</a><span class="doccomment">/// The built-in coding runtime called in-process, for tests and embedders
-<a href=#111 id=111 data-nosnippet>111</a>/// that do not need the protocol. Its instances open in any workspace, in
-<a href=#112 id=112 data-nosnippet>112</a>/// the daemon's working directory when a session names none.
-<a href=#113 id=113 data-nosnippet>113</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>LocalTemplate {
-<a href=#114 id=114 data-nosnippet>114</a>    workspace: WorkspaceContext,
-<a href=#115 id=115 data-nosnippet>115</a>    tools: CodingToolsFactory,
-<a href=#116 id=116 data-nosnippet>116</a>}
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a><span class="kw">impl </span>LocalTemplate {
-<a href=#119 id=119 data-nosnippet>119</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(workspace: WorkspaceContext, tools: CodingToolsFactory) -&gt; <span class="self">Self </span>{
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="self">Self </span>{ workspace, tools }
-<a href=#121 id=121 data-nosnippet>121</a>    }
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Opens the instance for `workspace`: builds its tools and finds the
-<a href=#124 id=124 data-nosnippet>124</a>    /// project skills from the repository root down to the workspace.
-<a href=#125 id=125 data-nosnippet>125</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>open(<span class="kw-2">&amp;</span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>WorkspaceContext) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, String&gt; {
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">let </span>skills = cookie_agent_config::load_project_skills(workspace.root())
-<a href=#127 id=127 data-nosnippet>127</a>            .map_err(|error| <span class="macro">format!</span>(<span class="string">"project skills: {error}"</span>))<span class="question-mark">?</span>;
-<a href=#128 id=128 data-nosnippet>128</a>        <span class="prelude-val">Ok</span>(StartedRuntime {
-<a href=#129 id=129 data-nosnippet>129</a>            info: RuntimeInfo::coding(LOCAL_RUNTIME_ID, workspace.clone()).with_home(daemon_home()),
-<a href=#130 id=130 data-nosnippet>130</a>            providers: (<span class="self">self</span>.tools)(workspace),
-<a href=#131 id=131 data-nosnippet>131</a>            skills,
-<a href=#132 id=132 data-nosnippet>132</a>            connection: <span class="prelude-val">None</span>,
-<a href=#133 id=133 data-nosnippet>133</a>        })
-<a href=#134 id=134 data-nosnippet>134</a>    }
-<a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// Opens the instance for the daemon's working directory.
-<a href=#137 id=137 data-nosnippet>137</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>start_now(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, String&gt; {
-<a href=#138 id=138 data-nosnippet>138</a>        <span class="self">self</span>.open(<span class="kw-2">&amp;</span><span class="self">self</span>.workspace)
-<a href=#139 id=139 data-nosnippet>139</a>    }
-<a href=#140 id=140 data-nosnippet>140</a>}
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a><span class="attr">#[async_trait]
-<a href=#143 id=143 data-nosnippet>143</a></span><span class="kw">impl </span>RuntimeTemplate <span class="kw">for </span>LocalTemplate {
-<a href=#144 id=144 data-nosnippet>144</a>    <span class="kw">fn </span>runtime_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-<a href=#145 id=145 data-nosnippet>145</a>        LOCAL_RUNTIME_ID
-<a href=#146 id=146 data-nosnippet>146</a>    }
-<a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">fn </span>lifetime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeLifetime {
-<a href=#149 id=149 data-nosnippet>149</a>        RuntimeLifetime::Builtin
-<a href=#150 id=150 data-nosnippet>150</a>    }
-<a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">async fn </span>capabilities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;RuntimeCapabilityInfo&gt;, String&gt; {
-<a href=#153 id=153 data-nosnippet>153</a>        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[coding_capability()])
-<a href=#154 id=154 data-nosnippet>154</a>    }
-<a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="kw">fn </span>listing(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeListingState {
-<a href=#157 id=157 data-nosnippet>157</a>        RuntimeListingState {
-<a href=#158 id=158 data-nosnippet>158</a>            connected: <span class="bool-val">true</span>,
-<a href=#159 id=159 data-nosnippet>159</a>            capabilities: <span class="macro">vec!</span>[coding_capability()],
-<a href=#160 id=160 data-nosnippet>160</a>            platform: <span class="self">self</span>.workspace.platform().map(str::to_owned),
-<a href=#161 id=161 data-nosnippet>161</a>            machine: RuntimeMachine::this_machine(),
-<a href=#162 id=162 data-nosnippet>162</a>            home: daemon_home(),
-<a href=#163 id=163 data-nosnippet>163</a>            message: <span class="prelude-val">None</span>,
-<a href=#164 id=164 data-nosnippet>164</a>        }
-<a href=#165 id=165 data-nosnippet>165</a>    }
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">fn </span>default_workspace(<span class="kw-2">&amp;</span><span class="self">self</span>, _capability: <span class="kw-2">&amp;</span>CapabilityName) -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.workspace.root().to_owned())
-<a href=#169 id=169 data-nosnippet>169</a>    }
-<a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">async fn </span>start(
-<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#173 id=173 data-nosnippet>173</a>        _capability: <span class="kw-2">&amp;</span>CapabilityName,
-<a href=#174 id=174 data-nosnippet>174</a>        workspace: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
-<a href=#175 id=175 data-nosnippet>175</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, StartError&gt; {
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>workspace = <span class="kw">match </span>workspace {
-<a href=#177 id=177 data-nosnippet>177</a>            <span class="prelude-val">Some</span>(path) =&gt; {
-<a href=#178 id=178 data-nosnippet>178</a>                WorkspaceContext::new(path).map_err(|error| StartError::Open(error.to_string()))<span class="question-mark">?
-<a href=#179 id=179 data-nosnippet>179</a>            </span>}
-<a href=#180 id=180 data-nosnippet>180</a>            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.workspace.clone(),
-<a href=#181 id=181 data-nosnippet>181</a>        };
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="self">self</span>.open(<span class="kw-2">&amp;</span>workspace).map_err(StartError::Open)
-<a href=#183 id=183 data-nosnippet>183</a>    }
-<a href=#184 id=184 data-nosnippet>184</a>}
+<a href=#106 id=106 data-nosnippet>106</a>            shared: <span class="prelude-val">None</span>,
+<a href=#107 id=107 data-nosnippet>107</a>        }
+<a href=#108 id=108 data-nosnippet>108</a>    }
+<a href=#109 id=109 data-nosnippet>109</a>}
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a><span class="doccomment">/// The built-in coding runtime called in-process, for tests and embedders
+<a href=#112 id=112 data-nosnippet>112</a>/// that do not need the protocol. Its instances open in any workspace, in
+<a href=#113 id=113 data-nosnippet>113</a>/// the daemon's working directory when a session names none.
+<a href=#114 id=114 data-nosnippet>114</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>LocalTemplate {
+<a href=#115 id=115 data-nosnippet>115</a>    workspace: WorkspaceContext,
+<a href=#116 id=116 data-nosnippet>116</a>    tools: CodingToolsFactory,
+<a href=#117 id=117 data-nosnippet>117</a>}
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a><span class="kw">impl </span>LocalTemplate {
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(workspace: WorkspaceContext, tools: CodingToolsFactory) -&gt; <span class="self">Self </span>{
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="self">Self </span>{ workspace, tools }
+<a href=#122 id=122 data-nosnippet>122</a>    }
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Opens the instance for `workspace`: builds its tools and finds the
+<a href=#125 id=125 data-nosnippet>125</a>    /// project skills from the repository root down to the workspace.
+<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>open(<span class="kw-2">&amp;</span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>WorkspaceContext) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, String&gt; {
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>skills = cookie_agent_config::load_project_skills(workspace.root())
+<a href=#128 id=128 data-nosnippet>128</a>            .map_err(|error| <span class="macro">format!</span>(<span class="string">"project skills: {error}"</span>))<span class="question-mark">?</span>;
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="prelude-val">Ok</span>(StartedRuntime {
+<a href=#130 id=130 data-nosnippet>130</a>            info: RuntimeInfo::coding(LOCAL_RUNTIME_ID, workspace.clone()).with_home(daemon_home()),
+<a href=#131 id=131 data-nosnippet>131</a>            providers: (<span class="self">self</span>.tools)(workspace),
+<a href=#132 id=132 data-nosnippet>132</a>            skills,
+<a href=#133 id=133 data-nosnippet>133</a>            connection: <span class="prelude-val">None</span>,
+<a href=#134 id=134 data-nosnippet>134</a>            shared: <span class="prelude-val">None</span>,
+<a href=#135 id=135 data-nosnippet>135</a>        })
+<a href=#136 id=136 data-nosnippet>136</a>    }
+<a href=#137 id=137 data-nosnippet>137</a>
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="doccomment">/// Opens the instance for the daemon's working directory.
+<a href=#139 id=139 data-nosnippet>139</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>start_now(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, String&gt; {
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="self">self</span>.open(<span class="kw-2">&amp;</span><span class="self">self</span>.workspace)
+<a href=#141 id=141 data-nosnippet>141</a>    }
+<a href=#142 id=142 data-nosnippet>142</a>}
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a><span class="attr">#[async_trait]
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">impl </span>RuntimeTemplate <span class="kw">for </span>LocalTemplate {
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">fn </span>runtime_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+<a href=#147 id=147 data-nosnippet>147</a>        LOCAL_RUNTIME_ID
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="kw">fn </span>lifetime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeLifetime {
+<a href=#151 id=151 data-nosnippet>151</a>        RuntimeLifetime::Builtin
+<a href=#152 id=152 data-nosnippet>152</a>    }
+<a href=#153 id=153 data-nosnippet>153</a>
+<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">async fn </span>capabilities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;RuntimeCapabilityInfo&gt;, String&gt; {
+<a href=#155 id=155 data-nosnippet>155</a>        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[coding_capability()])
+<a href=#156 id=156 data-nosnippet>156</a>    }
+<a href=#157 id=157 data-nosnippet>157</a>
+<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">fn </span>listing(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeListingState {
+<a href=#159 id=159 data-nosnippet>159</a>        RuntimeListingState {
+<a href=#160 id=160 data-nosnippet>160</a>            connected: <span class="bool-val">true</span>,
+<a href=#161 id=161 data-nosnippet>161</a>            capabilities: <span class="macro">vec!</span>[coding_capability()],
+<a href=#162 id=162 data-nosnippet>162</a>            platform: <span class="self">self</span>.workspace.platform().map(str::to_owned),
+<a href=#163 id=163 data-nosnippet>163</a>            machine: RuntimeMachine::this_machine(),
+<a href=#164 id=164 data-nosnippet>164</a>            home: daemon_home(),
+<a href=#165 id=165 data-nosnippet>165</a>            message: <span class="prelude-val">None</span>,
+<a href=#166 id=166 data-nosnippet>166</a>        }
+<a href=#167 id=167 data-nosnippet>167</a>    }
+<a href=#168 id=168 data-nosnippet>168</a>
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">fn </span>default_workspace(<span class="kw-2">&amp;</span><span class="self">self</span>, _capability: <span class="kw-2">&amp;</span>CapabilityName) -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.workspace.root().to_owned())
+<a href=#171 id=171 data-nosnippet>171</a>    }
+<a href=#172 id=172 data-nosnippet>172</a>
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">async fn </span>start(
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#175 id=175 data-nosnippet>175</a>        _capability: <span class="kw-2">&amp;</span>CapabilityName,
+<a href=#176 id=176 data-nosnippet>176</a>        workspace: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
+<a href=#177 id=177 data-nosnippet>177</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, StartError&gt; {
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>workspace = <span class="kw">match </span>workspace {
+<a href=#179 id=179 data-nosnippet>179</a>            <span class="prelude-val">Some</span>(path) =&gt; {
+<a href=#180 id=180 data-nosnippet>180</a>                WorkspaceContext::new(path).map_err(|error| StartError::Open(error.to_string()))<span class="question-mark">?
+<a href=#181 id=181 data-nosnippet>181</a>            </span>}
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.workspace.clone(),
+<a href=#183 id=183 data-nosnippet>183</a>        };
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="self">self</span>.open(<span class="kw-2">&amp;</span>workspace).map_err(StartError::Open)
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>}
 </code></pre></div></section></main></body></html>

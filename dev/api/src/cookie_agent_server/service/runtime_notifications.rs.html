@@ -442,46 +442,49 @@
 <a href=#442 id=442 data-nosnippet>442</a>}
 <a href=#443 id=443 data-nosnippet>443</a>
 <a href=#444 id=444 data-nosnippet>444</a><span class="doccomment">/// `failure` as a client sees it, when one of `sessions` uses the server:
-<a href=#445 id=445 data-nosnippet>445</a>/// it is attached to the instance that hosts it. Top-level MCP servers
-<a href=#446 id=446 data-nosnippet>446</a>/// belong to the global runtime.
-<a href=#447 id=447 data-nosnippet>447</a></span><span class="kw">fn </span>mcp_failure(
-<a href=#448 id=448 data-nosnippet>448</a>    engine: <span class="kw-2">&amp;</span>Engine,
-<a href=#449 id=449 data-nosnippet>449</a>    sessions: <span class="kw-2">&amp;</span>[SessionId],
-<a href=#450 id=450 data-nosnippet>450</a>    failure: cookie_agent_engine::McpServerFailure,
-<a href=#451 id=451 data-nosnippet>451</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::McpServerFailure&gt; {
-<a href=#452 id=452 data-nosnippet>452</a>    <span class="kw">let </span>runtime_id = RuntimeId::new(failure.runtime_id.as_str()).ok()<span class="question-mark">?</span>;
-<a href=#453 id=453 data-nosnippet>453</a>    <span class="kw">let </span>session_ids = affected_sessions(engine, sessions, |attachment| {
-<a href=#454 id=454 data-nosnippet>454</a>        attachment.runtime_id == runtime_id &amp;&amp; attachment.workspace == failure.workspace
-<a href=#455 id=455 data-nosnippet>455</a>    });
-<a href=#456 id=456 data-nosnippet>456</a>    (!session_ids.is_empty()).then(|| cookie_agent_protocol::McpServerFailure {
-<a href=#457 id=457 data-nosnippet>457</a>        runtime_id: runtime_id.clone(),
-<a href=#458 id=458 data-nosnippet>458</a>        workspace: failure.workspace,
-<a href=#459 id=459 data-nosnippet>459</a>        server: failure.server,
-<a href=#460 id=460 data-nosnippet>460</a>        reason: failure.reason,
-<a href=#461 id=461 data-nosnippet>461</a>        session_ids,
-<a href=#462 id=462 data-nosnippet>462</a>    })
-<a href=#463 id=463 data-nosnippet>463</a>}
-<a href=#464 id=464 data-nosnippet>464</a>
-<a href=#465 id=465 data-nosnippet>465</a><span class="doccomment">/// `failure` as a client sees it, when one of `sessions` is attached to the
-<a href=#466 id=466 data-nosnippet>466</a>/// instance.
-<a href=#467 id=467 data-nosnippet>467</a></span><span class="kw">fn </span>runtime_failure(
-<a href=#468 id=468 data-nosnippet>468</a>    engine: <span class="kw-2">&amp;</span>Engine,
-<a href=#469 id=469 data-nosnippet>469</a>    sessions: <span class="kw-2">&amp;</span>[SessionId],
-<a href=#470 id=470 data-nosnippet>470</a>    failure: cookie_agent_engine::RuntimeFailure,
-<a href=#471 id=471 data-nosnippet>471</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::RuntimeFailure&gt; {
-<a href=#472 id=472 data-nosnippet>472</a>    <span class="kw">let </span>runtime_id = RuntimeId::new(failure.runtime_id.as_str()).ok()<span class="question-mark">?</span>;
-<a href=#473 id=473 data-nosnippet>473</a>    <span class="kw">let </span>capability = cookie_agent_protocol::CapabilityName::new(failure.capability).ok()<span class="question-mark">?</span>;
-<a href=#474 id=474 data-nosnippet>474</a>    <span class="kw">let </span>session_ids = affected_sessions(engine, sessions, |attachment| {
-<a href=#475 id=475 data-nosnippet>475</a>        attachment.runtime_id == runtime_id
-<a href=#476 id=476 data-nosnippet>476</a>            &amp;&amp; attachment.capability == capability
-<a href=#477 id=477 data-nosnippet>477</a>            &amp;&amp; attachment.workspace == failure.workspace
-<a href=#478 id=478 data-nosnippet>478</a>    });
-<a href=#479 id=479 data-nosnippet>479</a>    (!session_ids.is_empty()).then(|| cookie_agent_protocol::RuntimeFailure {
-<a href=#480 id=480 data-nosnippet>480</a>        runtime_id: runtime_id.clone(),
-<a href=#481 id=481 data-nosnippet>481</a>        capability: capability.clone(),
-<a href=#482 id=482 data-nosnippet>482</a>        workspace: failure.workspace,
-<a href=#483 id=483 data-nosnippet>483</a>        reason: failure.reason,
-<a href=#484 id=484 data-nosnippet>484</a>        session_ids,
-<a href=#485 id=485 data-nosnippet>485</a>    })
-<a href=#486 id=486 data-nosnippet>486</a>}
+<a href=#445 id=445 data-nosnippet>445</a>/// it is attached to the instance that hosts it, or, for a server its
+<a href=#446 id=446 data-nosnippet>446</a>/// runtime hosts without a workspace (a runtime-scoped one), to any
+<a href=#447 id=447 data-nosnippet>447</a>/// instance of that runtime. Top-level MCP servers belong to the global
+<a href=#448 id=448 data-nosnippet>448</a>/// runtime.
+<a href=#449 id=449 data-nosnippet>449</a></span><span class="kw">fn </span>mcp_failure(
+<a href=#450 id=450 data-nosnippet>450</a>    engine: <span class="kw-2">&amp;</span>Engine,
+<a href=#451 id=451 data-nosnippet>451</a>    sessions: <span class="kw-2">&amp;</span>[SessionId],
+<a href=#452 id=452 data-nosnippet>452</a>    failure: cookie_agent_engine::McpServerFailure,
+<a href=#453 id=453 data-nosnippet>453</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::McpServerFailure&gt; {
+<a href=#454 id=454 data-nosnippet>454</a>    <span class="kw">let </span>runtime_id = RuntimeId::new(failure.runtime_id.as_str()).ok()<span class="question-mark">?</span>;
+<a href=#455 id=455 data-nosnippet>455</a>    <span class="kw">let </span>session_ids = affected_sessions(engine, sessions, |attachment| {
+<a href=#456 id=456 data-nosnippet>456</a>        attachment.runtime_id == runtime_id
+<a href=#457 id=457 data-nosnippet>457</a>            &amp;&amp; (failure.workspace.is_none() || attachment.workspace == failure.workspace)
+<a href=#458 id=458 data-nosnippet>458</a>    });
+<a href=#459 id=459 data-nosnippet>459</a>    (!session_ids.is_empty()).then(|| cookie_agent_protocol::McpServerFailure {
+<a href=#460 id=460 data-nosnippet>460</a>        runtime_id: runtime_id.clone(),
+<a href=#461 id=461 data-nosnippet>461</a>        workspace: failure.workspace,
+<a href=#462 id=462 data-nosnippet>462</a>        server: failure.server,
+<a href=#463 id=463 data-nosnippet>463</a>        reason: failure.reason,
+<a href=#464 id=464 data-nosnippet>464</a>        session_ids,
+<a href=#465 id=465 data-nosnippet>465</a>    })
+<a href=#466 id=466 data-nosnippet>466</a>}
+<a href=#467 id=467 data-nosnippet>467</a>
+<a href=#468 id=468 data-nosnippet>468</a><span class="doccomment">/// `failure` as a client sees it, when one of `sessions` is attached to the
+<a href=#469 id=469 data-nosnippet>469</a>/// instance.
+<a href=#470 id=470 data-nosnippet>470</a></span><span class="kw">fn </span>runtime_failure(
+<a href=#471 id=471 data-nosnippet>471</a>    engine: <span class="kw-2">&amp;</span>Engine,
+<a href=#472 id=472 data-nosnippet>472</a>    sessions: <span class="kw-2">&amp;</span>[SessionId],
+<a href=#473 id=473 data-nosnippet>473</a>    failure: cookie_agent_engine::RuntimeFailure,
+<a href=#474 id=474 data-nosnippet>474</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::RuntimeFailure&gt; {
+<a href=#475 id=475 data-nosnippet>475</a>    <span class="kw">let </span>runtime_id = RuntimeId::new(failure.runtime_id.as_str()).ok()<span class="question-mark">?</span>;
+<a href=#476 id=476 data-nosnippet>476</a>    <span class="kw">let </span>capability = cookie_agent_protocol::CapabilityName::new(failure.capability).ok()<span class="question-mark">?</span>;
+<a href=#477 id=477 data-nosnippet>477</a>    <span class="kw">let </span>session_ids = affected_sessions(engine, sessions, |attachment| {
+<a href=#478 id=478 data-nosnippet>478</a>        attachment.runtime_id == runtime_id
+<a href=#479 id=479 data-nosnippet>479</a>            &amp;&amp; attachment.capability == capability
+<a href=#480 id=480 data-nosnippet>480</a>            &amp;&amp; attachment.workspace == failure.workspace
+<a href=#481 id=481 data-nosnippet>481</a>    });
+<a href=#482 id=482 data-nosnippet>482</a>    (!session_ids.is_empty()).then(|| cookie_agent_protocol::RuntimeFailure {
+<a href=#483 id=483 data-nosnippet>483</a>        runtime_id: runtime_id.clone(),
+<a href=#484 id=484 data-nosnippet>484</a>        capability: capability.clone(),
+<a href=#485 id=485 data-nosnippet>485</a>        workspace: failure.workspace,
+<a href=#486 id=486 data-nosnippet>486</a>        reason: failure.reason,
+<a href=#487 id=487 data-nosnippet>487</a>        session_ids,
+<a href=#488 id=488 data-nosnippet>488</a>    })
+<a href=#489 id=489 data-nosnippet>489</a>}
 </code></pre></div></section></main></body></html>

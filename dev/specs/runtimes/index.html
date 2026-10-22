@@ -2837,6 +2837,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#641-addendum-2026-10-22-mcp-server-scope-and-working-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.4.1 Addendum 2026-10-22: MCP server scope and working directory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#65-routing" class="md-nav__link">
     <span class="md-ellipsis">
       6.5 Routing
@@ -3641,6 +3650,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#641-addendum-2026-10-22-mcp-server-scope-and-working-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.4.1 Addendum 2026-10-22: MCP server scope and working directory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#65-routing" class="md-nav__link">
     <span class="md-ellipsis">
       6.5 Routing
@@ -4076,6 +4094,38 @@ runtimes) and to runtime instances.</p>
   published and calls fail fast with <code>runtime_unavailable</code>, so a brief drop
   never changes the tool list. If every attempt fails, its tools are dropped
   and clients get an error message.</li>
+</ul>
+<h3 id="641-addendum-2026-10-22-mcp-server-scope-and-working-directory">6.4.1 Addendum 2026-10-22: MCP server scope and working directory<a class="headerlink" href="#641-addendum-2026-10-22-mcp-server-scope-and-working-directory" title="Permanent link">&para;</a></h3>
+<p>A runtime template's MCP server takes <code>scope = "workspace"</code> (the default,
+the hosting described above) or <code>scope = "runtime"</code>; a top-level <code>[mcp]</code>
+server takes none and fails validation with one.</p>
+<ul>
+<li><strong>Start.</strong> A runtime-scoped server starts once per runtime process, when
+  the runtime accepts <code>runtime/initialize</code>. The reply does not wait for it;
+  every <code>capability/open</code> waits for its first attempt, bounded by its
+  <code>timeout_ms</code>, and reports it before replying. It reconnects with the
+  policy above and stops with the runtime.</li>
+<li><strong>Tools.</strong> Its tools are the runtime's own, outside any instance
+  (<code>runtime/tools_changed</code>, prepared without an <code>instance</code>). A session
+  composes them once per runtime, after the first attachment of that
+  runtime, under the runtime's ID as their composition source, so a
+  collision publishes <code>&lt;runtime&gt;_&lt;server&gt;_&lt;tool&gt;</code>; they run with an origin of
+  the runtime without a workspace.</li>
+<li><strong>Listing.</strong> The runtime reports every configured server at initialize and
+  with <code>runtime/mcp_changed</code>: the runtime-scoped ones live, the
+  workspace-scoped ones as configured. <code>mcp.server.list</code> shows a
+  runtime-scoped server once without a workspace and a workspace-scoped one
+  no instance hosts as "starts when a workspace opens", so a connected
+  runtime's servers are visible before any workspace opens.</li>
+<li><strong>Working directory.</strong> A stdio server without <code>cwd</code> starts in the
+  instance's workspace (workspace-scoped), in the runtime user's home
+  (runtime-scoped), or in the daemon user's home (top-level); a relative
+  <code>cwd</code> resolves against the same directory. Before, it inherited the
+  process's directory, which for a Windows runtime started by Task
+  Scheduler is <code>C:\Windows\System32</code>.</li>
+<li><strong>Compatibility.</strong> Runtime protocol 1.5.0 and client protocol 1.13.0,
+  additive. A runtime hosts every server per workspace for a daemon older
+  than 1.5.0.</li>
 </ul>
 <h3 id="65-routing">6.5 Routing<a class="headerlink" href="#65-routing" title="Permanent link">&para;</a></h3>
 <p>The name map resolves a published name to (attachment, runtime tool name).
