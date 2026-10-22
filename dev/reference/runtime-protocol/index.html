@@ -2344,6 +2344,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#liveness" class="md-nav__link">
+    <span class="md-ellipsis">
+      Liveness
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       Methods
@@ -3578,6 +3587,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#liveness" class="md-nav__link">
+    <span class="md-ellipsis">
+      Liveness
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       Methods
@@ -3917,7 +3935,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.3.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.4.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -3961,7 +3979,10 @@ the protocol: HTTP statuses with the reason before the upgrade, close code
 version records the contract a runtime may now rely on to stop dialing in.
 1.3.0 added the optional <code>home</code> of <code>runtime/initialize</code>'s result: the
 runtime's home directory, which clients show paths under as <code>~/…</code> and
-permission rules expand a leading <code>~</code> against (see <a href="#home">Home</a>).</p>
+permission rules expand a leading <code>~</code> against (see <a href="#home">Home</a>).
+1.4.0 added <code>runtime/ping</code>, which the daemon sends a quiet connection to
+tell it from a dead one (see <a href="#liveness">Liveness</a>); any answer counts, so
+an older runtime's <code>-32601</code> does too.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -4023,6 +4044,44 @@ canonical home, so the path a tool reads and the rule that governs it agree.</p>
    call, backgrounded ones included, and stops. It also stops when its transport
    ends.</li>
 </ol>
+<h2 id="liveness">Liveness<a class="headerlink" href="#liveness" title="Permanent link">&para;</a></h2>
+<p>A connection can die without closing: a dial-in machine that sleeps or
+loses its network leaves a half-open WebSocket, and a hung <code>ssh</code> keeps a
+spawned runtime's pipes open. So the daemon watches every runtime
+connection it keeps (an in-process <code>local</code> runtime's aside):</p>
+<ul>
+<li>Once nothing has arrived on a connection for <strong>15 s</strong>, the daemon sends
+  <code>runtime/ping</code>. Any frame counts as hearing from the runtime: the answer,
+  an error answer such as an older runtime's <code>-32601</code>, or any other message.</li>
+<li>Once nothing has arrived for <strong>45 s</strong>, the daemon ends the connection
+  ("nothing arrived from it for 45 s"), exactly as if it had closed: calls
+  in flight fail with <code>runtime_unavailable</code>, a dial-in runtime shows as
+  disconnected, and its instances reconnect, then fail, as below.</li>
+<li>Every request has a deadline. <code>tool/prepare</code>, <code>tool/revalidate</code>, and
+  <code>runtime/context</code> get <strong>30 s</strong>; <code>mcp/reconnect</code> gets 6 minutes, since it
+  may wait for a server to start or a user to sign in; <code>runtime/initialize</code>
+  and <code>capability/open</code> get the template's <code>startup_timeout_ms</code>, or 30 s for
+  a dial-in runtime; <code>runtime/shutdown</code> gets the shutdown grace. A request
+  past its deadline fails as <code>runtime_unavailable</code> ("it did not answer
+  <code>tool/prepare</code> within 30 s"), and the connection becomes suspect: the
+  daemon pings it at once and ends it unless something arrives within
+  <strong>10 s</strong> ("it did not answer a liveness check within 10 s").
+  <code>tool/execute</code> has no deadline of its own, since a call runs as long as
+  its tool allows, but a dead connection ends it within the 45 s above.</li>
+<li>Before a session gets an instance that is already open, as creating a
+  session, attaching a runtime, or delegating with capabilities does, the
+  daemon checks the connection: one heard from in the last 15 s passes;
+  another must answer a ping within 10 s, or it is ended and the instance is
+  not handed out.</li>
+</ul>
+<p>A runtime answers <code>runtime/ping</code> with <code>{}</code> at once, before
+<code>runtime/initialize</code> too. A dial-in runtime also watches its end: the
+<code>cookie runtime</code> WebSocket sends a ping frame once the connection has been
+quiet for 15 s, which the daemon answers with a pong, and dials in again once
+nothing, a pong included, has arrived for 45 s. When a runtime dials in
+while its old connection still looks open, the daemon refuses it as
+connected (409) and checks the old connection at once, so a retry gets in
+within about 10 s.</p>
 <p>When the connection is lost while it is in use, every call in flight fails
 with <code>runtime_unavailable</code>; a backgrounded call reports that failure as its
 background result. Every instance of the runtime becomes <code>reconnecting</code>: its
@@ -4079,6 +4138,12 @@ that dials in after its instances failed reopens them. Calls are never retried t
 <td>daemon → runtime</td>
 <td>request</td>
 <td>Stop gracefully</td>
+</tr>
+<tr>
+<td><code>runtime/ping</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Answer <code>{}</code> at once; since 1.4.0 (see <a href="#liveness">Liveness</a>)</td>
 </tr>
 <tr>
 <td><code>tool/prepare</code></td>

@@ -3259,6 +3259,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="11. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addendum-2026-10-22-offline-runtimes-are-refused-connections-are-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum 2026-10-22: offline runtimes are refused, connections are checked
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -3588,6 +3603,21 @@
       11. Implementation notes
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="11. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addendum-2026-10-22-offline-runtimes-are-refused-connections-are-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum 2026-10-22: offline runtimes are refused, connections are checked
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -4045,6 +4075,38 @@ landed first.</p>
   defaults attach runtimes is created with <code>runtimes</code> omitted, so the
   daemon attaches the project's defaults; the chip and the draft line show
   them. A draft whose sheet deselected <code>global</code> shows <strong>no runtimes</strong>.</li>
+</ul>
+<h3 id="addendum-2026-10-22-offline-runtimes-are-refused-connections-are-checked">Addendum 2026-10-22: offline runtimes are refused, connections are checked<a class="headerlink" href="#addendum-2026-10-22-offline-runtimes-are-refused-connections-are-checked" title="Permanent link">&para;</a></h3>
+<p>An incident showed two gaps in "a dial-in runtime must be connected"
+(section 2.2). A root delegated to a dial-in runtime on a PC that had gone
+away without closing its WebSocket. The daemon still counted the runtime
+as connected, so the first call waited 30 s for <code>capability/open</code>, and the
+second reused an instance opened earlier over the same dead connection:
+its child started, prepared a call with <code>tool/prepare</code>, and waited for the
+answer until the daemon restarted 17 minutes later. Decided and
+implemented:</p>
+<ul>
+<li><strong>Never create, attach, or delegate with an offline runtime</strong> (user
+  decision). A dial-in runtime that is not connected is refused at once,
+  for <code>capabilities</code> as for <code>session.create</code>, <code>session.runtime.attach</code>, and
+  a project's default runtimes, with
+  <code>runtime `&lt;id&gt;` is not connected (last seen &lt;time&gt;)</code>; a runtime the
+  daemon remembers from before a restart is refused the same way rather
+  than as unknown. A template runtime is started and must be online,
+  initialized and its capability opened, before the child exists; a start
+  that fails or times out fails the call and creates nothing.</li>
+<li><strong>An instance is handed out only over a live connection.</strong> Reusing an
+  open instance checks its connection first: one heard from in the last
+  15 s passes, another must answer <code>runtime/ping</code> within 10 s or it is
+  ended. A dial-in runtime is then refused as not connected; the daemon
+  waits up to 2 minutes for a template runtime it restarts.</li>
+<li><strong>Liveness and deadlines</strong> (runtime protocol 1.4.0, see
+  <a href="../../reference/runtime-protocol/#liveness">Liveness</a>): the daemon pings
+  a connection quiet for 15 s and ends one silent for 45 s; <code>tool/prepare</code>,
+  <code>tool/revalidate</code>, and <code>runtime/context</code> fail as <code>runtime_unavailable</code>
+  after 30 s and mark the connection suspect (checked within 10 s);
+  <code>tool/execute</code> is bounded by liveness. A dial-in runtime pings its end
+  over WebSocket and dials in again after 45 s of silence.</li>
 </ul>
 
 

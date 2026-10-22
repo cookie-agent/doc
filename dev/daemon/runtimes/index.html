@@ -3641,10 +3641,28 @@ expand against it (see
 <ul>
 <li><strong>Start.</strong> A runtime's process starts when a session first needs one of
   its capabilities, and stays up until the daemon exits; its instances open
-  as sessions attach them. A start that fails or exceeds
-  <code>startup_timeout_ms</code> publishes no tools; the attach is rejected, and clients
-  viewing an affected session get an error naming the runtime and the
-  reason. <code>runtimes.list</code> shows why the runtime last failed to connect.</li>
+  as sessions attach them. Creating a session, attaching a runtime, and
+  delegating with <code>capabilities</code> wait until the runtime is actually online,
+  <code>runtime/initialize</code> and <code>capability/open</code> answered, before anything is
+  created. A start that fails or exceeds <code>startup_timeout_ms</code> publishes no
+  tools and creates nothing: the session, attachment, or subagent is
+  refused with the reason, and clients viewing an affected session get an
+  error naming the runtime and the reason. <code>runtimes.list</code> shows why the
+  runtime last failed to connect.</li>
+<li><strong>Liveness.</strong> A connection can die without closing, as a hung <code>ssh</code> leaves
+  it. The daemon pings a runtime it has heard nothing from for 15 s
+  (<code>runtime/ping</code>) and ends the connection once nothing has arrived for
+  45 s, which counts as a drop (below). Every request has a deadline:
+  preparing and revalidating a call and fetching <code>AGENTS.md</code> context get
+  30 s, and a runtime that misses one fails the call as
+  <code>runtime_unavailable</code> and has its connection checked at once (10 s to
+  answer). See <a href="../../reference/runtime-protocol/#liveness">Liveness</a>.</li>
+<li><strong>Reuse.</strong> An instance that is already open is handed to a new session,
+  attachment, or subagent only over a live connection: one heard from in the
+  last 15 s, or that answers a ping within 10 s. When it does not, the daemon
+  ends the connection and waits, up to 2 minutes, for the runtime to be
+  started again (see <strong>Drop</strong>) before it gives the instance out, or refuses
+  with the reason.</li>
 <li><strong>Refused workspaces.</strong> A runtime that is up can still refuse to open a
   capability, for example for a workspace outside its <code>--root</code> directories.
   The error then reads
@@ -3661,7 +3679,8 @@ expand against it (see
   of its attachments is unavailable, the daemon writes
   <code>cookie-agent: session &lt;id&gt;: runtime `&lt;attachment&gt;` is unavailable: &lt;reason&gt;</code>
   to its standard error, and that reason ends with the tail.</li>
-<li><strong>Drop.</strong> When the process exits or its pipe closes, calls in flight fail
+<li><strong>Drop.</strong> When the process exits, its pipe closes, or it stops answering,
+  calls in flight fail
   with <code>runtime_unavailable</code> (a backgrounded call reports the failure as its
   background result), and the daemon starts the process again up to 3 times
   after 1 s, 2 s, and 4 s, reopening every instance over the new
@@ -3739,7 +3758,31 @@ attach it like any other runtime while it is connected.</p>
   <code>reconnecting</code> and then <code>failed</code>, and their tools leave the sessions' tool
   lists; when it dials in again, the daemon reopens them over the new
   connection. <code>runtimes.list</code> shows it with lifetime <code>dial_in</code>, and, while
-  it is away, why it disconnected. It stops
+  it is away, why it disconnected.
+- <strong>Connections that die without closing.</strong> A machine that sleeps, or
+  loses or changes its network, can leave the WebSocket half-open: neither
+  end hears a close. Both ends watch for that. The daemon pings a runtime it
+  has heard nothing from for 15 s and drops it once nothing has arrived for
+  45 s (<code>runtime `labpc` disconnected: nothing arrived from it for 45 s</code>);
+  calls in flight then fail with <code>runtime_unavailable</code>, and a request the
+  runtime does not answer in time (30 s for preparing a call) fails the
+  call and has the connection checked at once. The runtime sends WebSocket
+  pings once its connection has been quiet for 15 s and dials in again once
+  nothing, a pong included, has arrived for 45 s
+  (<code>disconnected from ws://laptop:7419/ws: … nothing arrived from the daemon for 45 s</code>).
+  A runtime that dials in while the daemon still counts its old connection
+  as connected is refused (HTTP 409) and the daemon checks the old
+  connection at once, so the next attempt gets in.
+- <strong>Offline means refused.</strong> While the runtime is not connected, creating a
+  session with it, attaching it, delegating to it with <code>capabilities</code>, and
+  creating a session in a project whose defaults name it are refused at
+  once, naming the runtime and when the daemon last heard from it:
+  <code>runtime `labpc` is not connected (last seen 2026-10-22T18:12:51Z)</code>.
+  The daemon never waits for a dial-in runtime to come back, and never hands
+  out an instance of a connection that does not answer: it is checked first
+  (see <strong>Reuse</strong> under <a href="#lifecycle-and-failures">Lifecycle and failures</a>). A
+  runtime the daemon remembers from before it restarted, but that has not
+  dialed in since, is refused the same way. It stops
   on a stop signal (<code>SIGINT</code>, <code>SIGTERM</code>, <code>SIGHUP</code>), so it runs as a
   service; see <a href="../runtime-service/">Running a runtime as a service</a>.
 - <strong>Stopping.</strong> A stopping runtime closes its WebSocket with a close

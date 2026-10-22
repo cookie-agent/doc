@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["detail","error_chain","headline","internal","internal_fallback","is_terminal_control","model","rpc","run_error","sanitize","tool","tool_result"]};
+window.SIDEBAR_ITEMS = {"fn":["detail","duration","error_chain","headline","internal","internal_fallback","is_terminal_control","model","rpc","run_error","sanitize","tool","tool_result"]};
