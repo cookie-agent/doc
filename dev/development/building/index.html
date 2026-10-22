@@ -2365,6 +2365,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#web-client-and-browser-suites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Web client and browser suites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#windows-targets" class="md-nav__link">
     <span class="md-ellipsis">
       Windows targets
@@ -3253,6 +3262,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#web-client-and-browser-suites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Web client and browser suites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#windows-targets" class="md-nav__link">
     <span class="md-ellipsis">
       Windows targets
@@ -3300,9 +3318,18 @@ the debug binary with:</p>
 <code>protocol</code>, <code>runtime_api</code>, <code>server</code>, and <code>tui</code>.
 Their public interfaces are available in the <a href="../../reference/api/">Rust API documentation</a>.</p>
 <h2 id="required-gates">Required gates<a class="headerlink" href="#required-gates" title="Permanent link">&para;</a></h2>
-<p>Use locked dependency resolution for workspace builds and tests:</p>
+<p>CI runs every gate below. Locally, <code>scripts/check-changed.sh [base]</code> runs
+the ones a change needs: formatting always, Clippy and the tests of the
+changed crates and the crates that depend on them, and the wasm32, web,
+compatibility, and documentation checks only when their inputs changed (<code>-n</code>
+prints the commands without running them). <code>AGENTS.md</code> lists the rules.</p>
+<p>Use locked dependency resolution for workspace builds and tests. Tests run
+under <a href="https://nexte.st">cargo-nextest</a> (<code>cargo install cargo-nextest
+--locked</code>), configured in <code>.config/nextest.toml</code>, and the doctests, which
+nextest does not run, under <code>cargo test</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cargo<span class="w"> </span>build<span class="w"> </span>--locked<span class="w"> </span>--workspace<span class="w"> </span>--all-targets
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--locked<span class="w"> </span>--workspace
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run<span class="w"> </span>--workspace<span class="w"> </span>--locked<span class="w"> </span>--no-fail-fast
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--doc<span class="w"> </span>--workspace<span class="w"> </span>--locked
 </code></pre></div>
 <p>Run formatting and Clippy with warnings denied under stable and the Rust 1.88
 minimum supported toolchain:</p>
@@ -3320,7 +3347,27 @@ protocols freeze, any change to a wire type, method, or protocol version needs
 regenerated baselines: run <code>crates/protocol/scripts/update-compat-baseline.sh</code>
 and commit <code>crates/protocol/compat/</code>. For the documentation, install
 <code>requirements-docs.txt</code> before running <code>./scripts/build-docs.sh</code>. That
-script builds workspace rustdoc and runs MkDocs in strict mode.</p>
+script builds workspace rustdoc and runs MkDocs in strict mode;
+<code>./scripts/build-docs.sh --no-rustdoc</code> skips rustdoc when only the prose
+changed.</p>
+<h2 id="web-client-and-browser-suites">Web client and browser suites<a class="headerlink" href="#web-client-and-browser-suites" title="Permanent link">&para;</a></h2>
+<p><code>scripts/build-web.sh</code> builds the web client's bundle with Trunk 0.21.14
+into <code>crates/web_assets/bundle/</code>, which the next <code>cookie</code> build embeds.
+<code>scripts/build-web.sh --fast</code> builds a larger, unoptimized bundle in
+seconds once warm, for local browser runs only.</p>
+<p>The browser suites drive headless Google Chrome or Chromium through
+chromedriver. <code>scripts/web-e2e/chrome.sh</code> finds the browser (<code>CHROME</code>
+overrides) and a chromedriver of its version (<code>CHROMEDRIVER</code> overrides),
+downloading one from Chrome for Testing into <code>~/.cache/cookie-agent</code> when
+none is on <code>PATH</code>. A snap's browser sees a private <code>/tmp</code>, where the suites
+keep their files, so prefer a packaged one.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>scripts/test-wasm-client.sh<span class="w">             </span><span class="c1"># the protocol client in the browser</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>scripts/test-web-page.sh<span class="w">                </span><span class="c1"># every scenario against a real daemon</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>scripts/test-web-page.sh<span class="w"> </span>projects<span class="w">       </span><span class="c1"># one scenario and those it builds on</span>
+</code></pre></div>
+<p><code>scripts/test-web-page.sh</code> runs its groups of scenarios side by side, each
+with its own daemons and browser; <code>SCREENSHOT_DIR</code> keeps a screenshot of
+each step.</p>
 <h2 id="windows-targets">Windows targets<a class="headerlink" href="#windows-targets" title="Permanent link">&para;</a></h2>
 <p>CI builds and tests both <code>x86_64-pc-windows-msvc</code> and
 <code>aarch64-pc-windows-msvc</code> on native Windows runners. Use the matching MSVC Rust
