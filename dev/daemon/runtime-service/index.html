@@ -3358,7 +3358,7 @@ service is for <em>other</em> machines, such as a lab computer, a server, or
 the laptop whose browser or files a session should reach.</p>
 </div>
 <h2 id="what-the-service-runs">What the service runs<a class="headerlink" href="#what-the-service-runs" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>&lt;daemon-url&gt;<span class="w"> </span>--id<span class="w"> </span>&lt;id&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>&lt;daemon-url&gt;<span class="w"> </span>--id<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--token<span class="w"> </span>&lt;token&gt;
 </code></pre></div>
 <ul>
 <li><code>&lt;daemon-url&gt;</code> is the daemon's client URL, <code>wss://host.example.ts.net/ws</code>
@@ -3368,11 +3368,13 @@ the laptop whose browser or files a session should reach.</p>
 <li><code>--id &lt;id&gt;</code> names the runtime; without it, it is the host name. Only one
   runtime may be connected under an ID. See
   <a href="../runtimes/#runtimes-that-dial-in">Runtimes that dial in</a>.</li>
-<li>The token is <code>--token</code>, the <code>COOKIE_DAEMON_TOKEN</code> environment variable, or
-  <code>[server] token</code> in this machine's <code>config.toml</code>, in that order. Prefer
-  the environment variable or <code>config.toml</code> to <code>--token</code>: a command line is
-  visible to every user of the machine. Copy the token from the daemon's
-  <code>config.toml</code>.</li>
+<li><code>--token &lt;token&gt;</code> is the daemon's token: copy it from <code>[server] token</code>
+  in the daemon's <code>config.toml</code>. The examples below put it in the service
+  definition. An inline token is visible in that definition and in the
+  process's command line on that machine; the runtime does not pass it on
+  to the processes it starts, such as its <code>bash</code> calls and MCP servers.
+  <code>COOKIE_DAEMON_TOKEN</code> and <code>[server] token</code> in this machine's
+  <code>config.toml</code> work too; see <a href="../../clients/cli/#reaching-a-daemon">Reaching a daemon</a>.</li>
 <li><code>--root &lt;dir&gt;</code>, repeated, limits the workspaces the runtime serves.</li>
 </ul>
 <p>Four things decide how a service has to be set up:</p>
@@ -3411,37 +3413,34 @@ runtime is away until the machine wakes, and then reconnects by itself.</p>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="na">Wants</span><span class="o">=</span><span class="s">network-online.target</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">[Service]</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">%h/.cargo/bin/cookie runtime serve --daemon wss://host.example.ts.net/ws --id &lt;id&gt;</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="na">EnvironmentFile</span><span class="o">=</span><span class="s">%h/.config/cookie-agent/runtime.env</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="na">Restart</span><span class="o">=</span><span class="s">on-failure</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">5</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">[Install]</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">default.target</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">%h/.cargo/bin/cookie runtime serve --daemon wss://host.example.ts.net/ws --id &lt;id&gt; --token &lt;token&gt;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="na">Restart</span><span class="o">=</span><span class="s">on-failure</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">5</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">[Install]</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">default.target</span>
 </code></pre></div>
-<p>With the token in a file only you can read, <code>~/.config/cookie-agent/runtime.env</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>COOKIE_DAEMON_TOKEN=&lt;token&gt;
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.config/cookie-agent/runtime.env
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>daemon-reload
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>systemctl<span class="w"> </span>--user<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>cookie-runtime
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>loginctl<span class="w"> </span>enable-linger<span class="w"> </span><span class="s2">"</span><span class="nv">$USER</span><span class="s2">"</span>
+<p>The unit holds the token, so make it readable only by you, then start it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.config/systemd/user/cookie-runtime.service
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>daemon-reload
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>systemctl<span class="w"> </span>--user<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>cookie-runtime
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>loginctl<span class="w"> </span>enable-linger<span class="w"> </span><span class="s2">"</span><span class="nv">$USER</span><span class="s2">"</span>
 </code></pre></div>
 <p><code>enable-linger</code> starts the user's services at boot without a login session.
 Without it the runtime runs only while you are logged in. Follow the output
-with <code>journalctl --user -u cookie-runtime -f</code>. If the token and URL are
-already in <code>[server]</code> of that machine's <code>config.toml</code>, drop the
-<code>EnvironmentFile=</code> line and the URL and keep <code>--daemon</code> alone.</p>
+with <code>journalctl --user -u cookie-runtime -f</code>.</p>
 <p>A user service starts with a minimal environment: MCP servers that need
 <code>PATH</code> entries or variables of your shell need <code>Environment=</code> lines in the
 unit.</p>
-<p>To remove the service, stop it, delete the unit and the token file, and
-tell systemd:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>cookie-runtime
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>rm<span class="w"> </span>~/.config/systemd/user/cookie-runtime.service
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>rm<span class="w"> </span>-f<span class="w"> </span>~/.config/cookie-agent/runtime.env
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>daemon-reload
+<p>To remove the service, stop it, delete the unit, which holds the token,
+and tell systemd:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>cookie-runtime
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>rm<span class="w"> </span>~/.config/systemd/user/cookie-runtime.service
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>systemctl<span class="w"> </span>--user<span class="w"> </span>daemon-reload
 </code></pre></div>
+<p>A unit set up under earlier versions of this page read the token from
+<code>~/.config/cookie-agent/runtime.env</code>; delete that file too
+(<code>rm -f ~/.config/cookie-agent/runtime.env</code>).</p>
 <p>Lingering is per user, not per service: run <code>loginctl disable-linger "$USER"</code>
 only when no other user service of yours, such as the
 <a href="../persistent/#remove-the-linux-service">daemon's</a>, needs it.</p>
@@ -3450,78 +3449,70 @@ only when no other user service of yours, such as the
 browser or profile needs.
 <code>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist</code>, with absolute
 paths because launchd expands neither <code>~</code> nor <code>$HOME</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="cp">&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nt">&lt;plist</span><span class="w"> </span><span class="na">version=</span><span class="s">"1.0"</span><span class="nt">&gt;</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nt">&lt;dict&gt;</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>Label<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>dev.cookie-agent.runtime<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>ProgramArguments<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="nt">&lt;array&gt;</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/.cargo/bin/cookie<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>runtime<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>serve<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>--daemon<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>wss://host.example.ts.net/ws<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>--id<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="nt">&lt;string&gt;&lt;id&gt;&lt;/string&gt;</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">  </span><span class="nt">&lt;/array&gt;</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>EnvironmentVariables<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">  </span><span class="nt">&lt;dict&gt;</span>
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="nt">&lt;key&gt;</span>COOKIE_DAEMON_TOKEN<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="nt">&lt;string&gt;&lt;token&gt;&lt;/string&gt;</span>
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">  </span><span class="nt">&lt;/dict&gt;</span>
-<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>RunAtLoad<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">  </span><span class="nt">&lt;true/&gt;</span>
-<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>KeepAlive<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">  </span><span class="nt">&lt;dict&gt;</span>
-<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="w">    </span><span class="nt">&lt;key&gt;</span>SuccessfulExit<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="w">    </span><span class="nt">&lt;false/&gt;</span>
-<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">  </span><span class="nt">&lt;/dict&gt;</span>
-<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>ThrottleInterval<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="w">  </span><span class="nt">&lt;integer&gt;</span>10<span class="nt">&lt;/integer&gt;</span>
-<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>StandardOutPath<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/Library/Logs/cookie-runtime.log<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>StandardErrorPath<span class="nt">&lt;/key&gt;</span>
-<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/Library/Logs/cookie-runtime.log<span class="nt">&lt;/string&gt;</span>
-<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a><span class="nt">&lt;/dict&gt;</span>
-<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a><span class="nt">&lt;/plist&gt;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="cp">&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">&lt;plist</span><span class="w"> </span><span class="na">version=</span><span class="s">"1.0"</span><span class="nt">&gt;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">&lt;dict&gt;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>Label<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>dev.cookie-agent.runtime<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>ProgramArguments<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">&lt;array&gt;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/.cargo/bin/cookie<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>runtime<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>serve<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>--daemon<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>wss://host.example.ts.net/ws<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>--id<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">&lt;string&gt;&lt;id&gt;&lt;/string&gt;</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="nt">&lt;string&gt;</span>--token<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">&lt;string&gt;&lt;token&gt;&lt;/string&gt;</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">  </span><span class="nt">&lt;/array&gt;</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>RunAtLoad<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">  </span><span class="nt">&lt;true/&gt;</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>KeepAlive<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">  </span><span class="nt">&lt;dict&gt;</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="nt">&lt;key&gt;</span>SuccessfulExit<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">    </span><span class="nt">&lt;false/&gt;</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">  </span><span class="nt">&lt;/dict&gt;</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>ThrottleInterval<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">  </span><span class="nt">&lt;integer&gt;</span>10<span class="nt">&lt;/integer&gt;</span>
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>StandardOutPath<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/Library/Logs/cookie-runtime.log<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="w">  </span><span class="nt">&lt;key&gt;</span>StandardErrorPath<span class="nt">&lt;/key&gt;</span>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">  </span><span class="nt">&lt;string&gt;</span>/Users/<span class="nt">&lt;you&gt;</span>/Library/Logs/cookie-runtime.log<span class="nt">&lt;/string&gt;</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="nt">&lt;/dict&gt;</span>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="nt">&lt;/plist&gt;</span>
 </code></pre></div>
-<p>The plist holds the token: <code>chmod 600</code> it, or leave the
-<code>EnvironmentVariables</code> block out and keep the token in <code>[server]</code> of
-<code>config.toml</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>launchctl<span class="w"> </span>bootstrap<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="w"> </span>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>launchctl<span class="w"> </span>bootout<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>/dev.cookie-agent.runtime
+<p>The plist holds the token, so make it readable only by you, then load it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>launchctl<span class="w"> </span>bootstrap<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="w"> </span>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>launchctl<span class="w"> </span>bootout<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>/dev.cookie-agent.runtime
 </code></pre></div>
 <p><code>launchctl kickstart -k gui/$(id -u)/dev.cookie-agent.runtime</code> restarts it,
 and <code>tail -f ~/Library/Logs/cookie-runtime.log</code> shows what it prints. A
 LaunchAgent starts when you log in, not at boot.</p>
-<p>To remove the agent, unload it and delete the plist, which holds the token
-unless you left it out, and the log:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>launchctl<span class="w"> </span>bootout<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>/dev.cookie-agent.runtime
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>rm<span class="w"> </span>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>rm<span class="w"> </span>-f<span class="w"> </span>~/Library/Logs/cookie-runtime.log
+<p>To remove the agent, unload it and delete the plist, which holds the token,
+and the log:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>launchctl<span class="w"> </span>bootout<span class="w"> </span>gui/<span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>/dev.cookie-agent.runtime
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>rm<span class="w"> </span>~/Library/LaunchAgents/dev.cookie-agent.runtime.plist
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>rm<span class="w"> </span>-f<span class="w"> </span>~/Library/Logs/cookie-runtime.log
 </code></pre></div>
 <h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h2>
 <p>A Task Scheduler task at your logon is the recommended path: it runs in your
 session, with your profile, and so reaches your Chrome for browser MCP
-servers. First set the token for your user, if it is not in <code>config.toml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">setx</span> <span class="n">COOKIE_DAEMON_TOKEN</span> <span class="s2">"&lt;token&gt;"</span>
-</code></pre></div>
-<p><code>setx</code> applies to processes started afterwards, not to the shell that ran
-it; a task that starts at your next logon sees it. Then register the task:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">$cookie</span> <span class="p">=</span> <span class="s2">"$env:USERPROFILE\.cargo\bin\cookie.exe"</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nv">$logs</span> <span class="p">=</span> <span class="s2">"$env:LOCALAPPDATA\cookie-agent"</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">New-Item</span> <span class="n">-ItemType</span> <span class="n">Directory</span> <span class="n">-Force</span> <span class="nv">$logs</span> <span class="p">|</span> <span class="nb">Out-Null</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nv">$action</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskAction</span> <span class="n">-Execute</span> <span class="s2">"conhost.exe"</span> <span class="n">-Argument</span> <span class="s2">"--headless cmd.exe /c </span><span class="se">`"`"</span><span class="s2">$cookie</span><span class="se">`"</span><span class="s2"> runtime serve --daemon &lt;daemon-url&gt; --id &lt;id&gt; &gt;&gt; </span><span class="se">`"</span><span class="s2">$logs\runtime.log</span><span class="se">`"</span><span class="s2"> 2&gt;&amp;1</span><span class="se">`"</span><span class="s2">"</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nv">$trigger</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskTrigger</span> <span class="n">-AtLogOn</span> <span class="n">-User</span> <span class="s2">"$env:USERDOMAIN\$env:USERNAME"</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="nv">$settings</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskSettingsSet</span> <span class="p">`</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="n">-ExecutionTimeLimit</span> <span class="p">(</span><span class="nb">New-TimeSpan</span><span class="p">)</span> <span class="p">`</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="n">-RestartCount</span> <span class="n">999</span> <span class="n">-RestartInterval</span> <span class="p">(</span><span class="nb">New-TimeSpan</span> <span class="n">-Minutes</span> <span class="n">1</span><span class="p">)</span> <span class="p">`</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="n">-AllowStartIfOnBatteries</span> <span class="n">-DontStopIfGoingOnBatteries</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="nb">Register-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-Action</span> <span class="nv">$action</span> <span class="p">`</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  <span class="n">-Trigger</span> <span class="nv">$trigger</span> <span class="n">-Settings</span> <span class="nv">$settings</span> <span class="n">-RunLevel</span> <span class="n">Limited</span>
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="nb">Start-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span>
+servers. Register it, with the token in its action:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">$cookie</span> <span class="p">=</span> <span class="s2">"$env:USERPROFILE\.cargo\bin\cookie.exe"</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nv">$logs</span> <span class="p">=</span> <span class="s2">"$env:LOCALAPPDATA\cookie-agent"</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">New-Item</span> <span class="n">-ItemType</span> <span class="n">Directory</span> <span class="n">-Force</span> <span class="nv">$logs</span> <span class="p">|</span> <span class="nb">Out-Null</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nv">$action</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskAction</span> <span class="n">-Execute</span> <span class="s2">"conhost.exe"</span> <span class="n">-Argument</span> <span class="s2">"--headless cmd.exe /c </span><span class="se">`"`"</span><span class="s2">$cookie</span><span class="se">`"</span><span class="s2"> runtime serve --daemon &lt;daemon-url&gt; --id &lt;id&gt; --token &lt;token&gt; &gt;&gt; </span><span class="se">`"</span><span class="s2">$logs\runtime.log</span><span class="se">`"</span><span class="s2"> 2&gt;&amp;1</span><span class="se">`"</span><span class="s2">"</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nv">$trigger</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskTrigger</span> <span class="n">-AtLogOn</span> <span class="n">-User</span> <span class="s2">"$env:USERDOMAIN\$env:USERNAME"</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nv">$settings</span> <span class="p">=</span> <span class="nb">New-ScheduledTaskSettingsSet</span> <span class="p">`</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  <span class="n">-ExecutionTimeLimit</span> <span class="p">(</span><span class="nb">New-TimeSpan</span><span class="p">)</span> <span class="p">`</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="n">-RestartCount</span> <span class="n">999</span> <span class="n">-RestartInterval</span> <span class="p">(</span><span class="nb">New-TimeSpan</span> <span class="n">-Minutes</span> <span class="n">1</span><span class="p">)</span> <span class="p">`</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>  <span class="n">-AllowStartIfOnBatteries</span> <span class="n">-DontStopIfGoingOnBatteries</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="nb">Register-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-Action</span> <span class="nv">$action</span> <span class="p">`</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>  <span class="n">-Trigger</span> <span class="nv">$trigger</span> <span class="n">-Settings</span> <span class="nv">$settings</span> <span class="n">-RunLevel</span> <span class="n">Limited</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="nb">Start-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span>
 </code></pre></div>
 <p>The empty <code>New-TimeSpan</code> removes the task's default three-day execution
 limit. The task's output goes to <code>%LOCALAPPDATA%\cookie-agent\runtime.log</code>.
@@ -3538,16 +3529,17 @@ limit. The task's output goes to <code>%LOCALAPPDATA%\cookie-agent\runtime.log</
   your Chrome, so browser MCP servers do not work through it. Use it only
   for a runtime that needs files and shell commands, not your session.</li>
 </ul>
-<p>To remove the task, unregister it, delete its log, and delete the token
-<code>setx</code> stored in your user environment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">Stop-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-ErrorAction</span> <span class="n">SilentlyContinue</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">Unregister-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-Confirm</span><span class="p">:</span><span class="nv">$false</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nb">Remove-Item</span> <span class="s2">"$env:LOCALAPPDATA\cookie-agent\runtime.log"</span> <span class="n">-ErrorAction</span> <span class="n">SilentlyContinue</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="no">[Environment]</span><span class="p">::</span><span class="n">SetEnvironmentVariable</span><span class="p">(</span><span class="s1">'COOKIE_DAEMON_TOKEN'</span><span class="p">,</span> <span class="nv">$null</span><span class="p">,</span> <span class="s1">'User'</span><span class="p">)</span>
+<p>To remove the task, which holds the token, unregister it and delete its log:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">Stop-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-ErrorAction</span> <span class="n">SilentlyContinue</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">Unregister-ScheduledTask</span> <span class="n">-TaskName</span> <span class="s2">"Cookie Agent runtime"</span> <span class="n">-Confirm</span><span class="p">:</span><span class="nv">$false</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">Remove-Item</span> <span class="s2">"$env:LOCALAPPDATA\cookie-agent\runtime.log"</span> <span class="n">-ErrorAction</span> <span class="n">SilentlyContinue</span>
 </code></pre></div>
-<p>Skip the last line if you did not run <code>setx</code>. It removes the variable from
-the registry (<code>HKCU\Environment</code>) for processes started afterwards; a shell
-that is already open keeps its copy until you close it. Do not use
+<p>A task set up under earlier versions of this page read the token from a
+<code>COOKIE_DAEMON_TOKEN</code> user variable that <code>setx</code> stored. Delete it from the
+registry (<code>HKCU\Environment</code>) for processes started afterwards:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="no">[Environment]</span><span class="p">::</span><span class="n">SetEnvironmentVariable</span><span class="p">(</span><span class="s1">'COOKIE_DAEMON_TOKEN'</span><span class="p">,</span> <span class="nv">$null</span><span class="p">,</span> <span class="s1">'User'</span><span class="p">)</span>
+</code></pre></div>
+<p>A shell that is already open keeps its copy until you close it. Do not use
 <code>setx COOKIE_DAEMON_TOKEN ""</code>: that stores an empty value instead of
 deleting the variable. <code>%LOCALAPPDATA%\cookie-agent</code> also holds the
 <a href="../persistent/#windows">daemon task's</a> log; delete the folder when neither

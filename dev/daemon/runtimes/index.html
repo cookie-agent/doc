@@ -3703,20 +3703,17 @@ attach it like any other runtime while it is connected.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># On the daemon's machine: a listener the runtime reaches.</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cookie<span class="w"> </span>daemon<span class="w"> </span>--listen<span class="w"> </span><span class="m">0</span>.0.0.0:7419
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># On labpc, ~/.cookie-agent/config.toml: the daemon to dial in to.</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">[server]</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ws://laptop:7419/ws"</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;the daemon's token&gt;"</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># On labpc: dial in, named after the host, and stay connected.</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># On labpc: dial in, named after the host, and stay connected.</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>ws://laptop:7419/ws<span class="w"> </span>--token<span class="w"> </span>&lt;token&gt;
 </code></pre></div>
 <ul>
 <li><strong>Daemon.</strong> <code>--daemon</code> takes the daemon's client URL, or, without one,
   <code>[server] url</code> of this machine's <code>config.toml</code>, else the local daemon that
-  table describes. The token is <code>--token</code>, <code>COOKIE_DAEMON_TOKEN</code>, or
-  <code>[server] token</code>; flags override the configuration. The daemon keeps its
-  own token in its <code>config.toml</code>, so it survives restarts.</li>
+  table describes. <code>--token</code> is the daemon's token, <code>[server] token</code> in its
+  <code>config.toml</code>, where the daemon keeps it so it survives restarts.
+  <code>COOKIE_DAEMON_TOKEN</code> and <code>[server] token</code> on labpc work too; flags
+  override the configuration. The runtime does not pass the token on to the
+  processes it starts.</li>
 <li><strong>Identity.</strong> <code>--id</code> is the runtime ID, <code>[a-z][a-z0-9_]{0,31}</code>; without
   it, the host name, sanitized (<code>host_</code> in front when it does not start with
   a letter). It must not be <code>global</code>, <code>local</code>, or a configured
@@ -3726,12 +3723,12 @@ attach it like any other runtime while it is connected.</p>
   prints it. A refusal that retrying cannot fix, a configured or reserved
   ID or a wrong token, ends <code>cookie runtime serve --daemon</code> with an error:</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cookie: cannot dial in to ws://laptop:7419/ws as `labpc`: the daemon refused the runtime (HTTP 403): runtime `labpc` is configured on the daemon ([runtimes.labpc]) and cannot dial in
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cookie: cannot dial in to ws://laptop:7419/ws as `labpc`: the daemon refused the runtime (HTTP 403): runtime `labpc` is configured on the daemon ([runtimes.labpc]) and cannot dial in
 </code></pre></div>
 <p>Any other, such as an ID a runtime is still connected under (the daemon
   may not have noticed yet that an earlier connection dropped), is printed
   and retried with the same backoff as a drop:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cookie runtime: cannot dial in to ws://laptop:7419/ws as `labpc`: the daemon refused the runtime (HTTP 409): runtime `labpc` is already connected; retrying in 1 s
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cookie runtime: cannot dial in to ws://laptop:7419/ws as `labpc`: the daemon refused the runtime (HTTP 409): runtime `labpc` is already connected; retrying in 1 s
 </code></pre></div>
 <p>A dropped connection prints the reason too, such as
   <code>disconnected from ws://laptop:7419/ws: the daemon closed the connection with code 1011: runtime `labpc` failed to start: …</code>
@@ -3781,13 +3778,13 @@ onto another machine's card, or use its <strong>Move to…</strong> (see
 template or shows the dial-in command. From a terminal, <code>cookie machine</code>
 does the same and works against a
 remote daemon like <code>cookie config</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cookie<span class="w"> </span>machine<span class="w"> </span>list<span class="w">                  </span><span class="c1"># machines, their runtimes, and memories</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cookie<span class="w"> </span>machine<span class="w"> </span>rename<span class="w"> </span>labpc<span class="w"> </span>lab<span class="w">      </span><span class="c1"># a machine's memory folder moves with it</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>cookie<span class="w"> </span>machine<span class="w"> </span>assign<span class="w"> </span>box<span class="w"> </span>labpc<span class="w">      </span><span class="c1"># pin runtime `box` to machine `labpc`</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>cookie<span class="w"> </span>machine<span class="w"> </span>unassign<span class="w"> </span>box<span class="w">          </span><span class="c1"># follow the machine ID it reports again</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>cookie<span class="w"> </span>machine<span class="w"> </span>merge<span class="w"> </span>box<span class="w"> </span>labpc<span class="w">       </span><span class="c1"># move `box`'s IDs, pins, and memories</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>cookie<span class="w"> </span>machine<span class="w"> </span>forget<span class="w"> </span>old-laptop<span class="w">     </span><span class="c1"># only with no connected runtimes or memories</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>cookie<span class="w"> </span>machine<span class="w"> </span>forget-runtime<span class="w"> </span>roamer<span class="w"> </span><span class="c1"># forget where an offline runtime ran</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cookie<span class="w"> </span>machine<span class="w"> </span>list<span class="w">                  </span><span class="c1"># machines, their runtimes, and memories</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cookie<span class="w"> </span>machine<span class="w"> </span>rename<span class="w"> </span>labpc<span class="w"> </span>lab<span class="w">      </span><span class="c1"># a machine's memory folder moves with it</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>cookie<span class="w"> </span>machine<span class="w"> </span>assign<span class="w"> </span>box<span class="w"> </span>labpc<span class="w">      </span><span class="c1"># pin runtime `box` to machine `labpc`</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>cookie<span class="w"> </span>machine<span class="w"> </span>unassign<span class="w"> </span>box<span class="w">          </span><span class="c1"># follow the machine ID it reports again</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cookie<span class="w"> </span>machine<span class="w"> </span>merge<span class="w"> </span>box<span class="w"> </span>labpc<span class="w">       </span><span class="c1"># move `box`'s IDs, pins, and memories</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>cookie<span class="w"> </span>machine<span class="w"> </span>forget<span class="w"> </span>old-laptop<span class="w">     </span><span class="c1"># only with no connected runtimes or memories</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>cookie<span class="w"> </span>machine<span class="w"> </span>forget-runtime<span class="w"> </span>roamer<span class="w"> </span><span class="c1"># forget where an offline runtime ran</span>
 </code></pre></div>
 <p>A runtime that has connected once stays on its machine while it is offline,
 across restarts too: the registry records where it ran, and <code>cookie machine
