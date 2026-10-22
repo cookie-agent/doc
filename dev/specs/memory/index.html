@@ -1167,6 +1167,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../sessions/delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegating to runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../sessions/media/" class="md-nav__link">
         
   
@@ -5670,6 +5693,36 @@ Machines view were all lost while it was offline.</p>
   - remembered runtimes and their last-seen times in <code>machines.list</code>;
   - <code>machines.forget_runtime</code>.</p>
 <p>Older clients see what they see today.</p>
+<p>Implemented 2026-10-21 (client protocol 1.10.0), as the first step of
+phase 1 of <a href="../runtime-delegation/#11-implementation-notes">delegating to runtimes</a>:</p>
+<ul>
+<li><strong>The file.</strong> <code>machines.json</code> version 2 adds <code>remembered</code>, one record per
+  runtime ID: <code>{ runtime, kind, machine_id?, platform?, home?, last_seen }</code>,
+  where <code>kind</code> is <code>spawned</code> or <code>dial_in</code>. Version 1 reads with no records
+  and is written as version 2 on the next change; the records are as strict
+  as the rest of the file. Built-in runtimes get no record.</li>
+<li><strong>When it is written.</strong> The daemon notices connections and disconnections
+  as it places runtimes after every runtime registry change. A runtime that
+  connects, or reconnects with a different report, gets its record with
+  <code>last_seen</code> now; one that goes offline gets <code>last_seen</code> stamped now. A
+  runtime still connected when the daemon stops keeps the time it connected,
+  and the whole set of records is written only when one changes.</li>
+<li><strong>Placement.</strong> An offline runtime is placed by its pin, else by the
+  machine ID this process last saw it report, else by its record, with the
+  reason <code>last_seen</code>. <code>machines.list</code> gives each machine its <code>remembered</code>
+  runtimes (<code>RememberedRuntime { runtime_id, assigned_by, platform?, home?,
+  last_seen }</code>); a remembered runtime that is pinned is listed with
+  <code>assigned_by: pinned</code>. <code>runtimes.list</code> fills a disconnected runtime's
+  <code>platform</code> and <code>home</code> from its record when this process has not seen it.</li>
+<li><strong>Forgetting.</strong> <code>machines.forget_runtime { runtime }</code> refuses a connected
+  runtime (<code>runtime_still_connected</code>, a code the addendum did not name) and
+  one without a record (<code>runtime_not_remembered</code>). A configured runtime's
+  record goes when the configuration has no <code>[runtimes.&lt;id&gt;]</code> for it, at
+  start as well as at every reload and <code>config.apply</code>, since the record says
+  how the runtime came. <code>cookie machine list</code> shows remembered runtimes as
+  <code>offline</code>, and <code>cookie machine forget-runtime</code> calls the new method. The
+  TUI's machines view lists them too, as "last seen here".</li>
+</ul>
 
 
 

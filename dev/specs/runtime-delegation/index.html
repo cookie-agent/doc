@@ -1167,6 +1167,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../sessions/delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegating to runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../sessions/media/" class="md-nav__link">
         
   
@@ -3183,6 +3206,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#11-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3527,6 +3559,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#11-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3547,7 +3588,9 @@
 
 
 <h1 id="delegating-to-runtimes">Delegating to runtimes<a class="headerlink" href="#delegating-to-runtimes" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-21); queued after the projects work. Builds on the <a href="../runtimes/">runtimes spec</a>, the
+<p>Status: <strong>implemented</strong> (2026-10-21); approved the same day. How it
+settled, with its deviations, is in
+<a href="#11-implementation-notes">section 11</a>. Builds on the <a href="../runtimes/">runtimes spec</a>, the
 <a href="../runtime-capabilities/">runtime capabilities spec</a>, and the
 <a href="../projects/">projects spec</a>.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
@@ -3595,7 +3638,7 @@ machines (section 7 shows how a subagent can do it with existing tools).</p>
 <h2 id="2-delegate_subagent-at-the-root">2. <code>delegate_subagent</code> at the root<a class="headerlink" href="#2-delegate_subagent-at-the-root" title="Permanent link">&para;</a></h2>
 <h3 id="21-schema">2.1 Schema<a class="headerlink" href="#21-schema" title="Permanent link">&para;</a></h3>
 <p>At depth 0 the schema gains:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">"attachments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">"capabilities"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"array"</span><span class="p">,</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"minItems"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">"items"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -3904,6 +3947,82 @@ docs show.</p>
 - the web client forgetting the selection;
 - the dial-in pattern in section 7.</p>
 <p>A delegated child keeps copying its parent's <code>cwd_identity</code>.</p>
+<h2 id="11-implementation-notes">11. Implementation notes<a class="headerlink" href="#11-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Implemented 2026-10-21 in three phases: the engine, daemon, and protocol
+(client protocol 1.10.0, plugin protocol 1.4.0), the clients, and the docs
+(<a href="../../sessions/delegation/">Delegating to runtimes</a>). The registry
+remembering where runtimes ran (<a href="../memory/#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran">memory spec section 16.8</a>)
+landed first.</p>
+<p>Where things are:</p>
+<ul>
+<li><strong>The parameter and its checks:</strong> <code>crates/engine/src/base_tools/delegate.rs</code>
+  (the per-session schema, <code>check_capabilities</code>, the prompt paragraph) and
+  <code>crates/engine/src/runtime/runtime_delegation.rs</code> (<code>CapabilitiesParam</code>,
+  <code>parse_capability</code>, <code>check_delegated_capabilities</code>,
+  <code>open_delegated_capabilities</code>, <code>inherited_attachments</code>,
+  <code>record_delegated_attachments</code>, and <code>list_runtimes_text</code>).</li>
+<li><strong><code>list_runtimes</code>:</strong> <code>crates/engine/src/runtimes_tool.rs</code>, a provider of the
+  <code>global</code> runtime bound to the engine like the memory tools.</li>
+<li><strong>Per-runtime permission checks:</strong> <code>PreparedTool::with_permission_runtimes</code>
+  (<code>crates/runtime_api</code>) and <code>strictest_decision</code> in
+  <code>crates/engine/src/runtime/tool_execution.rs</code>.</li>
+</ul>
+<p>Deviations and readings of the spec:</p>
+<ul>
+<li><strong>The parameter is <code>capabilities</code></strong>, as decided; the schema block in
+  section 2.1 still shows the earlier name.</li>
+<li><strong>Absent means refused as unknown.</strong> <code>delegate_subagent</code> keeps one
+  argument type, so a call that passes <code>capabilities</code> where the schema has
+  none is refused by the provider with serde's unknown-field wording.</li>
+<li><strong>Checks against the live listing</strong> cover what the daemon knows: a
+  runtime that has never connected lists no capabilities yet, so its
+  capability and workspace are checked only by starting it. A missing
+  workspace for a capability that takes one, and a workspace for one that
+  takes none, are refused before anything starts.</li>
+<li><strong>Runtimes start before the admission lock and the reservation.</strong> A slow
+  template does not hold up other delegations, and a runtime that does not
+  start leaves no reservation. The capabilities are not part of the durable
+  delegation reservation: a redelivered call computes them again from its
+  arguments, and a child that already exists keeps the attachments it
+  recorded.</li>
+<li><strong>Deeper children</strong> inherit their parent's attachments other than
+  <code>global</code>, plus the root's <code>global</code> attachment when the root has one now,
+  so that <code>global</code> follows the root at every depth.</li>
+<li><strong>Permission evaluation.</strong> Each runtime a call names is evaluated as the
+  agent's <code>delegate</code> rules with that runtime as the scope, and each resource
+  takes the strictest of the runtimes' evaluations, so the approval request
+  keeps one evaluation per resource. The request names no runtime; the
+  runtimes and workspaces show in the call's presentation, as a <code>runtimes</code>
+  entry. <code>delegate@&lt;runtime&gt;</code> became an accepted permission key; <code>message</code>
+  and <code>skill</code> still take no selector.</li>
+<li><strong><code>list_runtimes</code> lists <code>runtimes.list</code>'s runtimes:</strong> the built-in and
+  configured ones and the dial-in runtimes that connected since the daemon
+  started. A dial-in runtime remembered from before a restart is in
+  <code>machines.list</code> but not in <code>list_runtimes</code> until it connects, since it
+  cannot be delegated to before then. Machines are ordered with the
+  daemon's own first and the rest by name, runtimes by ID within a machine;
+  a machine whose runtimes report different platforms puts the platform on
+  each runtime. An attachment whose instance is not open reports
+  <code>status="stopped"</code>. The output is also shown to clients as a Markdown
+  code block.</li>
+<li><strong>Delegated attachments.</strong> The root event is
+  <code>delegated_attachments_added { child_session_id, attachments }</code>, a
+  runless state event; <code>attachments</code> are <code>RuntimeAttachment</code>s as the child
+  named them, at least one. The fold keeps one entry per runtime,
+  capability, and workspace. A fork leaves the event behind with its
+  source's subagents, as <code>record_omitted</code>. A child is checked again on a
+  redelivery, so a crash between creating the child and recording its
+  attachments is repaired by the redelivery.</li>
+<li><strong>The TUI</strong> uses the union through <code>RuntimeHomes::session_place</code> in its
+  session picker, which shows the delegated workspaces only for a root with
+  no workspace of its own; its machines view lists remembered runtimes, as
+  <code>machine_entries</code> now does for both clients.</li>
+<li><strong>The web client</strong> names the sheet's button <strong>Use these runtimes</strong>
+  rather than Start. A draft without runtimes of its own in a project whose
+  defaults attach runtimes is created with <code>runtimes</code> omitted, so the
+  daemon attaches the project's defaults; the chip and the draft line show
+  them. A draft whose sheet deselected <code>global</code> shows <strong>no runtimes</strong>.</li>
+</ul>
 
 
 
