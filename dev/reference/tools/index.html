@@ -2131,6 +2131,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cancelling-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cancelling a run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tool-display" class="md-nav__link">
     <span class="md-ellipsis">
       Tool display
@@ -3701,6 +3710,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cancelling-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cancelling a run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tool-display" class="md-nav__link">
     <span class="md-ellipsis">
       Tool display
@@ -4337,6 +4355,29 @@ events are persisted in completion order.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="cancelling-a-run">Cancelling a run<a class="headerlink" href="#cancelling-a-run" title="Permanent link">&para;</a></h2>
+<p>Interrupting a run (<code>run.cancel</code>: the TUI's Ctrl-C or double Esc, the web
+client's Stop or Escape, a stop signal to <code>cookie run</code>) cancels every call it
+has in the foreground at once, and each call ends as <code>cancelled</code>:</p>
+<ul>
+<li><strong><code>bash</code></strong> kills the command's whole process group (a job object on
+  Windows) with no grace period. Output still in flight drains for at most
+  250 ms, so a process that left the group and holds the pipes open does not
+  hold the call.</li>
+<li><strong>A runtime's or plugin's tool</strong> gets <code>tool/cancel</code>. The coding runtime
+  and the plugin SDK drop a call that has not stopped 2 s later.</li>
+<li><strong>An MCP tool</strong> stops waiting and sends the server
+  <code>notifications/cancelled</code> for the request, as a call that reaches
+  <code>timeout_ms</code> does.</li>
+<li><strong><code>webfetch</code></strong> drops its request.</li>
+<li><strong>A foreground <code>delegate_subagent</code></strong> stops waiting; its subagent keeps
+  running and reports its turn (see <a href="#background-calls">Background calls</a>).</li>
+</ul>
+<p>The engine waits at most 2 s for a call to stop on its own. A call still
+running then ends as cancelled with <code>cleanup deadline elapsed</code>, its late
+result is dropped, and the run records <code>RunCancelled</code> without waiting
+further. Calls in the background belong to the session, not the run, and
+keep running; <code>stop_background</code> stops them.</p>
 <h2 id="tool-display">Tool display<a class="headerlink" href="#tool-display" title="Permanent link">&para;</a></h2>
 <p>Every built-in tool describes its calls to clients as typed display blocks
 (the <a href="../../specs/compatibility-v1/#12-structured-tool-display">structured tool display spec</a>).
