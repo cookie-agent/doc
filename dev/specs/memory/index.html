@@ -2867,6 +2867,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#75-addendum-2026-10-22-the-snapshot-follows-the-read-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.5 Addendum 2026-10-22: the snapshot follows the read rules
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3859,6 +3868,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#75-addendum-2026-10-22-the-snapshot-follows-the-read-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.5 Addendum 2026-10-22: the snapshot follows the read rules
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4143,7 +4161,8 @@ changes a session's attachments, runtimes, or workspaces.</p>
 <li>Agents that declare no memory rules get defaults by mode: <code>primary</code> and
   <code>all</code> agents may read and write all memory, <code>subagent</code> agents may read all
   memory and write only their own agent file
-  (<a href="#92-default-rules">section 9.2</a>).</li>
+  (<a href="#92-default-rules">section 9.2</a>). (Removed 2026-10-22: memory is now
+  opt-in; see the note in section 9.2.)</li>
 <li>A snapshot changes only at the points in <a href="#72-when-a-snapshot-is-taken">section 7.2</a>;
   the user's own edits from a client do not refresh open sessions.</li>
 <li>Machine memory folders and URLs use machine names; renaming a machine
@@ -4848,6 +4867,58 @@ agent's memories:</p>
    The agent section is bounded by <code>max_file_bytes</code>. The fixed text is not
    counted against any of them.</li>
 </ol>
+<h3 id="75-addendum-2026-10-22-the-snapshot-follows-the-read-rules">7.5 Addendum 2026-10-22: the snapshot follows the read rules<a class="headerlink" href="#75-addendum-2026-10-22-the-snapshot-follows-the-read-rules" title="Permanent link">&para;</a></h3>
+<p><strong>Decided 2026-10-22.</strong> The snapshot showed every memory the session
+reaches whenever memory was available, whatever the <code>memory</code> rules said of
+each URL. It now holds only what those rules let the run read, evaluated
+per URL as for <code>memory_search</code> results (<a href="#93-search-results">section 9.3</a>):
+the agent's rules and the session overlay, for the <code>global</code> runtime, with
+<code>agent://self</code> read as the run's agent.</p>
+<table>
+<thead>
+<tr>
+<th>Rule for the URL</th>
+<th>In the snapshot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow</code></td>
+<td>As before: a user category, the agent's file, or the project overview whole; a machine or project memory as an index line</td>
+</tr>
+<tr>
+<td><code>ask</code></td>
+<td>Never whole: listed by URL and description, so the model knows it exists and can <code>memory_read</code> it, which then asks</td>
+</tr>
+<tr>
+<td><code>deny</code>, or no rule matches</td>
+<td>Left out entirely, and not counted in any <code>omitted</code> count, since a count tells that it exists</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>This covers the user categories, the agent's file (in delegated runs
+  too), the machines' index, and the project's overview and index. An
+  <code>ask</code> user category goes to the new <code>user_listed</code>, an <code>ask</code> agent file to
+  the agent's new <code>listed</code>, and an <code>ask</code> project overview joins the
+  project's index; machine and project memories are index lines either way.
+  The event records what was shown, so a replay renders what the model saw.</li>
+<li><strong>When nothing is left to show</strong> (no user category, no agent file body,
+  no listed or counted memory), the memory turn is not rendered at all: no
+  background paragraph and no search or save instructions. The event is
+  still appended, holding its agent and nothing else, so later runs compare
+  against it and a replay matches. The memory tools stay offered whenever
+  the rules make them visible; their descriptions carry the usage guidance.
+  As soon as one entry shows, the whole turn returns.</li>
+<li><strong>A new trigger</strong> for <a href="#72-when-a-snapshot-is-taken">section 7.2</a>: the
+  snapshot records a fingerprint of the <code>memory</code> rules that reach <code>global</code>
+  (the agent's, then the overlay's, with the agent's ID), and a run whose
+  rules differ takes a new snapshot. This covers a session overlay change
+  and a changed agent document alike; a snapshot an earlier daemon took has
+  no fingerprint, so its session takes a new one at its next run.</li>
+<li>Client protocol 1.12.0 and plugin protocol 1.5.0 add the optional
+  <code>user_listed</code>, <code>agent.listed</code>, and <code>rules</code> members to <code>memory_loaded</code>.</li>
+</ul>
 <h2 id="8-tools">8. Tools<a class="headerlink" href="#8-tools" title="Permanent link">&para;</a></h2>
 <p>The <code>global</code> runtime provides five tools. All arguments are strict (unknown
 fields fail).</p>
@@ -4991,6 +5062,15 @@ snapshot, whenever its session has <code>global</code> attached
 (<a href="#6-which-memories-a-session-reaches">section 6</a>). An <code>all</code>-mode agent
 running delegated is still limited to writing its own <code>agent://</code> file by the
 delegated-write rule above.</p>
+<p><strong>Note 2026-10-22: the memory defaults are removed.</strong> <code>memory</code> and
+<code>memory_write</code> are now denied by default like any other action: no mode,
+and not the built-in <code>default</code> agent, gets rules for them, so an agent
+document with no <code>memory</code> key has no memory tools, no <code>memory_search</code>, and
+no snapshot. Memory is opt-in, with <code>memory: allow</code> (or per-URL rules) and
+<code>memory_write: …</code> in the agent document, or a session overlay rule. The
+table above records the defaults as they were from 2026-10-19 to
+2026-10-22. <code>list_runtimes</code> keeps its default, and <code>mcp</code> gained one
+(<a href="../runtimes/#71-addendum-2026-10-22-the-mcp-default">runtimes spec section 7.1</a>).</p>
 <h3 id="93-search-results">9.3 Search results<a class="headerlink" href="#93-search-results" title="Permanent link">&para;</a></h3>
 <p><code>memory_search</code> always searches every memory and is never checked as a
 whole: there is no approval prompt for a search. Instead, each match is

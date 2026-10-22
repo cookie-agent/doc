@@ -1605,9 +1605,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#memory-defaults" class="md-nav__link">
+  <a href="#memory-permissions" class="md-nav__link">
     <span class="md-ellipsis">
-      Memory defaults
+      Memory permissions
     </span>
   </a>
   
@@ -1617,6 +1617,15 @@
   <a href="#listing-runtimes" class="md-nav__link">
     <span class="md-ellipsis">
       Listing runtimes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mcp-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP default
     </span>
   </a>
   
@@ -3648,9 +3657,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#memory-defaults" class="md-nav__link">
+  <a href="#memory-permissions" class="md-nav__link">
     <span class="md-ellipsis">
-      Memory defaults
+      Memory permissions
     </span>
   </a>
   
@@ -3660,6 +3669,15 @@
   <a href="#listing-runtimes" class="md-nav__link">
     <span class="md-ellipsis">
       Listing runtimes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mcp-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP default
     </span>
   </a>
   
@@ -4010,12 +4028,16 @@ the engine-supplied fallback agent and cannot be authored at all, and so is
 <code>default</code> coding agent bound to the first available model selection. Its prompt
 and explicit permission map are fixed by the engine: read is allowed with
 additional asks and secret-file denies, while write, bash, and delegate ask by
-default. MCP, <code>webfetch</code>, every runtime's own actions, and every other
+default. <code>webfetch</code>, every runtime's own actions, and every other
 undeclared action stay hidden. User
 agents do not inherit this list and must declare their own tool permissions.
-The memory actions are the one exception: an agent document that names no
-<code>memory</code> or <code>memory_write</code> key gets that action's rules from its mode (see
-<a href="#memory-defaults">Memory defaults</a>).</p>
+Two actions are the exception: an agent document, the built-in <code>default</code>
+included, that names no key for <code>list_runtimes</code> or <code>mcp</code> gets that action's
+rules from its mode (see <a href="#listing-runtimes">Listing runtimes</a> and
+<a href="#mcp-default">MCP default</a>), so every agent that is not internal is offered
+MCP tools and asks before each call. Memory has no default, so the built-in
+<code>default</code> agent has no memory tools (see
+<a href="#memory-permissions">Memory permissions</a>).</p>
 <h2 id="agent-presets">Agent presets<a class="headerlink" href="#agent-presets" title="Permanent link">&para;</a></h2>
 <p>Agent presets provide named, complete agent sets without duplicating every
 shared document. Markdown files directly under <code>agents/</code> are shared and are
@@ -4262,7 +4284,10 @@ resource-pattern map:</p>
 fewer wildcards, then a rule with a runtime selector over one without, then the
 later declaration on an exact tie. Unmatched resources are denied by default.
 <code>ask</code> remains an explicitly writable effect and routes matching calls through
-the existing approval flow; it is never an implicit fallback.</p>
+the existing approval flow; it is never an implicit fallback for an
+unmatched resource. The only rules the daemon writes for an agent are the
+mode defaults of <code>list_runtimes</code> and <code>mcp</code>, each only while the document
+names no key for its action.</p>
 <h3 id="runtime-selectors">Runtime selectors<a class="headerlink" href="#runtime-selectors" title="Permanent link">&para;</a></h3>
 <p>A key may name a runtime: <code>action@runtime_id</code> applies only to tools of
 <a href="../../specs/runtimes/">runtimes</a> with that runtime ID, whatever workspace or
@@ -4361,7 +4386,7 @@ runtime in <code>capabilities</code>, under each runtime it names; a call withou
 <tr>
 <td><code>memory_search</code></td>
 <td>none</td>
-<td>None: published with <code>memory_read</code>; each result is checked against the <code>memory</code> rules instead (see <a href="#memory-defaults">Memory defaults</a>)</td>
+<td>None: published with <code>memory_read</code>; each result is checked against the <code>memory</code> rules instead (see <a href="#memory-permissions">Memory permissions</a>)</td>
 </tr>
 <tr>
 <td><code>memory_read</code></td>
@@ -4398,7 +4423,8 @@ foreign-owned, hard-linked, or symlinked state is read and written as-is. This i
 part of the local storage threat model, not an <code>allow</code>/<code>ask</code>/<code>deny</code> decision.</p>
 <p>MCP checks are always scoped. A rule such as <code>"github_*": allow</code> covers every
 tool from that generated server prefix, while a more-specific deny can override
-one tool. An unmatched MCP tool is denied.</p>
+one tool. An unmatched MCP tool is denied; with no <code>mcp</code> key at all, the
+<a href="#mcp-default">MCP default</a> <code>"*": ask</code> matches every MCP tool.</p>
 <p>When a tool has no resource label, only the permission's bare effect or <code>"*"</code>
 rule applies. Specific patterns are inapplicable rather than matching or
 denying. If neither a bare effect nor <code>"*"</code> exists, the normal unmatched result
@@ -4461,7 +4487,9 @@ both layers, or with only <code>deny</code> rules, advertises no tools for any p
 Resource patterns and overlay precedence still decide individual calls once
 tools are visible.</p>
 <p>For example, this agent exposes read, write/edit, and bash with granular write
-and command policies while leaving delegation and MCP tools hidden:</p>
+and command policies while leaving delegation hidden; it names no <code>mcp</code> key,
+so it also gets the <a href="#mcp-default">MCP default</a> and asks before every MCP
+call:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>---
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>description: Workspace implementation agent
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mode: primary
@@ -4478,8 +4506,9 @@ and command policies while leaving delegation and MCP tools hidden:</p>
 <a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="gu">---</span>
 <a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>Implement and verify requested workspace changes.
 </code></pre></div>
-<p>MCP tools follow the same rule: the <code>mcp</code> action must contain a non-deny rule.
-Delegation tools additionally require the <code>delegate</code> map to name at least one
+<p>MCP tools follow the same rule: the <code>mcp</code> action must contain a non-deny rule,
+which the <a href="#mcp-default">MCP default</a> supplies when the document names no
+<code>mcp</code> key; <code>mcp: deny</code> hides them. Delegation tools additionally require the <code>delegate</code> map to name at least one
 eligible target with <code>allow</code> or <code>ask</code>. There is no separate tool allowlist.</p>
 <p>There is also no separate MCP server approval prompt or trust store. Configured,
 enabled servers connect eagerly, while
@@ -4513,7 +4542,7 @@ recipient argument is <code>to</code>; the earlier <code>recipient_session_id</c
 alias, and prepared-operation grants issued under the old argument identity
 fail closed. See the
 <a href="../../specs/agent-messaging/#migration-notes">messaging migration notes</a>.</p>
-<h3 id="memory-defaults">Memory defaults<a class="headerlink" href="#memory-defaults" title="Permanent link">&para;</a></h3>
+<h3 id="memory-permissions">Memory permissions<a class="headerlink" href="#memory-permissions" title="Permanent link">&para;</a></h3>
 <p>Every agent that is not internal has a memory file, <code>agent://&lt;agent&gt;</code>, which
 the daemon makes and whose description and keywords it keeps in line with the
 agent document: the description names the agent and repeats the document's
@@ -4523,39 +4552,14 @@ agent document: the description names the agent and repeats the document's
 searching and reading and <code>memory_write</code> for writing, editing, and deleting,
 both with the memory URL as resource (<code>user://&lt;category&gt;</code>,
 <code>agent://&lt;agent&gt;</code>, <code>machine://&lt;machine&gt;/&lt;name&gt;</code>,
-<code>project://&lt;project&gt;/&lt;name&gt;</code>). Unlike every other action, they have
-defaults: when an agent document, the built-in <code>default</code> included, has no key
-for one of them (with or without a runtime selector), the daemon supplies
-that action's rules by the agent's mode.</p>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th><code>memory</code></th>
-<th><code>memory_write</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>primary</code>, <code>all</code></td>
-<td><code>allow</code></td>
-<td><code>allow</code></td>
-</tr>
-<tr>
-<td><code>subagent</code></td>
-<td><code>allow</code></td>
-<td><code>"agent://self": allow</code></td>
-</tr>
-<tr>
-<td><code>internal</code></td>
-<td>none</td>
-<td>none</td>
-</tr>
-</tbody>
-</table>
-<p>A declared key replaces the default for its action entirely, so <code>memory:
-deny</code> turns memory off for an agent and <code>memory_write: ask</code> makes every
-write ask. Session overlays apply on top as for any action. In a rule
+<code>project://&lt;project&gt;/&lt;name&gt;</code>). Unlike <code>list_runtimes</code> and <code>mcp</code>, they have
+no default: an agent document, the built-in <code>default</code> included, that names
+no <code>memory</code> key gets no memory tools, no <code>memory_search</code>, and no memory
+snapshot. Memory is opt-in: <code>memory: allow</code> lets an agent read every memory,
+per-URL rules narrow it, and <code>memory_write</code> rules let it write. A session
+overlay can grant either for one session tree, as for any action. (Until
+2026-10-22 <code>primary</code> and <code>all</code> agents got both by default and <code>subagent</code>
+agents <code>memory: allow</code> and <code>memory_write: {"agent://self": allow}</code>.) In a rule
 pattern, <code>agent://self</code> stands for the run's own agent: it is read as
 <code>agent://&lt;agent ID&gt;</code> before matching, in agent documents and session
 overlays alike, and ranks like that literal URL.</p>
@@ -4572,23 +4576,47 @@ overlays alike, and ranks like that literal URL.</p>
 <p>Memory needs both the <code>global</code> runtime and a visible <code>memory</code> action: an
 agent without one gets no memory tools at all, even with <code>memory_write</code>
 rules. A delegated run may write only its own <code>agent://&lt;agent&gt;</code> file,
-whatever its rules say. See the <a href="../../specs/memory/#9-permissions">memory spec</a>.</p>
+whatever its rules say.</p>
+<p>The <code>memory</code> rules also decide what the memory snapshot shows of each
+memory: one they allow is shown, one they ask for is listed by URL and
+description only (reading it with <code>memory_read</code> then asks), and one they
+deny or do not match is left out, not even counted. When nothing is left to
+show, the run gets no memory turn at all, while the tools stay offered. See
+<a href="../../sessions/memory/#what-the-model-sees">What the model sees</a> and the
+<a href="../../specs/memory/#9-permissions">memory spec</a>.</p>
 <h3 id="listing-runtimes">Listing runtimes<a class="headerlink" href="#listing-runtimes" title="Permanent link">&para;</a></h3>
 <p><code>list_runtimes</code>, a tool of the <code>global</code> runtime, lists the daemon's machines
 and runtimes for a root that delegates to them (see
 <a href="../../sessions/delegation/#list_runtimes">Delegating to runtimes</a>). Its
-action, <code>list_runtimes</code>, has a default by mode like the memory actions:
+action, <code>list_runtimes</code>, has a default by mode:
 <code>allow</code> for <code>primary</code> and <code>all</code> agents, and none for <code>subagent</code> and
 <code>internal</code> ones. A declared <code>list_runtimes</code> key, with or without a runtime
 selector, replaces the default: <code>list_runtimes: allow</code> lets a subagent see
 the list, and <code>list_runtimes: deny</code> hides it from a primary agent.</p>
+<h3 id="mcp-default">MCP default<a class="headerlink" href="#mcp-default" title="Permanent link">&para;</a></h3>
+<p>MCP tools use the <code>mcp</code> action, with the complete generated tool name as
+resource (see <a href="../mcp/#tool-names-and-permissions">MCP tool names</a>). When an
+agent document, the built-in <code>default</code> included, has no <code>mcp</code> key (in any
+form, <code>mcp@&lt;runtime&gt;</code> included), the daemon supplies <code>mcp: {"*": ask}</code> for
+<code>primary</code>, <code>all</code>, and <code>subagent</code> agents, so the connected servers' tools are
+offered and every call asks; <code>internal</code> agents get none. A declared <code>mcp</code>
+key replaces the default entirely:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+</code></pre></div>
+<p>offers only the <code>my_chrome</code> server's tools, <code>mcp: allow</code> runs every MCP tool
+without asking, and <code>mcp: deny</code> hides them all. A key with only a runtime
+selector, such as <code>mcp@labpc: allow</code>, declares the action too, so the
+other runtimes' MCP tools stay hidden. <code>/permissions</code> shows the default with
+the source <code>default</code>. Session overlays apply on top as for any action.</p>
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are
