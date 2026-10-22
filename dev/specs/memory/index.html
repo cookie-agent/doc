@@ -5352,7 +5352,8 @@ document with no <code>memory</code> key has no memory tools, no <code>memory_se
 no snapshot. Memory is opt-in, with <code>memory: allow</code> (or per-URL rules) and
 <code>memory_write: …</code> in the agent document, or a session overlay rule. The
 table above records the defaults as they were from 2026-10-19 to
-2026-10-22. <code>list_runtimes</code> keeps its default, and <code>mcp</code> gained one
+2026-10-22. Delegated runs regain one default, their own agent file
+(<a href="#16911-related-memory-and-no-hard-limits-on-what-an-agent-touches">section 16.9.11</a>). <code>list_runtimes</code> keeps its default, and <code>mcp</code> gained one
 (<a href="../runtimes/#71-addendum-2026-10-22-the-mcp-default">runtimes spec section 7.1</a>).</p>
 <h3 id="93-search-results">9.3 Search results<a class="headerlink" href="#93-search-results" title="Permanent link">&para;</a></h3>
 <p><code>memory_search</code> always searches every memory and is never checked as a
@@ -6120,8 +6121,9 @@ Hermes Agent, OpenClaw, mem0 and Letta.</p>
 <p><strong>Decided:</strong>
 - No background curator, no content-shape guard, and no extraction of
   memories from transcripts.
-- Memory stays opt-in per agent (section 9.2, as amended 2026-10-22), and
-  no agent is opted in by this change.
+- Memory stays opt-in per agent for root runs (section 9.2, as amended
+  2026-10-22). Delegated runs get one default: their own agent file
+  (section 16.9.11, decided 2026-10-22).
 - The snapshot already follows the read rules, and an empty snapshot
   renders no memory turn. Both were implemented 2026-10-22.</p>
 <h4 id="1691-the-memory-providers-system-prompt-section">16.9.1 The memory provider's system-prompt section<a class="headerlink" href="#1691-the-memory-providers-system-prompt-section" title="Permanent link">&para;</a></h4>
@@ -6191,37 +6193,40 @@ or dropping what it holds before you add to it.</p>
 </blockquote>
 </li>
 <li>
-<p><strong>Delegated runs.</strong> A delegated run gets the same part B. What is
-  related to it is what its snapshot includes: its own agent file
-  (section 16.9.11).</p>
+<p><strong>Delegated runs.</strong> What is related to a delegated run is what its
+  snapshot includes: its own agent file (section 16.9.11). Its part A
+  names only that:</p>
 </li>
-<li><strong>Visibility test.</strong> Tool prompt composition asks every provider. The
+</ul>
+<blockquote>
+<p>Your own agent memory is included automatically at the start of each
+run. Use memory_search for anything else.</p>
+</blockquote>
+<p>It gets the same part B.
+- <strong>Visibility test.</strong> Tool prompt composition asks every provider. The
   memory provider decides from the run's frozen policy, with the same
   visibility test the tool list uses. With no memory tool there is no
-  section.</li>
-<li><strong>Write tools need memory the run can both read and write</strong> (added
+  section.
+- <strong>Write tools need memory the run can both read and write</strong> (added
   2026-10-22). <code>memory_write</code>, <code>memory_edit</code> and <code>memory_delete</code>, and with
   them part B, are offered only when at least one memory URL is both
   readable (an <code>allow</code> or <code>ask</code> <code>memory</code> rule matches it) and writable (an
-  <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it) for the run.</li>
-<li><strong>The check</strong> intersects the patterns of the two sets of rules, with
+  <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it) for the run.
+  - <strong>The check</strong> intersects the patterns of the two sets of rules, with
     their variables expanded (section 16.9.9). Patterns use only <code>*</code>
     and <code>?</code>, so whether two of them overlap can be decided exactly, and
-    no file has to exist for a URL to count.</li>
-<li><strong>Examples:</strong><ul>
-<li><code>memory: {"user://*": allow}</code> with
-  <code>memory_write: {"project://*": allow}</code> offers no write tools.</li>
-</ul>
-</li>
-<li><strong>Without memory</strong>, when the run is offered no memory tool at all, the
-    write tools never appear (unchanged).</li>
-<li><strong>What the snapshot keeps.</strong> It loses its search and save paragraphs
+    no file has to exist for a URL to count.
+  - <strong>Examples:</strong>
+    - <code>memory: {"user://*": allow}</code> with
+      <code>memory_write: {"project://*": allow}</code> offers no write tools.
+  - <strong>Without memory</strong>, when the run is offered no memory tool at all, the
+    write tools never appear (unchanged).
+- <strong>What the snapshot keeps.</strong> It loses its search and save paragraphs
   ("Project notes are never shown here…", "Save what a later session
   should know…", and their variants), and keeps only its background line
-  and the memories themselves.</li>
-<li><strong>Tool descriptions.</strong> <code>memory_write</code> and <code>memory_edit</code> stay short and
-  point to the section.</li>
-</ul>
+  and the memories themselves.
+- <strong>Tool descriptions.</strong> <code>memory_write</code> and <code>memory_edit</code> stay short and
+  point to the section.</p>
 <h4 id="1692-the-sessions-project-in-the-system-prompt">16.9.2 The session's project in the system prompt<a class="headerlink" href="#1692-the-sessions-project-in-the-system-prompt" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>The line.</strong> Next to the session facts the system prompt already states
@@ -6470,19 +6475,54 @@ or dropping what it holds before you add to it.</p>
   - an agent's delete of a <code>user://</code> category or an <code>agent://</code> file only
     clears its body (section 16.6, superseded).</p>
 <p>An agent's delete now deletes, and nothing is kept (section 16.9.10).
-- <strong>A possible later default.</strong> Once this is in, the defaults (section 9.2,
+- <strong>Default for delegated runs</strong> (decided 2026-10-22). A delegated run
+  (depth 1 or more) whose agent document has no key for <code>memory</code> or for
+  <code>memory_write</code> gets this rule for that action:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">memory</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nt">memory_write</span><span class="p">:</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+</code></pre></div>
+<ul>
+<li><strong>What it means.</strong> A subagent sees and maintains its own agent file
+    and nothing else: no <code>user://</code> memory, and no machine or project
+    memory. This follows Claude Code, whose subagents never load the
+    main session's auto memory and get only a memory directory of their
+    own. The snapshot of a delegated run already holds only its own agent
+    file (section 6), so the default and the snapshot agree.</li>
+<li><strong>Chosen by depth, not mode.</strong> Permission defaults so far depend on
+    the agent's mode. This one depends on whether the run is delegated,
+    so an <code>all</code>-mode agent gets it when delegated and not when it runs as
+    the root. Root runs keep no memory default.</li>
+<li><strong>How a run is known to be delegated.</strong> Its session's origin is
+    <code>SessionOrigin::Delegated</code>, set when <code>delegate_subagent</code> creates the
+    session and never changed. The two policy freezes already differ
+    (<code>freeze_delegated_agent_policy</code> for delegated runs), so the freeze
+    passes <code>delegated</code> to <code>agent_permission_rules</code>, which appends these
+    rules for a memory action the document has no key for. The default is
+    part of the frozen policy, like the mode defaults; nothing checks it at
+    write time.</li>
+<li><strong>A document's own rules replace it</strong>, per action, as with every
+    default (section 9.2). An agent document that declares <code>memory</code> or
+    <code>memory_write</code> gets exactly those rules when delegated too, <code>user://</code>
+    included if it grants it. That is the explicit opt-in; there is no
+    hard limit behind it.</li>
+<li><strong>Session overlays</strong> apply on top as for any action.</li>
+<li><strong>A possible later default for root runs.</strong> Once this is in, the defaults (section 9.2,
   none since 2026-10-22) could become "read everything, write what is
   related". The relative names already express that, with no new
-  variable:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">memory_write</span><span class="p">:</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+  variable:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">memory_write</span><span class="p">:</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
 <p>This is not decided; it is recorded here so the change can be made
-  later without new mechanism.</p>
+  later without new mechanism. Delegated runs would keep their own default
+  above.</p>
 <h4 id="16912-the-approval-reviewer-knows-the-rubric">16.9.12 The approval reviewer knows the rubric<a class="headerlink" href="#16912-the-approval-reviewer-knows-the-rubric" title="Permanent link">&para;</a></h4>
 <p>When an agent's <code>memory_write</code> rule is <code>ask</code>, the approval reviewer
 receives part B of section 16.9.1 and the write's content. In auto-approve
@@ -6507,6 +6547,7 @@ mode it rejects writes that fail the rubric.</p>
 <li>offering write tools only when some memory is both readable and
      writable;</li>
 <li>dropping the hard write limits (section 16.9.11);</li>
+<li>the delegated runs' default, and their part A;</li>
 <li>the <code>Project:</code> line;</li>
 <li>search scoring and the result and read formats;</li>
 <li>stamps and their migration;</li>
