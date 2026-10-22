@@ -30,7 +30,7 @@
 <a href=#30 id=30 data-nosnippet>30</a>    icons::Glyph,
 <a href=#31 id=31 data-nosnippet>31</a>    machines::{
 <a href=#32 id=32 data-nosnippet>32</a>        Drag, DragEnd, DragStep, GUIDES, SshTemplate, dial_in_command, drop_request, lifetime_icon,
-<a href=#33 id=33 data-nosnippet>33</a>        lifetime_label, move_request, platform_icon,
+<a href=#33 id=33 data-nosnippet>33</a>        lifetime_label, masked_token, move_request, platform_icon,
 <a href=#34 id=34 data-nosnippet>34</a>    },
 <a href=#35 id=35 data-nosnippet>35</a>    workspace::Workspace,
 <a href=#36 id=36 data-nosnippet>36</a>};
@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a>                    adding.update(|adding| <span class="kw-2">*</span>adding = !<span class="kw-2">*</span>adding);
 <a href=#212 id=212 data-nosnippet>212</a>                }
 <a href=#213 id=213 data-nosnippet>213</a>            &gt;
-<a href=#214 id=214 data-nosnippet>214</a>                &lt;Glyph icon=icondata::FaPlusSolid /&gt;
+<a href=#214 id=214 data-nosnippet>214</a>                &lt;Glyph icon=Signal::derive(<span class="kw">move </span>|| <span class="kw">if </span>adding.get() { icondata::FaMinusSolid } <span class="kw">else </span>{ icondata::FaPlusSolid }) /&gt;
 <a href=#215 id=215 data-nosnippet>215</a>                <span class="string">"Add a runtime"
 <a href=#216 id=216 data-nosnippet>216</a>            </span>&lt;/button&gt;
 <a href=#217 id=217 data-nosnippet>217</a>        &lt;/div&gt;
@@ -854,162 +854,200 @@
 <a href=#854 id=854 data-nosnippet>854</a>    <span class="kw">let </span>dial_id = RwSignal::new(String::new());
 <a href=#855 id=855 data-nosnippet>855</a>    <span class="kw">let </span>template = <span class="kw">move </span>|| SshTemplate::new(<span class="kw-2">&amp;</span>id.get(), <span class="kw-2">&amp;</span>host.get(), <span class="kw-2">&amp;</span>root.get());
 <a href=#856 id=856 data-nosnippet>856</a>    <span class="kw">let </span>daemon_url = StoredValue::new(browser::load(<span class="kw">crate</span>::connect::DAEMON_URL_KEY));
-<a href=#857 id=857 data-nosnippet>857</a>    <span class="kw">let </span>command = <span class="kw">move </span>|| {
-<a href=#858 id=858 data-nosnippet>858</a>        daemon_url.with_value(|daemon_url| dial_in_command(daemon_url.as_deref(), <span class="kw-2">&amp;</span>dial_id.get()))
-<a href=#859 id=859 data-nosnippet>859</a>    };
-<a href=#860 id=860 data-nosnippet>860</a>    <span class="kw">let </span>field = |label: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#861 id=861 data-nosnippet>861</a>                 field_id: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#862 id=862 data-nosnippet>862</a>                 placeholder: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#863 id=863 data-nosnippet>863</a>                 value: RwSignal&lt;String&gt;| {
-<a href=#864 id=864 data-nosnippet>864</a>        <span class="macro">view!</span> {
-<a href=#865 id=865 data-nosnippet>865</a>            &lt;label class=<span class="string">"flex min-w-0 flex-1 flex-col gap-1 text-xs font-bold text-ink dark:text-sand"</span>&gt;
-<a href=#866 id=866 data-nosnippet>866</a>                &lt;span&gt;{label}&lt;/span&gt;
-<a href=#867 id=867 data-nosnippet>867</a>                &lt;input
-<a href=#868 id=868 data-nosnippet>868</a>                    <span class="kw">type</span>=<span class="string">"text"
-<a href=#869 id=869 data-nosnippet>869</a>                    </span>id=field_id
-<a href=#870 id=870 data-nosnippet>870</a>                    class=FIELD
-<a href=#871 id=871 data-nosnippet>871</a>                    placeholder=placeholder
-<a href=#872 id=872 data-nosnippet>872</a>                    autocomplete=<span class="string">"off"
-<a href=#873 id=873 data-nosnippet>873</a>                    </span>autocapitalize=<span class="string">"off"
-<a href=#874 id=874 data-nosnippet>874</a>                    </span>spellcheck=<span class="string">"false"
-<a href=#875 id=875 data-nosnippet>875</a>                    </span>prop:value=<span class="kw">move </span>|| value.get()
-<a href=#876 id=876 data-nosnippet>876</a>                    on:input=<span class="kw">move </span>|event| value.set(event_target_value(<span class="kw-2">&amp;</span>event))
-<a href=#877 id=877 data-nosnippet>877</a>                /&gt;
-<a href=#878 id=878 data-nosnippet>878</a>            &lt;/label&gt;
-<a href=#879 id=879 data-nosnippet>879</a>        }
-<a href=#880 id=880 data-nosnippet>880</a>    };
-<a href=#881 id=881 data-nosnippet>881</a>    <span class="kw">let </span>guides = GUIDES
-<a href=#882 id=882 data-nosnippet>882</a>        .into_iter()
-<a href=#883 id=883 data-nosnippet>883</a>        .map(|guide| {
-<a href=#884 id=884 data-nosnippet>884</a>            <span class="macro">view!</span> {
-<a href=#885 id=885 data-nosnippet>885</a>                &lt;li&gt;
-<a href=#886 id=886 data-nosnippet>886</a>                    &lt;a
-<a href=#887 id=887 data-nosnippet>887</a>                        href=guide.url()
-<a href=#888 id=888 data-nosnippet>888</a>                        target=<span class="string">"_blank"
-<a href=#889 id=889 data-nosnippet>889</a>                        </span>rel=<span class="string">"noopener noreferrer"
-<a href=#890 id=890 data-nosnippet>890</a>                        </span>class=<span class="string">"flex min-h-11 items-start gap-2 rounded-md px-2 py-1.5 hover:bg-toasted active:bg-crust dark:hover:bg-ember dark:active:bg-smoke"
-<a href=#891 id=891 data-nosnippet>891</a>                        </span>data-guide
-<a href=#892 id=892 data-nosnippet>892</a>                    &gt;
-<a href=#893 id=893 data-nosnippet>893</a>                        &lt;Glyph icon=icondata::FaArrowUpRightFromSquareSolid class=<span class="string">"mt-1 text-xs opacity-70" </span>/&gt;
-<a href=#894 id=894 data-nosnippet>894</a>                        &lt;span class=<span class="string">"flex min-w-0 flex-col"</span>&gt;
-<a href=#895 id=895 data-nosnippet>895</a>                            &lt;span class=<span class="string">"text-sm font-bold text-caramel underline-offset-2 hover:underline dark:text-maple"</span>&gt;{guide.title}&lt;/span&gt;
-<a href=#896 id=896 data-nosnippet>896</a>                            &lt;span class=NOTE&gt;{guide.note}&lt;/span&gt;
-<a href=#897 id=897 data-nosnippet>897</a>                        &lt;/span&gt;
-<a href=#898 id=898 data-nosnippet>898</a>                    &lt;/a&gt;
-<a href=#899 id=899 data-nosnippet>899</a>                &lt;/li&gt;
-<a href=#900 id=900 data-nosnippet>900</a>            }
-<a href=#901 id=901 data-nosnippet>901</a>        })
-<a href=#902 id=902 data-nosnippet>902</a>        .collect_view();
-<a href=#903 id=903 data-nosnippet>903</a>    <span class="kw">let </span>heading = <span class="string">"flex items-center gap-2 text-sm font-bold"</span>;
-<a href=#904 id=904 data-nosnippet>904</a>    <span class="macro">view!</span> {
-<a href=#905 id=905 data-nosnippet>905</a>        &lt;section id=<span class="string">"add-runtime" </span>class=<span class="string">"flex flex-col gap-3 rounded-xl border border-caramel bg-parchment p-3 dark:border-maple dark:bg-char"</span>&gt;
-<a href=#906 id=906 data-nosnippet>906</a>            &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
-<a href=#907 id=907 data-nosnippet>907</a>                &lt;h3 class=<span class="string">"min-w-0 flex-1 font-bold"</span>&gt;<span class="string">"Add a runtime"</span>&lt;/h3&gt;
-<a href=#908 id=908 data-nosnippet>908</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=ICON_BUTTON aria-label=<span class="string">"Close" </span>title=<span class="string">"Close" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| adding.set(<span class="bool-val">false</span>)&gt;
-<a href=#909 id=909 data-nosnippet>909</a>                    &lt;Glyph icon=icondata::FaXmarkSolid class=<span class="string">"text-lg" </span>/&gt;
-<a href=#910 id=910 data-nosnippet>910</a>                &lt;/button&gt;
-<a href=#911 id=911 data-nosnippet>911</a>            &lt;/div&gt;
-<a href=#912 id=912 data-nosnippet>912</a>            &lt;div class=<span class="string">"flex flex-col gap-2" </span>data-add=<span class="string">"ssh"</span>&gt;
-<a href=#913 id=913 data-nosnippet>913</a>                &lt;h4 class=heading&gt;
-<a href=#914 id=914 data-nosnippet>914</a>                    &lt;Glyph icon=icondata::FaTerminalSolid /&gt;
-<a href=#915 id=915 data-nosnippet>915</a>                    <span class="string">"Start one over ssh"
-<a href=#916 id=916 data-nosnippet>916</a>                </span>&lt;/h4&gt;
-<a href=#917 id=917 data-nosnippet>917</a>                &lt;p class=NOTE&gt;
-<a href=#918 id=918 data-nosnippet>918</a>                    <span class="string">"The daemon runs cookie runtime serve on the other machine when a session first needs it. Install the same cookie version there, and check that ssh &lt;host&gt; cookie --version works without a password."
-<a href=#919 id=919 data-nosnippet>919</a>                </span>&lt;/p&gt;
-<a href=#920 id=920 data-nosnippet>920</a>                &lt;div class=<span class="string">"flex flex-col gap-2 sm:flex-row"</span>&gt;
-<a href=#921 id=921 data-nosnippet>921</a>                    {field(<span class="string">"Runtime ID"</span>, <span class="string">"ssh-id"</span>, <span class="string">"labpc"</span>, id)}
-<a href=#922 id=922 data-nosnippet>922</a>                    {field(<span class="string">"ssh host"</span>, <span class="string">"ssh-host"</span>, <span class="string">"labpc or me@labpc.lan"</span>, host)}
-<a href=#923 id=923 data-nosnippet>923</a>                &lt;/div&gt;
-<a href=#924 id=924 data-nosnippet>924</a>                {field(<span class="string">"Only workspaces under (optional)"</span>, <span class="string">"ssh-root"</span>, <span class="string">"~/src"</span>, root)}
-<a href=#925 id=925 data-nosnippet>925</a>                {<span class="kw">move </span>|| <span class="kw">match </span>template() {
-<a href=#926 id=926 data-nosnippet>926</a>                    <span class="prelude-val">Ok</span>(template) =&gt; <span class="macro">view!</span> {
-<a href=#927 id=927 data-nosnippet>927</a>                        &lt;pre id=<span class="string">"ssh-preview" </span>class=<span class="string">"overflow-x-auto rounded-md border border-crust bg-cream p-2 font-mono text-xs dark:border-smoke dark:bg-night"</span>&gt;{template.toml()}&lt;/pre&gt;
-<a href=#928 id=928 data-nosnippet>928</a>                    }
-<a href=#929 id=929 data-nosnippet>929</a>                    .into_any(),
-<a href=#930 id=930 data-nosnippet>930</a>                    <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">view!</span> {
-<a href=#931 id=931 data-nosnippet>931</a>                        &lt;p id=<span class="string">"ssh-preview" </span>class=NOTE&gt;
-<a href=#932 id=932 data-nosnippet>932</a>                            {<span class="kw">if </span>id.get().trim().is_empty() || host.get().trim().is_empty() {
-<a href=#933 id=933 data-nosnippet>933</a>                                <span class="string">"Name the runtime and the host to see the template."</span>.to_owned()
-<a href=#934 id=934 data-nosnippet>934</a>                            } <span class="kw">else </span>{
-<a href=#935 id=935 data-nosnippet>935</a>                                error
-<a href=#936 id=936 data-nosnippet>936</a>                            }}
-<a href=#937 id=937 data-nosnippet>937</a>                        &lt;/p&gt;
-<a href=#938 id=938 data-nosnippet>938</a>                    }
-<a href=#939 id=939 data-nosnippet>939</a>                    .into_any(),
-<a href=#940 id=940 data-nosnippet>940</a>                }}
-<a href=#941 id=941 data-nosnippet>941</a>                &lt;div class=<span class="string">"flex flex-wrap items-center gap-2"</span>&gt;
-<a href=#942 id=942 data-nosnippet>942</a>                    &lt;button
-<a href=#943 id=943 data-nosnippet>943</a>                        <span class="kw">type</span>=<span class="string">"button"
-<a href=#944 id=944 data-nosnippet>944</a>                        </span>id=<span class="string">"ssh-add"
-<a href=#945 id=945 data-nosnippet>945</a>                        </span>class=PRIMARY
-<a href=#946 id=946 data-nosnippet>946</a>                        disabled=<span class="kw">move </span>|| template().is_err()
-<a href=#947 id=947 data-nosnippet>947</a>                        on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#948 id=948 data-nosnippet>948</a>                            <span class="kw">if let </span><span class="prelude-val">Ok</span>(template) = template() {
-<a href=#949 id=949 data-nosnippet>949</a>                                workspace.add_runtime_template(template, outcome);
-<a href=#950 id=950 data-nosnippet>950</a>                            }
-<a href=#951 id=951 data-nosnippet>951</a>                        }
-<a href=#952 id=952 data-nosnippet>952</a>                    &gt;
-<a href=#953 id=953 data-nosnippet>953</a>                        &lt;Glyph icon=icondata::FaFileCodeSolid /&gt;
-<a href=#954 id=954 data-nosnippet>954</a>                        <span class="string">"Add to config.toml"
-<a href=#955 id=955 data-nosnippet>955</a>                    </span>&lt;/button&gt;
-<a href=#956 id=956 data-nosnippet>956</a>                &lt;/div&gt;
-<a href=#957 id=957 data-nosnippet>957</a>                {<span class="kw">move </span>|| outcome.get().map(|outcome| <span class="kw">match </span>outcome {
-<a href=#958 id=958 data-nosnippet>958</a>                    <span class="prelude-val">Ok</span>(done) =&gt; <span class="macro">view!</span> {
-<a href=#959 id=959 data-nosnippet>959</a>                        &lt;p id=<span class="string">"ssh-outcome" </span>class=<span class="string">"flex items-start gap-2 text-sm text-green-800 dark:text-green-300"</span>&gt;
-<a href=#960 id=960 data-nosnippet>960</a>                            &lt;Glyph icon=icondata::FaCheckSolid class=<span class="string">"mt-1" </span>/&gt;
-<a href=#961 id=961 data-nosnippet>961</a>                            {done}
-<a href=#962 id=962 data-nosnippet>962</a>                        &lt;/p&gt;
-<a href=#963 id=963 data-nosnippet>963</a>                    }
-<a href=#964 id=964 data-nosnippet>964</a>                    .into_any(),
-<a href=#965 id=965 data-nosnippet>965</a>                    <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">view!</span> { &lt;p id=<span class="string">"ssh-outcome" </span>class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
-<a href=#966 id=966 data-nosnippet>966</a>                })}
-<a href=#967 id=967 data-nosnippet>967</a>            &lt;/div&gt;
-<a href=#968 id=968 data-nosnippet>968</a>            &lt;div class=<span class="string">"flex flex-col gap-2 border-t border-toasted pt-3 dark:border-ember" </span>data-add=<span class="string">"dial-in"</span>&gt;
-<a href=#969 id=969 data-nosnippet>969</a>                &lt;h4 class=heading&gt;
-<a href=#970 id=970 data-nosnippet>970</a>                    &lt;Glyph icon=icondata::FaPlugSolid /&gt;
-<a href=#971 id=971 data-nosnippet>971</a>                    <span class="string">"Let one dial in"
-<a href=#972 id=972 data-nosnippet>972</a>                </span>&lt;/h4&gt;
-<a href=#973 id=973 data-nosnippet>973</a>                &lt;p class=NOTE&gt;
-<a href=#974 id=974 data-nosnippet>974</a>                    <span class="string">"Run this on the other machine: it connects to this daemon and stays connected. Replace the placeholders with the daemon's address as that machine reaches it (the daemon listens there with cookie daemon --listen 0.0.0.0:7419) and its token ([server] token in the daemon's config.toml)."
-<a href=#975 id=975 data-nosnippet>975</a>                </span>&lt;/p&gt;
-<a href=#976 id=976 data-nosnippet>976</a>                {field(<span class="string">"Runtime ID (optional; the host's name otherwise)"</span>, <span class="string">"dial-id"</span>, <span class="string">"labpc"</span>, dial_id)}
-<a href=#977 id=977 data-nosnippet>977</a>                &lt;textarea
-<a href=#978 id=978 data-nosnippet>978</a>                    id=<span class="string">"dial-in-command"
-<a href=#979 id=979 data-nosnippet>979</a>                    </span>readonly
-<a href=#980 id=980 data-nosnippet>980</a>                    rows=<span class="string">"2"
-<a href=#981 id=981 data-nosnippet>981</a>                    </span>class=<span class="string">"w-full resize-none rounded-md border border-crust bg-cream p-2 font-mono text-xs dark:border-smoke dark:bg-night"
-<a href=#982 id=982 data-nosnippet>982</a>                    </span>prop:value=command
-<a href=#983 id=983 data-nosnippet>983</a>                &gt;&lt;/textarea&gt;
-<a href=#984 id=984 data-nosnippet>984</a>                &lt;button
-<a href=#985 id=985 data-nosnippet>985</a>                    <span class="kw">type</span>=<span class="string">"button"
-<a href=#986 id=986 data-nosnippet>986</a>                    </span>id=<span class="string">"dial-in-copy"
-<a href=#987 id=987 data-nosnippet>987</a>                    </span>class=<span class="macro">format!</span>(<span class="string">"{BUTTON} self-start"</span>)
-<a href=#988 id=988 data-nosnippet>988</a>                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#989 id=989 data-nosnippet>989</a>                        <span class="kw">let </span>text = command();
-<a href=#990 id=990 data-nosnippet>990</a>                        spawn_local(<span class="kw">async move </span>{
-<a href=#991 id=991 data-nosnippet>991</a>                            <span class="kw">let </span>copied = browser::copy_text(<span class="kw-2">&amp;</span>text).<span class="kw">await</span>;
-<a href=#992 id=992 data-nosnippet>992</a>                            workspace.status.set(<span class="kw">if </span>copied {
-<a href=#993 id=993 data-nosnippet>993</a>                                <span class="string">"copied the dial-in command"</span>.into()
-<a href=#994 id=994 data-nosnippet>994</a>                            } <span class="kw">else </span>{
-<a href=#995 id=995 data-nosnippet>995</a>                                browser::select_text(<span class="string">"dial-in-command"</span>);
-<a href=#996 id=996 data-nosnippet>996</a>                                <span class="string">"copying needs a secure page; the command is selected, copy it with the keyboard"</span>.into()
-<a href=#997 id=997 data-nosnippet>997</a>                            });
-<a href=#998 id=998 data-nosnippet>998</a>                        });
-<a href=#999 id=999 data-nosnippet>999</a>                    }
-<a href=#1000 id=1000 data-nosnippet>1000</a>                &gt;
-<a href=#1001 id=1001 data-nosnippet>1001</a>                    &lt;Glyph icon=icondata::FaCopyRegular /&gt;
-<a href=#1002 id=1002 data-nosnippet>1002</a>                    <span class="string">"Copy"
-<a href=#1003 id=1003 data-nosnippet>1003</a>                </span>&lt;/button&gt;
-<a href=#1004 id=1004 data-nosnippet>1004</a>            &lt;/div&gt;
-<a href=#1005 id=1005 data-nosnippet>1005</a>            &lt;div class=<span class="string">"flex flex-col gap-1 border-t border-toasted pt-3 dark:border-ember" </span>data-add=<span class="string">"guides"</span>&gt;
-<a href=#1006 id=1006 data-nosnippet>1006</a>                &lt;h4 class=heading&gt;
-<a href=#1007 id=1007 data-nosnippet>1007</a>                    &lt;Glyph icon=icondata::FaBookOpenSolid /&gt;
-<a href=#1008 id=1008 data-nosnippet>1008</a>                    <span class="string">"Guides"
-<a href=#1009 id=1009 data-nosnippet>1009</a>                </span>&lt;/h4&gt;
-<a href=#1010 id=1010 data-nosnippet>1010</a>                &lt;ul class=<span class="string">"flex flex-col"</span>&gt;{guides}&lt;/ul&gt;
-<a href=#1011 id=1011 data-nosnippet>1011</a>            &lt;/div&gt;
-<a href=#1012 id=1012 data-nosnippet>1012</a>        &lt;/section&gt;
-<a href=#1013 id=1013 data-nosnippet>1013</a>    }
-<a href=#1014 id=1014 data-nosnippet>1014</a>}
+<a href=#857 id=857 data-nosnippet>857</a>    <span class="comment">// The token this page connected with, so the command runs as it is.
+<a href=#858 id=858 data-nosnippet>858</a>    </span><span class="kw">let </span>token = StoredValue::new(daemon_url.with_value(|url| {
+<a href=#859 id=859 data-nosnippet>859</a>        url.as_deref()
+<a href=#860 id=860 data-nosnippet>860</a>            .and_then(|url| browser::load(<span class="kw-2">&amp;</span><span class="kw">crate</span>::connect::token_key(url)))
+<a href=#861 id=861 data-nosnippet>861</a>    }));
+<a href=#862 id=862 data-nosnippet>862</a>    <span class="kw">let </span>show_token = RwSignal::new(<span class="bool-val">false</span>);
+<a href=#863 id=863 data-nosnippet>863</a>    <span class="kw">let </span>command = <span class="kw">move </span>|| {
+<a href=#864 id=864 data-nosnippet>864</a>        daemon_url.with_value(|daemon_url| {
+<a href=#865 id=865 data-nosnippet>865</a>            token.with_value(|token| {
+<a href=#866 id=866 data-nosnippet>866</a>                dial_in_command(daemon_url.as_deref(), <span class="kw-2">&amp;</span>dial_id.get(), token.as_deref())
+<a href=#867 id=867 data-nosnippet>867</a>            })
+<a href=#868 id=868 data-nosnippet>868</a>        })
+<a href=#869 id=869 data-nosnippet>869</a>    };
+<a href=#870 id=870 data-nosnippet>870</a>    <span class="kw">let </span>shown_command = <span class="kw">move </span>|| {
+<a href=#871 id=871 data-nosnippet>871</a>        <span class="kw">let </span>command = command();
+<a href=#872 id=872 data-nosnippet>872</a>        <span class="kw">if </span>show_token.get() {
+<a href=#873 id=873 data-nosnippet>873</a>            command
+<a href=#874 id=874 data-nosnippet>874</a>        } <span class="kw">else </span>{
+<a href=#875 id=875 data-nosnippet>875</a>            token.with_value(|token| masked_token(<span class="kw-2">&amp;</span>command, token.as_deref()))
+<a href=#876 id=876 data-nosnippet>876</a>        }
+<a href=#877 id=877 data-nosnippet>877</a>    };
+<a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">let </span>field = |label: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#879 id=879 data-nosnippet>879</a>                 field_id: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#880 id=880 data-nosnippet>880</a>                 placeholder: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#881 id=881 data-nosnippet>881</a>                 value: RwSignal&lt;String&gt;| {
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="macro">view!</span> {
+<a href=#883 id=883 data-nosnippet>883</a>            &lt;label class=<span class="string">"flex min-w-0 flex-1 flex-col gap-1 text-xs font-bold text-ink dark:text-sand"</span>&gt;
+<a href=#884 id=884 data-nosnippet>884</a>                &lt;span&gt;{label}&lt;/span&gt;
+<a href=#885 id=885 data-nosnippet>885</a>                &lt;input
+<a href=#886 id=886 data-nosnippet>886</a>                    <span class="kw">type</span>=<span class="string">"text"
+<a href=#887 id=887 data-nosnippet>887</a>                    </span>id=field_id
+<a href=#888 id=888 data-nosnippet>888</a>                    class=FIELD
+<a href=#889 id=889 data-nosnippet>889</a>                    placeholder=placeholder
+<a href=#890 id=890 data-nosnippet>890</a>                    autocomplete=<span class="string">"off"
+<a href=#891 id=891 data-nosnippet>891</a>                    </span>autocapitalize=<span class="string">"off"
+<a href=#892 id=892 data-nosnippet>892</a>                    </span>spellcheck=<span class="string">"false"
+<a href=#893 id=893 data-nosnippet>893</a>                    </span>prop:value=<span class="kw">move </span>|| value.get()
+<a href=#894 id=894 data-nosnippet>894</a>                    on:input=<span class="kw">move </span>|event| value.set(event_target_value(<span class="kw-2">&amp;</span>event))
+<a href=#895 id=895 data-nosnippet>895</a>                /&gt;
+<a href=#896 id=896 data-nosnippet>896</a>            &lt;/label&gt;
+<a href=#897 id=897 data-nosnippet>897</a>        }
+<a href=#898 id=898 data-nosnippet>898</a>    };
+<a href=#899 id=899 data-nosnippet>899</a>    <span class="kw">let </span>guides = GUIDES
+<a href=#900 id=900 data-nosnippet>900</a>        .into_iter()
+<a href=#901 id=901 data-nosnippet>901</a>        .map(|guide| {
+<a href=#902 id=902 data-nosnippet>902</a>            <span class="macro">view!</span> {
+<a href=#903 id=903 data-nosnippet>903</a>                &lt;li&gt;
+<a href=#904 id=904 data-nosnippet>904</a>                    &lt;a
+<a href=#905 id=905 data-nosnippet>905</a>                        href=guide.url()
+<a href=#906 id=906 data-nosnippet>906</a>                        target=<span class="string">"_blank"
+<a href=#907 id=907 data-nosnippet>907</a>                        </span>rel=<span class="string">"noopener noreferrer"
+<a href=#908 id=908 data-nosnippet>908</a>                        </span>class=<span class="string">"flex min-h-11 items-start gap-2 rounded-md px-2 py-1.5 hover:bg-toasted active:bg-crust dark:hover:bg-ember dark:active:bg-smoke"
+<a href=#909 id=909 data-nosnippet>909</a>                        </span>data-guide
+<a href=#910 id=910 data-nosnippet>910</a>                    &gt;
+<a href=#911 id=911 data-nosnippet>911</a>                        &lt;Glyph icon=icondata::FaArrowUpRightFromSquareSolid class=<span class="string">"mt-1 text-xs opacity-70" </span>/&gt;
+<a href=#912 id=912 data-nosnippet>912</a>                        &lt;span class=<span class="string">"flex min-w-0 flex-col"</span>&gt;
+<a href=#913 id=913 data-nosnippet>913</a>                            &lt;span class=<span class="string">"text-sm font-bold text-caramel underline-offset-2 hover:underline dark:text-maple"</span>&gt;{guide.title}&lt;/span&gt;
+<a href=#914 id=914 data-nosnippet>914</a>                            &lt;span class=NOTE&gt;{guide.note}&lt;/span&gt;
+<a href=#915 id=915 data-nosnippet>915</a>                        &lt;/span&gt;
+<a href=#916 id=916 data-nosnippet>916</a>                    &lt;/a&gt;
+<a href=#917 id=917 data-nosnippet>917</a>                &lt;/li&gt;
+<a href=#918 id=918 data-nosnippet>918</a>            }
+<a href=#919 id=919 data-nosnippet>919</a>        })
+<a href=#920 id=920 data-nosnippet>920</a>        .collect_view();
+<a href=#921 id=921 data-nosnippet>921</a>    <span class="kw">let </span>heading = <span class="string">"flex items-center gap-2 text-sm font-bold"</span>;
+<a href=#922 id=922 data-nosnippet>922</a>    <span class="macro">view!</span> {
+<a href=#923 id=923 data-nosnippet>923</a>        &lt;section id=<span class="string">"add-runtime" </span>class=<span class="string">"flex flex-col gap-3 rounded-xl border border-caramel bg-parchment p-3 dark:border-maple dark:bg-char"</span>&gt;
+<a href=#924 id=924 data-nosnippet>924</a>            &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
+<a href=#925 id=925 data-nosnippet>925</a>                &lt;h3 class=<span class="string">"min-w-0 flex-1 font-bold"</span>&gt;<span class="string">"Add a runtime"</span>&lt;/h3&gt;
+<a href=#926 id=926 data-nosnippet>926</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=ICON_BUTTON aria-label=<span class="string">"Close" </span>title=<span class="string">"Close" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| adding.set(<span class="bool-val">false</span>)&gt;
+<a href=#927 id=927 data-nosnippet>927</a>                    &lt;Glyph icon=icondata::FaXmarkSolid class=<span class="string">"text-lg" </span>/&gt;
+<a href=#928 id=928 data-nosnippet>928</a>                &lt;/button&gt;
+<a href=#929 id=929 data-nosnippet>929</a>            &lt;/div&gt;
+<a href=#930 id=930 data-nosnippet>930</a>            &lt;div class=<span class="string">"flex flex-col gap-2" </span>data-add=<span class="string">"ssh"</span>&gt;
+<a href=#931 id=931 data-nosnippet>931</a>                &lt;h4 class=heading&gt;
+<a href=#932 id=932 data-nosnippet>932</a>                    &lt;Glyph icon=icondata::FaTerminalSolid /&gt;
+<a href=#933 id=933 data-nosnippet>933</a>                    <span class="string">"Start one over ssh"
+<a href=#934 id=934 data-nosnippet>934</a>                </span>&lt;/h4&gt;
+<a href=#935 id=935 data-nosnippet>935</a>                &lt;p class=NOTE&gt;
+<a href=#936 id=936 data-nosnippet>936</a>                    <span class="string">"The daemon runs cookie runtime serve on the other machine when a session first needs it. Install the same cookie version there, and check that ssh &lt;host&gt; cookie --version works without a password."
+<a href=#937 id=937 data-nosnippet>937</a>                </span>&lt;/p&gt;
+<a href=#938 id=938 data-nosnippet>938</a>                &lt;div class=<span class="string">"flex flex-col gap-2 sm:flex-row"</span>&gt;
+<a href=#939 id=939 data-nosnippet>939</a>                    {field(<span class="string">"Runtime ID"</span>, <span class="string">"ssh-id"</span>, <span class="string">"labpc"</span>, id)}
+<a href=#940 id=940 data-nosnippet>940</a>                    {field(<span class="string">"ssh host"</span>, <span class="string">"ssh-host"</span>, <span class="string">"labpc or me@labpc.lan"</span>, host)}
+<a href=#941 id=941 data-nosnippet>941</a>                &lt;/div&gt;
+<a href=#942 id=942 data-nosnippet>942</a>                {field(<span class="string">"Only workspaces under (optional)"</span>, <span class="string">"ssh-root"</span>, <span class="string">"~/src"</span>, root)}
+<a href=#943 id=943 data-nosnippet>943</a>                {<span class="kw">move </span>|| <span class="kw">match </span>template() {
+<a href=#944 id=944 data-nosnippet>944</a>                    <span class="prelude-val">Ok</span>(template) =&gt; <span class="macro">view!</span> {
+<a href=#945 id=945 data-nosnippet>945</a>                        &lt;pre id=<span class="string">"ssh-preview" </span>class=<span class="string">"overflow-x-auto rounded-md border border-crust bg-cream p-2 font-mono text-xs dark:border-smoke dark:bg-night"</span>&gt;{template.toml()}&lt;/pre&gt;
+<a href=#946 id=946 data-nosnippet>946</a>                    }
+<a href=#947 id=947 data-nosnippet>947</a>                    .into_any(),
+<a href=#948 id=948 data-nosnippet>948</a>                    <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">view!</span> {
+<a href=#949 id=949 data-nosnippet>949</a>                        &lt;p id=<span class="string">"ssh-preview" </span>class=NOTE&gt;
+<a href=#950 id=950 data-nosnippet>950</a>                            {<span class="kw">if </span>id.get().trim().is_empty() || host.get().trim().is_empty() {
+<a href=#951 id=951 data-nosnippet>951</a>                                <span class="string">"Name the runtime and the host to see the template."</span>.to_owned()
+<a href=#952 id=952 data-nosnippet>952</a>                            } <span class="kw">else </span>{
+<a href=#953 id=953 data-nosnippet>953</a>                                error
+<a href=#954 id=954 data-nosnippet>954</a>                            }}
+<a href=#955 id=955 data-nosnippet>955</a>                        &lt;/p&gt;
+<a href=#956 id=956 data-nosnippet>956</a>                    }
+<a href=#957 id=957 data-nosnippet>957</a>                    .into_any(),
+<a href=#958 id=958 data-nosnippet>958</a>                }}
+<a href=#959 id=959 data-nosnippet>959</a>                &lt;div class=<span class="string">"flex flex-wrap items-center gap-2"</span>&gt;
+<a href=#960 id=960 data-nosnippet>960</a>                    &lt;button
+<a href=#961 id=961 data-nosnippet>961</a>                        <span class="kw">type</span>=<span class="string">"button"
+<a href=#962 id=962 data-nosnippet>962</a>                        </span>id=<span class="string">"ssh-add"
+<a href=#963 id=963 data-nosnippet>963</a>                        </span>class=PRIMARY
+<a href=#964 id=964 data-nosnippet>964</a>                        disabled=<span class="kw">move </span>|| template().is_err()
+<a href=#965 id=965 data-nosnippet>965</a>                        on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#966 id=966 data-nosnippet>966</a>                            <span class="kw">if let </span><span class="prelude-val">Ok</span>(template) = template() {
+<a href=#967 id=967 data-nosnippet>967</a>                                workspace.add_runtime_template(template, outcome);
+<a href=#968 id=968 data-nosnippet>968</a>                            }
+<a href=#969 id=969 data-nosnippet>969</a>                        }
+<a href=#970 id=970 data-nosnippet>970</a>                    &gt;
+<a href=#971 id=971 data-nosnippet>971</a>                        &lt;Glyph icon=icondata::FaFileCodeSolid /&gt;
+<a href=#972 id=972 data-nosnippet>972</a>                        <span class="string">"Add to config.toml"
+<a href=#973 id=973 data-nosnippet>973</a>                    </span>&lt;/button&gt;
+<a href=#974 id=974 data-nosnippet>974</a>                &lt;/div&gt;
+<a href=#975 id=975 data-nosnippet>975</a>                {<span class="kw">move </span>|| outcome.get().map(|outcome| <span class="kw">match </span>outcome {
+<a href=#976 id=976 data-nosnippet>976</a>                    <span class="prelude-val">Ok</span>(done) =&gt; <span class="macro">view!</span> {
+<a href=#977 id=977 data-nosnippet>977</a>                        &lt;p id=<span class="string">"ssh-outcome" </span>class=<span class="string">"flex items-start gap-2 text-sm text-green-800 dark:text-green-300"</span>&gt;
+<a href=#978 id=978 data-nosnippet>978</a>                            &lt;Glyph icon=icondata::FaCheckSolid class=<span class="string">"mt-1" </span>/&gt;
+<a href=#979 id=979 data-nosnippet>979</a>                            {done}
+<a href=#980 id=980 data-nosnippet>980</a>                        &lt;/p&gt;
+<a href=#981 id=981 data-nosnippet>981</a>                    }
+<a href=#982 id=982 data-nosnippet>982</a>                    .into_any(),
+<a href=#983 id=983 data-nosnippet>983</a>                    <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">view!</span> { &lt;p id=<span class="string">"ssh-outcome" </span>class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
+<a href=#984 id=984 data-nosnippet>984</a>                })}
+<a href=#985 id=985 data-nosnippet>985</a>            &lt;/div&gt;
+<a href=#986 id=986 data-nosnippet>986</a>            &lt;div class=<span class="string">"flex flex-col gap-2 border-t border-toasted pt-3 dark:border-ember" </span>data-add=<span class="string">"dial-in"</span>&gt;
+<a href=#987 id=987 data-nosnippet>987</a>                &lt;h4 class=heading&gt;
+<a href=#988 id=988 data-nosnippet>988</a>                    &lt;Glyph icon=icondata::FaPlugSolid /&gt;
+<a href=#989 id=989 data-nosnippet>989</a>                    <span class="string">"Let one dial in"
+<a href=#990 id=990 data-nosnippet>990</a>                </span>&lt;/h4&gt;
+<a href=#991 id=991 data-nosnippet>991</a>                &lt;p class=NOTE&gt;
+<a href=#992 id=992 data-nosnippet>992</a>                    {<span class="kw">move </span>|| <span class="kw">if </span>token.with_value(Option::is_some) {
+<a href=#993 id=993 data-nosnippet>993</a>                        <span class="string">"Run this on the other machine: it connects to this daemon and stays connected. It carries the token this page connected with; keep it private. If the address is a placeholder, use the daemon's address as that machine reaches it (the daemon listens there with cookie daemon --listen 0.0.0.0:7419)."
+<a href=#994 id=994 data-nosnippet>994</a>                    </span>} <span class="kw">else </span>{
+<a href=#995 id=995 data-nosnippet>995</a>                        <span class="string">"Run this on the other machine: it connects to this daemon and stays connected. Replace the placeholders with the daemon's address as that machine reaches it (the daemon listens there with cookie daemon --listen 0.0.0.0:7419) and its token ([server] token in the daemon's config.toml)."
+<a href=#996 id=996 data-nosnippet>996</a>                    </span>}}
+<a href=#997 id=997 data-nosnippet>997</a>                &lt;/p&gt;
+<a href=#998 id=998 data-nosnippet>998</a>                {field(<span class="string">"Runtime ID (optional; the host's name otherwise)"</span>, <span class="string">"dial-id"</span>, <span class="string">"labpc"</span>, dial_id)}
+<a href=#999 id=999 data-nosnippet>999</a>                &lt;textarea
+<a href=#1000 id=1000 data-nosnippet>1000</a>                    id=<span class="string">"dial-in-command"
+<a href=#1001 id=1001 data-nosnippet>1001</a>                    </span>readonly
+<a href=#1002 id=1002 data-nosnippet>1002</a>                    rows=<span class="string">"2"
+<a href=#1003 id=1003 data-nosnippet>1003</a>                    </span>class=<span class="string">"w-full resize-none rounded-md border border-crust bg-cream p-2 font-mono text-xs dark:border-smoke dark:bg-night"
+<a href=#1004 id=1004 data-nosnippet>1004</a>                    </span>prop:value=shown_command
+<a href=#1005 id=1005 data-nosnippet>1005</a>                &gt;&lt;/textarea&gt;
+<a href=#1006 id=1006 data-nosnippet>1006</a>                &lt;div class=<span class="string">"flex flex-wrap gap-2"</span>&gt;
+<a href=#1007 id=1007 data-nosnippet>1007</a>                &lt;button
+<a href=#1008 id=1008 data-nosnippet>1008</a>                    <span class="kw">type</span>=<span class="string">"button"
+<a href=#1009 id=1009 data-nosnippet>1009</a>                    </span>id=<span class="string">"dial-in-copy"
+<a href=#1010 id=1010 data-nosnippet>1010</a>                    </span>class=BUTTON
+<a href=#1011 id=1011 data-nosnippet>1011</a>                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#1012 id=1012 data-nosnippet>1012</a>                        <span class="kw">let </span>text = command();
+<a href=#1013 id=1013 data-nosnippet>1013</a>                        spawn_local(<span class="kw">async move </span>{
+<a href=#1014 id=1014 data-nosnippet>1014</a>                            <span class="kw">let </span>copied = browser::copy_text(<span class="kw-2">&amp;</span>text).<span class="kw">await</span>;
+<a href=#1015 id=1015 data-nosnippet>1015</a>                            workspace.status.set(<span class="kw">if </span>copied {
+<a href=#1016 id=1016 data-nosnippet>1016</a>                                <span class="string">"copied the dial-in command"</span>.into()
+<a href=#1017 id=1017 data-nosnippet>1017</a>                            } <span class="kw">else </span>{
+<a href=#1018 id=1018 data-nosnippet>1018</a>                                <span class="comment">// The selection must hold the token, not its mask.
+<a href=#1019 id=1019 data-nosnippet>1019</a>                                </span>show_token.set(<span class="bool-val">true</span>);
+<a href=#1020 id=1020 data-nosnippet>1020</a>                                browser::select_text(<span class="string">"dial-in-command"</span>);
+<a href=#1021 id=1021 data-nosnippet>1021</a>                                <span class="string">"copying needs a secure page; the command is selected, copy it with the keyboard"</span>.into()
+<a href=#1022 id=1022 data-nosnippet>1022</a>                            });
+<a href=#1023 id=1023 data-nosnippet>1023</a>                        });
+<a href=#1024 id=1024 data-nosnippet>1024</a>                    }
+<a href=#1025 id=1025 data-nosnippet>1025</a>                &gt;
+<a href=#1026 id=1026 data-nosnippet>1026</a>                    &lt;Glyph icon=icondata::FaCopyRegular /&gt;
+<a href=#1027 id=1027 data-nosnippet>1027</a>                    <span class="string">"Copy"
+<a href=#1028 id=1028 data-nosnippet>1028</a>                </span>&lt;/button&gt;
+<a href=#1029 id=1029 data-nosnippet>1029</a>                &lt;Show when=<span class="kw">move </span>|| token.with_value(Option::is_some)&gt;
+<a href=#1030 id=1030 data-nosnippet>1030</a>                    &lt;button
+<a href=#1031 id=1031 data-nosnippet>1031</a>                        <span class="kw">type</span>=<span class="string">"button"
+<a href=#1032 id=1032 data-nosnippet>1032</a>                        </span>id=<span class="string">"dial-in-reveal"
+<a href=#1033 id=1033 data-nosnippet>1033</a>                        </span>class=BUTTON
+<a href=#1034 id=1034 data-nosnippet>1034</a>                        aria-pressed=<span class="kw">move </span>|| show_token.get().to_string()
+<a href=#1035 id=1035 data-nosnippet>1035</a>                        on:click=<span class="kw">move </span>|<span class="kw">_</span>| show_token.update(|shown| <span class="kw-2">*</span>shown = !<span class="kw-2">*</span>shown)
+<a href=#1036 id=1036 data-nosnippet>1036</a>                    &gt;
+<a href=#1037 id=1037 data-nosnippet>1037</a>                        &lt;Glyph icon=Signal::derive(<span class="kw">move </span>|| <span class="kw">if </span>show_token.get() { icondata::FaEyeSlashRegular } <span class="kw">else </span>{ icondata::FaEyeRegular }) /&gt;
+<a href=#1038 id=1038 data-nosnippet>1038</a>                        {<span class="kw">move </span>|| <span class="kw">if </span>show_token.get() { <span class="string">"Hide token" </span>} <span class="kw">else </span>{ <span class="string">"Show token" </span>}}
+<a href=#1039 id=1039 data-nosnippet>1039</a>                    &lt;/button&gt;
+<a href=#1040 id=1040 data-nosnippet>1040</a>                &lt;/Show&gt;
+<a href=#1041 id=1041 data-nosnippet>1041</a>                &lt;/div&gt;
+<a href=#1042 id=1042 data-nosnippet>1042</a>            &lt;/div&gt;
+<a href=#1043 id=1043 data-nosnippet>1043</a>            &lt;div class=<span class="string">"flex flex-col gap-1 border-t border-toasted pt-3 dark:border-ember" </span>data-add=<span class="string">"guides"</span>&gt;
+<a href=#1044 id=1044 data-nosnippet>1044</a>                &lt;h4 class=heading&gt;
+<a href=#1045 id=1045 data-nosnippet>1045</a>                    &lt;Glyph icon=icondata::FaBookOpenSolid /&gt;
+<a href=#1046 id=1046 data-nosnippet>1046</a>                    <span class="string">"Guides"
+<a href=#1047 id=1047 data-nosnippet>1047</a>                </span>&lt;/h4&gt;
+<a href=#1048 id=1048 data-nosnippet>1048</a>                &lt;ul class=<span class="string">"flex flex-col"</span>&gt;{guides}&lt;/ul&gt;
+<a href=#1049 id=1049 data-nosnippet>1049</a>            &lt;/div&gt;
+<a href=#1050 id=1050 data-nosnippet>1050</a>        &lt;/section&gt;
+<a href=#1051 id=1051 data-nosnippet>1051</a>    }
+<a href=#1052 id=1052 data-nosnippet>1052</a>}
 </code></pre></div></section></main></body></html>

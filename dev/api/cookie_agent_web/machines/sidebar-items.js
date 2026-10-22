@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DOCS","DRAG_SLOP","GUIDES","SSH_STARTUP_TIMEOUT_MS"],"enum":["DragEnd","DragStep"],"fn":["dial_in_command","drop_request","has_template","lifetime_icon","lifetime_label","move_request","platform_icon"],"struct":["Drag","Guide","SshTemplate"]};
+window.SIDEBAR_ITEMS = {"constant":["DOCS","DRAG_SLOP","GUIDES","SSH_STARTUP_TIMEOUT_MS"],"enum":["DragEnd","DragStep"],"fn":["dial_in_command","drop_request","has_template","lifetime_icon","lifetime_label","masked_token","move_request","platform_icon"],"struct":["Drag","Guide","SshTemplate"]};
