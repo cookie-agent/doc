@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NO_HIT_RATE"],"fn":["format_count"],"struct":["CacheHit"]};
