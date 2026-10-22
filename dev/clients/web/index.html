@@ -1024,6 +1024,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#signing-in-to-mcp-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Signing in to MCP servers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-the-page-does-not-do" class="md-nav__link">
     <span class="md-ellipsis">
       What the page does not do
@@ -2715,6 +2724,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/web-mcp-oauth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP OAuth from the web client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/memory/" class="md-nav__link">
         
   
@@ -3157,29 +3189,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specs/web-mcp-oauth/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    MCP OAuth from the web client
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../specs/model-configuration/" class="md-nav__link">
         
   
@@ -3387,6 +3396,15 @@
   <a href="#installing-as-an-app" class="md-nav__link">
     <span class="md-ellipsis">
       Installing as an app
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#signing-in-to-mcp-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Signing in to MCP servers
     </span>
   </a>
   
@@ -3932,9 +3950,8 @@ running session.</p>
   tools, and last error. The global runtime's servers can be added, edited,
   enabled or disabled, removed, and kept in your <code>config.toml</code>; a coding
   runtime's come from its template. <strong>Reconnect</strong> works for any server.</li>
-<li>A server that needs authorization says so. The page cannot sign in to
-    it: run <code>cookie mcp auth &lt;server&gt;</code> on a machine with a browser, or
-    authorize it from the TUI.</li>
+<li>A server that needs authorization offers <strong>Sign in</strong> (see
+    <a href="#signing-in-to-mcp-servers">Signing in to MCP servers</a>).</li>
 <li><strong>Providers.</strong> Settings › Providers lists the catalog's providers. Pick one to
   connect it, or to update or disconnect its stored connection. Credentials
   are typed into password fields, read once when you connect, and never
@@ -4081,13 +4098,49 @@ browsers. It caches nothing and passes every request to the daemon, so a
 daemon that is not running shows the browser's own error, and a restarted
 daemon of a new build serves its own page at once. It never touches the
 <code>/ws</code> and <code>/runtime</code> WebSockets.</p>
+<h2 id="signing-in-to-mcp-servers">Signing in to MCP servers<a class="headerlink" href="#signing-in-to-mcp-servers" title="Permanent link">&para;</a></h2>
+<p>A remote MCP server that wants OAuth shows <code>needs_auth</code> in Settings › MCP
+servers, with <strong>Sign in</strong>. The page is its own redirect: the authorization
+server sends the browser back to the page's address with <code>?oauth=callback</code>,
+for example <code>https://&lt;host&gt;.&lt;tailnet&gt;.ts.net/?oauth=callback</code>. The daemon
+keeps the PKCE verifier and exchanges the code; the tokens never reach the
+page. Only the daemon's own (global) servers can sign in, and only with a
+daemon of client protocol 1.11 or later; an older daemon's servers say to
+run <code>cookie mcp auth &lt;server&gt;</code> instead.</p>
+<ul>
+<li><strong>Sign in</strong> opens the authorization page in a new tab. If the browser
+  blocks the tab, the page goes there itself.</li>
+<li><strong>Coming back.</strong> The tab the authorization server sends back takes the
+  code and state out of its address bar at once, then hands the address to
+  the tab that started the sign-in and closes. That tab finishes the
+  sign-in and says "Signed in to <code>&lt;server&gt;</code>" or what went wrong. With no
+  such tab open, the tab that came back finishes the sign-in itself and
+  opens Settings › MCP servers.</li>
+<li><strong>Paste the address you landed on.</strong> While a sign-in waits, the MCP
+  servers show it with a field for the address the browser ended on. Use
+  it when the sign-in ends somewhere the page cannot continue from: on an
+  iPhone, the app added to the home screen keeps its storage apart from
+  Safari, so the page Safari opens cannot finish a sign-in the app started.
+  It says so and shows the address with <strong>Copy the address</strong>; paste it
+  into the app. <strong>Cancel</strong> gives the sign-in up.</li>
+<li><strong>Refused callbacks.</strong> A sign-in waits 10 minutes in the page (the daemon
+  gives up after 5). A callback for one that waited longer, or whose state
+  this browser does not know, is not finished.</li>
+<li><strong>HTTPS.</strong> Most authorization servers send the browser back only to an
+  <code>https</code> address or to this machine's loopback. On a page served over
+  plain <code>http</code> at another address, the MCP servers warn and point to
+  <a href="../../daemon/remote-access/">remote access</a>; Tailscale Serve (see
+  <a href="#installing-as-an-app">Installing as an app</a>) is the easy way to HTTPS.
+  <strong>Sign in</strong> stays, for servers that allow it.</li>
+<li><strong>A configured <code>client_id</code>.</strong> The daemon registers a client for the
+  page's address by itself when the server offers dynamic client
+  registration. A server configured with <code>oauth = { client_id = "…" }</code>
+  needs the page's address with <code>?oauth=callback</code> among the redirect URIs
+  allowed for that client, on the server's side (see
+  <a href="../../extend/mcp/#oauth-for-remote-servers">MCP</a>).</li>
+</ul>
 <h2 id="what-the-page-does-not-do">What the page does not do<a class="headerlink" href="#what-the-page-does-not-do" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Sign in to an MCP server.</strong> Authorizing a remote MCP server needs a
-  callback on the machine's loopback address, which a page in a browser
-  cannot offer. Settings › MCP servers marks such a server as needing authorization: run
-  <code>cookie mcp auth &lt;server&gt;</code> on a machine with a browser, or authorize it
-  from the TUI.</li>
 <li><strong>Offer this machine as a runtime.</strong> A browser has no workspace to share.
   The TUI's machine can attach as a runtime that dials in; the page uses the
   runtimes the daemon already has.</li>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["App"],"mod":["agents","attach","badges","browser","cards","commands","connect","connection","emoji","errors","format","goal","icons","install","keys","layout","machines","memory","modes","panics","places","render","skills","theme","tree","workspace"]};
+window.SIDEBAR_ITEMS = {"fn":["App"],"mod":["agents","attach","badges","browser","cards","commands","connect","connection","emoji","errors","format","goal","icons","install","keys","layout","machines","memory","modes","oauth","panics","places","render","skills","theme","tree","workspace"]};
