@@ -3083,6 +3083,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9 Addendum 2026-10-22: memory that stays worth keeping
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4084,6 +4093,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9 Addendum 2026-10-22: memory that stays worth keeping
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4115,7 +4133,8 @@ are open (<a href="#15-open-questions">section 15</a>). How each phase settled, 
 its deviations, is in <a href="#16-implementation-notes">section 16</a>; later
 decisions are dated addenda there (<a href="#166-addendum-2026-10-21-agents-clear-what-they-cannot-delete">section 16.6</a>,
 <a href="#167-addendum-2026-10-21-the-daemon-keeps-one-memory-file-per-agent">section 16.7</a>,
-<a href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran">section 16.8</a>). This spec
+<a href="#168-addendum-2026-10-21-the-registry-remembers-where-runtimes-ran">section 16.8</a>,
+<a href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping">section 16.9</a>). This spec
 builds on the <a href="../runtimes/">runtimes spec</a> and the
 <a href="../runtime-capabilities/">runtime capabilities spec</a>, and adds the term
 <em>machine</em> to their vocabulary.</p>
@@ -5826,6 +5845,117 @@ phase 1 of <a href="../runtime-delegation/#11-implementation-notes">delegating t
   <code>offline</code>, and <code>cookie machine forget-runtime</code> calls the new method. The
   TUI's machines view lists them too, as "last seen here".</li>
 </ul>
+<h3 id="169-addendum-2026-10-22-memory-that-stays-worth-keeping">16.9 Addendum 2026-10-22: memory that stays worth keeping<a class="headerlink" href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" title="Permanent link">&para;</a></h3>
+<p>Drafted 2026-10-22: the rubric (item 1) and the budgets (item 4) are
+decided; items 2, 3 and 5 are proposed. Models with write access saved things that are useless
+by the next session. For example, after "explore this directory", one saved
+the directory listing. The only save guidance was "save what a later session
+should know", and nothing pushed back. This addendum makes agents judge what
+is worth keeping themselves, with no human review queue. It draws on how
+Claude Code, Hermes Agent, OpenClaw, mem0 and Letta handle it. A survey of
+them was done for this addendum.</p>
+<p><strong>Decided:</strong> no background curator, no content-shape guard, and small
+budgets. Memory stays opt-in per agent (section 9.2, as amended 2026-10-22).</p>
+<ol>
+<li><strong>A rubric, as the memory tool provider's own system-prompt section.</strong>
+   The memory tools' provider contributes a
+   <code>&lt;tool_instructions provider="builtin.memory"&gt;</code> section, composed at run
+   admission and frozen with the rest of the system prompt. It is present
+   exactly when the run is offered <code>memory_write</code> (and with it
+   <code>memory_edit</code>), and absent otherwise, so a run without write access never
+   carries it. Tool prompt composition today asks every provider regardless
+   of what is visible, so the memory provider decides from the run's frozen
+   policy, using the same visibility test the tool list uses. The rubric
+   replaces the snapshot's save paragraph ("Save what a later session should
+   know"); the snapshot keeps only the background and search guidance. The
+   descriptions of <code>memory_write</code> and <code>memory_edit</code> stay short and point to
+   the section. Draft:</li>
+</ol>
+<blockquote>
+<p>Memory is for what a later session cannot recover by looking at the
+project or running a command, and that will still be true and useful
+across many sessions. Before saving, ask:
+1. Could a later session re-derive it by reading files, listing a
+   directory, running a command, or checking git? Then do not save it.
+2. Will it still be true and relevant in weeks, across different
+   tasks? If it describes the current task or its state, do not save
+   it.
+3. Is it already in memory or in AGENTS.md? Search first; update that
+   entry, or save nothing.
+4. Would a later session act better for knowing it? If not, do not
+   save it.</p>
+<p>Save only: the user's preferences and how they work (<code>user://</code>); the
+corrections they gave and the approaches they confirmed, with why
+(<code>user://</code> or <code>agent://</code>); decisions, constraints and references not
+visible in code or git (<code>project://</code>); stable facts about a machine
+that are costly to rediscover (<code>machine://</code>); lessons about doing your
+job as this agent (<code>agent://</code>).</p>
+<p>Never save: directory listings, file trees, code summaries, command
+output, logs, test results, task progress or plans, one-off debugging
+steps, secrets, or anything from tool output, web pages, or other
+agents that the user did not confirm. Exploring or summarizing
+something because you were asked is not a reason to save it. Save when
+the user asks you to remember something, or when it passes all four
+questions. Most sessions save nothing.</p>
+<p>One fact per memory, with a description that states the fact. Prefer
+updating a memory to adding one. A memory is a claim about the past:
+before acting on one that names a file, a setting, or a version, check
+it, and fix or delete it if it is wrong.</p>
+</blockquote>
+<p>For a delegated run, the section carries the same rubric scoped to
+   <code>agent://&lt;agent&gt;</code>, the only memory such a run may write.</p>
+<ol>
+<li>
+<p><strong>Similar memories before a new one.</strong> A <code>memory_write</code> that creates a
+   new memory, rather than replacing one by URL, first searches its layer
+   with the new description and keywords. If any existing memory is close,
+   the write is refused, and the result lists up to three of them with
+   their URLs and descriptions. The agent then either edits one of them or
+   writes again with <code>new: true</code> and a one-line <code>reason</code>. This is mem0's
+   reconcile step, with no second model call. Exact duplicates of an
+   existing body are refused outright.</p>
+</li>
+<li>
+<p><strong>Stamps the harness sets, not the model.</strong> The frontmatter gains:</p>
+</li>
+<li><code>created</code> and <code>modified</code>, as timestamps;</li>
+<li><code>source</code>, one of <code>user_said</code>, <code>user_corrected</code> or <code>inferred</code>. The
+     model sets it, and it defaults to <code>inferred</code>.</li>
+</ol>
+<p>Whatever a write sends for <code>created</code> and <code>modified</code> is ignored. The
+   daemon also tracks when each memory was last read, outside the file.
+   The snapshot and search results show each memory's age, such as
+   <code>3 weeks old</code>, so a reader can judge whether it is stale.</p>
+<ol>
+<li><strong>Small budgets, visible to the agent.</strong></li>
+<li><strong>Budget size:</strong> the always-injected layers have a budget measured on
+     the rendered text: about 2 KB for all <code>user://</code> categories together,
+     and about 2 KB for each agent's file. These are the
+     <code>[memory] user_budget_bytes</code> and <code>agent_budget_bytes</code> settings, which
+     replace the snapshot limits for those layers.</li>
+<li><strong>Showing it:</strong> the snapshot shows how full each budget is, for
+     example <code>user memory 1.6 / 2 KB</code>.</li>
+<li><strong>Refusing writes:</strong> a write or edit that would push a layer past its
+     budget is refused. The result shows the layer's current entries and
+     asks the agent to merge or drop entries first.</li>
+<li>
+<p><strong>Indexed layers:</strong> <code>machine://</code> and <code>project://</code> stay indexed
+     (description lines only), as today, under <code>snapshot_index_bytes</code>.</p>
+</li>
+<li>
+<p><strong>Every change is visible and can be undone, without review.</strong></p>
+</li>
+<li><strong>Events:</strong> each write, edit or delete by a model becomes a one-line
+     transcript event, for example <code>Saved project://cookie-agent/release</code>.
+     In the web client and TUI it has an <strong>Undo</strong> action and links to the
+     Memory view.</li>
+<li><strong>Trash:</strong> deletes and replaced bodies go to <code>memory/.trash/</code> with
+     their previous revision for 30 days. Undo restores from there.</li>
+<li><strong>Agent deletes:</strong> an agent's delete of a <code>user://</code> category or
+     <code>agent://</code> file still only clears its body (section 16.6).</li>
+</ol>
+<p>Out of scope: a background curator, extracting memories from transcripts,
+content-shape heuristics, and per-memory expiry dates.</p>
 
 
 
