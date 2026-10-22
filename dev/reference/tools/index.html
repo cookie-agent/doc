@@ -2471,6 +2471,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runtime-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime tools
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list_runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      list_runtimes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4017,6 +4041,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runtime-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime tools
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list_runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      list_runtimes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4139,6 +4187,10 @@ block under the system prompt in the TUI transcript.</p>
 <tr>
 <td><a href="#memory_delete"><code>memory_delete</code></a></td>
 <td><code>memory_write</code></td>
+</tr>
+<tr>
+<td><a href="#list_runtimes"><code>list_runtimes</code></a></td>
+<td><code>list_runtimes</code></td>
 </tr>
 </tbody>
 </table>
@@ -5468,6 +5520,17 @@ Terminal and lifecycle results keep the UUID under the unified <code>session_id<
 metadata key and add <code>handle</code>. <code>resume_session_id</code> accepts the same two forms,
 and a terminal child woken by <code>send_message</code> reports as running until its new
 turn ends.</p>
+<p>In a root session with the <code>global</code> runtime attached, <code>delegate_subagent</code>
+also takes <code>capabilities</code>: the runtime capabilities the child works through,
+each written <code>&lt;runtime_id&gt;/&lt;capability_id&gt;</code> with a <code>workspace</code> when the
+capability takes one (see the <a href="../../specs/runtime-delegation/">runtime delegation spec</a>).
+It is required when the root has nothing but <code>global</code> attached, optional when
+it has other attachments too, and absent everywhere else, where a child
+inherits its parent's attachments. Each runtime it names is checked as
+<code>delegate@&lt;runtime&gt;</code>, and every runtime starts before the child is created:
+one that cannot start fails the call and creates nothing. A root with only
+<code>global</code> also gets a paragraph in its delegation instructions saying it has no
+workspace.</p>
 <h3 id="skill"><code>skill</code><a class="headerlink" href="#skill" title="Permanent link">&para;</a></h3>
 <!-- generated: tool skill -->
 
@@ -5528,12 +5591,12 @@ turn ends.</p>
 <h3 id="delegate_subagent"><code>delegate_subagent</code><a class="headerlink" href="#delegate_subagent" title="Permanent link">&para;</a></h3>
 <!-- generated: tool delegate_subagent -->
 
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>delegate_subagent(agent_type: "&lt;subagent id&gt;", description: string, inherit_context?: boolean, prompt: string, resume_session_id?: string)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>delegate_subagent(agent_type: "&lt;subagent id&gt;", capabilities?: object[], description: string, inherit_context?: boolean, prompt: string, resume_session_id?: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>Delegate a self-contained task to a specialist agent. In the foreground (default) the call waits for the subagent's first turn and returns its result. In the background it returns at once with the subagent's handle. Every later turn of the subagent, and the first one when it runs in the background, arrives as a &lt;subagent_report&gt; that wakes this session, so to wait for one, tell the user and end your turn. To continue an existing subagent, pass its resume_session_id or send it a message.
 </code></pre></div>
-<p>Only when the agent can delegate to at least one subagent at this depth. The <code>agent_type</code> enum lists those subagents; this page shows a placeholder.</p>
+<p>Only when the agent can delegate to at least one subagent at this depth. The <code>agent_type</code> enum lists those subagents; this page shows a placeholder. <code>capabilities</code> exists only in a root session with the <code>global</code> runtime attached: optional, as shown, when the root has other attachments too, and required when it has only <code>global</code>. Each runtime it names is checked as <code>delegate@&lt;runtime&gt;</code>.</p>
 <table>
 <thead>
 <tr>
@@ -5549,6 +5612,12 @@ turn ends.</p>
 <td><code>"&lt;subagent id&gt;"</code></td>
 <td>yes</td>
 <td></td>
+</tr>
+<tr>
+<td><code>capabilities</code></td>
+<td><code>object[]</code></td>
+<td>no</td>
+<td>Optional. Leave it out and the subagent inherits this session's attachments. Each item gives the subagent one runtime capability to work through, at <code>workspace</code> when the capability takes one. These are runtime capabilities, where the subagent works, not its tools or permissions. Write each as the full <code>&lt;runtime_id&gt;/&lt;capability_id&gt;</code>, from a <code>&lt;runtime id=…&gt;</code> and one of its <code>&lt;capability name=…&gt;</code> in list_runtimes, e.g. <code>labpc/coding</code>. The same runtime may be listed twice with different workspaces. The subagent also has <code>global</code> whenever this session does. Cannot be combined with resume_session_id.</td>
 </tr>
 <tr>
 <td><code>description</code></td>
@@ -5587,30 +5656,52 @@ turn ends.</p>
 <a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="w">      </span><span class="p">],</span>
 <a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a><span class="w">    </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Short (3-5 words) summary of the task"</span><span class="p">,</span>
-<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a><span class="w">    </span><span class="nt">"inherit_context"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"boolean"</span>
-<a id="__codelineno-34-17" name="__codelineno-34-17" href="#__codelineno-34-17"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-34-18" name="__codelineno-34-18" href="#__codelineno-34-18"></a><span class="w">    </span><span class="nt">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-34-19" name="__codelineno-34-19" href="#__codelineno-34-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Full task brief with objective, context, and deliverable"</span><span class="p">,</span>
-<a id="__codelineno-34-20" name="__codelineno-34-20" href="#__codelineno-34-20"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-34-21" name="__codelineno-34-21" href="#__codelineno-34-21"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-34-22" name="__codelineno-34-22" href="#__codelineno-34-22"></a><span class="w">    </span><span class="nt">"resume_session_id"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-34-23" name="__codelineno-34-23" href="#__codelineno-34-23"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Optional. Handle or UUID of an existing subagent of yours to resume, e.g. \"explore_1a2b3c4d\". Only subagents you delegated are valid."</span><span class="p">,</span>
-<a id="__codelineno-34-24" name="__codelineno-34-24" href="#__codelineno-34-24"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-34-25" name="__codelineno-34-25" href="#__codelineno-34-25"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-34-26" name="__codelineno-34-26" href="#__codelineno-34-26"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-34-27" name="__codelineno-34-27" href="#__codelineno-34-27"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-34-28" name="__codelineno-34-28" href="#__codelineno-34-28"></a><span class="w">    </span><span class="s2">"description"</span><span class="p">,</span>
-<a id="__codelineno-34-29" name="__codelineno-34-29" href="#__codelineno-34-29"></a><span class="w">    </span><span class="s2">"prompt"</span><span class="p">,</span>
-<a id="__codelineno-34-30" name="__codelineno-34-30" href="#__codelineno-34-30"></a><span class="w">    </span><span class="s2">"agent_type"</span>
-<a id="__codelineno-34-31" name="__codelineno-34-31" href="#__codelineno-34-31"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-34-32" name="__codelineno-34-32" href="#__codelineno-34-32"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
-<a id="__codelineno-34-33" name="__codelineno-34-33" href="#__codelineno-34-33"></a><span class="p">}</span>
+<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a><span class="w">    </span><span class="nt">"capabilities"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Optional. Leave it out and the subagent inherits this session's attachments. Each item gives the subagent one runtime capability to work through, at `workspace` when the capability takes one. These are runtime capabilities, where the subagent works, not its tools or permissions. Write each as the full `&lt;runtime_id&gt;/&lt;capability_id&gt;`, from a `&lt;runtime id=…&gt;` and one of its `&lt;capability name=…&gt;` in list_runtimes, e.g. `labpc/coding`. The same runtime may be listed twice with different workspaces. The subagent also has `global` whenever this session does. Cannot be combined with resume_session_id."</span><span class="p">,</span>
+<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a><span class="w">      </span><span class="nt">"items"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a><span class="w">        </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a><span class="w">        </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="w">          </span><span class="nt">"capability"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a><span class="w">            </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"`&lt;runtime_id&gt;/&lt;capability_id&gt;`, from list_runtimes, e.g. `labpc/coding`"</span><span class="p">,</span>
+<a id="__codelineno-34-17" name="__codelineno-34-17" href="#__codelineno-34-17"></a><span class="w">            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-34-18" name="__codelineno-34-18" href="#__codelineno-34-18"></a><span class="w">          </span><span class="p">},</span>
+<a id="__codelineno-34-19" name="__codelineno-34-19" href="#__codelineno-34-19"></a><span class="w">          </span><span class="nt">"workspace"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-20" name="__codelineno-34-20" href="#__codelineno-34-20"></a><span class="w">            </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Directory on that runtime's machine; required when the capability takes a workspace"</span><span class="p">,</span>
+<a id="__codelineno-34-21" name="__codelineno-34-21" href="#__codelineno-34-21"></a><span class="w">            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-34-22" name="__codelineno-34-22" href="#__codelineno-34-22"></a><span class="w">          </span><span class="p">}</span>
+<a id="__codelineno-34-23" name="__codelineno-34-23" href="#__codelineno-34-23"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-34-24" name="__codelineno-34-24" href="#__codelineno-34-24"></a><span class="w">        </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-34-25" name="__codelineno-34-25" href="#__codelineno-34-25"></a><span class="w">          </span><span class="s2">"capability"</span>
+<a id="__codelineno-34-26" name="__codelineno-34-26" href="#__codelineno-34-26"></a><span class="w">        </span><span class="p">],</span>
+<a id="__codelineno-34-27" name="__codelineno-34-27" href="#__codelineno-34-27"></a><span class="w">        </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-34-28" name="__codelineno-34-28" href="#__codelineno-34-28"></a><span class="w">      </span><span class="p">},</span>
+<a id="__codelineno-34-29" name="__codelineno-34-29" href="#__codelineno-34-29"></a><span class="w">      </span><span class="nt">"minItems"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-34-30" name="__codelineno-34-30" href="#__codelineno-34-30"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"array"</span>
+<a id="__codelineno-34-31" name="__codelineno-34-31" href="#__codelineno-34-31"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-34-32" name="__codelineno-34-32" href="#__codelineno-34-32"></a><span class="w">    </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-33" name="__codelineno-34-33" href="#__codelineno-34-33"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Short (3-5 words) summary of the task"</span><span class="p">,</span>
+<a id="__codelineno-34-34" name="__codelineno-34-34" href="#__codelineno-34-34"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-34-35" name="__codelineno-34-35" href="#__codelineno-34-35"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-34-36" name="__codelineno-34-36" href="#__codelineno-34-36"></a><span class="w">    </span><span class="nt">"inherit_context"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-37" name="__codelineno-34-37" href="#__codelineno-34-37"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-34-38" name="__codelineno-34-38" href="#__codelineno-34-38"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"boolean"</span>
+<a id="__codelineno-34-39" name="__codelineno-34-39" href="#__codelineno-34-39"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-34-40" name="__codelineno-34-40" href="#__codelineno-34-40"></a><span class="w">    </span><span class="nt">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-41" name="__codelineno-34-41" href="#__codelineno-34-41"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Full task brief with objective, context, and deliverable"</span><span class="p">,</span>
+<a id="__codelineno-34-42" name="__codelineno-34-42" href="#__codelineno-34-42"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-34-43" name="__codelineno-34-43" href="#__codelineno-34-43"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-34-44" name="__codelineno-34-44" href="#__codelineno-34-44"></a><span class="w">    </span><span class="nt">"resume_session_id"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-45" name="__codelineno-34-45" href="#__codelineno-34-45"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Optional. Handle or UUID of an existing subagent of yours to resume, e.g. \"explore_1a2b3c4d\". Only subagents you delegated are valid."</span><span class="p">,</span>
+<a id="__codelineno-34-46" name="__codelineno-34-46" href="#__codelineno-34-46"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-34-47" name="__codelineno-34-47" href="#__codelineno-34-47"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-34-48" name="__codelineno-34-48" href="#__codelineno-34-48"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-34-49" name="__codelineno-34-49" href="#__codelineno-34-49"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-34-50" name="__codelineno-34-50" href="#__codelineno-34-50"></a><span class="w">    </span><span class="s2">"description"</span><span class="p">,</span>
+<a id="__codelineno-34-51" name="__codelineno-34-51" href="#__codelineno-34-51"></a><span class="w">    </span><span class="s2">"prompt"</span><span class="p">,</span>
+<a id="__codelineno-34-52" name="__codelineno-34-52" href="#__codelineno-34-52"></a><span class="w">    </span><span class="s2">"agent_type"</span>
+<a id="__codelineno-34-53" name="__codelineno-34-53" href="#__codelineno-34-53"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-34-54" name="__codelineno-34-54" href="#__codelineno-34-54"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-34-55" name="__codelineno-34-55" href="#__codelineno-34-55"></a><span class="p">}</span>
 </code></pre></div>
 </details>
 <!-- /generated -->
@@ -6303,6 +6394,54 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 </code></pre></div>
 </details>
 <!-- /generated -->
+
+<h2 id="runtime-tools">Runtime tools<a class="headerlink" href="#runtime-tools" title="Permanent link">&para;</a></h2>
+<h3 id="list_runtimes"><code>list_runtimes</code><a class="headerlink" href="#list_runtimes" title="Permanent link">&para;</a></h3>
+<!-- generated: tool list_runtimes -->
+
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>list_runtimes()
+</code></pre></div>
+<p>Description sent to the model:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>List the daemon's machines and runtimes, as they are now: each runtime's capabilities, whether it is connected or starts when used, its home directory, and this session's own attachments on it. Name a runtime capability from here in delegate_subagent's `capabilities`, as `&lt;runtime id&gt;/&lt;capability name&gt;`. A runtime that connects later shows up on the next call.
+</code></pre></div>
+<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>list_runtimes</code>, which <code>primary</code> and <code>all</code> agents have by default.</p>
+<details class="note">
+<summary>Parameters JSON Schema</summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a><span class="p">{</span>
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
+<a id="__codelineno-58-3" name="__codelineno-58-3" href="#__codelineno-58-3"></a><span class="w">  </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-58-4" name="__codelineno-58-4" href="#__codelineno-58-4"></a><span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"`list_runtimes` takes no arguments."</span><span class="p">,</span>
+<a id="__codelineno-58-5" name="__codelineno-58-5" href="#__codelineno-58-5"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ListRuntimesArgs"</span><span class="p">,</span>
+<a id="__codelineno-58-6" name="__codelineno-58-6" href="#__codelineno-58-6"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-58-7" name="__codelineno-58-7" href="#__codelineno-58-7"></a><span class="p">}</span>
+</code></pre></div>
+</details>
+<!-- /generated -->
+
+<p><code>list_runtimes</code> reads the daemon's state at each call. Its output is grouped
+by machine, the daemon's own first and the rest by name, and within a machine
+by runtime ID; a runtime the daemon cannot place on a machine goes under
+<code>&lt;unplaced&gt;</code>. <code>global</code> is never listed as a runtime: a <code>&lt;global/&gt;</code> element,
+with a comment, says when the root of the caller's tree has it. Only the
+calling session's own attachments are shown. A runtime that is not connected
+keeps the machine, platform, and home the daemon last saw it with. The output
+is never truncated.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>&lt;runtimes&gt;
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>  &lt;!-- global is attached to this session's root, so every subagent in this tree has it, whether or not its capabilities list it. --&gt;
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a>  &lt;global/&gt;
+<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a>  &lt;machine name="laptop" platform="linux"&gt;
+<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a>    &lt;runtime id="local" connected="true" home="/home/u"&gt;
+<a id="__codelineno-59-6" name="__codelineno-59-6" href="#__codelineno-59-6"></a>      &lt;capability name="coding" takes_workspace="true" description="Read, write, edit, and run commands in a workspace"/&gt;
+<a id="__codelineno-59-7" name="__codelineno-59-7" href="#__codelineno-59-7"></a>      &lt;attachment name="local_web" capability="coding" workspace="/home/u/web" status="ready"/&gt;
+<a id="__codelineno-59-8" name="__codelineno-59-8" href="#__codelineno-59-8"></a>    &lt;/runtime&gt;
+<a id="__codelineno-59-9" name="__codelineno-59-9" href="#__codelineno-59-9"></a>  &lt;/machine&gt;
+<a id="__codelineno-59-10" name="__codelineno-59-10" href="#__codelineno-59-10"></a>  &lt;machine name="labpc" platform="linux"&gt;
+<a id="__codelineno-59-11" name="__codelineno-59-11" href="#__codelineno-59-11"></a>    &lt;runtime id="labpc" connected="false" starts_on_use="true" home="/home/u"&gt;
+<a id="__codelineno-59-12" name="__codelineno-59-12" href="#__codelineno-59-12"></a>      &lt;capability name="coding" takes_workspace="true" description="Read, write, edit, and run commands in a workspace"/&gt;
+<a id="__codelineno-59-13" name="__codelineno-59-13" href="#__codelineno-59-13"></a>    &lt;/runtime&gt;
+<a id="__codelineno-59-14" name="__codelineno-59-14" href="#__codelineno-59-14"></a>  &lt;/machine&gt;
+<a id="__codelineno-59-15" name="__codelineno-59-15" href="#__codelineno-59-15"></a>&lt;/runtimes&gt;
+</code></pre></div>
 
 
 
