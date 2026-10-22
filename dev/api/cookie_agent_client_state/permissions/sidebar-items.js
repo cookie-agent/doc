@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["EFFECTS"],"fn":["effect_label","permission_actions","permission_rows","remove_draft_rule","set_draft_rule","source_label"],"struct":["PermissionRow"]};
+window.SIDEBAR_ITEMS = {"constant":["EFFECTS"],"fn":["effect_label","parse_rule_key","permission_actions","permission_rows","remove_draft_rule","rule_key","rule_runtimes","set_draft_rule","source_label","takes_runtime"],"struct":["PermissionRow"]};
