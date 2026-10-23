@@ -16,7 +16,7 @@
         <link rel="prev" href="../permission-consolidation/">
       
       
-        <link rel="next" href="../model-configuration/">
+        <link rel="next" href="../acp-agents/">
       
       
       <link rel="icon" href="../../assets/logo.svg">
@@ -3283,10 +3283,42 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#9-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -3520,6 +3552,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#9-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3540,7 +3581,8 @@
 
 
 <h1 id="mcp-tool-filters">MCP tool filters<a class="headerlink" href="#mcp-tool-filters" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-23), being implemented. Builds on
+<p>Status: <strong>implemented</strong> (2026-10-23); see
+<a href="#9-implementation-notes">Implementation notes</a>. Builds on
 <a href="../permission-consolidation/">permission consolidation</a> and the MCP scope
 work in the <a href="../runtimes/">runtimes spec</a>.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
@@ -3642,6 +3684,56 @@ server lists (permissions cover that, section 3).</p>
 per-tool offering in the engine, the clients' editor fields, docs.</p>
 <h2 id="8-open-questions">8. Open questions<a class="headerlink" href="#8-open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
+<h2 id="9-implementation-notes">9. Implementation notes<a class="headerlink" href="#9-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Landed 2026-10-23 in one phase, as section 7 planned. Client protocol
+1.16.0, runtime protocol 1.6.0; the plugin protocol and history format 1
+are unchanged.</p>
+<ul>
+<li><strong>Configuration.</strong> <code>McpServerConfig</code> (<code>crates/config/src/runtime.rs</code>)
+  gains <code>include_tools: Option&lt;Vec&lt;String&gt;&gt;</code> and <code>exclude_tools:
+  Vec&lt;String&gt;</code>, both omitted when written back unset, and
+  <code>publishes_tool(name)</code>, which matches with the permission patterns'
+  <code>simple_wildcard_match</code>. <code>validate</code> refuses an empty pattern and a present
+  but empty <code>include_tools</code>; every place a server is configured already
+  runs it (top-level servers, runtime templates including
+  <code>[runtimes.local]</code>, <code>/mcp</code> add and edit, and the coding runtime parsing
+  the tables the daemon or a dial-in runtime's own configuration hands it),
+  so no protocol carries the filters.</li>
+<li><strong>Filtering.</strong> <code>ServerRuntime::publish_tools_before_commit</code>
+  (<code>crates/mcp/src/lib.rs</code>), the one path both the first listing and every
+  <code>list_changed</code> refresh go through, drops the tools the filters reject
+  before converting and claiming names, so a filtered tool cannot collide
+  either. The count is kept per server, reset when the server fails, and a
+  relist that changes only the filtered tools updates the status without
+  republishing.</li>
+<li><strong>Status.</strong> The registry's <code>McpServerStatus.filtered_tools</code>; on the wire
+  it is <code>McpServerInfo.filtered_tools</code> (the client protocol's status type,
+  which section 2 calls <code>McpServerStatus</code>) and <code>McpServerReport.filtered_tools</code>
+  in the runtime protocol, which carries runtimes' server statuses. Both are
+  optional and absent when nothing was filtered.</li>
+<li><strong>Editors.</strong> <code>McpServerDefinition</code> gains the two optional fields, so the
+  TUI and web forms (sharing <code>McpFields</code> in <code>cookie_agent_client_state</code>) edit
+  them as comma-separated pattern lists, a blank include field meaning every
+  tool. <code>definition_display</code> shows them, and the lists show <code>12 tools, 30
+  filtered</code> (the TUI's compact row: <code>(12, 30 filtered)</code>). An older client
+  editing a server sends a definition without them and clears them, which
+  the changelog notes.</li>
+<li><strong>Per-tool offering.</strong> Rather than branch on the string <code>mcp</code> in tool
+  composition, the action carries the semantics, as <code>is_path</code> and
+  <code>is_command</code> do: <code>PermissionAction::is_tool_name()</code> (true for <code>mcp</code>) says a
+  tool's resource is its own name. <code>PermissionPipeline::tool_offered</code> decides
+  such a tool by <code>MergedRules::decide</code> on the name the provider knows it by
+  (<code>&lt;server&gt;_&lt;tool&gt;</code>, before any attachment prefix, the resource its calls
+  are checked against) and every other tool by <code>tool_visible_with_grants</code>
+  as before. A provider hook was considered, but runtime-hosted MCP tools
+  reach the daemon through the runtime protocol's provider, which cannot
+  answer a resource without a call, so it would have needed a wire field.
+  Both composition (<code>compose_for_policy</code>) and preparation use it, so a call
+  to a hidden tool fails as not enabled before its provider sees it.</li>
+<li><strong>Grants.</strong> A grant only turns <code>ask</code> into <code>allow</code>, and <code>ask</code> already
+  offers, so for these tools grants change nothing: a name the merged rules
+  deny, or match no rule for, stays hidden.</li>
+</ul>
 
 
 

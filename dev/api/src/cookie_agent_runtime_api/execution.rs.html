@@ -402,71 +402,78 @@
 <a href=#402 id=402 data-nosnippet>402</a>    /// each finished turn), so the host only stops waiting: it drops the
 <a href=#403 id=403 data-nosnippet>403</a>    /// call's execution and sends no `&lt;background_result&gt;`.
 <a href=#404 id=404 data-nosnippet>404</a>    </span><span class="kw">pub </span>reports_itself: bool,
-<a href=#405 id=405 data-nosnippet>405</a>}
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a><span class="doccomment">/// The host's side of a [`DetachPoint`].
-<a href=#408 id=408 data-nosnippet>408</a></span><span class="attr">#[derive(Debug)]
-<a href=#409 id=409 data-nosnippet>409</a></span><span class="kw">pub struct </span>DetachWatch {
-<a href=#410 id=410 data-nosnippet>410</a>    receiver: tokio::sync::watch::Receiver&lt;<span class="prelude-ty">Option</span>&lt;Detachable&gt;&gt;,
-<a href=#411 id=411 data-nosnippet>411</a>}
-<a href=#412 id=412 data-nosnippet>412</a>
-<a href=#413 id=413 data-nosnippet>413</a><span class="kw">impl </span>DetachPoint {
-<a href=#414 id=414 data-nosnippet>414</a>    <span class="doccomment">/// A detach point and the watch the host reads it through.
-<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="attr">#[must_use]
-<a href=#416 id=416 data-nosnippet>416</a>    </span><span class="kw">pub fn </span>channel() -&gt; (<span class="self">Self</span>, DetachWatch) {
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span>(sender, receiver) = tokio::sync::watch::channel(<span class="prelude-val">None</span>);
-<a href=#418 id=418 data-nosnippet>418</a>        (
-<a href=#419 id=419 data-nosnippet>419</a>            <span class="self">Self </span>{
-<a href=#420 id=420 data-nosnippet>420</a>                sender: Arc::new(sender),
-<a href=#421 id=421 data-nosnippet>421</a>            },
-<a href=#422 id=422 data-nosnippet>422</a>            DetachWatch { receiver },
-<a href=#423 id=423 data-nosnippet>423</a>        )
-<a href=#424 id=424 data-nosnippet>424</a>    }
-<a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>    <span class="doccomment">/// Marks the call detachable with `note`. Only the first call counts.
-<a href=#427 id=427 data-nosnippet>427</a>    </span><span class="kw">pub fn </span>reached(<span class="kw-2">&amp;</span><span class="self">self</span>, note: <span class="prelude-ty">Option</span>&lt;String&gt;) {
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="self">self</span>.reached_with(Detachable {
-<a href=#429 id=429 data-nosnippet>429</a>            note,
-<a href=#430 id=430 data-nosnippet>430</a>            reports_itself: <span class="bool-val">false</span>,
-<a href=#431 id=431 data-nosnippet>431</a>        });
-<a href=#432 id=432 data-nosnippet>432</a>    }
-<a href=#433 id=433 data-nosnippet>433</a>
-<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// What the call reported at its detach point, once it reached it.
-<a href=#435 id=435 data-nosnippet>435</a>    </span><span class="attr">#[must_use]
-<a href=#436 id=436 data-nosnippet>436</a>    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Detachable&gt; {
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="self">self</span>.sender.borrow().clone()
-<a href=#438 id=438 data-nosnippet>438</a>    }
-<a href=#439 id=439 data-nosnippet>439</a>
-<a href=#440 id=440 data-nosnippet>440</a>    <span class="doccomment">/// Marks the call detachable as `detachable`. Only the first call counts.
-<a href=#441 id=441 data-nosnippet>441</a>    </span><span class="kw">pub fn </span>reached_with(<span class="kw-2">&amp;</span><span class="self">self</span>, detachable: Detachable) {
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="self">self</span>.sender.send_if_modified(|current| {
-<a href=#443 id=443 data-nosnippet>443</a>            <span class="kw">if </span>current.is_some() {
-<a href=#444 id=444 data-nosnippet>444</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#445 id=445 data-nosnippet>445</a>            }
-<a href=#446 id=446 data-nosnippet>446</a>            <span class="kw-2">*</span>current = <span class="prelude-val">Some</span>(detachable);
-<a href=#447 id=447 data-nosnippet>447</a>            <span class="bool-val">true
-<a href=#448 id=448 data-nosnippet>448</a>        </span>});
-<a href=#449 id=449 data-nosnippet>449</a>    }
-<a href=#450 id=450 data-nosnippet>450</a>}
-<a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a><span class="kw">impl </span>DetachWatch {
-<a href=#453 id=453 data-nosnippet>453</a>    <span class="doccomment">/// The detach point, once the call has reached it.
-<a href=#454 id=454 data-nosnippet>454</a>    </span><span class="attr">#[must_use]
-<a href=#455 id=455 data-nosnippet>455</a>    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Detachable&gt; {
-<a href=#456 id=456 data-nosnippet>456</a>        <span class="self">self</span>.receiver.borrow().clone()
-<a href=#457 id=457 data-nosnippet>457</a>    }
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="doccomment">/// The result the host commits, in place of its generic one, when the
+<a href=#406 id=406 data-nosnippet>406</a>    /// user interrupts the run while the call runs in the foreground at or
+<a href=#407 id=407 data-nosnippet>407</a>    /// past this point: at once for work that reports itself, otherwise
+<a href=#408 id=408 data-nosnippet>408</a>    /// once the call winds down within the cleanup grace. Other
+<a href=#409 id=409 data-nosnippet>409</a>    /// cancellations, and a call that misses the grace, get the host's
+<a href=#410 id=410 data-nosnippet>410</a>    /// generic result, which names their cause.
+<a href=#411 id=411 data-nosnippet>411</a>    </span><span class="kw">pub </span>on_user_interrupt: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#412 id=412 data-nosnippet>412</a>}
+<a href=#413 id=413 data-nosnippet>413</a>
+<a href=#414 id=414 data-nosnippet>414</a><span class="doccomment">/// The host's side of a [`DetachPoint`].
+<a href=#415 id=415 data-nosnippet>415</a></span><span class="attr">#[derive(Debug)]
+<a href=#416 id=416 data-nosnippet>416</a></span><span class="kw">pub struct </span>DetachWatch {
+<a href=#417 id=417 data-nosnippet>417</a>    receiver: tokio::sync::watch::Receiver&lt;<span class="prelude-ty">Option</span>&lt;Detachable&gt;&gt;,
+<a href=#418 id=418 data-nosnippet>418</a>}
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a><span class="kw">impl </span>DetachPoint {
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="doccomment">/// A detach point and the watch the host reads it through.
+<a href=#422 id=422 data-nosnippet>422</a>    </span><span class="attr">#[must_use]
+<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">pub fn </span>channel() -&gt; (<span class="self">Self</span>, DetachWatch) {
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>(sender, receiver) = tokio::sync::watch::channel(<span class="prelude-val">None</span>);
+<a href=#425 id=425 data-nosnippet>425</a>        (
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="self">Self </span>{
+<a href=#427 id=427 data-nosnippet>427</a>                sender: Arc::new(sender),
+<a href=#428 id=428 data-nosnippet>428</a>            },
+<a href=#429 id=429 data-nosnippet>429</a>            DetachWatch { receiver },
+<a href=#430 id=430 data-nosnippet>430</a>        )
+<a href=#431 id=431 data-nosnippet>431</a>    }
+<a href=#432 id=432 data-nosnippet>432</a>
+<a href=#433 id=433 data-nosnippet>433</a>    <span class="doccomment">/// Marks the call detachable with `note`. Only the first call counts.
+<a href=#434 id=434 data-nosnippet>434</a>    </span><span class="kw">pub fn </span>reached(<span class="kw-2">&amp;</span><span class="self">self</span>, note: <span class="prelude-ty">Option</span>&lt;String&gt;) {
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="self">self</span>.reached_with(Detachable {
+<a href=#436 id=436 data-nosnippet>436</a>            note,
+<a href=#437 id=437 data-nosnippet>437</a>            ..Detachable::default()
+<a href=#438 id=438 data-nosnippet>438</a>        });
+<a href=#439 id=439 data-nosnippet>439</a>    }
+<a href=#440 id=440 data-nosnippet>440</a>
+<a href=#441 id=441 data-nosnippet>441</a>    <span class="doccomment">/// What the call reported at its detach point, once it reached it.
+<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="attr">#[must_use]
+<a href=#443 id=443 data-nosnippet>443</a>    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Detachable&gt; {
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="self">self</span>.sender.borrow().clone()
+<a href=#445 id=445 data-nosnippet>445</a>    }
+<a href=#446 id=446 data-nosnippet>446</a>
+<a href=#447 id=447 data-nosnippet>447</a>    <span class="doccomment">/// Marks the call detachable as `detachable`. Only the first call counts.
+<a href=#448 id=448 data-nosnippet>448</a>    </span><span class="kw">pub fn </span>reached_with(<span class="kw-2">&amp;</span><span class="self">self</span>, detachable: Detachable) {
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="self">self</span>.sender.send_if_modified(|current| {
+<a href=#450 id=450 data-nosnippet>450</a>            <span class="kw">if </span>current.is_some() {
+<a href=#451 id=451 data-nosnippet>451</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#452 id=452 data-nosnippet>452</a>            }
+<a href=#453 id=453 data-nosnippet>453</a>            <span class="kw-2">*</span>current = <span class="prelude-val">Some</span>(detachable);
+<a href=#454 id=454 data-nosnippet>454</a>            <span class="bool-val">true
+<a href=#455 id=455 data-nosnippet>455</a>        </span>});
+<a href=#456 id=456 data-nosnippet>456</a>    }
+<a href=#457 id=457 data-nosnippet>457</a>}
 <a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>    <span class="doccomment">/// Waits until the call reaches its detach point. Pending forever if the
-<a href=#460 id=460 data-nosnippet>460</a>    /// call never does and its point is dropped.
-<a href=#461 id=461 data-nosnippet>461</a>    </span><span class="kw">pub async fn </span>reached(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Detachable {
-<a href=#462 id=462 data-nosnippet>462</a>        <span class="kw">loop </span>{
-<a href=#463 id=463 data-nosnippet>463</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(detachable) = <span class="self">self</span>.receiver.borrow_and_update().clone() {
-<a href=#464 id=464 data-nosnippet>464</a>                <span class="kw">return </span>detachable;
-<a href=#465 id=465 data-nosnippet>465</a>            }
-<a href=#466 id=466 data-nosnippet>466</a>            <span class="kw">if </span><span class="self">self</span>.receiver.changed().<span class="kw">await</span>.is_err() {
-<a href=#467 id=467 data-nosnippet>467</a>                std::future::pending::&lt;()&gt;().<span class="kw">await</span>;
-<a href=#468 id=468 data-nosnippet>468</a>            }
-<a href=#469 id=469 data-nosnippet>469</a>        }
-<a href=#470 id=470 data-nosnippet>470</a>    }
-<a href=#471 id=471 data-nosnippet>471</a>}
+<a href=#459 id=459 data-nosnippet>459</a><span class="kw">impl </span>DetachWatch {
+<a href=#460 id=460 data-nosnippet>460</a>    <span class="doccomment">/// The detach point, once the call has reached it.
+<a href=#461 id=461 data-nosnippet>461</a>    </span><span class="attr">#[must_use]
+<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Detachable&gt; {
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="self">self</span>.receiver.borrow().clone()
+<a href=#464 id=464 data-nosnippet>464</a>    }
+<a href=#465 id=465 data-nosnippet>465</a>
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="doccomment">/// Waits until the call reaches its detach point. Pending forever if the
+<a href=#467 id=467 data-nosnippet>467</a>    /// call never does and its point is dropped.
+<a href=#468 id=468 data-nosnippet>468</a>    </span><span class="kw">pub async fn </span>reached(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Detachable {
+<a href=#469 id=469 data-nosnippet>469</a>        <span class="kw">loop </span>{
+<a href=#470 id=470 data-nosnippet>470</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(detachable) = <span class="self">self</span>.receiver.borrow_and_update().clone() {
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">return </span>detachable;
+<a href=#472 id=472 data-nosnippet>472</a>            }
+<a href=#473 id=473 data-nosnippet>473</a>            <span class="kw">if </span><span class="self">self</span>.receiver.changed().<span class="kw">await</span>.is_err() {
+<a href=#474 id=474 data-nosnippet>474</a>                std::future::pending::&lt;()&gt;().<span class="kw">await</span>;
+<a href=#475 id=475 data-nosnippet>475</a>            }
+<a href=#476 id=476 data-nosnippet>476</a>        }
+<a href=#477 id=477 data-nosnippet>477</a>    }
+<a href=#478 id=478 data-nosnippet>478</a>}
 </code></pre></div></section></main></body></html>

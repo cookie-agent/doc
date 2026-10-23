@@ -1561,6 +1561,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#choosing-a-servers-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choosing a server's tools
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3339,6 +3348,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/model-configuration/" class="md-nav__link">
         
   
@@ -3520,6 +3552,15 @@
   <a href="#working-directory" class="md-nav__link">
     <span class="md-ellipsis">
       Working directory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-servers-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choosing a server's tools
     </span>
   </a>
   
@@ -3749,6 +3790,30 @@ servers connect with their static <code>headers</code> only. A command, its <cod
 its environment are resolved on the runtime's machine, and the process
 inherits the runtime's environment plus <code>env</code>. Template servers change only
 when the daemon restarts.</p>
+<h3 id="choosing-a-servers-tools">Choosing a server's tools<a class="headerlink" href="#choosing-a-servers-tools" title="Permanent link">&para;</a></h3>
+<p>A server publishes every tool it lists unless its table narrows them with
+<code>include_tools</code> and <code>exclude_tools</code>, lists of patterns over the tool names
+as the server lists them (<code>browser_click</code>, not the published
+<code>my_chrome_browser_click</code>), so a filter keeps working when the server is
+renamed. <code>*</code> matches any characters and <code>?</code> one character, as in permission
+patterns; a pattern without either is an exact name.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[mcp.servers.my_chrome]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"npx"</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"-y"</span><span class="p">,</span><span class="w"> </span><span class="s2">"chrome-devtools-mcp@latest"</span><span class="p">]</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">include_tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"browser_*"</span><span class="p">,</span><span class="w"> </span><span class="s2">"tab_?"</span><span class="p">]</span><span class="w">   </span><span class="c1"># default: every tool</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">exclude_tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"browser_install"</span><span class="p">]</span><span class="w">      </span><span class="c1"># applied after include_tools</span>
+</code></pre></div>
+<p>A tool is published when it matches an <code>include_tools</code> pattern (every tool
+when the key is absent) and no <code>exclude_tools</code> pattern, so an exclusion wins.
+The runtime that hosts the server applies them to its first <code>tools/list</code> and
+to every refresh after <code>notifications/tools/list_changed</code>, so a tool the
+server adds later is filtered too; a filtered tool is never published, to
+any agent. Both keys work wherever a server is configured: <code>[mcp.servers]</code>,
+<code>[runtimes.&lt;id&gt;.mcp.servers]</code>, and a machine's own <code>[runtimes.local.mcp]</code>.
+An empty pattern, or an <code>include_tools = []</code> that would publish nothing, is a
+configuration error. <code>/mcp</code>, the runtime panels, and the web client's MCP
+servers show how many tools the filters left out, as <code>12 tools, 30
+filtered</code>.</p>
 <p>Each server must set exactly one of <code>command</code> or <code>url</code>. <code>args</code>, <code>env</code>, and <code>cwd</code>
 apply only to stdio commands; <code>headers</code> applies only to Streamable HTTP. Servers
 are enabled by default. <code>timeout_ms</code> bounds connection, listing, and calls and
@@ -3792,18 +3857,18 @@ naming the server, its runtime (and the instance's workspace), and the reason
 global runtime hosts; see <a href="#where-servers-run">where servers run</a>.
 Streamable HTTP servers use OAuth automatically when an unauthenticated request
 returns an authorization challenge. OAuth can be selected explicitly or disabled:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[mcp.servers.remote]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://mcp.example.com/mcp"</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">[mcp.servers.pre_registered]</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://other.example.com/mcp"</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">client_id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"cookie-agent"</span><span class="p">,</span><span class="w"> </span><span class="n">scopes</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">[mcp.servers.no_oauth]</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://static.example.com/mcp"</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">headers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Authorization</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Bearer REPLACE_WITH_LOCAL_TOKEN"</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[mcp.servers.remote]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://mcp.example.com/mcp"</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">[mcp.servers.pre_registered]</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://other.example.com/mcp"</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">client_id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"cookie-agent"</span><span class="p">,</span><span class="w"> </span><span class="n">scopes</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="k">[mcp.servers.no_oauth]</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://static.example.com/mcp"</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">headers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Authorization</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Bearer REPLACE_WITH_LOCAL_TOKEN"</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>Omitting <code>oauth</code> is the default auto mode. <code>true</code> and <code>{}</code> enable the same
 reactive flow. The settings object may contain <code>client_id</code>, <code>client_secret</code>,
@@ -3906,7 +3971,10 @@ the runtime that hosts it), and toggle enablement and add, edit, or remove
 definitions of global-runtime servers only; a coding runtime's servers come
 from its runtime template. Add/edit forms accept either a command, JSON string array
 of arguments, JSON string object of environment variables, and optional working
-directory, or a URL plus a JSON string object of headers. Choose
+directory, or a URL plus a JSON string object of headers, and for both the
+<code>include_tools</code> and <code>exclude_tools</code> patterns, comma-separated (an empty
+include field publishes every tool). The list shows a server's tool count
+with how many its filters left out. Choose
 <code>runtime only</code> or <code>user config.toml</code> before submitting.
 Edits do not rename a server; remove the old name and add the new one instead.</p>
 <p>Stdio servers negotiate MCP 2025-11-25 when needed. Servers that implement the
@@ -3941,22 +4009,33 @@ collides with a tool of another runtime or of the base layer is published
 with the runtime's attachment prefix instead, for example
 <code>global_github_search_repos</code> or <code>labpc_api_rust_analyzer_hover</code>; see
 <a href="../../specs/runtimes/#63-collisions">tool composition</a>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 </code></pre></div>
 <p>MCP availability is permission-driven. An agent document with no <code>mcp</code> key
 (in any form, <code>mcp@&lt;runtime&gt;</code> included) gets the daemon's default
 <code>mcp: {"*": ask}</code> when its mode is <code>primary</code>, <code>all</code>, or <code>subagent</code>, so every
 connected MCP tool is offered and each call asks; an <code>internal</code> agent gets
-none. A declared <code>mcp</code> key replaces the default entirely: with only
-<code>"my_chrome_*": ask</code>, the agent sees only that server's tools, and deny-only
-<code>mcp</code> rules hide them all (see <a href="../agents/#mcp-default">MCP default</a>). Any
-<code>mcp</code> <code>allow</code> or <code>ask</code> rule in the run's merged rules (agent and overlay) exposes the connected MCP
-tools at the action level. Calls then use the complete generated tool name as their scoped
-resource: more-specific patterns override broader patterns, and unmatched calls
-are denied. Each delegated agent is evaluated against its own permission map.</p>
+none. A declared <code>mcp</code> key replaces the default entirely (see
+<a href="../agents/#mcp-default">MCP default</a>).</p>
+<p>An MCP tool's permission resource is its complete published name, known
+before any call, so each tool is offered by its own rules: a tool is offered
+when the run's merged rules (agent document, defaults, and session overlay)
+do not deny <code>mcp</code> for its name on its runtime. The most specific matching
+rule decides, as it does for a call: <code>allow</code> and <code>ask</code> offer the tool,
+<code>deny</code> or no matching rule hides it. With only <code>"my_chrome_*": allow</code>, the
+agent sees only that server's tools, and the YAML above hides
+<code>github_delete_repo</code> while offering the rest of <code>github</code>'s tools. Narrow
+<code>mcp</code> rules therefore narrow the tool list, not only the calls, and a
+session override in <code>/permissions</code> changes the list at the next model
+request. An "allow for this session" grant never offers a tool the merged
+rules deny. Calls use the same name as their resource: more-specific patterns
+override broader ones, and unmatched calls are denied. Each delegated agent
+is evaluated against its own permission map.</p>
+<p><code>include_tools</code> and <code>exclude_tools</code> drop a server's tools for every agent;
+permissions choose among the published ones per agent.</p>
 <p>Each MCP description and result is treated as untrusted server output.</p>
 <p>Media blocks in tool results (images, audio, and embedded resource blobs) are
 sniffed by content, gated on the model's capabilities and the provider's
@@ -4038,6 +4117,18 @@ described in <a href="../../engine/configuration/">config.toml</a>.</p>
 <td>integer</td>
 <td><code>30000</code></td>
 <td>Positive timeout for connect, list, and call operations.</td>
+</tr>
+<tr>
+<td><code>include_tools</code></td>
+<td>array of strings</td>
+<td>every tool</td>
+<td>Patterns (<code>*</code>, <code>?</code>) over the server's own tool names; only matching tools are published. Present, it may not be empty. See <a href="#choosing-a-servers-tools">choosing a server's tools</a>.</td>
+</tr>
+<tr>
+<td><code>exclude_tools</code></td>
+<td>array of strings</td>
+<td>empty</td>
+<td>Patterns over the server's own tool names, applied after <code>include_tools</code>: matching tools are not published.</td>
 </tr>
 </tbody>
 </table>

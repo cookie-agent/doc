@@ -2982,6 +2982,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#14-addendum-2026-10-23-interrupted-calls-name-their-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      14. Addendum 2026-10-23: interrupted calls name their cause
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3443,6 +3452,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../model-configuration/" class="md-nav__link">
         
   
@@ -3808,6 +3840,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#14-addendum-2026-10-23-interrupted-calls-name-their-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      14. Addendum 2026-10-23: interrupted calls name their cause
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3830,7 +3871,8 @@
 <h1 id="background-tool-calls">Background Tool Calls<a class="headerlink" href="#background-tool-calls" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>implemented</strong> (decisions of 2026-10-16; all three phases landed 2026-10-16;
 addenda of 2026-10-22 in sections <a href="#12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake">12</a>
-and <a href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory">13</a>).
+and <a href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory">13</a>,
+and of 2026-10-23 in section <a href="#14-addendum-2026-10-23-interrupted-calls-name-their-cause">14</a>).
 Sections 1, 7.1, and the "today" notes describe the design this replaced. This document is the
 governing specification for running supported tool calls in the background,
 whether the model asks for it or the user moves a running call there.
@@ -4355,6 +4397,62 @@ minutes for a root tree), since it has already waited that long.</p>
   announcing a change never reloads the session. The parent propagation of
   section 12 works whether the child, the parent, or both are evicted.</li>
 </ul>
+<h2 id="14-addendum-2026-10-23-interrupted-calls-name-their-cause">14. Addendum 2026-10-23: interrupted calls name their cause<a class="headerlink" href="#14-addendum-2026-10-23-interrupted-calls-name-their-cause" title="Permanent link">&para;</a></h2>
+<p>Decided by the user on 2026-10-23 and implemented the same day. Before it, a
+call its run's cancellation interrupted ended with <code>tool call cancelled after
+it started</code> (or <code>tool call cancelled; its work keeps running and reports
+itself</code> for work that reports itself), whoever cancelled the run.</p>
+<p>The run records why it was cancelled before its cancellation trips, the first
+cause winning, and every call it interrupts still ends as a cancelled, failed
+(<code>is_error</code>) result after the same 2 s cleanup grace (4.2):</p>
+<ul>
+<li><strong>A tool may supply its own result for a user interrupt.</strong> The
+  <code>Detachable</code> a call reports at its detach point carries an optional
+  <code>on_user_interrupt</code> text. When the user interrupts the run, the host
+  commits that text instead of its own: at once for work that reports
+  itself, otherwise only if the call winds down within the grace. A
+  foreground <code>delegate_subagent</code> and a <code>cron_run</code> waiting on its child supply</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>The user interrupted this run. Subagent `&lt;handle&gt;` keeps running; its &lt;subagent_report&gt; arrives when its turn ends.
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>[subagent session &lt;handle&gt;] Each time its turn ends you get a &lt;subagent_report handle="&lt;handle&gt;"&gt;. ...
+</code></pre></div>
+<p>The runtime protocol's <code>tool/detachable</code> carries no such text, so a
+  runtime's tool gets the generic result.
+- <strong>Otherwise the host writes a generic result that names the cause</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A client's <code>run.cancel</code> (the user)</td>
+<td><code>Interrupted by the user before it finished.</code></td>
+</tr>
+<tr>
+<td>Engine shutdown</td>
+<td><code>Interrupted by engine shutdown before it finished.</code></td>
+</tr>
+<tr>
+<td>The engine, with a recorded reason (a parent's <code>stop_background</code>, an abandoned delegate admission, a provider's cancelled response)</td>
+<td><code>Interrupted before it finished: &lt;reason&gt;.</code></td>
+</tr>
+<tr>
+<td>Another origin through <code>cancel_run</code></td>
+<td><code>Interrupted by `&lt;origin&gt;` before it finished.</code></td>
+</tr>
+</tbody>
+</table>
+<p>A call that did not wind down within the grace adds <code>; cleanup deadline
+  elapsed</code> before the final period. Work that reports itself but supplied no
+  text, or was cancelled for another cause, adds <code>Its work keeps running and
+  reports itself.</code> and its detach note.
+- Subagent reports still wake the interrupted session, as in 7.2 and 7.4:
+  the user decided not to hold them.
+- A call that completed before the run was cancelled keeps its result and
+  <code>cancelled_after_completion</code> marker unchanged.</p>
 
 
 

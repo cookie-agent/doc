@@ -3459,6 +3459,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/model-configuration/" class="md-nav__link">
         
   
@@ -4125,9 +4148,11 @@ is, and returns once it has ended; its report follows with
 <code>status="cancelled"</code>. A queued delegation is dropped instead. Stopping an idle
 child is an error. The child can still be resumed or messaged afterwards.
 Cancelling or interrupting the parent's run does <strong>not</strong> stop its children: a
-foreground <code>delegate_subagent</code> call it was waiting on ends cancelled, and the
-child keeps running and reports its turn as if the call had been moved to the
-background. Result and stop operations reject sessions that are not direct
+foreground <code>delegate_subagent</code> call it was waiting on ends cancelled, with a
+result that says who interrupted the run and that the subagent keeps running
+(<code>The user interrupted this run. ...</code> for the user), and the child
+keeps running and reports its turn as if the call had been moved to the
+background; the report still wakes the parent. Result and stop operations reject sessions that are not direct
 children of the caller.</p>
 <p>The former <code>steer_subagent</code> tool is removed. Agents reach children and other
 same-tree peers with <code>send_message</code>, which is governed by the dedicated
@@ -4580,8 +4605,8 @@ foreign-owned, hard-linked, or symlinked state is read and written as-is. This i
 part of the local storage threat model, not an <code>allow</code>/<code>ask</code>/<code>deny</code> decision.</p>
 <p>MCP checks are always scoped. A rule such as <code>"github_*": allow</code> covers every
 tool from that generated server prefix, while a more-specific deny can override
-one tool. An unmatched MCP tool is denied; with no <code>mcp</code> key at all, the
-<a href="#mcp-default">MCP default</a> <code>"*": ask</code> matches every MCP tool.</p>
+one tool. An unmatched MCP tool is denied and not offered; with no <code>mcp</code> key
+at all, the <a href="#mcp-default">MCP default</a> <code>"*": ask</code> matches every MCP tool.</p>
 <p>When a tool has no resource label, only the permission's bare effect or <code>"*"</code>
 rule applies. Specific patterns are inapplicable rather than matching or
 denying. If neither a bare effect nor <code>"*"</code> exists, the normal unmatched result
@@ -4665,9 +4690,11 @@ call:</p>
 <a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="gu">---</span>
 <a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>Implement and verify requested workspace changes.
 </code></pre></div>
-<p>MCP tools follow the same rule: the <code>mcp</code> action must contain a non-deny rule,
-which the <a href="#mcp-default">MCP default</a> supplies when the document names no
-<code>mcp</code> key; <code>mcp: deny</code> hides them. Delegation tools additionally require the <code>delegate</code> map to name at least one
+<p>MCP tools follow the same rule per tool: an MCP tool is offered only when
+the merged rules do not deny <code>mcp</code> for its name, which the
+<a href="#mcp-default">MCP default</a> <code>"*": ask</code> covers when the document names no
+<code>mcp</code> key; <code>mcp: deny</code> hides them all, and <code>"github_*": allow</code> offers only
+<code>github</code>'s tools (see <a href="../mcp/#tool-names-and-permissions">MCP tool names</a>). Delegation tools additionally require the <code>delegate</code> map to name at least one
 eligible target with <code>allow</code> or <code>ask</code>. There is no separate tool allowlist.</p>
 <p>There is also no separate MCP server approval prompt or trust store. Configured,
 enabled servers connect eagerly, while
