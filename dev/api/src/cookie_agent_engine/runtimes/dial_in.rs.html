@@ -88,204 +88,238 @@
 <a href=#88 id=88 data-nosnippet>88</a>    </span>last_seen: Mutex&lt;<span class="prelude-ty">Option</span>&lt;jiff::Timestamp&gt;&gt;,
 <a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// How its connections' liveness is checked.
 <a href=#90 id=90 data-nosnippet>90</a>    </span>liveness: <span class="kw">super</span>::Liveness,
-<a href=#91 id=91 data-nosnippet>91</a>}
-<a href=#92 id=92 data-nosnippet>92</a>
-<a href=#93 id=93 data-nosnippet>93</a><span class="kw">fn </span>lock&lt;T&gt;(mutex: <span class="kw-2">&amp;</span>Mutex&lt;T&gt;) -&gt; std::sync::MutexGuard&lt;<span class="lifetime">'_</span>, T&gt; {
-<a href=#94 id=94 data-nosnippet>94</a>    mutex
-<a href=#95 id=95 data-nosnippet>95</a>        .lock()
-<a href=#96 id=96 data-nosnippet>96</a>        .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#97 id=97 data-nosnippet>97</a>}
-<a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a><span class="kw">impl </span>DialInTemplate {
-<a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="self">Self </span>{
-<a href=#102 id=102 data-nosnippet>102</a>            runtime_id: runtime_id.to_owned(),
-<a href=#103 id=103 data-nosnippet>103</a>            connection: Mutex::new(<span class="prelude-val">None</span>),
-<a href=#104 id=104 data-nosnippet>104</a>            claimed: AtomicBool::new(<span class="bool-val">false</span>),
-<a href=#105 id=105 data-nosnippet>105</a>            offered: Mutex::default(),
-<a href=#106 id=106 data-nosnippet>106</a>            last_seen: Mutex::default(),
-<a href=#107 id=107 data-nosnippet>107</a>            liveness: <span class="kw">super</span>::Liveness::DEFAULT,
-<a href=#108 id=108 data-nosnippet>108</a>        }
-<a href=#109 id=109 data-nosnippet>109</a>    }
-<a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// Reserves the ID for one runtime dialing in, until
-<a href=#112 id=112 data-nosnippet>112</a>    /// [`Self::release`]: refused while a runtime is connected under it or
-<a href=#113 id=113 data-nosnippet>113</a>    /// another is being accepted. A runtime that dials in while its old
-<a href=#114 id=114 data-nosnippet>114</a>    /// connection still looks open has most likely lost that connection
-<a href=#115 id=115 data-nosnippet>115</a>    /// without a close, so the old one is checked at once, and the runtime
-<a href=#116 id=116 data-nosnippet>116</a>    /// dialing in again gets in once it is ended.
-<a href=#117 id=117 data-nosnippet>117</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>claim(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), DialInRefusal&gt; {
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="comment">// Checked under the connection's lock: an accepted runtime's
-<a href=#119 id=119 data-nosnippet>119</a>        // connection is set before its claim is released.
-<a href=#120 id=120 data-nosnippet>120</a>        </span><span class="kw">let </span>connection = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection);
-<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">let </span>connected = connection.as_ref().filter(|client| !client.is_closed());
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(client) = connected {
-<a href=#123 id=123 data-nosnippet>123</a>            client.suspect();
-<a href=#124 id=124 data-nosnippet>124</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(DialInRefusal::Connected(<span class="self">self</span>.runtime_id.clone()));
-<a href=#125 id=125 data-nosnippet>125</a>        }
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">if </span><span class="self">self</span>.claimed.swap(<span class="bool-val">true</span>, Ordering::AcqRel) {
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// The ACP agents the runtime reported last, kept while it is away.
+<a href=#92 id=92 data-nosnippet>92</a>    </span>acp_agents: Mutex&lt;Vec&lt;cookie_agent_runtime_api::protocol::AcpAgentReport&gt;&gt;,
+<a href=#93 id=93 data-nosnippet>93</a>}
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a><span class="kw">fn </span>lock&lt;T&gt;(mutex: <span class="kw-2">&amp;</span>Mutex&lt;T&gt;) -&gt; std::sync::MutexGuard&lt;<span class="lifetime">'_</span>, T&gt; {
+<a href=#96 id=96 data-nosnippet>96</a>    mutex
+<a href=#97 id=97 data-nosnippet>97</a>        .lock()
+<a href=#98 id=98 data-nosnippet>98</a>        .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#99 id=99 data-nosnippet>99</a>}
+<a href=#100 id=100 data-nosnippet>100</a>
+<a href=#101 id=101 data-nosnippet>101</a><span class="kw">impl </span>DialInTemplate {
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="self">Self </span>{
+<a href=#104 id=104 data-nosnippet>104</a>            runtime_id: runtime_id.to_owned(),
+<a href=#105 id=105 data-nosnippet>105</a>            connection: Mutex::new(<span class="prelude-val">None</span>),
+<a href=#106 id=106 data-nosnippet>106</a>            claimed: AtomicBool::new(<span class="bool-val">false</span>),
+<a href=#107 id=107 data-nosnippet>107</a>            offered: Mutex::default(),
+<a href=#108 id=108 data-nosnippet>108</a>            last_seen: Mutex::default(),
+<a href=#109 id=109 data-nosnippet>109</a>            liveness: <span class="kw">super</span>::Liveness::DEFAULT,
+<a href=#110 id=110 data-nosnippet>110</a>            acp_agents: Mutex::default(),
+<a href=#111 id=111 data-nosnippet>111</a>        }
+<a href=#112 id=112 data-nosnippet>112</a>    }
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// Reserves the ID for one runtime dialing in, until
+<a href=#115 id=115 data-nosnippet>115</a>    /// [`Self::release`]: refused while a runtime is connected under it or
+<a href=#116 id=116 data-nosnippet>116</a>    /// another is being accepted. A runtime that dials in while its old
+<a href=#117 id=117 data-nosnippet>117</a>    /// connection still looks open has most likely lost that connection
+<a href=#118 id=118 data-nosnippet>118</a>    /// without a close, so the old one is checked at once, and the runtime
+<a href=#119 id=119 data-nosnippet>119</a>    /// dialing in again gets in once it is ended.
+<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>claim(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), DialInRefusal&gt; {
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="comment">// Checked under the connection's lock: an accepted runtime's
+<a href=#122 id=122 data-nosnippet>122</a>        // connection is set before its claim is released.
+<a href=#123 id=123 data-nosnippet>123</a>        </span><span class="kw">let </span>connection = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection);
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">let </span>connected = connection.as_ref().filter(|client| !client.is_closed());
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(client) = connected {
+<a href=#126 id=126 data-nosnippet>126</a>            client.suspect();
 <a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(DialInRefusal::Connected(<span class="self">self</span>.runtime_id.clone()));
 <a href=#128 id=128 data-nosnippet>128</a>        }
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="prelude-val">Ok</span>(())
-<a href=#130 id=130 data-nosnippet>130</a>    }
-<a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// Ends a claim [`Self::claim`] made.
-<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>release(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#134 id=134 data-nosnippet>134</a>        <span class="self">self</span>.claimed.store(<span class="bool-val">false</span>, Ordering::Release);
-<a href=#135 id=135 data-nosnippet>135</a>    }
-<a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="doccomment">/// The live connection, if the runtime is connected.
-<a href=#138 id=138 data-nosnippet>138</a>    </span><span class="kw">fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;RuntimeClient&gt; {
-<a href=#139 id=139 data-nosnippet>139</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection)
-<a href=#140 id=140 data-nosnippet>140</a>            .clone()
-<a href=#141 id=141 data-nosnippet>141</a>            .filter(|client| !client.is_closed())
-<a href=#142 id=142 data-nosnippet>142</a>    }
-<a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a>    <span class="doccomment">/// Whether the runtime is connected now.
-<a href=#145 id=145 data-nosnippet>145</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#146 id=146 data-nosnippet>146</a>        <span class="self">self</span>.current().is_some()
-<a href=#147 id=147 data-nosnippet>147</a>    }
-<a href=#148 id=148 data-nosnippet>148</a>
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="doccomment">/// Initializes the runtime over `connection` and makes it the template's
-<a href=#150 id=150 data-nosnippet>150</a>    /// connection. The runtime brings its own MCP servers, so the daemon
-<a href=#151 id=151 data-nosnippet>151</a>    /// sends none.
-<a href=#152 id=152 data-nosnippet>152</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>connect(
-<a href=#153 id=153 data-nosnippet>153</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#154 id=154 data-nosnippet>154</a>        connection: cookie_agent_runtime_api::RuntimeConnection,
-<a href=#155 id=155 data-nosnippet>155</a>        settings: <span class="kw-2">&amp;</span>RuntimeSettings,
-<a href=#156 id=156 data-nosnippet>156</a>        mcp_hub: <span class="prelude-ty">Option</span>&lt;Arc&lt;McpHub&gt;&gt;,
-<a href=#157 id=157 data-nosnippet>157</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeClient, String&gt; {
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>initialize = RuntimeClient::initialize(
-<a href=#159 id=159 data-nosnippet>159</a>            connection,
-<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id,
-<a href=#161 id=161 data-nosnippet>161</a>            settings,
-<a href=#162 id=162 data-nosnippet>162</a>            DIAL_IN_SHUTDOWN_GRACE,
-<a href=#163 id=163 data-nosnippet>163</a>            mcp_hub,
-<a href=#164 id=164 data-nosnippet>164</a>        );
-<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>(client, result) = tokio::time::timeout(DIAL_IN_TIMEOUT, initialize)
-<a href=#166 id=166 data-nosnippet>166</a>            .<span class="kw">await
-<a href=#167 id=167 data-nosnippet>167</a>            </span>.unwrap_or_else(|<span class="kw">_</span>| {
-<a href=#168 id=168 data-nosnippet>168</a>                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#169 id=169 data-nosnippet>169</a>                    <span class="string">"the runtime did not initialize within {} s"</span>,
-<a href=#170 id=170 data-nosnippet>170</a>                    DIAL_IN_TIMEOUT.as_secs()
-<a href=#171 id=171 data-nosnippet>171</a>                ))
-<a href=#172 id=172 data-nosnippet>172</a>            })
-<a href=#173 id=173 data-nosnippet>173</a>            .inspect_err(|reason| lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).message = <span class="prelude-val">Some</span>(reason.clone()))<span class="question-mark">?</span>;
-<a href=#174 id=174 data-nosnippet>174</a>        client.keep_alive(<span class="self">self</span>.liveness);
-<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered) = RuntimeListingState {
-<a href=#176 id=176 data-nosnippet>176</a>            connected: <span class="bool-val">true</span>,
-<a href=#177 id=177 data-nosnippet>177</a>            capabilities: client.capabilities(),
-<a href=#178 id=178 data-nosnippet>178</a>            platform: result.platform,
-<a href=#179 id=179 data-nosnippet>179</a>            machine: result
-<a href=#180 id=180 data-nosnippet>180</a>                .machine
-<a href=#181 id=181 data-nosnippet>181</a>                .filter(cookie_agent_protocol::runtime_protocol::RuntimeMachine::is_valid),
-<a href=#182 id=182 data-nosnippet>182</a>            home: client.home(),
-<a href=#183 id=183 data-nosnippet>183</a>            message: <span class="prelude-val">None</span>,
-<a href=#184 id=184 data-nosnippet>184</a>        };
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection) = <span class="prelude-val">Some</span>(client.clone());
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="prelude-val">Ok</span>(client)
-<a href=#187 id=187 data-nosnippet>187</a>    }
-<a href=#188 id=188 data-nosnippet>188</a>
-<a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// Records that connection `epoch`, last heard from at `last_seen`,
-<a href=#190 id=190 data-nosnippet>190</a>    /// ended for `reason`, unless a newer connection took over meanwhile.
-<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>disconnected(<span class="kw-2">&amp;</span><span class="self">self</span>, epoch: u64, reason: <span class="kw-2">&amp;</span>str, last_seen: jiff::Timestamp) {
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>connection = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection);
-<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">if </span>connection
-<a href=#194 id=194 data-nosnippet>194</a>            .as_ref()
-<a href=#195 id=195 data-nosnippet>195</a>            .is_some_and(|client| client.epoch() != epoch)
-<a href=#196 id=196 data-nosnippet>196</a>        {
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="kw">return</span>;
-<a href=#198 id=198 data-nosnippet>198</a>        }
-<a href=#199 id=199 data-nosnippet>199</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.last_seen) = <span class="prelude-val">Some</span>(last_seen);
-<a href=#200 id=200 data-nosnippet>200</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).message = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
-<a href=#201 id=201 data-nosnippet>201</a>            <span class="string">"runtime `{}` disconnected: {reason}"</span>,
-<a href=#202 id=202 data-nosnippet>202</a>            <span class="self">self</span>.runtime_id
-<a href=#203 id=203 data-nosnippet>203</a>        ));
-<a href=#204 id=204 data-nosnippet>204</a>    }
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">fn </span>not_connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">let </span>recorded = <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.last_seen);
-<a href=#208 id=208 data-nosnippet>208</a>        <span class="comment">// A connection that has just ended may not be recorded yet.
-<a href=#209 id=209 data-nosnippet>209</a>        </span><span class="kw">let </span>last_seen = recorded.or_else(|| {
-<a href=#210 id=210 data-nosnippet>210</a>            lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection)
-<a href=#211 id=211 data-nosnippet>211</a>                .as_ref()
-<a href=#212 id=212 data-nosnippet>212</a>                .map(RuntimeClient::last_heard_at)
-<a href=#213 id=213 data-nosnippet>213</a>        });
-<a href=#214 id=214 data-nosnippet>214</a>        not_connected(<span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id, last_seen)
-<a href=#215 id=215 data-nosnippet>215</a>    }
-<a href=#216 id=216 data-nosnippet>216</a>}
-<a href=#217 id=217 data-nosnippet>217</a>
-<a href=#218 id=218 data-nosnippet>218</a><span class="attr">#[async_trait]
-<a href=#219 id=219 data-nosnippet>219</a></span><span class="kw">impl </span>RuntimeTemplate <span class="kw">for </span>DialInTemplate {
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">fn </span>runtime_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id
-<a href=#222 id=222 data-nosnippet>222</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">if </span><span class="self">self</span>.claimed.swap(<span class="bool-val">true</span>, Ordering::AcqRel) {
+<a href=#130 id=130 data-nosnippet>130</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(DialInRefusal::Connected(<span class="self">self</span>.runtime_id.clone()));
+<a href=#131 id=131 data-nosnippet>131</a>        }
+<a href=#132 id=132 data-nosnippet>132</a>        <span class="prelude-val">Ok</span>(())
+<a href=#133 id=133 data-nosnippet>133</a>    }
+<a href=#134 id=134 data-nosnippet>134</a>
+<a href=#135 id=135 data-nosnippet>135</a>    <span class="doccomment">/// Ends a claim [`Self::claim`] made.
+<a href=#136 id=136 data-nosnippet>136</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>release(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.claimed.store(<span class="bool-val">false</span>, Ordering::Release);
+<a href=#138 id=138 data-nosnippet>138</a>    }
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="doccomment">/// The live connection, if the runtime is connected.
+<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;RuntimeClient&gt; {
+<a href=#142 id=142 data-nosnippet>142</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection)
+<a href=#143 id=143 data-nosnippet>143</a>            .clone()
+<a href=#144 id=144 data-nosnippet>144</a>            .filter(|client| !client.is_closed())
+<a href=#145 id=145 data-nosnippet>145</a>    }
+<a href=#146 id=146 data-nosnippet>146</a>
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="doccomment">/// Whether the runtime is connected now.
+<a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="self">self</span>.current().is_some()
+<a href=#150 id=150 data-nosnippet>150</a>    }
+<a href=#151 id=151 data-nosnippet>151</a>
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="doccomment">/// Initializes the runtime over `connection` and makes it the template's
+<a href=#153 id=153 data-nosnippet>153</a>    /// connection. The runtime brings its own MCP servers, so the daemon
+<a href=#154 id=154 data-nosnippet>154</a>    /// sends none.
+<a href=#155 id=155 data-nosnippet>155</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>connect(
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#157 id=157 data-nosnippet>157</a>        connection: cookie_agent_runtime_api::RuntimeConnection,
+<a href=#158 id=158 data-nosnippet>158</a>        settings: <span class="kw-2">&amp;</span>RuntimeSettings,
+<a href=#159 id=159 data-nosnippet>159</a>        mcp_hub: <span class="prelude-ty">Option</span>&lt;Arc&lt;McpHub&gt;&gt;,
+<a href=#160 id=160 data-nosnippet>160</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeClient, String&gt; {
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>initialize = RuntimeClient::initialize(
+<a href=#162 id=162 data-nosnippet>162</a>            connection,
+<a href=#163 id=163 data-nosnippet>163</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id,
+<a href=#164 id=164 data-nosnippet>164</a>            settings,
+<a href=#165 id=165 data-nosnippet>165</a>            DIAL_IN_SHUTDOWN_GRACE,
+<a href=#166 id=166 data-nosnippet>166</a>            mcp_hub,
+<a href=#167 id=167 data-nosnippet>167</a>        );
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>(client, result) = tokio::time::timeout(DIAL_IN_TIMEOUT, initialize)
+<a href=#169 id=169 data-nosnippet>169</a>            .<span class="kw">await
+<a href=#170 id=170 data-nosnippet>170</a>            </span>.unwrap_or_else(|<span class="kw">_</span>| {
+<a href=#171 id=171 data-nosnippet>171</a>                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#172 id=172 data-nosnippet>172</a>                    <span class="string">"the runtime did not initialize within {} s"</span>,
+<a href=#173 id=173 data-nosnippet>173</a>                    DIAL_IN_TIMEOUT.as_secs()
+<a href=#174 id=174 data-nosnippet>174</a>                ))
+<a href=#175 id=175 data-nosnippet>175</a>            })
+<a href=#176 id=176 data-nosnippet>176</a>            .inspect_err(|reason| lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).message = <span class="prelude-val">Some</span>(reason.clone()))<span class="question-mark">?</span>;
+<a href=#177 id=177 data-nosnippet>177</a>        client.keep_alive(<span class="self">self</span>.liveness);
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered) = RuntimeListingState {
+<a href=#179 id=179 data-nosnippet>179</a>            connected: <span class="bool-val">true</span>,
+<a href=#180 id=180 data-nosnippet>180</a>            capabilities: client.capabilities(),
+<a href=#181 id=181 data-nosnippet>181</a>            platform: result.platform,
+<a href=#182 id=182 data-nosnippet>182</a>            machine: result
+<a href=#183 id=183 data-nosnippet>183</a>                .machine
+<a href=#184 id=184 data-nosnippet>184</a>                .filter(cookie_agent_protocol::runtime_protocol::RuntimeMachine::is_valid),
+<a href=#185 id=185 data-nosnippet>185</a>            home: client.home(),
+<a href=#186 id=186 data-nosnippet>186</a>            message: <span class="prelude-val">None</span>,
+<a href=#187 id=187 data-nosnippet>187</a>        };
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection) = <span class="prelude-val">Some</span>(client.clone());
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="prelude-val">Ok</span>(client)
+<a href=#190 id=190 data-nosnippet>190</a>    }
+<a href=#191 id=191 data-nosnippet>191</a>
+<a href=#192 id=192 data-nosnippet>192</a>    <span class="doccomment">/// Records that connection `epoch`, last heard from at `last_seen`,
+<a href=#193 id=193 data-nosnippet>193</a>    /// ended for `reason`, unless a newer connection took over meanwhile.
+<a href=#194 id=194 data-nosnippet>194</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>disconnected(<span class="kw-2">&amp;</span><span class="self">self</span>, epoch: u64, reason: <span class="kw-2">&amp;</span>str, last_seen: jiff::Timestamp) {
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="kw">let </span>connection = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection);
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">if </span>connection
+<a href=#197 id=197 data-nosnippet>197</a>            .as_ref()
+<a href=#198 id=198 data-nosnippet>198</a>            .is_some_and(|client| client.epoch() != epoch)
+<a href=#199 id=199 data-nosnippet>199</a>        {
+<a href=#200 id=200 data-nosnippet>200</a>            <span class="kw">return</span>;
+<a href=#201 id=201 data-nosnippet>201</a>        }
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.last_seen) = <span class="prelude-val">Some</span>(last_seen);
+<a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(client) = connection.as_ref() {
+<a href=#204 id=204 data-nosnippet>204</a>            <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.acp_agents) = client.acp_agents();
+<a href=#205 id=205 data-nosnippet>205</a>        }
+<a href=#206 id=206 data-nosnippet>206</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).message = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
+<a href=#207 id=207 data-nosnippet>207</a>            <span class="string">"runtime `{}` disconnected: {reason}"</span>,
+<a href=#208 id=208 data-nosnippet>208</a>            <span class="self">self</span>.runtime_id
+<a href=#209 id=209 data-nosnippet>209</a>        ));
+<a href=#210 id=210 data-nosnippet>210</a>    }
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="kw">fn </span>not_connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+<a href=#213 id=213 data-nosnippet>213</a>        <span class="kw">let </span>recorded = <span class="kw-2">*</span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>.last_seen);
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="comment">// A connection that has just ended may not be recorded yet.
+<a href=#215 id=215 data-nosnippet>215</a>        </span><span class="kw">let </span>last_seen = recorded.or_else(|| {
+<a href=#216 id=216 data-nosnippet>216</a>            lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection)
+<a href=#217 id=217 data-nosnippet>217</a>                .as_ref()
+<a href=#218 id=218 data-nosnippet>218</a>                .map(RuntimeClient::last_heard_at)
+<a href=#219 id=219 data-nosnippet>219</a>        });
+<a href=#220 id=220 data-nosnippet>220</a>        not_connected(<span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id, last_seen)
+<a href=#221 id=221 data-nosnippet>221</a>    }
+<a href=#222 id=222 data-nosnippet>222</a>}
 <a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="kw">fn </span>lifetime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeLifetime {
-<a href=#225 id=225 data-nosnippet>225</a>        RuntimeLifetime::DialIn
-<a href=#226 id=226 data-nosnippet>226</a>    }
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a>    <span class="kw">async fn </span>capabilities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;RuntimeCapabilityInfo&gt;, String&gt; {
-<a href=#229 id=229 data-nosnippet>229</a>        <span class="self">self</span>.current()
-<a href=#230 id=230 data-nosnippet>230</a>            .map(|client| client.capabilities())
-<a href=#231 id=231 data-nosnippet>231</a>            .ok_or_else(|| <span class="self">self</span>.not_connected())
+<a href=#224 id=224 data-nosnippet>224</a><span class="attr">#[async_trait]
+<a href=#225 id=225 data-nosnippet>225</a></span><span class="kw">impl </span>RuntimeTemplate <span class="kw">for </span>DialInTemplate {
+<a href=#226 id=226 data-nosnippet>226</a>    <span class="kw">fn </span>runtime_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.runtime_id
+<a href=#228 id=228 data-nosnippet>228</a>    }
+<a href=#229 id=229 data-nosnippet>229</a>
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">fn </span>lifetime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeLifetime {
+<a href=#231 id=231 data-nosnippet>231</a>        RuntimeLifetime::DialIn
 <a href=#232 id=232 data-nosnippet>232</a>    }
 <a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">fn </span>listing(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeListingState {
-<a href=#235 id=235 data-nosnippet>235</a>        <span class="kw">let </span><span class="kw-2">mut </span>listing = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).clone();
-<a href=#236 id=236 data-nosnippet>236</a>        listing.connected = <span class="self">self</span>.is_connected();
-<a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">if </span>listing.connected {
-<a href=#238 id=238 data-nosnippet>238</a>            listing.message = <span class="prelude-val">None</span>;
-<a href=#239 id=239 data-nosnippet>239</a>        }
-<a href=#240 id=240 data-nosnippet>240</a>        listing
-<a href=#241 id=241 data-nosnippet>241</a>    }
-<a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">fn </span>offline(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#244 id=244 data-nosnippet>244</a>        (!<span class="self">self</span>.is_connected()).then(|| <span class="self">self</span>.not_connected())
-<a href=#245 id=245 data-nosnippet>245</a>    }
-<a href=#246 id=246 data-nosnippet>246</a>
-<a href=#247 id=247 data-nosnippet>247</a>    <span class="doccomment">/// Opens `capability` over the live connection: refused at once when
-<a href=#248 id=248 data-nosnippet>248</a>    /// the runtime is not connected, or its connection no longer answers.
-<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">async fn </span>start(
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#251 id=251 data-nosnippet>251</a>        capability: <span class="kw-2">&amp;</span>CapabilityName,
-<a href=#252 id=252 data-nosnippet>252</a>        workspace: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
-<a href=#253 id=253 data-nosnippet>253</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, StartError&gt; {
-<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>client = <span class="self">self
-<a href=#255 id=255 data-nosnippet>255</a>            </span>.current()
-<a href=#256 id=256 data-nosnippet>256</a>            .ok_or_else(|| StartError::Connect(<span class="self">self</span>.not_connected()))<span class="question-mark">?</span>;
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(reason) = client.verify_live().<span class="kw">await </span>{
-<a href=#258 id=258 data-nosnippet>258</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(StartError::Connect(<span class="macro">format!</span>(
-<a href=#259 id=259 data-nosnippet>259</a>                <span class="string">"runtime `{}` is not connected: {reason}"</span>,
-<a href=#260 id=260 data-nosnippet>260</a>                <span class="self">self</span>.runtime_id
-<a href=#261 id=261 data-nosnippet>261</a>            )));
-<a href=#262 id=262 data-nosnippet>262</a>        }
-<a href=#263 id=263 data-nosnippet>263</a>        tokio::time::timeout(DIAL_IN_TIMEOUT, client.open(capability, workspace))
-<a href=#264 id=264 data-nosnippet>264</a>            .<span class="kw">await
-<a href=#265 id=265 data-nosnippet>265</a>            </span>.unwrap_or_else(|<span class="kw">_</span>| {
-<a href=#266 id=266 data-nosnippet>266</a>                client.suspect();
-<a href=#267 id=267 data-nosnippet>267</a>                <span class="prelude-val">Err</span>(StartError::Open(<span class="macro">format!</span>(
-<a href=#268 id=268 data-nosnippet>268</a>                    <span class="string">"the runtime did not open `{capability}` within {} s"</span>,
-<a href=#269 id=269 data-nosnippet>269</a>                    DIAL_IN_TIMEOUT.as_secs()
-<a href=#270 id=270 data-nosnippet>270</a>                )))
-<a href=#271 id=271 data-nosnippet>271</a>            })
-<a href=#272 id=272 data-nosnippet>272</a>    }
-<a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">fn </span>disconnect(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#275 id=275 data-nosnippet>275</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection).take();
-<a href=#276 id=276 data-nosnippet>276</a>    }
-<a href=#277 id=277 data-nosnippet>277</a>
-<a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">fn </span>runtime_mcp_servers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;cookie_agent_protocol::McpServerInfo&gt; {
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="self">self</span>.current()
-<a href=#280 id=280 data-nosnippet>280</a>            .map(|client| client.runtime_mcp_servers())
-<a href=#281 id=281 data-nosnippet>281</a>            .unwrap_or_default()
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">async fn </span>capabilities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;RuntimeCapabilityInfo&gt;, String&gt; {
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="self">self</span>.current()
+<a href=#236 id=236 data-nosnippet>236</a>            .map(|client| client.capabilities())
+<a href=#237 id=237 data-nosnippet>237</a>            .ok_or_else(|| <span class="self">self</span>.not_connected())
+<a href=#238 id=238 data-nosnippet>238</a>    }
+<a href=#239 id=239 data-nosnippet>239</a>
+<a href=#240 id=240 data-nosnippet>240</a>    <span class="kw">fn </span>listing(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RuntimeListingState {
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">let </span><span class="kw-2">mut </span>listing = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.offered).clone();
+<a href=#242 id=242 data-nosnippet>242</a>        listing.connected = <span class="self">self</span>.is_connected();
+<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">if </span>listing.connected {
+<a href=#244 id=244 data-nosnippet>244</a>            listing.message = <span class="prelude-val">None</span>;
+<a href=#245 id=245 data-nosnippet>245</a>        }
+<a href=#246 id=246 data-nosnippet>246</a>        listing
+<a href=#247 id=247 data-nosnippet>247</a>    }
+<a href=#248 id=248 data-nosnippet>248</a>
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="kw">fn </span>offline(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#250 id=250 data-nosnippet>250</a>        (!<span class="self">self</span>.is_connected()).then(|| <span class="self">self</span>.not_connected())
+<a href=#251 id=251 data-nosnippet>251</a>    }
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// Opens `capability` over the live connection: refused at once when
+<a href=#254 id=254 data-nosnippet>254</a>    /// the runtime is not connected, or its connection no longer answers.
+<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">async fn </span>start(
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#257 id=257 data-nosnippet>257</a>        capability: <span class="kw-2">&amp;</span>CapabilityName,
+<a href=#258 id=258 data-nosnippet>258</a>        workspace: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
+<a href=#259 id=259 data-nosnippet>259</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;StartedRuntime, StartError&gt; {
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>client = <span class="self">self
+<a href=#261 id=261 data-nosnippet>261</a>            </span>.current()
+<a href=#262 id=262 data-nosnippet>262</a>            .ok_or_else(|| StartError::Connect(<span class="self">self</span>.not_connected()))<span class="question-mark">?</span>;
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(reason) = client.verify_live().<span class="kw">await </span>{
+<a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(StartError::Connect(<span class="macro">format!</span>(
+<a href=#265 id=265 data-nosnippet>265</a>                <span class="string">"runtime `{}` is not connected: {reason}"</span>,
+<a href=#266 id=266 data-nosnippet>266</a>                <span class="self">self</span>.runtime_id
+<a href=#267 id=267 data-nosnippet>267</a>            )));
+<a href=#268 id=268 data-nosnippet>268</a>        }
+<a href=#269 id=269 data-nosnippet>269</a>        tokio::time::timeout(DIAL_IN_TIMEOUT, client.open(capability, workspace))
+<a href=#270 id=270 data-nosnippet>270</a>            .<span class="kw">await
+<a href=#271 id=271 data-nosnippet>271</a>            </span>.unwrap_or_else(|<span class="kw">_</span>| {
+<a href=#272 id=272 data-nosnippet>272</a>                client.suspect();
+<a href=#273 id=273 data-nosnippet>273</a>                <span class="prelude-val">Err</span>(StartError::Open(<span class="macro">format!</span>(
+<a href=#274 id=274 data-nosnippet>274</a>                    <span class="string">"the runtime did not open `{capability}` within {} s"</span>,
+<a href=#275 id=275 data-nosnippet>275</a>                    DIAL_IN_TIMEOUT.as_secs()
+<a href=#276 id=276 data-nosnippet>276</a>                )))
+<a href=#277 id=277 data-nosnippet>277</a>            })
+<a href=#278 id=278 data-nosnippet>278</a>    }
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">fn </span>disconnect(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#281 id=281 data-nosnippet>281</a>        lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection).take();
 <a href=#282 id=282 data-nosnippet>282</a>    }
 <a href=#283 id=283 data-nosnippet>283</a>
-<a href=#284 id=284 data-nosnippet>284</a>    <span class="kw">async fn </span>reconnect_runtime_mcp(<span class="kw-2">&amp;</span><span class="self">self</span>, server: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw">crate</span>::EngineError&gt; {
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="kw">match </span><span class="self">self</span>.current() {
-<a href=#286 id=286 data-nosnippet>286</a>            <span class="prelude-val">Some</span>(client) =&gt; client.reconnect_runtime_mcp(server).<span class="kw">await</span>,
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(<span class="kw">crate</span>::EngineError::Mcp(<span class="self">self</span>.not_connected())),
-<a href=#288 id=288 data-nosnippet>288</a>        }
-<a href=#289 id=289 data-nosnippet>289</a>    }
-<a href=#290 id=290 data-nosnippet>290</a>}
+<a href=#284 id=284 data-nosnippet>284</a>    <span class="kw">fn </span>runtime_mcp_servers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;cookie_agent_protocol::McpServerInfo&gt; {
+<a href=#285 id=285 data-nosnippet>285</a>        <span class="self">self</span>.current()
+<a href=#286 id=286 data-nosnippet>286</a>            .map(|client| client.runtime_mcp_servers())
+<a href=#287 id=287 data-nosnippet>287</a>            .unwrap_or_default()
+<a href=#288 id=288 data-nosnippet>288</a>    }
+<a href=#289 id=289 data-nosnippet>289</a>
+<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">async fn </span>reconnect_runtime_mcp(<span class="kw-2">&amp;</span><span class="self">self</span>, server: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw">crate</span>::EngineError&gt; {
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">match </span><span class="self">self</span>.current() {
+<a href=#292 id=292 data-nosnippet>292</a>            <span class="prelude-val">Some</span>(client) =&gt; client.reconnect_runtime_mcp(server).<span class="kw">await</span>,
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(<span class="kw">crate</span>::EngineError::Mcp(<span class="self">self</span>.not_connected())),
+<a href=#294 id=294 data-nosnippet>294</a>        }
+<a href=#295 id=295 data-nosnippet>295</a>    }
+<a href=#296 id=296 data-nosnippet>296</a>
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="doccomment">/// Its agents are available while it is connected, and listed as
+<a href=#298 id=298 data-nosnippet>298</a>    /// unavailable, as it last reported them, while it is away.
+<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">fn </span>acp_agents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">super</span>::registry::RuntimeAcpAgents {
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">match </span><span class="self">self</span>.current() {
+<a href=#301 id=301 data-nosnippet>301</a>            <span class="prelude-val">Some</span>(client) =&gt; <span class="kw">super</span>::registry::RuntimeAcpAgents {
+<a href=#302 id=302 data-nosnippet>302</a>                agents: client.acp_agents(),
+<a href=#303 id=303 data-nosnippet>303</a>                available: <span class="bool-val">true</span>,
+<a href=#304 id=304 data-nosnippet>304</a>            },
+<a href=#305 id=305 data-nosnippet>305</a>            <span class="comment">// The connection that ended, until another takes over, else
+<a href=#306 id=306 data-nosnippet>306</a>            // what was kept when one ended.
+<a href=#307 id=307 data-nosnippet>307</a>            </span><span class="prelude-val">None </span>=&gt; <span class="kw">super</span>::registry::RuntimeAcpAgents {
+<a href=#308 id=308 data-nosnippet>308</a>                agents: lock(<span class="kw-2">&amp;</span><span class="self">self</span>.connection)
+<a href=#309 id=309 data-nosnippet>309</a>                    .as_ref()
+<a href=#310 id=310 data-nosnippet>310</a>                    .map(RuntimeClient::acp_agents)
+<a href=#311 id=311 data-nosnippet>311</a>                    .unwrap_or_else(|| lock(<span class="kw-2">&amp;</span><span class="self">self</span>.acp_agents).clone()),
+<a href=#312 id=312 data-nosnippet>312</a>                available: <span class="bool-val">false</span>,
+<a href=#313 id=313 data-nosnippet>313</a>            },
+<a href=#314 id=314 data-nosnippet>314</a>        }
+<a href=#315 id=315 data-nosnippet>315</a>    }
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">async fn </span>agent_connection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">super</span>::registry::AgentConnection, String&gt; {
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let </span>client = <span class="self">self</span>.current().ok_or_else(|| <span class="self">self</span>.not_connected())<span class="question-mark">?</span>;
+<a href=#319 id=319 data-nosnippet>319</a>        client.verify_live().<span class="kw">await</span>.map_err(|reason| {
+<a href=#320 id=320 data-nosnippet>320</a>            <span class="macro">format!</span>(<span class="string">"runtime `{}` is not connected: {reason}"</span>, <span class="self">self</span>.runtime_id)
+<a href=#321 id=321 data-nosnippet>321</a>        })<span class="question-mark">?</span>;
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="prelude-val">Ok</span>(<span class="kw">super</span>::registry::AgentConnection(client))
+<a href=#323 id=323 data-nosnippet>323</a>    }
+<a href=#324 id=324 data-nosnippet>324</a>}
 </code></pre></div></section></main></body></html>

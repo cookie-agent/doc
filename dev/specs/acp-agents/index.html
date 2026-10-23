@@ -1911,6 +1911,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/acp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP Agents [acp]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1947,10 +1970,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_17" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_18" >
         
           
-          <label class="md-nav__link" for="__nav_8_17" id="__nav_8_17_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8_18" id="__nav_8_18_label" tabindex="0">
             
   
   
@@ -1963,8 +1986,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_17_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_17">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_18">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -3360,6 +3383,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#15-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      15. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3651,6 +3683,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#15-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      15. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3671,7 +3712,9 @@
 
 
 <h1 id="acp-agents">ACP agents<a class="headerlink" href="#acp-agents" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-23), being implemented.</p>
+<p>Status: <strong>approved</strong> (2026-10-23), being implemented: phases 1 to 3 landed
+(2026-10-23; see <a href="#15-implementation-notes">Implementation notes</a>); phases 4
+(clients) and 5 (docs) remain.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>Run external coding agents, such as Claude Code, Codex, and Gemini CLI, as
 cookie agents: a session or a subagent whose turns an external agent takes,
@@ -3684,8 +3727,12 @@ which stays the name of cookie's own protocol.</p>
 <li><strong>Runtimes host ACP agents.</strong> A runtime (the daemon's own <code>local</code>, a
   template runtime the daemon starts, or a dial-in runtime, including one a
   TUI or web client offers) declares agents in its configuration, next to its
-  MCP servers. The daemon registers each as <strong><code>&lt;runtime_id&gt;.&lt;agent_id&gt;</code></strong>
-  (<code>local.claude</code>, <code>labpc.codex</code>), available while that runtime is connected.</li>
+  MCP servers. The daemon registers each as <strong><code>&lt;runtime_id&gt;-&lt;agent_id&gt;</code></strong>,
+  the runtime ID's <code>_</code> spelled <code>-</code> (<code>local-claude</code>, <code>labpc-codex</code>,
+  <code>client-myhost-codex</code>), available while that runtime is connected. The
+  runtime travels next to the ID wherever agents are described; it is never
+  parsed from the ID. <em>(Decided 2026-10-23, replacing the dotted form, which
+  the agent ID grammar does not allow and could not gain within a minor.)</em></li>
 <li><strong>The runtime spawns the agent</strong> on its own machine and relays its ACP
   messages to the daemon over the runtime protocol. <strong>The daemon speaks
   ACP</strong>: sessions, rendering, permissions, cancel, resume.</li>
@@ -3695,7 +3742,7 @@ which stays the name of cookie's own protocol.</p>
   the daemon. (MCP-over-ACP, which would carry MCP on the ACP connection
   itself, is a draft RFD; not used.)</li>
 <li><strong>Cookie settings come from a daemon-side agent document with the same id</strong>
-  (<code>~/.cookie-agent/agents/labpc.codex.md</code>): mode, permissions, body,
+  (<code>~/.cookie-agent/agents/labpc-codex.md</code>): mode, permissions, body,
   <code>hide_tools</code>, starting mode and config options. Without one, the agent gets
   the defaults (section 4).</li>
 <li><strong>cwd:</strong> the session's workspace on that runtime, else the runtime's home.</li>
@@ -3752,9 +3799,14 @@ agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
   runtime's machine), <code>env</code> (merged over the runtime's environment),
   <code>description</code>, <code>enabled</code>.</li>
 <li><strong>Agent ids:</strong> the table key, following the agent id grammar (lowercase
-  letters, digits, <code>_</code>). The daemon's id is <code>&lt;runtime_id&gt;.&lt;agent_id&gt;</code>; the
-  agent id grammar gains this one dotted form, reserved for runtime-hosted
-  agents. A dotted id that would also name a daemon agent is refused.</li>
+  letters, digits, and single inner hyphens, at most 64 bytes). The daemon's
+  id is <code>&lt;runtime_id&gt;-&lt;agent_id&gt;</code>, the runtime ID's <code>_</code> spelled <code>-</code>; the
+  agent's runtime is carried explicitly where agents are described
+  (<code>AgentDescriptor.runtime</code>) and kept in the engine's registry entry, never
+  parsed from the id. Refused, with a message naming both sides: a
+  combination that is not an agent id (a runtime ID with <code>__</code> or a trailing
+  <code>_</code>), one longer than 64 bytes, and one that names a daemon agent or
+  another runtime's agent (<code>lab_pc</code> + <code>codex</code> and <code>lab</code> + <code>pc-codex</code>).</li>
 <li><strong>Reporting:</strong> the runtime reports its agents when it connects and when its
   configuration changes; the daemon adds or removes them and announces the
   change like any agent registry change.</li>
@@ -3763,7 +3815,7 @@ agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
   as for offline runtimes.</li>
 </ul>
 <h2 id="4-the-daemon-side-agent-document">4. The daemon-side agent document<a class="headerlink" href="#4-the-daemon-side-agent-document" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ~/.cookie-agent/agents/labpc.codex.md</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ~/.cookie-agent/agents/labpc-codex.md</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nn">---</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Codex on labpc, for refactors</span><span class="w">        </span><span class="c1"># overrides the runtime's</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
@@ -3780,7 +3832,7 @@ agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="l l-Scalar l-Scalar-Plain">You review changes for this project before they are committed.</span>
 </code></pre></div>
 <ul>
-<li><strong>Optional.</strong> Without it, <code>&lt;runtime_id&gt;.&lt;agent_id&gt;</code> is an agent of mode
+<li><strong>Optional.</strong> Without it, <code>&lt;runtime_id&gt;-&lt;agent_id&gt;</code> is an agent of mode
   <code>all</code> with the runtime's description, the defaults every agent gets for
   actions it names no key for, <code>acp: ask</code>, and the default <code>hide_tools</code>.</li>
 <li><strong>No <code>models</code>, no <code>acp.command</code>:</strong> the runtime launches the agent and the
@@ -3988,6 +4040,137 @@ the runtime.</p>
 </ol>
 <h2 id="14-open-questions">14. Open questions<a class="headerlink" href="#14-open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
+<h2 id="15-implementation-notes">15. Implementation notes<a class="headerlink" href="#15-implementation-notes" title="Permanent link">&para;</a></h2>
+<p><strong>Phases 1 to 3</strong> (2026-10-23): client protocol 1.17.0, plugin protocol
+1.8.0, runtime protocol 1.7.0; history format unchanged (two new event
+types).</p>
+<p>Where the spec left a detail open, or where the code differs:</p>
+<ul>
+<li><strong>Ids.</strong> <code>&lt;runtime&gt;-&lt;agent&gt;</code> with the runtime's <code>_</code> spelled <code>-</code> (user
+  decision of 2026-10-23); <code>cookie_agent_protocol::runtime_agent_id</code> makes
+  it, and <code>AgentDescriptor.runtime</code> (<code>runtime_id</code>, <code>agent</code>, <code>available</code>)
+  carries the runtime. Collisions among the daemon's own templates and with
+  daemon documents fail the configuration load; a dial-in runtime's refused
+  declaration is skipped and reported in the daemon's log.</li>
+<li><strong>Availability.</strong> Agents of <code>local</code> and of templates are available
+  whenever the daemon runs (it starts their runtime on demand); a dial-in
+  runtime's are available while it is connected and listed unavailable, as
+  it last reported them, while it is away. A disabled agent is listed
+  unavailable. A best-effort selection (an engine wake-up, a client
+  continuing) never swaps an ACP agent for another: the run is refused.</li>
+<li><strong>Declarations.</strong> Template and <code>[runtimes.local]</code> agents change with the
+  rest of <code>runtimes</code>, at the next start. A dial-in runtime reads its
+  machine's configuration again every 5 seconds and sends
+  <code>runtime/agents_changed</code>. The relay messages are information; no
+  <code>agent/configure</code> was needed.</li>
+<li><strong>The agent document.</strong> Its <code>acp</code> block marks it as an ACP agent's (<code>acp:
+  {}</code> is enough); such a document is an agent only while a runtime declares
+  the id. It names no <code>models</code>, <code>agent_md</code>, <code>limits</code>, or mode <code>internal</code>,
+  and its body may be empty. <code>models</code> and <code>enabled</code> became optional for
+  every document (<code>enabled</code> defaults to <code>true</code>). Naming an ACP agent as a
+  delegation target needs its document, since targets are checked when the
+  configuration loads; wildcard targets reach runtime agents.</li>
+<li><strong>Synthetic model.</strong> Runs record the model <code>acp/&lt;agent id&gt;</code> (a model key
+  needs a <code>/</code>, so not <code>acp:&lt;agent&gt;</code>), adapter <code>acp</code>, through a persisted
+  binding no build can run as a model; the frozen policy has no model
+  suffix. Each prompt round's steps are attempts of that model.</li>
+<li><strong>Rendering.</strong> Text and thoughts stream as deltas. A new ACP tool call
+  commits the turn so far as a model turn holding the call (finish
+  <code>tool_calls</code>), then starts a cookie tool call of source <code>acp</code>; updates are
+  its progress (a display replacement), and <code>completed</code>/<code>failed</code> end it,
+  with diffs as diff blocks, content as text blocks, locations as links, and
+  raw input and output in <code>metadata.acp</code>. Calls left open when the round
+  ends end as failed (cancelled when the turn was). The ACP tool call id is
+  the model call id, made unique within the run.</li>
+<li><strong>Events.</strong> <code>acp_session_started</code> records the ACP session (agent, runtime,
+  the agent's own id, session id, cwd, protocol version, agent info, and
+  <code>how</code>: new, resumed, or loaded). <code>acp_session_updated</code> carries the
+  agent's <code>commands</code>, <code>options</code>, and <code>plan</code>, each the whole new value. The
+  plan is a <code>plan</code> display block there, not inside a tool call. An agent
+  that offers modes but no mode option shows them as an option <code>mode</code> of
+  category <code>mode</code>, set with <code>session/set_mode</code>.</li>
+<li><strong>Sessions.</strong> Updates that arrive before a session is routed (the commands
+  an agent announces right after <code>session/new</code>) are kept for it; turn output
+  that arrives before a prompt (a load's replay) is dropped. A replaced
+  session is announced with a runless <code>diagnostic</code> (kind <code>acp_agent</code>). The
+  body goes with the first prompt of every new ACP session, so a replaced
+  session gets it again. A round's prompt is the input the session took
+  since its last committed model turn.</li>
+<li><strong>Processes.</strong> Started in the runtime's home directory; idle means no run
+  in progress for <code>[acp] idle_shutdown_ms</code>. <code>session/close</code> is sent when a
+  session is deleted (not when it unloads). The engine stops every process
+  as it shuts down.</li>
+<li><strong>Permissions.</strong> Requests go through the tool permission pipeline (grants
+  included) with the agent's runtime as the scope and the session's cwd as
+  <code>${workspace_dir}</code>; <code>acp</code> defaults to <code>ask</code>. A request whose resources
+  cannot be read is rejected; an agent that offers no allow-once or
+  reject-once option is answered <code>cancelled</code>. Approvals name the cookie
+  tool call the agent's call is shown as. The approval reviewer of the auto
+  modes runs on the run's model, which an ACP run lacks, so its requests
+  escalate to the user.</li>
+<li><strong>Usage.</strong> The prompt answer's <code>usage</code> when the agent sends one, else the
+  last <code>usage_update</code>'s <code>used</code> as input tokens; a cost only from a
+  <code>usage_update</code> cost in USD. Recorded once per round, on its last turn.</li>
+<li><strong>Titles.</strong> <code>session_info_update</code> sets a fallback title while the user has
+  set none; ACP runs generate no title of their own (the title agent needs
+  a model).</li>
+<li><strong>Not run for ACP agents:</strong> <code>AGENTS.md</code> loading, the skill listing and tool
+  prompt sections, the <code>agent_before_start</code> hook, and input media admission
+  (images go to an agent whose <code>promptCapabilities.image</code> is set; other
+  files become a note).</li>
+<li><strong>The bridge.</strong> The daemon's MCP server is hand-written (<code>initialize</code>,
+  <code>ping</code>, <code>tools/list</code>, <code>tools/call</code>); rmcp's server features are not used.
+  A bridged call runs inside the agent's turn as a cookie tool call of the
+  run (the runner commits the turn so far with the call in it), through
+  preparation, the rules, approvals, and execution; outside a turn it is
+  refused. The agent usually reports the same call as its own tool call
+  too. On Windows the pipe has a random name and refuses remote clients but
+  keeps the default security descriptor, not one limited to the user.</li>
+<li><strong>ACP client.</strong> Hand-written JSON-RPC types over the protocol crate's peer
+  (the <code>agent-client-protocol</code> crate was not needed); <code>initialize</code>
+  advertises no <code>fs</code> and no <code>terminal</code>. A runtime that cannot start an
+  agent answers the new error <code>agent_failed</code>.</li>
+</ul>
+<p><strong>§12 coverage</strong> (<code>crates/engine/src/runtime/tests/acp.rs</code> against the
+scripted agent <code>crates/engine/tests/fixtures/acp_agent.py</code>,
+<code>crates/coding_runtime/src/server/acp_tests.rs</code>,
+<code>crates/config/tests/acp_agents.rs</code>, and the <code>cookie runtime mcp-bridge</code>
+test in <code>crates/cookie_agent/tests/runtime_command.rs</code>): declarations on
+<code>local</code>, a template (configuration), and a dial-in runtime, dotted-free ids
+and collisions; offline refusal; handshake and capabilities; auto mode, modes
+without a mode option, and <code>acp.config</code>; a turn with chunks, thoughts, a
+tool call with a diff, a plan, and usage; every stop reason and an agent
+error; cancel with a pending permission request; permissions by the mapped
+rules and by an approval; resume, load with an ignored replay, and a new
+session after a lost one; process exit; the bridge listing and gating
+cookie's tools with <code>hide_tools</code> and calling one; the body sent once; agent
+commands; delegation to an ACP subagent through the bridge; a cron fire
+into an ACP session; cwd with and without a workspace on the runtime; an
+agent that connects its MCP servers while it answers <code>session/new</code>. Not
+covered: steering into a running ACP turn, which queues for the next round.</p>
+<p><strong>Checked by hand against Claude Code</strong> (2026-10-23; <code>claude</code> 2.1.309,
+<code>@agentclientprotocol/claude-agent-acp</code> 0.94.0, on <code>local</code> of a scratch
+daemon): the handshake, <code>auto</code> mode chosen from the agent's mode option, a
+reply, a <code>Read</code> call rendered with its content and location, the cookie
+bridge's tools listed by the agent without the hidden ones, <code>ls</code> allowed and
+<code>touch</code> rejected by the mapped <code>bash</code> rules, a cancel, and a resume across a
+daemon restart (the agent kept the conversation). What the adapter does that
+the spec did not anticipate:</p>
+<ul>
+<li>It connects its MCP servers while it answers <code>session/new</code>, so the bridge
+  is bound to the session before the request goes out (a test covers it).</li>
+<li>It offers <code>resume</code> and options <code>mode</code>, <code>model</code>, <code>effort</code>, and <code>fast</code>; it
+  announces its commands twice right after a session opens, and a title
+  (<code>session_info_update</code>) between turns.</li>
+<li>A tool call's <code>rawInput</code> arrives in a later update, so the call's
+  presentation carries none; its result has it.</li>
+<li>Outside its auto mode it asks permission for the calls it makes of
+  cookie's own tools, as kind <code>other</code> titled <code>mcp__cookie__&lt;tool&gt;</code>. These
+  map to <code>acp</code> (default <code>ask</code>) before cookie's rules decide the call itself
+  through the bridge, so such a call is decided twice; an <code>acp</code> rule such as
+  <code>{ "other mcp__cookie__*": allow }</code> lets the bridge's own rules decide
+  alone.</li>
+</ul>
 
 
 
