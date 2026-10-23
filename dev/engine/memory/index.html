@@ -3236,17 +3236,22 @@
 
 
 <h1 id="memory-memory">Memory [memory]<a class="headerlink" href="#memory-memory" title="Permanent link">&para;</a></h1>
-<p>Size limits of memory files and of the memory snapshot a session's model
+<p>Size limits of memory documents and of the memory snapshot a session's model
 sees. Complete <code>config.toml</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[memory]</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">max_file_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4096</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">snapshot_user_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12288</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">snapshot_index_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4096</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">user_max_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2048</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">agent_max_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2048</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">machine_max_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2048</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">project_max_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2048</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">overview_max_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2048</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">snapshot_user_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12288</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">snapshot_index_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4096</span>
 </code></pre></div>
 <p>Memory is a folder of Markdown notes, <code>~/.cookie-agent/memory</code>; see the
 <a href="../../specs/memory/">memory spec</a>. An omitted table inherits; an authored
 table replaces the lower table and uses defaults for omitted fields. Unknown
-fields fail; see <a href="../configuration/">config.toml</a>.</p>
+fields fail, <code>max_file_bytes</code> included, which the five document limits
+replaced; see <a href="../configuration/">config.toml</a>.</p>
 <table>
 <thead>
 <tr>
@@ -3258,10 +3263,34 @@ fields fail; see <a href="../configuration/">config.toml</a>.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>max_file_bytes</code></td>
+<td><code>user_max_bytes</code></td>
 <td>integer</td>
-<td><code>4096</code></td>
-<td>Largest memory file, frontmatter included, in bytes. A larger file is invalid: search and the snapshot skip it, and a write that would produce one fails. Must be positive.</td>
+<td><code>2048</code></td>
+<td>Largest <code>user://</code> category, frontmatter included, in bytes. Must be positive and at most 57344.</td>
+</tr>
+<tr>
+<td><code>agent_max_bytes</code></td>
+<td>integer</td>
+<td><code>2048</code></td>
+<td>Largest <code>agent://</code> file, frontmatter included, in bytes. Must be positive and at most 57344.</td>
+</tr>
+<tr>
+<td><code>machine_max_bytes</code></td>
+<td>integer</td>
+<td><code>2048</code></td>
+<td>Largest <code>machine://</code> memory, frontmatter included, in bytes. Must be positive and at most 57344.</td>
+</tr>
+<tr>
+<td><code>project_max_bytes</code></td>
+<td>integer</td>
+<td><code>2048</code></td>
+<td>Largest <code>project://</code> memory other than an overview, frontmatter included, in bytes. Must be positive and at most 57344.</td>
+</tr>
+<tr>
+<td><code>overview_max_bytes</code></td>
+<td>integer</td>
+<td><code>2048</code></td>
+<td>Largest project overview, <code>project://&lt;project&gt;/overview</code>, frontmatter included, in bytes. Must be positive and at most 57344.</td>
 </tr>
 <tr>
 <td><code>snapshot_user_bytes</code></td>
@@ -3277,17 +3306,25 @@ fields fail; see <a href="../configuration/">config.toml</a>.</p>
 </tr>
 </tbody>
 </table>
+<p>A write or edit that would leave a memory over its kind's limit is refused,
+and the model is shown the memory's current content to condense. A memory
+already over its limit, as after the limit is lowered, stays valid and is
+still shown, marked over its limit; only changes that make it smaller are
+accepted until it fits. A file larger than 57344 bytes is invalid: search
+and the snapshot skip it.</p>
 <p>The snapshot limits are measured on the snapshot's rendered text (see
 <a href="../../reference/system-prompt/#memory-turn">System Prompt Composition</a>): a
 category or machine memory is shown only while its whole section still fits.
 The run's agent's own file is measured on its escaped description and body
-against <code>max_file_bytes</code>; a file that escaping makes longer is named instead
-of shown. A snapshot is recorded as one session event, bounded at 64 KiB. The three
-limits together must not exceed 57344 bytes, which leaves 8 KiB for the
-snapshot's fixed text, headings, and escaping; a configuration whose limits
-sum to more fails to load.</p>
+against the room the two snapshot limits leave in the event; a file that
+does not fit is named instead of shown. A snapshot is recorded as one
+session event, bounded at 64 KiB. <code>agent_max_bytes</code>, <code>snapshot_user_bytes</code>,
+and <code>snapshot_index_bytes</code> together must not exceed 57344 bytes, which
+leaves 8 KiB for the snapshot's fixed text, headings, and escaping; a
+configuration whose limits sum to more fails to load.</p>
 <p>The limits apply at once when the configuration is applied or reloaded: a
-lowered <code>max_file_bytes</code> makes larger files invalid from the next read.</p>
+lowered document limit applies from the next write, and the next snapshot
+marks the memories over it.</p>
 
 
 

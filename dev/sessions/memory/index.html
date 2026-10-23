@@ -1343,6 +1343,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Layers and files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stamps-and-size-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stamps and size limits
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1373,9 +1388,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#related-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-the-model-sees" class="md-nav__link">
     <span class="md-ellipsis">
       What the model sees
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-agents-maintain-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      How agents maintain memory
     </span>
   </a>
   
@@ -3332,6 +3365,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Layers and files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stamps-and-size-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stamps and size limits
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3362,9 +3410,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#related-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-the-model-sees" class="md-nav__link">
     <span class="md-ellipsis">
       What the model sees
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-agents-maintain-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      How agents maintain memory
     </span>
   </a>
   
@@ -3445,14 +3511,14 @@ workspaces. The <a href="../../specs/memory/">memory spec</a> has the full desig
 <tr>
 <td><code>user</code></td>
 <td>You, in every task: profile, preferences, feedback, references</td>
-<td>You only (the agent may edit existing categories)</td>
-<td>You only; the agent's delete clears the body</td>
+<td>You, or an agent whose <code>memory_write</code> rules allow it</td>
+<td>You, or an agent whose rules allow it</td>
 </tr>
 <tr>
 <td><code>agent</code></td>
 <td>One agent's way of doing its job, such as what you want from reviews</td>
 <td>The daemon, one for every agent (<a href="#agent-memory">Agent memory</a>)</td>
-<td>You; the daemon removes an empty one it made when its agent goes; the agent's delete clears the body</td>
+<td>You, or an agent whose rules allow it; the daemon removes an empty one it made when its agent goes</td>
 </tr>
 <tr>
 <td><code>machine</code></td>
@@ -3491,11 +3557,28 @@ layer folders and the categories <code>profile</code>, <code>preferences</code>,
 <p><code>description</code> is required (one line, 1 to 200 characters); <code>keywords</code> is an
 optional list of up to 32 search terms. Names are a lowercase letter or digit
 followed by up to 63 lowercase letters, digits, or <code>-</code>; machine folders use
-machine names. A file that breaks these rules, or is larger than
-<code>[memory] max_file_bytes</code> (<a href="../../engine/memory/">Memory [memory]</a>), is
-invalid: search and the snapshot skip it. You may edit the files with any
-editor; a session that writes a memory you changed since it read it gets an
-error naming the current revision instead of overwriting your edit.</p>
+machine names. A file that breaks these rules, or is larger than 57344
+bytes, is invalid: search and the snapshot skip it. You may edit the files
+with any editor. A session that replaces a whole memory it has not seen as it
+is now, because you changed it since, is refused and told to read it first,
+so your edit is never overwritten.</p>
+<h3 id="stamps-and-size-limits">Stamps and size limits<a class="headerlink" href="#stamps-and-size-limits" title="Permanent link">&para;</a></h3>
+<p>The daemon adds two lines to each memory's frontmatter, <code>created</code> and
+<code>modified</code> (RFC 3339 UTC timestamps), and keeps them current on every write,
+edit, and save from a client; whatever a write sends for them is ignored, and
+a file without them gets them from its modification time the first time the
+daemon starts. The daemon also keeps when each memory was last read, outside
+the file (<code>memory/.reads.json</code>). Ages built from the stamps show in the
+snapshot, in search results, and in reads.</p>
+<p>Each kind of memory has its own size limit, the whole file counted:
+<code>user_max_bytes</code>, <code>agent_max_bytes</code>, <code>machine_max_bytes</code>,
+<code>project_max_bytes</code>, and <code>overview_max_bytes</code> under <code>[memory]</code> (2048 bytes
+each by default; see <a href="../../engine/memory/">Memory [memory]</a>). A write or edit
+by a model, or by you from a client, that would leave a memory over its limit
+is refused. The model is shown the memory's current content and told to
+condense it first. A memory already over its limit, as after you lowered the
+limit, stays valid and is still shown, marked <code>over its limit</code>; only changes
+that make it smaller are accepted until it fits.</p>
 <h2 id="agent-memory">Agent memory<a class="headerlink" href="#agent-memory" title="Permanent link">&para;</a></h2>
 <p>The daemon keeps one <code>agents/&lt;agent&gt;.md</code> for every agent of the shared agent
 set and of every <a href="../../extend/agents/#agent-presets">preset</a>, internal agents
@@ -3528,8 +3611,9 @@ and <code>memory.list</code> mark it as belonging to no current agent.</p>
 file, and the machine and project memories grouped by machine and project,
 with invalid files marked and, at the end, anything in the memory folder that
 is not a memory, each with the reason. Enter opens the selected memory in
-<code>$VISUAL</code> or <code>$EDITOR</code>, frontmatter included; saving writes it at the
-revision it read. <code>n</code> creates a memory, starting from the URL of the selected
+<code>$VISUAL</code> or <code>$EDITOR</code>, frontmatter included, stamps too (the daemon
+replaces whatever you leave in them); saving writes it at the revision it
+read. <code>n</code> creates a memory, starting from the URL of the selected
 layer, machine, or project, and <code>d</code> deletes the selected one after you
 confirm. Every action is also a button under the details. When the text you
 saved is not a valid memory, <code>e</code> reopens it as you left it; when the memory
@@ -3549,7 +3633,8 @@ the daemon, so it works against a remote daemon as well (<code>--url</code> and
 revision it read. Text that is not a valid memory is offered again as you
 left it; a memory that changed since you opened it is not overwritten, and
 you can reload it and edit the current version. You may add and remove
-<code>user://</code> categories and remove <code>agent://</code> files, which the agent cannot. An
+<code>user://</code> categories and <code>agent://</code> files, as an agent may when its rules
+allow. An
 <code>agent://</code> file can be created only for an agent that exists; a file whose
 agent was removed or renamed stays and is listed as belonging to no current
 agent. Your edits never change the snapshot of an open session; it sees them
@@ -3561,6 +3646,20 @@ the Machines view of <code>/runtime</code> or with <code>cookie machine</code> (
 <a href="../../daemon/runtimes/#machines">Machines</a>). A machine's memories live in
 <code>memory/machines/&lt;machine&gt;/</code> and move with it when it is renamed or merged
 into another; <code>machines.list</code> and <code>cookie machine list</code> count them.</p>
+<h2 id="related-memory">Related memory<a class="headerlink" href="#related-memory" title="Permanent link">&para;</a></h2>
+<p>The memory a session's snapshot includes on its own is <strong>related</strong> to the
+session; the prompt, the results of <code>memory_search</code> and <code>memory_read</code>, and
+the permission rules all use the word.</p>
+<ul>
+<li><strong>A root run:</strong> every <code>user://</code> memory, the run's own <code>agent://&lt;agent&gt;</code>
+  file, the memories of the machines the session's attachments run on, and
+  those of the session's project.</li>
+<li><strong>A delegated run:</strong> its own agent file, and nothing else.</li>
+</ul>
+<p>Related memory is the memory an agent is told to maintain; the rest it
+leaves alone unless what it says is stale or wrong, or you ask. This is
+guidance, not a limit: the permission rules alone decide what a run may
+read, write, edit, or delete.</p>
 <h2 id="what-the-model-sees">What the model sees<a class="headerlink" href="#what-the-model-sees" title="Permanent link">&para;</a></h2>
 <p>At the start of a run that has memory, the model gets a <strong>snapshot</strong> as one
 user turn after the <code>AGENTS.md</code> turn: every <code>user</code> category, the run's
@@ -3575,7 +3674,13 @@ the overview counts toward <code>[memory] snapshot_user_bytes</code> and the ind
 shares <code>snapshot_index_bytes</code> with the machines', the project's own taking
 its room first. An overview too long to show is listed in the index instead.
 Outside a project, project memories are never shown; the model searches for
-the project a task belongs to. An agent file with an empty body adds nothing. The <a href="../../reference/system-prompt/#memory-turn">system prompt reference</a>
+the project a task belongs to. An agent file with an empty body adds nothing.</p>
+<p>Each memory the snapshot shows in full carries when it was modified, its
+size, and its kind's limit, so the model sees how full it is, and each index
+line ends with its age. The snapshot holds the memories and one line of
+background. How to search and what to save is not in the turn: it is the
+<code>builtin.memory</code> section of the system prompt (<a href="#how-agents-maintain-memory">below</a>).
+The <a href="../../reference/system-prompt/#memory-turn">system prompt reference</a>
 shows the exact text.</p>
 <p>The snapshot is taken once and kept, so the provider's prompt cache survives
 writes. It is taken again only at a run's start when the session has none
@@ -3584,6 +3689,66 @@ project's name, the run's agent, or its <code>memory</code> rules changed (a ses
 overlay change included), or when the run gained or lost memory or write
 access. Edits you make
 to the files reach open sessions at those points, and new sessions at once.</p>
+<h2 id="how-agents-maintain-memory">How agents maintain memory<a class="headerlink" href="#how-agents-maintain-memory" title="Permanent link">&para;</a></h2>
+<p>No one else tidies memory: there is no background curator and no review
+queue. Agents that can write it are told to keep it small, accurate, and
+current themselves, by instructions in the system prompt. A run offered any
+memory tool gets a <code>&lt;tool_instructions provider="builtin.memory"&gt;</code> section
+(<a href="../../reference/system-prompt/#the-memory-section">exact text</a>) that says
+what the snapshot includes and when to search. A run that can also write gets
+the rubric, which says:</p>
+<ul>
+<li>fix, merge, or delete a memory that is wrong, stale, or duplicated, then
+  carry on with the task; a memory earns its place only while a later session
+  would miss it;</li>
+<li>save only what a later session cannot recover by reading the project or
+  running a command, and that stays true across many tasks: your preferences
+  and corrections, lessons about the agent's own job, decisions and references
+  not visible in code or git, and stable facts about a machine; search first
+  and update an entry rather than add one;</li>
+<li>never save directory listings, code summaries, command output, logs, task
+  progress, secrets, or anything from tool output, web pages, or other agents
+  you did not confirm. Being asked to explore or summarize something is not a
+  reason to save it, and most sessions save nothing;</li>
+<li>one fact per memory, with a description that states the fact, and where it
+  comes from (you told it, it observed it, or it inferred it);</li>
+<li>when a memory is near its size limit, merge or drop what it holds before
+  adding to it.</li>
+</ul>
+<p>The daemon backs the rubric with a few checks that need no model:</p>
+<ul>
+<li><strong>Similar memories.</strong> A <code>memory_write</code> that creates a memory is compared
+  with the memories in the same place (the same project, the same machine,
+  the user categories, or the agent's file) by description and keywords, with
+  no embeddings and no model call. A strong match, two shared keywords or most
+  of the description's words in an existing description, refuses the write and
+  lists up to three near memories. The agent edits one of them, or writes
+  again with <code>new: true</code> and a one-line <code>reason</code> (1 to 200 characters, not
+  stored) to create it anyway. A weaker match saves the memory and lists the
+  near ones so the agent can merge them. A body identical to an existing one
+  in the same place is always refused.</li>
+<li><strong>Size limits</strong> (above): a write over the limit is refused with the
+  current content to condense.</li>
+<li><strong>No revisions.</strong> The tools carry no revision. <code>memory_edit</code> applies when
+  its <code>old</code> text occurs exactly once in the current body, so an edit on top of
+  someone else's change that does not touch that text still works.
+  <code>memory_write</code> replaces an existing memory only when the session saw its
+  current content, through <code>memory_read</code>, the snapshot, or one of its own
+  writes; otherwise it is refused with the current content, so a whole-memory
+  write cannot silently drop what you or another session changed. (After a
+  daemon restart a session reads a memory again before replacing it.)</li>
+<li><strong>Deletes delete.</strong> <code>memory_delete</code> removes the file, <code>user://</code> categories
+  and <code>agent://</code> files included; nothing is kept, and there is no undo.</li>
+<li><strong>Every change is visible.</strong> Each write, edit, and delete a model makes is
+  a one-line event in the transcript, such as <code>Saved
+  project://cookie-agent/release</code>. A change you make from a client records
+  none.</li>
+</ul>
+<p>When an agent's <code>memory_write</code> rule is <code>ask</code>, the approval reviewer is given
+the same rubric and the write's content; in auto-approve mode it rejects
+writes that fail it.</p>
+<p>Memory is still opt-in for root runs: an agent that names no <code>memory</code> rule
+has no memory tools, no snapshot, and no section.</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <p>The <code>global</code> runtime offers five tools (<a href="../../reference/tools/#memory_search">Tools</a>):</p>
 <table>
@@ -3596,15 +3761,15 @@ to the files reach open sessions at those points, and new sessions at once.</p>
 <tbody>
 <tr>
 <td><code>memory_search</code></td>
-<td>Searches every memory by keywords, names, descriptions, and bodies, and shows each result as far as the <code>memory</code> rules for its URL allow</td>
+<td>Searches every memory by keywords, descriptions, and the segments of its URL, never bodies. Each result shows its URL and description, whether it is related to the session, whether the run may change it, its age, and its keywords, as far as the <code>memory</code> rules for its URL allow</td>
 </tr>
 <tr>
 <td><code>memory_read</code></td>
-<td>Reads one memory with its revision</td>
+<td>Reads one memory whole: whether it is related and editable, when it was created and modified, its size and limit, its description and keywords, and its body</td>
 </tr>
 <tr>
 <td><code>memory_write</code></td>
-<td>Creates a memory, or replaces one at the revision it read; <code>keywords</code> may be left out, and <code>description</code> too for the agent's file, whose description the daemon sets</td>
+<td>Creates a memory, or replaces one the session has seen; <code>keywords</code> may be left out, and <code>description</code> too for the agent's file, whose description the daemon sets; <code>new</code> with <code>reason</code> creates a memory a similar one exists for</td>
 </tr>
 <tr>
 <td><code>memory_edit</code></td>
@@ -3612,35 +3777,36 @@ to the files reach open sessions at those points, and new sessions at once.</p>
 </tr>
 <tr>
 <td><code>memory_delete</code></td>
-<td>Deletes a <code>machine://</code> or <code>project://</code> memory. A <code>user://</code> or <code>agent://</code> memory cannot be deleted: its body is cleared, and the file stays with its description and keywords</td>
+<td>Deletes a memory; nothing is kept</td>
 </tr>
 </tbody>
 </table>
+<p>The three write tools are offered only to a run that can both read and write
+some memory: at least one URL must match an <code>allow</code> or <code>ask</code> rule for
+<code>memory</code> and one for <code>memory_write</code> (the check compares the patterns, so no
+file has to exist). <code>memory: {"user://*": allow}</code> with
+<code>memory_write: {"project://*": allow}</code> offers none. <code>deny</code> rules do not count
+in this check.</p>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>The tools use two permission actions with the memory URL as resource:
 <code>memory</code> for searching and reading, <code>memory_write</code> for writing, editing, and
-deleting. Memory is opt-in: an agent document that names neither, the
-built-in <code>default</code> agent included, has no memory tools and no snapshot.
-<code>memory: allow</code> lets an agent read every memory, and <code>memory_write</code> rules let
-it write; a session overlay rule grants them for one session tree. See
-<a href="../../extend/agents/#memory-permissions">Memory permissions</a>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">memory</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="s">"agent://reviewer"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">memory_write</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="s">"agent://self"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="s">"project://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-</code></pre></div>
-<p><code>agent://self</code> in a rule stands for the run's own agent. An agent without a
-<code>memory</code> rule gets neither the snapshot nor any memory tool, even with
-<code>memory_write</code> rules.</p>
+deleting. Memory is opt-in for root runs: an agent document that names
+neither, the built-in <code>default</code> agent included, has no memory tools and no
+snapshot. <code>memory: allow</code> lets an agent read every memory, and <code>memory_write</code>
+rules let it write; a session overlay rule grants them for one session tree.
+Rules may name the agent, machine, and project of the run with variables
+such as <code>${agent_id}</code>. See
+<a href="../../extend/agents/#memory-permissions">Memory permissions</a> for the
+variables, the delegated default, and an example agent document.</p>
 <h2 id="subagents">Subagents<a class="headerlink" href="#subagents" title="Permanent link">&para;</a></h2>
-<p>A delegated run sees only its own agent's memory in its snapshot and may
-write only its own <code>agent://&lt;agent&gt;</code> file, whatever its rules say; it can still
-search and read every layer its <code>memory</code> rules allow. Only the root agent
-decides what to keep about you, machines, and projects.</p>
+<p>A delegated run's snapshot holds only its own agent's file, and its
+prompt says so. For each of <code>memory</code> and <code>memory_write</code> its agent document
+has no key for, it gets <code>agent://${agent_id}</code> allowed: it sees
+and maintains its own agent file, and nothing else (no <code>user://</code>, machine, or
+project memory). A document that declares either key gets exactly the rules it
+declares, <code>user://</code> included if it grants it; there is no hard limit behind
+the default. Only the root agent keeps what it learns about you, machines, and
+projects unless you give a subagent that access.</p>
 
 
 

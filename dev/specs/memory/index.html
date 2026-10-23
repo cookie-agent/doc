@@ -3219,6 +3219,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#16915-implementation-notes-phase-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.15 Implementation notes: phase 1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16916-implementation-notes-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.16 Implementation notes: phase 3
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4356,6 +4374,24 @@
   <a href="#16914-phases" class="md-nav__link">
     <span class="md-ellipsis">
       16.9.14 Phases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16915-implementation-notes-phase-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.15 Implementation notes: phase 1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16916-implementation-notes-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.16 Implementation notes: phase 3
     </span>
   </a>
   
@@ -6111,7 +6147,8 @@ phase 1 of <a href="../runtime-delegation/#11-implementation-notes">delegating t
   TUI's machines view lists them too, as "last seen here".</li>
 </ul>
 <h3 id="169-addendum-2026-10-22-memory-that-stays-worth-keeping">16.9 Addendum 2026-10-22: memory that stays worth keeping<a class="headerlink" href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" title="Permanent link">&para;</a></h3>
-<p>Settled 2026-10-22, awaiting the go-ahead to implement. Models with write
+<p>Settled 2026-10-22. Phase 1, the engine, is implemented (section
+16.9.15), and phase 3, the docs, is written; the clients phase remains. Models with write
 access saved things that are useless by the next session. For example,
 after "explore this directory", one saved the directory listing. The only
 save guidance was "save what a later session should know", and nothing
@@ -6563,6 +6600,160 @@ mode it rejects writes that fail the rubric.</p>
 <li>the tools reference, regenerated;</li>
 <li>this addendum marked implemented.</li>
 </ol>
+<h4 id="16915-implementation-notes-phase-1">16.9.15 Implementation notes: phase 1<a class="headerlink" href="#16915-implementation-notes-phase-1" title="Permanent link">&para;</a></h4>
+<p>Landed 2026-10-22: the engine phase of section 16.9.14, with the protocol
+surface the clients phase renders (client protocol 1.14.0, plugin protocol
+1.6.0). The clients' rendering of change events, stamps, and limits, and the
+docs phase (the memory guide, the permissions page, the system prompt
+reference's memory turn), remain.</p>
+<p>Where things are:</p>
+<ul>
+<li><strong>The section</strong> (<code>crates/engine/src/memory_tools.rs</code>): <code>PART_A_ROOT</code>,
+  <code>PART_A_DELEGATED</code>, <code>PART_B</code>, and <code>prompt_section(access, delegated)</code>.
+  <code>Engine::compose_tool_prompt_sections</code>
+  (<code>crates/engine/src/runtime/tool_prompts.rs</code>) asks it in place of the
+  provider's <code>prompt_sections</code>, from the frozen policy and the session
+  overlay with <code>memory_access</code>, so the section is frozen with the prompt.
+  Its title is <code>Memory</code>.</li>
+<li><strong>Write tools</strong> (<code>crates/engine/src/runtime/memory_runs.rs</code>):
+  <code>memory_access</code> sets <code>writable</code> only when the pattern of an <code>allow</code> or
+  <code>ask</code> <code>memory</code> rule reaching <code>global</code> and that of an <code>allow</code> or <code>ask</code>
+  <code>memory_write</code> rule intersect (<code>permissions::patterns_intersect</code>, an exact
+  search over the two globs). Composition (<code>compose_for_policy</code>) hides the
+  three write tools otherwise.</li>
+<li><strong>Rules</strong> (<code>crates/engine/src/permissions.rs</code>): <code>agent_permission_rules(
+  document, delegated, variables)</code> appends <code>delegated_default_rules</code> for a
+  delegated run, then expands the variables (<code>expand_memory_variables</code>,
+  <code>MemoryVariables</code>). <code>policy::freeze_root_agent_policy</code> and
+  <code>freeze_delegated_agent_policy</code> take the variables and pass <code>delegated</code>
+  through <code>freeze_with_bindings</code>; <code>Engine::memory_variables(session)</code> gives
+  them. Variables are checked when an agent document loads
+  (<code>cookie_agent_config::agent_document::permission_expressions_valid</code>), and
+  <code>WildcardPattern::new</code> accepts them (<code>WildcardPattern::MEMORY_VARIABLES</code>).</li>
+<li><strong>Store</strong> (<code>crates/engine/src/memory/</code>): <code>limits.rs</code> (<code>MemoryLimits</code>, one
+  limit per kind and the snapshot's room), <code>format.rs</code> (ages and sizes),
+  <code>similar.rs</code> (<code>compare</code>), <code>reads.rs</code> (last-read times), and in <code>store.rs</code>
+  <code>WriteMode</code> (<code>Client</code> with a revision, <code>Model</code> with the seen revision and
+  <code>new</code>), the new <code>StoreError</code>s (<code>Unseen</code>, <code>TooLarge</code>, <code>Similar</code>,
+  <code>Identical</code>), <code>MemoryEntry::created</code>/<code>modified</code>, and <code>stamp_unstamped</code>.
+  <code>MemoryDocument</code> carries the stamps (<code>with_stamps</code>, <code>created</code>,
+  <code>modified</code>).</li>
+<li><strong>Seen revisions</strong>: <code>memory_runs::SeenMemories</code> on the engine
+  (<code>Inner::memory_seen</code>), filled by <code>memory_read</code>, the snapshot
+  (<code>TakenSnapshot::shown</code>), and the session's own writes and edits.</li>
+<li><strong>Search and read</strong> (<code>memory/search.rs</code>, <code>memory_tools.rs</code>):
+  <code>SearchHit { url, description, keywords, modified, full }</code>,
+  <code>search_output</code> and <code>read_output</code>, with <code>MemoryCaller::related</code>
+  (<code>RelatedMemory</code>) and <code>MemoryCaller::editable</code>.</li>
+<li><strong>Snapshot</strong> (<code>memory/snapshot.rs</code>, <code>memory/render.rs</code>): every memory
+  shown carries <code>MemoryDocumentStatus</code>, the snapshot <code>taken_at</code>; the render
+  functions take the time the snapshot was taken.</li>
+<li><strong>Project line</strong> (<code>crates/engine/src/runtime/runtime_notes.rs</code>):
+  <code>runtimes_prompt(attachments, project)</code>.</li>
+<li><strong>Reviewer</strong> (<code>crates/engine/src/runtime/approval_flow.rs</code>):
+  <code>with_memory_rubric</code>, for any request that checks <code>memory_write</code>.</li>
+<li><strong>Events</strong>: <code>EventPayload::MemoryChanged { change, url }</code> with
+  <code>MemoryChangeKind</code>, appended by <code>Engine::record_memory_change</code>.</li>
+</ul>
+<p>Deviations and details decided:</p>
+<ul>
+<li><strong>Variables are expanded when a run's policy is frozen</strong>, not at each
+  check. The frozen rules reach the wire (<code>run_started</code>, <code>session_created</code>,
+  the permission views), and the protocol's <code>WildcardPattern</code> schema has no
+  room for the variables without a major bump, so frozen rules hold none.
+  Each run freezes its policy at admission, so a session that gains an
+  attachment or moves to a project is covered from its next run, as its
+  snapshot, tools, and prompt are. <code>${session_machine}</code> makes one rule per
+  machine; a variable that stands for nothing (no project, no machine) drops
+  its rule, since it would match no memory. A delegated child's creation
+  snapshot takes its parent's machines and project; its runs freeze their
+  own. Previews and new sessions freeze with no machine or project.</li>
+<li><strong>Variables in session rules are refused</strong> (<code>check_rule_selectors</code>, also
+  for <code>set_session_permission</code>): the addendum names agent documents, and
+  overlays reach the wire unexpanded. <code>agent://self</code> is now a plain pattern,
+  and <code>self</code> is no longer a reserved agent ID.</li>
+<li><strong>The write-tools check ignores <code>deny</code> rules</strong>, as section 16.9.1 reads:
+  it intersects the <code>allow</code> and <code>ask</code> patterns only.</li>
+<li><strong><code>revision</code> stays in the client RPCs.</strong> The addendum's compatibility
+  section makes the client change additive, so <code>memory.read</code>,
+  <code>memory.write</code>, and <code>memory.delete</code> keep their revisions; only the tools
+  lose them. <code>memory_delete</code> loses its revision too, since <code>memory_read</code> no
+  longer shows one, and deletes without a seen check.</li>
+<li><strong>Seen revisions are kept in memory only.</strong> After a restart a session
+  reads a memory again before replacing it whole. A snapshot counts as
+  seeing every memory it carries whole, an agent file with an empty body
+  included.</li>
+<li><strong>Reads</strong> add <code>description:</code> and <code>keywords:</code> lines (the latter only when
+  there are any) after the spec's six, so a model can replace a memory
+  faithfully; an over-limit memory's size line ends <code>, over its limit</code>. An
+  invalid file's read keeps its reason and shows its raw text.</li>
+<li><strong>Search hits</strong> say <code>editable</code> when the <code>memory_write</code> rules allow or ask
+  for the URL. Ages use the largest whole unit (minutes to years: 7 days a
+  week, 30 a month, 365 a year), <code>less than a minute</code> below that; sizes are
+  bytes below 1024, else KB of 1024 with one decimal.</li>
+<li><strong>Stamps</strong> are RFC 3339 UTC timestamps to the second. Every write, edit,
+  and the user's <code>memory.write</code> re-renders the frontmatter with the
+  daemon's stamps (YAML comments or quoting in the frontmatter do not
+  survive; the body is kept byte for byte). The daemon's own frontmatter
+  rewrites (agent descriptions, overview descriptions) keep the stamps,
+  and its new files (agent files, overviews, the first start's categories)
+  are stamped now. Migration runs once at start: <code>stamp_unstamped</code> adds
+  only the missing lines before the closing <code>---</code>; until then reads use the
+  file's modification time.</li>
+<li><strong>Last read</strong> is kept in <code>memory/.reads.json</code> (a URL to time map, written
+  without the lock, advisory), updated by a model's <code>memory_read</code> and by a
+  snapshot for what it shows whole; <code>memory.list</code> reports it as
+  <code>last_read</code>. Moved or deleted memories keep their entries.</li>
+<li><strong>Limits.</strong> The size counted is the whole file. A file larger than 57344
+  bytes (<code>MemoryConfig::MAX_LIMITS_SUM</code>, which each document limit may not
+  exceed) is invalid; anything smaller is valid whatever its kind's limit.
+  The user's <code>memory.write</code> keeps to the limits too (<code>memory_refused</code>). A
+  memory over its limit accepts a change that leaves it strictly smaller.
+  The configuration sum is <code>agent_max_bytes + snapshot_user_bytes +
+  snapshot_index_bytes</code>; the snapshot shows the agent's file while its
+  escaped text fits what the two snapshot limits leave of that sum, so an
+  agent file somewhat over its limit still shows.</li>
+<li><strong>Over-limit marks</strong>: a whole memory gets <code>status="over its limit"</code> after
+  <code>max_size</code>; an index line's parenthesis reads <code>(&lt;age&gt; old, over its
+  limit)</code>. Index entries carry the status members too.</li>
+<li><strong>Old snapshots.</strong> A snapshot without <code>taken_at</code> was taken by an earlier
+  daemon, so a run takes a new one. The trimmed text renders for old events
+  too (no search or save paragraphs, no status attributes), so a replay of
+  an older log does not show those paragraphs; since such a snapshot is
+  replaced at the session's next run, no model sees the mix.</li>
+<li><strong>Similar memories</strong> compare within the same place only, identical
+  bodies included; blank bodies are never compared. Words are split on
+  anything but letters, digits, and <code>-</code>, lowercased, with a fixed list of
+  48 filler words left out. A strong match lists up to three memories,
+  ranked by shared keywords, then shared words; a weak one (any shared
+  keyword or word) lists them in the result. <code>reason</code> must be one line of
+  1 to 200 characters and only goes with <code>new: true</code>; it is not stored.</li>
+<li><strong>Change events</strong> are audit events, appended during the tool call with
+  its run. A client's changes record none. The client state reducer shows
+  one as an info line, <code>Saved &lt;url&gt;</code>; linking to the Memory view is the
+  clients phase.</li>
+<li><strong>Reviewer</strong> text: a <code>&lt;memory_rubric&gt;</code> block between the prior decisions
+  and the tool call, opening with "The tool call changes memory. The agent
+  was told to keep memory by this rubric; deny a change that fails it.",
+  for <code>memory_write</code>, <code>memory_edit</code>, and <code>memory_delete</code> alike.</li>
+<li><strong>Project line</strong>: with no attachment besides <code>global</code>, the block is the
+  <code>Project:</code> line alone; with one attachment it follows <code>Machine:</code>.</li>
+<li><strong>Versions.</strong> Client protocol 1.14.0 and plugin protocol 1.6.0; the
+  runtime protocol and history format 1 are unchanged. No <code>client/1.14.0</code>
+  or <code>plugin/1.6.0</code> corpus directory was recorded, as for the earlier
+  memory minors.</li>
+<li><strong>Editors see the stamps.</strong> <code>memory.read</code> returns the file with its
+  <code>created</code> and <code>modified</code> lines, so <code>/memory</code>, the web page, and <code>cookie
+  memory edit</code> open them in the editor; whatever the user leaves there is
+  replaced by the daemon's stamps on save. Hiding them is for the clients
+  phase.</li>
+<li><strong>Tests.</strong> One compaction test's agent lost write access so its small
+  history still compacts under the longer system prompt. The future plugin
+  corpus's expected handshake answer names plugin protocol 1.6.0, as it has
+  named each earlier minor.</li>
+</ul>
+<h4 id="16916-implementation-notes-phase-3">16.9.16 Implementation notes: phase 3<a class="headerlink" href="#16916-implementation-notes-phase-3" title="Permanent link">&para;</a></h4>
+<p>Written 2026-10-22: the memory guide, the permissions pages (<code>extend/agents.md</code>, <code>concepts/permissions.md</code>), the system prompt reference's <code>Project:</code> line, memory section, and trimmed memory turn, and the concept page; the configuration reference and the tools reference were already current from phase 1.</p>
 
 
 
