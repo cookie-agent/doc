@@ -2918,6 +2918,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake" class="md-nav__link">
+    <span class="md-ellipsis">
+      12. Addendum 2026-10-22: a parent waits while its child can still wake
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      13. Addendum 2026-10-22: a producer wait does not keep a session in memory
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3310,6 +3328,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cron/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cron jobs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../model-configuration/" class="md-nav__link">
         
   
@@ -3657,6 +3698,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake" class="md-nav__link">
+    <span class="md-ellipsis">
+      12. Addendum 2026-10-22: a parent waits while its child can still wake
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      13. Addendum 2026-10-22: a producer wait does not keep a session in memory
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3677,7 +3736,9 @@
 
 
 <h1 id="background-tool-calls">Background Tool Calls<a class="headerlink" href="#background-tool-calls" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>implemented</strong> (decisions of 2026-10-16; all three phases landed 2026-10-16).
+<p>Status: <strong>implemented</strong> (decisions of 2026-10-16; all three phases landed 2026-10-16;
+addenda of 2026-10-22 in sections <a href="#12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake">12</a>
+and <a href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory">13</a>).
 Sections 1, 7.1, and the "today" notes describe the design this replaced. This document is the
 governing specification for running supported tool calls in the background,
 whether the model asks for it or the user moves a running call there.
@@ -4150,6 +4211,58 @@ move.</p>
 <li>Runtime tools may declare no permission, like the daemon's own (6.1).</li>
 </ul>
 <p>There are no open questions.</p>
+<h2 id="12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake">12. Addendum 2026-10-22: a parent waits while its child can still wake<a class="headerlink" href="#12-addendum-2026-10-22-a-parent-waits-while-its-child-can-still-wake" title="Permanent link">&para;</a></h2>
+<p>Decided by the user on 2026-10-22 and implemented the same day. Turn reports
+(7.2) are unchanged: each turn's report is delivered when that turn ends.</p>
+<p>A direct child counts for its parent, which lists <code>subagent</code> in
+<code>SessionMeta::waiting_on</code>, while the child runs a turn on its own <strong>or itself
+waits on anything that can start another turn</strong>: its own background calls,
+external producers, and its own subagents, recursively, so a child that
+waits on a grandchild counts too. A child that ends its turn while its
+background call runs keeps its parent waiting until the call has reported
+and the turn it starts has ended.</p>
+<ul>
+<li>The parent's state is derived from its children's current state, not from
+  a registration kept alive: a background delegation's registration still
+  counts while it exists (the child queued or in its first turn), but its
+  drop is not what ends the parent's wait.</li>
+<li>What a session waits on live is computed in one place,
+  <code>Engine::live_waiting_kinds</code> (<code>engine/src/runtime/producers.rs</code>), and a
+  delegated session counts for its parent exactly when that list is not
+  empty. Whenever it changes between empty and not empty (a registration
+  made or dropped, a child's run started or ended, a grandchild's state),
+  <code>refresh_live_waiting</code> refreshes the parent, and so on up the tree. Each
+  step computes and records under one lock, releases it, announces, and only
+  then moves to the parent.</li>
+<li>Goals do not count: only a root can have one. Agent mail slots and a
+  subagent report's own send count for nothing, as before.</li>
+<li>Cron jobs, once they exist, count only while enabled with a next fire
+  time; they add their kind in <code>live_waiting_kinds</code> and so count for the
+  parent with no other change.</li>
+<li>A restart ends every live producer, so the derived state resets with it.</li>
+<li>The client protocol is unchanged: only when <code>subagent</code> is listed changed.</li>
+</ul>
+<h2 id="13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory">13. Addendum 2026-10-22: a producer wait does not keep a session in memory<a class="headerlink" href="#13-addendum-2026-10-22-a-producer-wait-does-not-keep-a-session-in-memory" title="Permanent link">&para;</a></h2>
+<p>Decided by the user on 2026-10-22 and implemented the same day.</p>
+<p>A producer registration alone no longer pins a session or its tree: a
+session that only waits on a background call, a background delegation, an
+external producer, or its goal pages out once it has been unused for the
+usual idle window (<code>delegation.idle_eviction_after</code> for a subagent, 30
+minutes for a root tree), since it has already waited that long.</p>
+<ul>
+<li>Work about to happen still pins, as before: a scheduled producer wake, an
+  accepted message not yet delivered, a running or queued run, compaction,
+  pending approvals, and unadmitted input.</li>
+<li>Eviction keeps the session's registrations
+  (<code>Engine::retain_registrations_on_eviction</code>). When the producer sends,
+  the send reloads the session from disk and is accepted exactly as if it
+  had stayed resident, with the same producer ID and idempotency key, and
+  the woken run starts as usual.</li>
+<li>What an evicted session waits on stays current for clients: listings
+  serve it from the in-memory summary with the live kinds added, and
+  announcing a change never reloads the session. The parent propagation of
+  section 12 works whether the child, the parent, or both are evicted.</li>
+</ul>
 
 
 
