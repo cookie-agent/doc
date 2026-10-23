@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["document_html","markdown_html"]};
+window.SIDEBAR_ITEMS = {"fn":["block_html","document_html","markdown_html"]};
