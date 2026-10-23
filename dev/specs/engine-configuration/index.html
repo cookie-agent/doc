@@ -2948,6 +2948,57 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#11-addendum-2026-10-23-clients-restart-the-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Addendum 2026-10-23: clients restart the daemon
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Addendum 2026-10-23: clients restart the daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.1 Protocol
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.2 Behaviour
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.3 Clients
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.4 Tests
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3363,6 +3414,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../default-models-and-onboarding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Default models and onboarding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../model-configuration/" class="md-nav__link">
         
   
@@ -3602,6 +3676,57 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#11-addendum-2026-10-23-clients-restart-the-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Addendum 2026-10-23: clients restart the daemon
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Addendum 2026-10-23: clients restart the daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.1 Protocol
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.2 Behaviour
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.3 Clients
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.4 Tests
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3623,7 +3748,9 @@
 
 <h1 id="live-engine-configuration">Live Engine Configuration<a class="headerlink" href="#live-engine-configuration" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>implemented</strong> (2026-10-17; decisions in <a href="#9-review">Review</a>, see
-<a href="#10-implementation-notes">Implementation notes</a>).</p>
+<a href="#10-implementation-notes">Implementation notes</a>). Addendum of 2026-10-23
+(<a href="#11-addendum-2026-10-23-clients-restart-the-daemon">section 11</a>): clients
+restart the daemon, approved and being implemented.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>A daemon now runs for days and serves clients on other machines, but its
 configuration is read once at start: changing an agent document or a
@@ -3938,6 +4065,79 @@ sections above:</p>
   <code>session.permission.preview</code>. The configuration apply recompiles there as
   well. Only the in-process <code>cookie run</code> session creation keeps waiting on
   its own worker.</li>
+</ul>
+<h2 id="11-addendum-2026-10-23-clients-restart-the-daemon">11. Addendum 2026-10-23: clients restart the daemon<a class="headerlink" href="#11-addendum-2026-10-23-clients-restart-the-daemon" title="Permanent link">&para;</a></h2>
+<p>Status: <strong>approved</strong> (2026-10-23), being implemented.</p>
+<p><code>config.status</code> already reports <code>restart_required</code> parts (<code>server</code>,
+<code>plugins</code>, <code>runtimes</code>) that only a restart applies, but no client can
+restart the daemon. This addendum adds that, so a change made outside a
+client (an edited <code>config.toml</code>, a new binary on disk) can be applied from
+the TUI, the web client, or the CLI.</p>
+<p><strong>Decided 2026-10-23:</strong></p>
+<ul>
+<li>A plain "Restart daemon" waits until no run is active; restarting now,
+  interrupting running turns, is an explicit choice.</li>
+<li>A daemon that cannot relaunch itself refuses the call.</li>
+</ul>
+<h3 id="111-protocol">11.1 Protocol<a class="headerlink" href="#111-protocol" title="Permanent link">&para;</a></h3>
+<p>Client protocol minor, additive:</p>
+<ul>
+<li><code>daemon.restart { when: "idle" | "now" }</code> → <code>{ scheduled, active_runs }</code>.
+  <code>when</code> defaults to <code>idle</code>. A second call while one is scheduled updates its
+  <code>when</code> (<code>now</code> wins).</li>
+<li><code>daemon.restarting</code> notification <code>{ when, active_runs, reason? }</code>, sent to
+  every client when a restart is scheduled and as the wait progresses.</li>
+<li>New error <code>restart_unsupported</code> ("this daemon can't restart itself") for a
+  daemon not started by <code>cookie daemon</code>, such as one embedded in a test
+  harness or another program.</li>
+<li>Any client holding the daemon's token may call it; the token already
+  grants full control.</li>
+</ul>
+<h3 id="112-behaviour">11.2 Behaviour<a class="headerlink" href="#112-behaviour" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>idle</code>:</strong> the restart waits until no run is active in any session.
+  Meanwhile new runs are refused with "the daemon is restarting" (cron fires
+  are recorded as skipped for that reason), producers' messages queue as
+  usual, and clients show why.</li>
+<li><strong><code>now</code>:</strong> running turns end as interrupted, as after any stop; recovery
+  closes them out when the daemon comes back.</li>
+<li><strong>The restart:</strong> the daemon finishes in-flight replies, flushes session
+  logs and its stores, stops its runtimes and plugins as on shutdown, closes
+  client connections with a <code>restarting</code> close reason, and relaunches its
+  own executable with the same arguments and environment:</li>
+<li><strong>Unix:</strong> an in-place <code>exec</code>, keeping the process ID, so systemd and
+    launchd see no change.</li>
+<li><strong>Windows:</strong> it starts a new process with the same command line and
+    exits; the new process waits for the listening port to free before
+    binding.</li>
+<li>The executable is re-read from disk, so a restart after an upgrade runs
+    the new build; clients already notice a changed daemon build when they
+    reconnect.</li>
+<li><strong>Afterwards:</strong> clients reconnect as after any dropped connection; dial-in
+  runtimes reconnect as they already do. Sessions are on disk; nothing is
+  lost.</li>
+</ul>
+<h3 id="113-clients">11.3 Clients<a class="headerlink" href="#113-clients" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Banner:</strong> while <code>config.status</code> lists <code>restart_required</code> parts, the TUI
+  and the web client show "Restart needed to apply: plugins, runtimes ·
+  Restart daemon".</li>
+<li><strong>Always available:</strong> TUI <code>/restart</code>; web Settings → "Restart daemon";
+  <code>cookie daemon restart [--now] [--url &lt;url&gt;] [--token &lt;token&gt;]</code>.</li>
+<li><strong>Confirmation:</strong> "Restart when idle" (the default) or "Restart now
+  (interrupts N running turns)".</li>
+<li><strong>While waiting:</strong> "Restarting when idle…" until the connection closes,
+  then the client's ordinary reconnecting state.</li>
+</ul>
+<h3 id="114-tests">11.4 Tests<a class="headerlink" href="#114-tests" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>idle</code> waits for an active run and refuses new runs meanwhile; <code>now</code>
+  interrupts and the next start recovers the runs; a second call switching to
+  <code>now</code>; <code>restarting</code> notifications; <code>restart_unsupported</code> from an embedded
+  engine.</li>
+<li>The relaunch itself, in an integration test that starts <code>cookie daemon</code>,
+  restarts it through the RPC, and reconnects (Unix; Windows in CI).</li>
+<li>The TUI and web banner, buttons, and confirmation.</li>
 </ul>
 
 
