@@ -3040,6 +3040,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#115-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.5 Implementation notes
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3768,6 +3777,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#115-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.5 Implementation notes
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4113,7 +4131,7 @@ sections above:</p>
   its own worker.</li>
 </ul>
 <h2 id="11-addendum-2026-10-23-clients-restart-the-daemon">11. Addendum 2026-10-23: clients restart the daemon<a class="headerlink" href="#11-addendum-2026-10-23-clients-restart-the-daemon" title="Permanent link">&para;</a></h2>
-<p>Status: <strong>approved</strong> (2026-10-23), being implemented.</p>
+<p>Status: <strong>implemented</strong> (2026-10-23); see <a href="#115-implementation-notes">11.5</a>.</p>
 <p><code>config.status</code> already reports <code>restart_required</code> parts (<code>server</code>,
 <code>plugins</code>, <code>runtimes</code>) that only a restart applies, but no client can
 restart the daemon. This addendum adds that, so a change made outside a
@@ -4184,6 +4202,70 @@ the TUI, the web client, or the CLI.</p>
 <li>The relaunch itself, in an integration test that starts <code>cookie daemon</code>,
   restarts it through the RPC, and reconnects (Unix; Windows in CI).</li>
 <li>The TUI and web banner, buttons, and confirmation.</li>
+</ul>
+<h3 id="115-implementation-notes">11.5 Implementation notes<a class="headerlink" href="#115-implementation-notes" title="Permanent link">&para;</a></h3>
+<p>Landed in client protocol 1.19.0 (the protocol, the engine and server, the
+<code>cookie daemon</code> relaunch and <code>cookie daemon restart</code>, the TUI, and the web
+client, each its own commit). Where it differs from or adds to the sections
+above:</p>
+<ul>
+<li><strong>The hook.</strong> The engine schedules the restart and decides when it is due
+  (<code>Engine::schedule_restart</code>, <code>Engine::set_restart_hook</code>); only
+  <code>cookie daemon</code> installs the hook, so an engine embedded anywhere else,
+  <code>cookie --standalone</code> included, answers <code>restart_unsupported</code>.
+  <code>ServerProtocol::restart_daemon</code> refuses by default.</li>
+<li><strong>What <code>idle</code> waits for.</strong> Runs active or starting in any session. A run's
+  delegated children still start, since they are part of a turn the restart
+  waits for; every other start (<code>run.start</code>, <code>session.submit_input</code> on an
+  idle session, queued input, a producer's wake) is refused with the new
+  error <code>daemon_restarting</code>. Queued input stays queued and starts when a
+  client next opens its session on the restarted daemon. <code>crons.run</code> is
+  refused too; a scheduled fire is skipped with the new reason
+  <code>daemon_restarting</code>.</li>
+<li><strong><code>scheduled</code></strong> is <code>false</code> when a restart was already scheduled and the
+  call only changed its <code>when</code>.</li>
+<li><strong><code>daemon.restarting</code></strong> goes to every connection, a new one included,
+  whenever the <code>when</code> or the number of active runs changes and once the
+  restart is due; its <code>reason</code> says what it waits for ("waiting for 2 running
+  turns to finish") or "restarting now".</li>
+<li><strong>The sequence.</strong> The daemon shuts the engine down first (runs end as
+  cancelled, plugins, MCP servers, ACP agents, and runtimes stop, the logs
+  and stores are flushed) while clients are still connected, so they see the
+  turns end; then it closes every client connection with WebSocket close
+  code 1012 (Service Restart) and the reason <code>restarting</code>, which both
+  clients read as "the daemon is restarting". Any server shutdown now sends
+  the frames a connection has queued and a close frame before it closes.</li>
+<li><strong>Relaunch.</strong> The daemon captures its executable (<code>current_exe</code> at start,
+  so an upgrade replacing the file runs the new build), arguments,
+  environment, and directory before it changes any of them. On Unix it
+  marks every descriptor above standard error close-on-exec and <code>exec</code>s in
+  place with the original <code>argv[0]</code>; on Windows it spawns the same command
+  line and exits 0. The relaunched process finds <code>COOKIE_DAEMON_RESTARTED</code>,
+  removes it from its environment, and retries binding a port still in use
+  for up to 30 seconds. The listening line names the process ID, which a
+  Windows user needs to stop the new process outside its scheduled task.</li>
+<li><strong>Clients.</strong> The banner needs the configuration status, so both clients
+  fetch <code>config.get</code> on connect and on <code>runtime.changed</code> with
+  <code>config_reloaded</code> (and <code>resync</code>). The confirmation counts the running
+  sessions the client knows. The TUI's <code>/config</code> panel has <em>Reload from
+  disk</em> (<code>r</code>) and <em>Restart daemon</em> (<code>R</code>) buttons, the latter highlighted
+  while a part waits for a restart; the web client's Settings →
+  Configuration has the same pair. The confirmation returns to the panel it
+  opened over.</li>
+<li><strong>Token fix.</strong> A daemon started without <code>[server] token</code> writes one at
+  start; that write used to read as a <code>server</code> change needing a restart. The
+  daemon now tells the engine the token it serves with
+  (<code>Engine::note_served_server_token</code>).</li>
+<li><strong>Tests.</strong> Engine tests for the idle wait, refused starts, kept queue,
+  <code>now</code> overriding <code>idle</code> and the shutdown interrupting the run, the cron
+  skip, and the missing hook; a server test over a real WebSocket for
+  <code>restart_unsupported</code>, <code>daemon.restarting</code>, and the 1012 close; an
+  integration test (<code>crates/cookie_agent/tests/daemon_restart.rs</code>) that
+  starts the real <code>cookie daemon</code> on a scratch home and a free port,
+  restarts it through the RPC, and reconnects on the same port with the same
+  token (same PID on Unix, a new one on Windows); TUI tests for <code>/restart</code>,
+  the <code>/config</code> buttons, and the hover sweep; and the <code>restart_daemon</code>
+  browser scenario.</li>
 </ul>
 
 

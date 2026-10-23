@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RECONNECT_WAIT","RESTARTED_ENV","RESTART_BIND_WAIT"],"enum":["DaemonCommand"],"fn":["bind_retrying","flush_standard_streams","mark_descriptors_close_on_exec","reconnect","relaunch","run_restart","scheduled_line"],"struct":["Relaunch"]};

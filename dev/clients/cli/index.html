@@ -1060,6 +1060,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="cookie daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cookie-daemon-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      cookie daemon restart
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4172,6 +4187,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="cookie daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cookie-daemon-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      cookie daemon restart
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4755,6 +4785,10 @@ attaching clients to it.</p>
 <td>Serve the client protocol, the web page, and dial-in runtimes</td>
 </tr>
 <tr>
+<td><a href="#cookie-daemon-restart"><code>cookie daemon restart</code></a></td>
+<td>Restart a running daemon, once idle or at once</td>
+</tr>
+<tr>
 <td><a href="#cookie-attach"><code>cookie attach</code></a></td>
 <td>The terminal UI on a running daemon, here or elsewhere</td>
 </tr>
@@ -4830,9 +4864,9 @@ attaching clients to it.</p>
 </tbody>
 </table>
 <h3 id="reaching-a-daemon">Reaching a daemon<a class="headerlink" href="#reaching-a-daemon" title="Permanent link">&para;</a></h3>
-<p><code>attach</code>, <code>web</code>, <code>connect</code>, <code>disconnect</code>, <code>config</code>, <code>machine</code>, <code>memory</code>,
-<code>project</code>, <code>cron</code>, <code>mcp</code>, and <code>runtime serve --daemon</code> talk to a running
-daemon. Each takes <code>--url</code> and <code>--token</code>; for <code>config</code>, <code>machine</code>, <code>memory</code>,
+<p><code>attach</code>, <code>web</code>, <code>connect</code>, <code>disconnect</code>, <code>daemon restart</code>, <code>config</code>,
+<code>machine</code>, <code>memory</code>, <code>project</code>, <code>cron</code>, <code>mcp</code>, and <code>runtime serve --daemon</code>
+talk to a running daemon. Each takes <code>--url</code> and <code>--token</code>; for <code>config</code>, <code>machine</code>, <code>memory</code>,
 <code>project</code>, and <code>cron</code> the two may also follow the nested subcommand. They resolve the daemon this way:</p>
 <ul>
 <li><strong>URL:</strong> <code>--url</code>, else <code>[server] url</code> in this machine's <code>config.toml</code>, else
@@ -4983,7 +5017,8 @@ describes each option.</p>
 <p>Serves the client protocol on <code>/ws</code>, the web page, and dial-in runtimes on
 <code>/runtime</code>, for sessions of any directory; the sessions are stored for the
 directory it starts in. It prints the ready line, then its address and client
-protocol version and the web page's address, and runs until a stop signal.
+protocol version, its process ID, and the web page's address, and runs
+until a stop signal or a <a href="#cookie-daemon-restart">restart</a>.
 Without a <code>[server] token</code> it writes a fresh one to <code>config.toml</code> first. See
 <a href="../../daemon/persistent/#separate-server-and-client">Persistent daemon</a>.</p>
 <table>
@@ -5019,8 +5054,46 @@ Without a <code>[server] token</code> it writes a fresh one to <code>config.toml
 </table>
 <p>See <a href="../../daemon/remote-access/#listening-on-other-addresses">Remote access</a>
 before listening off loopback.</p>
+<h4 id="cookie-daemon-restart"><code>cookie daemon restart</code><a class="headerlink" href="#cookie-daemon-restart" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cookie daemon restart [--now] [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+</code></pre></div>
+<p>Asks a running daemon to restart (<code>daemon.restart</code>): it relaunches its own
+executable with the same arguments and environment, which applies the
+configuration <code>cookie config status</code> lists as needing a restart and runs a
+binary upgraded on disk. Without <code>--now</code> the daemon waits until no turn is
+running in any session and refuses new turns meanwhile; the command prints
+what it waits for and how many turns are left. It then waits for the daemon
+to come back, up to a minute, and says whether its version changed.
+Ctrl-C stops waiting; the restart stays scheduled. See
+<a href="../../daemon/persistent/#restarting-the-daemon">Restarting the daemon</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--now</code></td>
+<td>Restart at once; running turns end as interrupted. Also turns a restart already waiting into an immediate one.</td>
+</tr>
+<tr>
+<td><code>--url &lt;URL&gt;</code></td>
+<td>The daemon's client URL (see <a href="#reaching-a-daemon">Reaching a daemon</a>).</td>
+</tr>
+<tr>
+<td><code>--token &lt;TOKEN&gt;</code></td>
+<td>The daemon's token (see <a href="#reaching-a-daemon">Reaching a daemon</a>).</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cookie<span class="w"> </span>daemon<span class="w"> </span>restart<span class="w"> </span>--url<span class="w"> </span>ws://127.0.0.1:7419/ws<span class="w"> </span>--token<span class="w"> </span>&lt;token&gt;
+</code></pre></div>
+<p>A daemon not started by <code>cookie daemon</code>, such as an engine embedded in
+another program, answers <code>restart_unsupported</code>.</p>
 <h3 id="cookie-attach"><code>cookie attach</code><a class="headerlink" href="#cookie-attach" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cookie attach [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cookie attach [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Opens the terminal UI on a running daemon, found as
 <a href="#reaching-a-daemon">Reaching a daemon</a> says. It never runs an engine of its
@@ -5028,7 +5101,7 @@ own: a daemon it cannot reach or use is an error. A dropped connection is
 redialed, and quitting leaves the daemon running. See
 <a href="../../daemon/persistent/#separate-server-and-client">Persistent daemon</a>.</p>
 <h3 id="cookie-web"><code>cookie web</code><a class="headerlink" href="#cookie-web" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cookie web [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;] [--open]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cookie web [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;] [--open]
 </code></pre></div>
 <p>Prints the daemon's web page with the token in its fragment,
 <code>http://127.0.0.1:7419/#token=&lt;token&gt;</code>: the client URL with <code>ws</code> turned into
@@ -5036,7 +5109,7 @@ redialed, and quitting leaves the daemon running. See
 the daemon. <code>--open</code> also opens the page in the system browser (<code>open</code> on
 macOS, <code>start</code> on Windows, <code>xdg-open</code> elsewhere). See <a href="../web/">Web</a>.</p>
 <h3 id="cookie-connect"><code>cookie connect</code><a class="headerlink" href="#cookie-connect" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cookie connect [PROVIDER_ID] [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cookie connect [PROVIDER_ID] [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Creates or updates the daemon's durable, global connection to a managed
 provider: pick the provider (or name it), confirm, choose the auth method,
@@ -5045,13 +5118,13 @@ on standard input, output, and error: credentials are never accepted as
 arguments. Answering anything but <code>y</code> or <code>yes</code> to the confirmation cancels it
 with an error. See <a href="../../extend/providers/">Providers</a>.</p>
 <h3 id="cookie-disconnect"><code>cookie disconnect</code><a class="headerlink" href="#cookie-disconnect" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cookie disconnect [PROVIDER_ID] [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cookie disconnect [PROVIDER_ID] [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Removes a managed provider connection after a <code>[y/N]</code> confirmation; it needs
 an interactive terminal like <code>connect</code>.</p>
 <h3 id="cookie-runtime-serve"><code>cookie runtime serve</code><a class="headerlink" href="#cookie-runtime-serve" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cookie runtime serve --stdio [--root &lt;DIR&gt;]...
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cookie runtime serve --daemon [&lt;URL&gt;] [--id &lt;RUNTIME_ID&gt;] [--token &lt;TOKEN&gt;] [--root &lt;DIR&gt;]...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cookie runtime serve --stdio [--root &lt;DIR&gt;]...
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>cookie runtime serve --daemon [&lt;URL&gt;] [--id &lt;RUNTIME_ID&gt;] [--token &lt;TOKEN&gt;] [--root &lt;DIR&gt;]...
 </code></pre></div>
 <p>Serves this machine's runtime, the <code>coding</code> capability (<code>read</code>, <code>write</code>,
 <code>edit</code>, <code>bash</code>, <code>webfetch</code>), over the runtime protocol. It needs no provider
@@ -5089,7 +5162,7 @@ configuration. One of <code>--stdio</code> and <code>--daemon</code> is required
 <p>It runs until a stop signal. See
 <a href="../../daemon/runtimes/#runtimes-that-dial-in">Runtimes that dial in</a>.</p>
 <h3 id="cookie-runtime-mcp-bridge"><code>cookie runtime mcp-bridge</code><a class="headerlink" href="#cookie-runtime-mcp-bridge" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cookie runtime mcp-bridge --socket &lt;PATH&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cookie runtime mcp-bridge --socket &lt;PATH&gt;
 </code></pre></div>
 <p>Copies standard input to a runtime's bridge socket and the socket to
 standard output: the stdio MCP server <code>cookie</code> a runtime hands the ACP agents
@@ -5112,7 +5185,7 @@ hand.</p>
 </tbody>
 </table>
 <h3 id="cookie-config"><code>cookie config</code><a class="headerlink" href="#cookie-config" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cookie config &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>cookie config &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Reads and changes the daemon's configuration documents, <code>config.toml</code> and the
 agent documents, through the daemon, which applies each change live or says
@@ -5142,7 +5215,7 @@ after editing them by hand.</p>
 <p><code>cookie config status</code> shows whether the applied configuration matches the
 files, why the last reload failed, and what needs a restart.</p>
 <h3 id="cookie-machine"><code>cookie machine</code><a class="headerlink" href="#cookie-machine" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cookie machine &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>cookie machine &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Manages the machines the daemon's runtimes run on. See
 <a href="../../daemon/runtimes/#machines">Machines</a>.</p>
@@ -5169,7 +5242,7 @@ runtimes and no memories.</p>
 <p><code>cookie machine forget-runtime &lt;RUNTIME&gt;</code> forgets where an offline runtime
 ran, so it is no longer listed on its machine. A pin stays.</p>
 <h3 id="cookie-memory"><code>cookie memory</code><a class="headerlink" href="#cookie-memory" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>cookie memory &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>cookie memory &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Manages the daemon's memories. See
 <a href="../../sessions/memory/#managing-memory">Memory</a>.</p>
@@ -5194,7 +5267,7 @@ memory that changed since it was opened, offers to edit again.</p>
 <p><code>cookie memory rm &lt;URL&gt; [-y | --yes]</code> deletes a memory, asking first unless
 <code>--yes</code>.</p>
 <h3 id="cookie-project"><code>cookie project</code><a class="headerlink" href="#cookie-project" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>cookie project &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cookie project &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Manages the daemon's <a href="../../concepts/projects/">projects</a> by name.</p>
 <h4 id="cookie-project-list"><code>cookie project list</code><a class="headerlink" href="#cookie-project-list" title="Permanent link">&para;</a></h4>
@@ -5222,7 +5295,7 @@ changed since it was opened offers to reload it and edit again.</p>
 project's defaults from a session: its runtime attachments, whether it has
 <code>global</code>, and its agent and agent preset.</p>
 <h3 id="cookie-cron"><code>cookie cron</code><a class="headerlink" href="#cookie-cron" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>cookie cron &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>cookie cron &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <p>Manages the daemon's cron jobs: prompts it fires on a schedule into a
 session, or into a new session per fire. See
@@ -5243,10 +5316,10 @@ pin, and permission mode, failures in a row, who created it and when; then
 its prompt and its history, newest first, with each fire's outcome and the
 session it went to.</p>
 <h4 id="cookie-cron-create"><code>cookie cron create</code><a class="headerlink" href="#cookie-cron-create" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cookie cron create --prompt &lt;TEXT&gt; --schedule &lt;SCHEDULE&gt;
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>                   (--session &lt;SESSION_ID&gt; [--delivery steer|queue]
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>                    | --agent &lt;AGENT&gt; [--model &lt;MODEL&gt;] [--permission-mode &lt;MODE&gt;] [--project &lt;NAME&gt;])
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>                   [--name &lt;NAME&gt;] [--max-runs &lt;RUNS&gt;] [--disabled]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cookie cron create --prompt &lt;TEXT&gt; --schedule &lt;SCHEDULE&gt;
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>                   (--session &lt;SESSION_ID&gt; [--delivery steer|queue]
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>                    | --agent &lt;AGENT&gt; [--model &lt;MODEL&gt;] [--permission-mode &lt;MODE&gt;] [--project &lt;NAME&gt;])
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>                   [--name &lt;NAME&gt;] [--max-runs &lt;RUNS&gt;] [--disabled]
 </code></pre></div>
 <p>Creates a job and prints its ID and next fire.</p>
 <table>
@@ -5326,7 +5399,7 @@ the fire's outcome and the session it went to. A run now counts toward
 neither the job's run limit nor its failures, and fires even with
 <code>[cron] enabled = false</code>.</p>
 <h3 id="cookie-sessions-upgrade"><code>cookie sessions upgrade</code><a class="headerlink" href="#cookie-sessions-upgrade" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>cookie sessions upgrade [--all]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>cookie sessions upgrade [--all]
 </code></pre></div>
 <p>Converts the sessions of the current directory, or with <code>--all</code> of every
 directory, in <code>~/.cookie-agent</code> to this build's history format, as opening
@@ -5336,7 +5409,7 @@ files directly, without a daemon. It prints a line per tree it converted or
 could not convert and a summary, and exits <code>1</code> when any session could not be
 converted. See <a href="../../sessions/">Sessions</a>.</p>
 <h3 id="cookie-mcp"><code>cookie mcp</code><a class="headerlink" href="#cookie-mcp" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cookie mcp &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>cookie mcp &lt;COMMAND&gt; [--url &lt;URL&gt;] [--token &lt;TOKEN&gt;]
 </code></pre></div>
 <h4 id="cookie-mcp-list"><code>cookie mcp list</code><a class="headerlink" href="#cookie-mcp-list" title="Permanent link">&para;</a></h4>
 <p>Lists every runtime's MCP servers, one per line: the name, its tool count,
@@ -5352,11 +5425,11 @@ cancels the authorization. See <a href="../../extend/mcp/">MCP</a>.</p>
 TUI, daemon, or an in-process protocol server. It is intended for CI and scripts.</p>
 <h3 id="prompt-input">Prompt input<a class="headerlink" href="#prompt-input" title="Permanent link">&para;</a></h3>
 <p>Provide exactly one prompt source:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="go">cookie run "Review this workspace"</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="go">cookie run -p "Review this workspace"</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="go">cookie run -f request.txt</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -p -</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="go">cookie run "Review this workspace"</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="go">cookie run -p "Review this workspace"</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="go">cookie run -f request.txt</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="go">printf '%s\n' 'Review this workspace' | cookie run -p -</span>
 </code></pre></div>
 <p>The positional prompt, <code>-p/--prompt</code>, and <code>-f/--prompt-file</code> conflict with each
 other. <code>-</code> reads standard input for any of them.</p>
