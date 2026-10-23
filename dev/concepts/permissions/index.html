@@ -837,6 +837,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-the-levels-combine" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the levels combine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rules-for-one-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       Rules for one runtime
@@ -3409,6 +3418,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-the-levels-combine" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the levels combine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rules-for-one-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       Rules for one runtime
@@ -3566,9 +3584,66 @@ subagent sees the cron tools only when its document grants <code>cron</code>. Wh
 the rules say, an agent can target only its own session or one below it, and
 only you, from a client, can set a new-session job's permission mode or pin
 its model. See <a href="../../extend/agents/#cron-permissions">Cron permissions</a>.</p>
-<p>Rules can also be added to one session tree without touching the agent, in
-<code>/permissions</code> or with <code>cookie run --allowed-tools</code>; these <em>overlay</em> rules are
-checked before the agent's. See
+<h2 id="how-the-levels-combine">How the levels combine<a class="headerlink" href="#how-the-levels-combine" title="Permanent link">&para;</a></h2>
+<p>A run's rules come from three levels: the daemon's defaults, the agent
+document, and the session's own rules, which you add in <code>/permissions</code>, the
+web client's permissions panel, or with <code>cookie run --allowed-tools</code> without
+touching the agent. They merge into <strong>one rule list</strong>:</p>
+<ol>
+<li>the defaults, for each action the document names no key for;</li>
+<li>the document's rules;</li>
+<li>the session's rules. A session rule with the same action, runtime selector,
+   and pattern as a rule above replaces it; any other session rule is added.</li>
+</ol>
+<p>That one list decides everything: a tool is offered when some rule for its
+action allows or asks, and a call follows the most specific matching rule,
+with a session rule winning a tie. <code>/permissions</code> shows the same list, each
+rule with its source (<code>session</code>, <code>agent</code>, or <code>default</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Session rule</th>
+<th>Document and defaults</th>
+<th>A call</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cron: deny</code></td>
+<td>default <code>cron: allow</code></td>
+<td>none: the cron tools are hidden</td>
+</tr>
+<tr>
+<td><code>memory: {"user://*": deny}</code></td>
+<td>default <code>memory: allow</code></td>
+<td><code>user://</code> denied, every other memory readable</td>
+</tr>
+<tr>
+<td><code>bash: {"cargo test *": allow}</code></td>
+<td><code>bash: {"*": ask}</code></td>
+<td><code>cargo test</code> runs, the rest asks</td>
+</tr>
+<tr>
+<td><code>bash: {"*": allow}</code></td>
+<td><code>bash: {"*": ask, "git push *": deny}</code></td>
+<td><code>git push</code> denied, the rest runs</td>
+</tr>
+<tr>
+<td><code>bash: {"git push *": allow}</code></td>
+<td><code>bash: {"*": ask, "git push *": deny}</code></td>
+<td><code>git push</code> runs, the rest asks</td>
+</tr>
+<tr>
+<td><code>mcp: deny</code></td>
+<td>default <code>mcp: {"*": ask}</code></td>
+<td>none: the MCP tools are hidden</td>
+</tr>
+</tbody>
+</table>
+<p>So a session can turn off a tool a default gives (memory, cron, MCP,
+<code>list_runtimes</code>), and a broad session rule does not override a narrower rule
+of the document: to change that rule for one session, override that exact
+pattern, which is what editing a row in <code>/permissions</code> does. See
 <a href="../../extend/agents/#session-permission-overlays">Session permission overlays</a>.</p>
 <h2 id="rules-for-one-runtime">Rules for one runtime<a class="headerlink" href="#rules-for-one-runtime" title="Permanent link">&para;</a></h2>
 <p>A rule keyed <code>action@runtime_id</code> applies only to that runtime's tools,

@@ -3353,6 +3353,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#10-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3683,6 +3692,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#10-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3703,7 +3721,8 @@
 
 
 <h1 id="permission-consolidation">Permission consolidation<a class="headerlink" href="#permission-consolidation" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-23), awaiting the go-ahead to implement.</p>
+<p>Status: <strong>implemented</strong> (2026-10-23); see
+<a href="#10-implementation-notes">Implementation notes</a>.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>A run's permissions come from three levels: the defaults the daemon
 supplies, the agent document, and the session's overrides. Today the engine
@@ -3908,6 +3927,60 @@ tool composition, skills, messaging, memory, cron, <code>list_agents</code>, the
 view), tests, then docs.</p>
 <h2 id="9-open-questions">9. Open questions<a class="headerlink" href="#9-open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
+<h2 id="10-implementation-notes">10. Implementation notes<a class="headerlink" href="#10-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Landed 2026-10-23 in one phase, as section 8 planned.</p>
+<ul>
+<li><strong>One function builds the list.</strong> <code>MergedRules</code>
+  (<code>crates/engine/src/permissions.rs</code>) takes the frozen policy's rules, the
+  session overlay, and the home of the runtime being decided for, and holds
+  each rule with its source. <code>offers</code>, <code>decide</code>, and <code>decide_name_only</code> are
+  the three decisions of section 3.2; the old overlay-first paths
+  (<code>effective_permission_with_overlay</code> and
+  <code>effective_loose_permission_with_overlay</code> consulting the overlay before
+  the policy, and <code>tool_visible</code> chaining both levels) are gone, and the
+  remaining entry points are thin wrappers over the list. Callers: the
+  call pipeline (<code>decide_operation_with_overlay</code> and <code>_with_grants</code>), tool
+  composition and call preparation (<code>tool_visible_with_grants</code>, now also
+  given the tool's runtime home), skills, <code>send_message</code> visibility,
+  <code>memory_access</code> (memory and the write tools' readable-and-writable test),
+  the memory tools' and snapshot's read rules (<code>MemoryCaller</code>), the cron
+  tools' <code>cron_list</code> filter, <code>list_agents</code>, grant invalidation
+  (<code>rule_effects</code>), and the <code>/permissions</code> view.</li>
+<li><strong>Order.</strong> The frozen policy lists the document's rules before the
+  defaults. The two never share an action, so section 3.1's order
+  (defaults, then document) and the frozen order rank every tie the same;
+  the list keeps the frozen order.</li>
+<li><strong>Sources.</strong> Telling a default from a document rule needs to know
+  whether the run is delegated, which only the view does. So the view
+  relabels policy rules (<code>MergedRules::label_defaults</code>, the same
+  per-action test as before), while a decision trace keeps labelling every
+  policy rule <code>agent_document</code>, as recorded history already does; a rule
+  an overlay rule replaced no longer appears among a trace's candidates.</li>
+<li><strong>Identity without a home.</strong> Visibility checks that have no runtime home
+  at hand (<code>send_message</code>, <code>list_agents</code>, memory on <code>global</code>) and the view
+  compare <code>~</code> patterns as written; the call pipeline and tool composition
+  compare them expanded against the tool's runtime home.</li>
+<li><strong>The memory snapshot's rules fingerprint</strong> still hashes the agent's and
+  the overlay's <code>memory</code> rules separately. The merged list is a function of
+  both, so the fingerprint changes exactly when it can.</li>
+<li><strong>Clients.</strong> The TUI and web client already rendered the view's rows as
+  given, without assuming a session <code>*</code> hides the document's patterns; only
+  the TUI's explanation line changed, from "checked before the agent's
+  rules" to "replaces the agent's rule with this pattern, and the most
+  specific rule wins".</li>
+<li><strong>Tests.</strong> The examples of section 3.3 are one test each, beside the
+  building, visibility, name-only, view, and grant tests, in
+  <code>crates/engine/src/permissions/tests/merged.rs</code>; memory's in
+  <code>crates/engine/src/runtime/memory_runs/tests.rs</code>. Five older tests
+  encoded the overlay-first behaviour and were changed: a broad overlay
+  rule over a narrower agent rule now loses to it, and an overlay <code>deny</code>
+  of the agent's own pattern now hides the tool.</li>
+<li><strong><code>cookie run --allowed-tools</code></strong> adds <code>"*": allow</code> overlay rules, so it
+  now replaces only the agent's <code>*</code> rule: a narrower agent rule such as
+  <code>delegate: {reviewer: ask}</code> still decides what it matches. Two headless
+  tests relied on <code>--allowed-tools delegate</code> beating that rule; their agent
+  now writes <code>delegate: ask</code>, and the CLI page says so.</li>
+</ul>
 
 
 

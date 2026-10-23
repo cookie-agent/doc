@@ -26,8 +26,8 @@
 <a href=#26 id=26 data-nosnippet>26</a>        url::MemoryUrl,
 <a href=#27 id=27 data-nosnippet>27</a>    },
 <a href=#28 id=28 data-nosnippet>28</a>    permissions::{
-<a href=#29 id=29 data-nosnippet>29</a>        MemoryVariables, PermissionScope, effective_permission_with_overlay, patterns_intersect,
-<a href=#30 id=30 data-nosnippet>30</a>        tool_visible,
+<a href=#29 id=29 data-nosnippet>29</a>        MemoryVariables, MergedRules, PermissionScope, effective_permission_with_overlay,
+<a href=#30 id=30 data-nosnippet>30</a>        patterns_intersect,
 <a href=#31 id=31 data-nosnippet>31</a>    },
 <a href=#32 id=32 data-nosnippet>32</a>    policy::FrozenRunPolicy,
 <a href=#33 id=33 data-nosnippet>33</a>};
@@ -82,25 +82,25 @@
 <a href=#82 id=82 data-nosnippet>82</a>}
 <a href=#83 id=83 data-nosnippet>83</a>
 <a href=#84 id=84 data-nosnippet>84</a><span class="doccomment">/// Whether a run of `agent` has memory (section 6): its agent is not
-<a href=#85 id=85 data-nosnippet>85</a>/// internal, `global_attached`, and the agent or the session overlay holds
-<a href=#86 id=86 data-nosnippet>86</a>/// an `allow` or `ask` rule for `memory` that reaches the `global`
-<a href=#87 id=87 data-nosnippet>87</a>/// runtime. A writable run can also both read and write some memory URL
-<a href=#88 id=88 data-nosnippet>88</a>/// (section 16.9.1): the pattern of one of those `memory` rules and the
-<a href=#89 id=89 data-nosnippet>89</a>/// pattern of an `allow` or `ask` `memory_write` rule overlap. The frozen
-<a href=#90 id=90 data-nosnippet>90</a>/// rules already have their variables expanded.
-<a href=#91 id=91 data-nosnippet>91</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>memory_access(
-<a href=#92 id=92 data-nosnippet>92</a>    global_attached: bool,
-<a href=#93 id=93 data-nosnippet>93</a>    agent: <span class="kw-2">&amp;</span>AgentSnapshot,
-<a href=#94 id=94 data-nosnippet>94</a>    overlay: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>SessionPermissionOverlay&gt;,
-<a href=#95 id=95 data-nosnippet>95</a>) -&gt; MemoryAccess {
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">let </span>visible = |action: <span class="kw-2">&amp;</span>PermissionAction| {
-<a href=#97 id=97 data-nosnippet>97</a>        tool_visible(<span class="kw-2">&amp;</span>agent.permissions, overlay, action, <span class="prelude-val">Some</span>(GLOBAL_RUNTIME_ID))
-<a href=#98 id=98 data-nosnippet>98</a>    };
+<a href=#85 id=85 data-nosnippet>85</a>/// internal, `global_attached`, and the merged list of its rules and the
+<a href=#86 id=86 data-nosnippet>86</a>/// session overlay ([`MergedRules`]) holds an `allow` or `ask` rule for
+<a href=#87 id=87 data-nosnippet>87</a>/// `memory` that reaches the `global` runtime. A writable run can also both
+<a href=#88 id=88 data-nosnippet>88</a>/// read and write some memory URL (section 16.9.1): the pattern of one of
+<a href=#89 id=89 data-nosnippet>89</a>/// those `memory` rules and the pattern of an `allow` or `ask`
+<a href=#90 id=90 data-nosnippet>90</a>/// `memory_write` rule of the merged list overlap. The frozen rules already
+<a href=#91 id=91 data-nosnippet>91</a>/// have their variables expanded.
+<a href=#92 id=92 data-nosnippet>92</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>memory_access(
+<a href=#93 id=93 data-nosnippet>93</a>    global_attached: bool,
+<a href=#94 id=94 data-nosnippet>94</a>    agent: <span class="kw-2">&amp;</span>AgentSnapshot,
+<a href=#95 id=95 data-nosnippet>95</a>    overlay: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>SessionPermissionOverlay&gt;,
+<a href=#96 id=96 data-nosnippet>96</a>) -&gt; MemoryAccess {
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="kw">let </span>merged = MergedRules::new(<span class="kw-2">&amp;</span>agent.permissions, overlay, <span class="prelude-val">None</span>);
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span>visible = |action: <span class="kw-2">&amp;</span>PermissionAction| merged.offers(action, <span class="prelude-val">Some</span>(GLOBAL_RUNTIME_ID));
 <a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">let </span>patterns = |action: PermissionAction| {
-<a href=#100 id=100 data-nosnippet>100</a>        agent
-<a href=#101 id=101 data-nosnippet>101</a>            .permissions
+<a href=#100 id=100 data-nosnippet>100</a>        merged
+<a href=#101 id=101 data-nosnippet>101</a>            .rules()
 <a href=#102 id=102 data-nosnippet>102</a>            .iter()
-<a href=#103 id=103 data-nosnippet>103</a>            .chain(overlay.into_iter().flat_map(|overlay| <span class="kw-2">&amp;</span>overlay.rules))
+<a href=#103 id=103 data-nosnippet>103</a>            .map(|merged| merged.rule)
 <a href=#104 id=104 data-nosnippet>104</a>            .filter(<span class="kw">move </span>|rule| {
 <a href=#105 id=105 data-nosnippet>105</a>                rule.action == action
 <a href=#106 id=106 data-nosnippet>106</a>                    &amp;&amp; rule.applies_to(<span class="prelude-val">Some</span>(GLOBAL_RUNTIME_ID))

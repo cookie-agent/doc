@@ -4315,14 +4315,24 @@ is and which permissions it starts with.</p>
 <li><strong>Which agents:</strong></li>
 <li>for <code>delegate</code>: the run's delegation targets (enabled <code>subagent</code> and
     <code>all</code> agents its <code>delegate</code> rules allow), at its remaining depth;</li>
-<li>for <code>cron</code>: every enabled non-internal agent, since a new-session job
-    may run any of them.</li>
+<li>for <code>cron</code>: every enabled <code>primary</code> or <code>all</code> agent, the ones a
+    new-session job may run (amended 2026-10-23; it first listed every
+    non-internal agent, <code>subagent</code> ones included, which <code>cron_create</code>
+    refuses).</li>
 <li><strong>Each agent:</strong> its id, description, mode, presets, the models of its
   default chain (provider/model and variant), and its permission rules as
-  a run of it would have them: its own document's rules plus the defaults
-  for an action it names no key for, with each rule marked <code>document</code> or
-  <code>default</code>. Memory and cron defaults are shown for a root run, the
-  delegated defaults for a delegation.</li>
+  a run of it would have them: each key its document declares in full,
+  with <code>${agent_id}</code> written as the agent's ID, then one <code>defaults:</code> line
+  naming the actions it names no key for, whose rules are the daemon's
+  defaults. Memory and cron defaults are those of a root run, the delegated
+  ones for a delegation; an agent usable for both shows each block, with
+  its own <code>defaults:</code> line, when they differ.</li>
+<li><strong>After the agents</strong>, once per result: the defaults section, generated
+  from the default-rule functions themselves, listing the defaults for a
+  root run and for a subagent (only the kinds the listed agents need), the
+  ones only some modes get, that internal agents get none, and what
+  <code>${session_machine}</code>, <code>${session_project}</code>, and <code>${workspace_dir}</code> stand
+  for. The result ends with <code>Actions not listed are denied.</code></li>
 <li><strong>Example result:</strong></li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>builder (primary) — Primary agent for building features and implementing code changes directly.
@@ -4334,8 +4344,19 @@ is and which permissions it starts with.</p>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    bash: allow
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    webfetch: allow
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    mcp: my_chrome_* allow
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    list_runtimes: allow (default)
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    memory: * allow (default) ...
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    defaults: list_runtimes, memory, memory_write, cron
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>Defaults (for actions an agent document names no key for):
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  as a root run:
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    list_runtimes: allow
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    mcp: ask
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    memory: allow
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    memory_write: user://* allow; agent://&lt;agent id&gt; allow; machine://${session_machine}/* allow; project://${session_project}/* allow
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    cron: allow
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>  Internal agents get none.
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>  Variables: ${session_machine} is each machine the session's attachments run on; ${session_project} is the session's project; ${workspace_dir} is the session's workspace.
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>Actions not listed are denied.
 </code></pre></div>
 <h3 id="82-cron_run">8.2 <code>cron_run</code><a class="headerlink" href="#82-cron_run" title="Permanent link">&para;</a></h3>
 <p>Added 2026-10-22. An agent runs a job now the way it delegates:</p>
@@ -4587,10 +4608,16 @@ compile against it; their UI is phase 2.</p>
 <li><strong><code>list_agents</code></strong> is published exactly when the run's tools include
   <code>delegate_subagent</code> or a cron tool other than <code>cron_list</code>; its prepared
   operation names no permission. For a run offered the cron tools it lists
-  every enabled non-internal agent of the run's preset, as section 8.1 says,
-  including <code>subagent</code>-mode ones, which a new-session job refuses; the mode
-  is shown. An agent usable for both shows its rules as a root run and as a
-  subagent when they differ. Memory rule variables are shown unexpanded.</li>
+  every enabled <code>primary</code> or <code>all</code> agent of the run's preset. An agent
+  usable for both shows its rules as a root run and as a subagent when they
+  differ. As first landed it listed <code>subagent</code> agents for <code>cron</code> too and
+  marked each default rule <code>(default)</code> in full; amended 2026-10-23 (section
+  8.1): only agents a job can run, default-only actions collapsed into one
+  <code>defaults:</code> line per block, <code>${agent_id}</code> expanded in an agent's own
+  block, a defaults section generated from the default-rule functions
+  (mode, memory, and cron defaults) after the agents, which also explains
+  <code>${session_machine}</code>, <code>${session_project}</code>, and <code>${workspace_dir}</code>, and a
+  closing <code>Actions not listed are denied.</code></li>
 <li><strong><code>cron_run</code> of a new-session job</strong> goes through <code>delegate_subagent</code>'s
   path: the call's template (rules, attachments, job) waits in
   <code>DelegationRuntimeState::cron_runs</code> by tool call ID while the child is
