@@ -1305,6 +1305,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../sessions/scheduling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scheduling prompts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../sessions/usage/" class="md-nav__link">
         
   
@@ -3386,6 +3409,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#162-phase-2-clients-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2 Phase 2: clients (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#163-phase-3-docs-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.3 Phase 3: docs (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3800,6 +3841,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#162-phase-2-clients-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.2 Phase 2: clients (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#163-phase-3-docs-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.3 Phase 3: docs (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3825,9 +3884,10 @@
 
 
 <h1 id="cron-jobs">Cron jobs<a class="headerlink" href="#cron-jobs" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>phase 1 implemented</strong> (2026-10-23): the engine and the protocol;
-the clients (phase 2) and the docs (phase 3) follow. See
-<a href="#16-implementation-notes">Implementation notes</a>. Builds on <a href="../background-tools/">background tool calls</a>
+<p>Status: <strong>implemented</strong> (2026-10-23): the engine and the protocol (phase
+1), the TUI, web, and CLI (phase 2), and the docs (phase 3). See
+<a href="#16-implementation-notes">Implementation notes</a> and the user guide,
+<a href="../../sessions/scheduling/">Scheduling prompts</a>. Builds on <a href="../background-tools/">background tool calls</a>
 (sections 12 and 13: what keeps a parent waiting, and producer waits that
 let a session page out), <a href="../projects/">projects</a>, and the
 <a href="../memory/">memory spec</a> (its permission defaults).</p>
@@ -4543,6 +4603,67 @@ labels for <code>scheduled_job</code> (the shared <code>waiting_label</code> alr
 and the scheduling guide and the permissions page. The protocol reference,
 changelog, tools reference, error reference, and the <code>[cron]</code> configuration
 page are up to date.</p>
+<h3 id="162-phase-2-clients-2026-10-23">16.2 Phase 2: clients (2026-10-23)<a class="headerlink" href="#162-phase-2-clients-2026-10-23" title="Permanent link">&para;</a></h3>
+<p>Landed: the <code>/cron</code> panel in the TUI, the Scheduled prompts view in the web
+client, and <code>cookie cron</code>, each on a daemon of client protocol 1.15 or later
+only, and each refetching <code>crons.list</code> on <code>crons.changed</code>. No wire change.</p>
+<ul>
+<li><strong>Shared rules</strong> live in <code>crates/client_state/src/cron.rs</code>:
+  <code>daemon_has_crons</code> (minor 15), a job's title (its name or the first 48
+  characters of its prompt's first line), <code>schedule_reading</code> and
+  <code>cron_reading</code> (the plain reading, section 12), target, state, and outcome
+  labels, <code>detail_lines</code>, and <code>CronDraft</code>, the job form as <code>crons.create</code> and
+  <code>crons.update</code> take it. A form's schedule is a cron expression, <code>in
+  &lt;delay&gt;</code>, or <code>at &lt;RFC 3339 time&gt;</code>; an edit sends only the members it
+  changed, and one that changes nothing sends nothing.</li>
+<li><strong>Plain readings</strong> cover the shapes people write: one minute with a list
+  of hours, <code>*/n</code> minutes, <code>*/n</code> hours, single days of the month, weekday
+  lists and ranges, and named months, such as <code>every Monday to Friday at
+  09:00</code> or <code>on the 1st of every month at 08:00</code>. Anything else (<code>0 9-17 * *
+  *</code>) reads as <code>cron &lt;expression&gt;</code>. A cron schedule's reading adds its run
+  limit (<code>, once</code>, <code>, 4 runs</code>); a one-shot reads <code>once at &lt;local time&gt;</code>.
+  Cron times are not converted: they are the host's, which the forms say.</li>
+<li><strong>TUI</strong> (<code>crates/tui/src/ui/app/cron_panel.rs</code>): <code>Modal::Cron</code> lists the
+  jobs with the selected job's details and history beneath; <code>e</code>/Enter, <code>n</code>,
+  <code>t</code>, <code>r</code>, and <code>d</code> (with a <code>y</code> confirmation) edit, create, enable or
+  disable, run now, and delete, each also a button
+  (<code>PointerTarget::CronRow</code>, <code>PointerTarget::CronAction</code>). The TUI takes
+  slash commands only from the command palette, so section 12's "<code>/cron</code> in
+  the command panel creates a job" is the palette entry <code>/cron new</code>, listed
+  while a session is on screen (not a read-only one); <code>/cron</code> opens the
+  panel. The form is a <code>key: value</code> text with the prompt after <code>---</code>, edited
+  in <code>$VISUAL</code> or <code>$EDITOR</code> through the <code>/memory</code> handoff; a form the daemon
+  refuses is kept to edit again. Run sessions show 🕒 in the session picker,
+  since ⏰ already marks waiting sessions.</li>
+<li><strong>Web</strong> (<code>crates/web/src/views/cron.rs</code>, <code>workspace/cron.rs</code>, <code>cron.rs</code>):
+  the rail's clock icon opens <strong>Scheduled prompts</strong>, one column with a job's
+  details, history, and actions expanding under its row, so it serves phones
+  without another layer (every target at least 44 px). The ⋮ menu's
+  "Schedule a prompt" opens the form for the open session, as a subagent
+  target in a delegated one. The form reads the schedule live under its
+  field. Times are the browser's, from <code>Date.getTimezoneOffset</code> at each
+  instant, since jiff's system zone is unavailable in the page. A run
+  session's clock mark before its title says which job started it and opens
+  it.</li>
+<li><strong>New-session template from a client:</strong> the agent and preset of the
+  current session's selection (else the preset's first root agent), its
+  project (a delegated session's root's), and no <code>runtimes</code>, so a fire
+  attaches what <code>session.create</code> would; the TUI also sets <code>cwd</code> to its own
+  directory. A model pin and a permission mode are the user's to add.</li>
+<li><strong><code>cookie cron</code></strong> (<code>crates/cookie_agent/src/cron_command.rs</code>): <code>create</code>
+  takes <code>--session</code> (root or delegated, read from <code>session.get</code>) or
+  <code>--agent</code> for a new session per fire, with <code>--model</code>, <code>--permission-mode</code>,
+  and <code>--project</code> for the latter; <code>edit</code> takes the same options and applies
+  them to the job's form, so it is scriptable rather than an editor session.
+  <code>list</code> prints two lines per job, <code>show</code> the details, prompt, and history.</li>
+</ul>
+<h3 id="163-phase-3-docs-2026-10-23">16.3 Phase 3: docs (2026-10-23)<a class="headerlink" href="#163-phase-3-docs-2026-10-23" title="Permanent link">&para;</a></h3>
+<p><a href="../../sessions/scheduling/">Scheduling prompts</a> is the user guide, under
+Working with sessions. The <code>cron</code> action, its resources, defaults, hard
+limits, and <code>list_agents</code> are in
+<a href="../../extend/agents/#cron-permissions">Cron permissions</a> and on the
+<a href="../../concepts/permissions/">Permissions</a> concept page; the clients'
+pages have a Scheduled prompts section each and <code>cookie cron</code> its reference.</p>
 
 
 

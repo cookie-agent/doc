@@ -1305,6 +1305,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../sessions/scheduling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scheduling prompts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../sessions/usage/" class="md-nav__link">
         
   
@@ -1608,6 +1631,15 @@
   <a href="#memory-permissions" class="md-nav__link">
     <span class="md-ellipsis">
       Memory permissions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cron-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cron permissions
     </span>
   </a>
   
@@ -3712,6 +3744,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#cron-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cron permissions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#listing-runtimes" class="md-nav__link">
     <span class="md-ellipsis">
       Listing runtimes
@@ -4087,7 +4128,9 @@ rules from its mode (see <a href="#listing-runtimes">Listing runtimes</a> and
 MCP tools and asks before each call. Memory has a default too, by whether
 the run is delegated rather than by mode, so the built-in <code>default</code> agent
 reads every memory and writes the memory related to its session (see
-<a href="#memory-permissions">Memory permissions</a>).</p>
+<a href="#memory-permissions">Memory permissions</a>). <code>cron</code> defaults the same way:
+a root run may manage cron jobs and a delegated one may not (see
+<a href="#cron-permissions">Cron permissions</a>).</p>
 <h2 id="agent-presets">Agent presets<a class="headerlink" href="#agent-presets" title="Permanent link">&para;</a></h2>
 <p>Agent presets provide named, complete agent sets without duplicating every
 shared document. Markdown files directly under <code>agents/</code> are shared and are
@@ -4336,8 +4379,9 @@ later declaration on an exact tie. Unmatched resources are denied by default.
 <code>ask</code> remains an explicitly writable effect and routes matching calls through
 the existing approval flow; it is never an implicit fallback for an
 unmatched resource. The only rules the daemon writes for an agent are the
-mode defaults of <code>list_runtimes</code> and <code>mcp</code>, each only while the document
-names no key for its action.</p>
+mode defaults of <code>list_runtimes</code> and <code>mcp</code> and the run defaults of <code>memory</code>,
+<code>memory_write</code>, and <code>cron</code>, each only while the document names no key for
+its action.</p>
 <h3 id="runtime-selectors">Runtime selectors<a class="headerlink" href="#runtime-selectors" title="Permanent link">&para;</a></h3>
 <p>A key may name a runtime: <code>action@runtime_id</code> applies only to tools of
 <a href="../../specs/runtimes/">runtimes</a> with that runtime ID, whatever workspace or
@@ -4447,6 +4491,21 @@ runtime in <code>capabilities</code>, under each runtime it names; a call withou
 <td><code>memory_write</code>, <code>memory_edit</code>, <code>memory_delete</code></td>
 <td><code>memory_write</code></td>
 <td>Memory URL</td>
+</tr>
+<tr>
+<td><code>cron_create</code>, <code>cron_update</code>, <code>cron_delete</code>, <code>cron_run</code></td>
+<td><code>cron</code></td>
+<td>The target kind of each job the call touches: <code>session</code>, <code>subagent</code>, or <code>new</code>; a <code>cron_update</code> that changes the kind is checked for both, the strictest deciding</td>
+</tr>
+<tr>
+<td><code>cron_list</code></td>
+<td>none</td>
+<td>None: published only beside another cron tool; it lists only the jobs whose kind the <code>cron</code> rules allow or ask for</td>
+</tr>
+<tr>
+<td><code>list_agents</code></td>
+<td>none</td>
+<td>None: published exactly when the run is offered <code>delegate_subagent</code> or a cron tool other than <code>cron_list</code></td>
 </tr>
 </tbody>
 </table>
@@ -4713,6 +4772,93 @@ deny or do not match is left out, not even counted. When nothing is left to
 show, the run gets no memory turn at all, while the tools stay offered. See
 <a href="../../sessions/memory/#what-the-model-sees">What the model sees</a> and the
 <a href="../../specs/memory/#9-permissions">memory spec</a>.</p>
+<h3 id="cron-permissions">Cron permissions<a class="headerlink" href="#cron-permissions" title="Permanent link">&para;</a></h3>
+<p>The cron tools of the <code>global</code> runtime (<code>cron_create</code>, <code>cron_list</code>,
+<code>cron_update</code>, <code>cron_delete</code>, and <code>cron_run</code>; see
+<a href="../../sessions/scheduling/">Scheduling prompts</a>) use one action, <code>cron</code>,
+whose resource is the target kind of the job a call touches:</p>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>A job that fires into</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>session</code></td>
+<td>a root session (<code>"self"</code> from a root)</td>
+</tr>
+<tr>
+<td><code>subagent</code></td>
+<td>a delegated session (<code>"self"</code> from a subagent, or a subagent's handle)</td>
+</tr>
+<tr>
+<td><code>new</code></td>
+<td>a new root session per fire, from a template</td>
+</tr>
+</tbody>
+</table>
+<p>One action covers listing, creating, editing, enabling and disabling,
+deleting, and running a job now. Creating checks the new job's kind;
+updating checks the job's current kind and, when it changes, the new one;
+deleting and running check the job's kind. <code>cron_list</code> has no action of its
+own and shows only the jobs whose kind the rules allow or ask for. An agent
+manages every job its rules allow, whoever created it.</p>
+<p><strong>Defaults.</strong> When the agent document has no <code>cron</code> key:</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Root, any agent but an internal one</td>
+<td><code>cron: allow</code></td>
+</tr>
+<tr>
+<td>Delegated</td>
+<td>none: the tools are hidden</td>
+</tr>
+<tr>
+<td>Internal agent</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>As with memory, the default follows whether the run is delegated, not the
+agent's mode. A declared key replaces the default, so <code>cron: deny</code> hides the
+tools from a root and this grants a subagent jobs into its own session and
+the sessions below it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">cron</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="nt">subagent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+</code></pre></div>
+<p>A session overlay can grant <code>cron</code> for one session tree, as for any action.</p>
+<p><strong>Hard limits.</strong> Beyond the rules:</p>
+<ul>
+<li>an agent's job may target only its own session or a session below it in
+  its tree; any other session is refused in the tool result, whatever the
+  rules say (you can target any session from a client);</li>
+<li>the tools have no permission-mode or model parameter: a new-session job an
+  agent creates runs in <code>auto-approve-n</code> with its agent's own models, and
+  only a client can set another mode or pin a model (an agent's update keeps
+  what you set);</li>
+<li>a new-session job's agent must be one that can run as a root (<code>primary</code> or
+  <code>all</code>).</li>
+</ul>
+<p>A new-session job's template may add any permission rules to its run
+sessions, so <code>cron</code> on <code>new</code> lets an agent start sessions of any agent with
+more rights than its own. Grant it to a subagent deliberately.</p>
+<p><strong><code>list_agents</code>.</strong> Whenever a run is offered <code>delegate_subagent</code> or a cron
+tool other than <code>cron_list</code>, the <code>global</code> runtime also offers <code>list_agents</code>,
+which has no action of its own: for <code>delegate</code> it lists the run's delegation
+targets, for <code>cron</code> every enabled agent that is not internal, each with its
+mode, description, presets, models, and its permission rules as a run of it
+would start with them, the daemon's defaults marked <code>(default)</code>. See
+<a href="../../reference/tools/#list_agents"><code>list_agents</code></a>.</p>
 <h3 id="listing-runtimes">Listing runtimes<a class="headerlink" href="#listing-runtimes" title="Permanent link">&para;</a></h3>
 <p><code>list_runtimes</code>, a tool of the <code>global</code> runtime, lists the daemon's machines
 and runtimes for a root that delegates to them (see
@@ -4730,9 +4876,9 @@ form, <code>mcp@&lt;runtime&gt;</code> included), the daemon supplies <code>mcp:
 <code>primary</code>, <code>all</code>, and <code>subagent</code> agents, so the connected servers' tools are
 offered and every call asks; <code>internal</code> agents get none. A declared <code>mcp</code>
 key replaces the default entirely:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>offers only the <code>my_chrome</code> server's tools, <code>mcp: allow</code> runs every MCP tool
 without asking, and <code>mcp: deny</code> hides them all. A key with only a runtime
@@ -4742,10 +4888,10 @@ the source <code>default</code>. Session overlays apply on top as for any action
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are
