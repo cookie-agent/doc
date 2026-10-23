@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["NEW_MEMORY"],"enum":["MemoryCommand"],"fn":["daemon_error","edit","layer_heading","memory_line","memory_lines","message_of","parse_layer","run_memory","run_memory_with"],"struct":["StdioMemoryIo"],"trait":["MemoryIo"]};
+window.SIDEBAR_ITEMS = {"constant":["NEW_MEMORY"],"enum":["MemoryCommand"],"fn":["daemon_error","edit","layer_heading","memory_line","memory_lines","message_of","parse_layer","run_memory","run_memory_with","stamps_line"],"struct":["StdioMemoryIo"],"trait":["MemoryIo"]};

@@ -6147,8 +6147,9 @@ phase 1 of <a href="../runtime-delegation/#11-implementation-notes">delegating t
   TUI's machines view lists them too, as "last seen here".</li>
 </ul>
 <h3 id="169-addendum-2026-10-22-memory-that-stays-worth-keeping">16.9 Addendum 2026-10-22: memory that stays worth keeping<a class="headerlink" href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" title="Permanent link">&para;</a></h3>
-<p>Settled 2026-10-22. Phase 1, the engine, is implemented (section
-16.9.15), and phase 3, the docs, is written; the clients phase remains. Models with write
+<p>Settled 2026-10-22. Phases 1 and 2, the engine and the clients, are
+implemented (section 16.9.15), and phase 3, the docs, is written (section
+16.9.16). Models with write
 access saved things that are useless by the next session. For example,
 after "explore this directory", one saved the directory listing. The only
 save guidance was "save what a later session should know", and nothing
@@ -6751,6 +6752,44 @@ reference's memory turn), remain.</p>
   history still compacts under the longer system prompt. The future plugin
   corpus's expected handshake answer names plugin protocol 1.6.0, as it has
   named each earlier minor.</li>
+</ul>
+<p><strong>Phase 2, the clients</strong>, landed 2026-10-22, with no protocol change:</p>
+<ul>
+<li><strong>Change lines.</strong> The shared reducer turns <code>memory_changed</code> into
+  <code>TranscriptItem::MemoryChange { seq, change, url }</code> in place of an info
+  row, so no level filter hides it. Like a skill load, it splits the run's
+  block: it sits below the call that made the change, and what the run does
+  next opens a block below it. The TUI draws <code>🧠 Saved &lt;url&gt;</code> as a one-row
+  block (<code>BlockId::MemoryChange</code>), a <code>TranscriptBlock</code> pointer target that
+  hovers like every block; a click opens <code>/memory</code> with the memory selected
+  once the listing arrives (<code>MemoryPanelState::focus</code>), or says <code>&lt;url&gt; is
+  not in memory now.</code> The web client renders a button (<code>data-action=
+  "open-memory"</code>) that opens the Memory view at the memory
+  (<code>Workspace::memory_focus</code>): its project's folder shows open, its row is
+  marked and scrolled to the middle once, and a gone memory gets a note.</li>
+<li><strong>Stamps and limits</strong> (<code>cookie_agent_client_state::memory::MemoryStamps</code>,
+  from <code>memory.list</code> or <code>memory.read</code>). Ages are <code>memory_age</code> plus <code>ago</code>;
+  <code>memory_age</code> and <code>memory_size</code> moved to the protocol crate, which the
+  engine re-exports, so the clients word ages and sizes as the model reads
+  them. Exact times are UTC to the second, formatted by hand. The TUI's
+  details give each time with its exact time and age, the size against the
+  limit, and what an over-limit memory still accepts; its row says <code>over its
+  limit</code>. The web row shows the modified age and size (exact times on
+  hover) and an <code>over its limit</code> badge; the editor shows every age and the
+  size read-only above the text. <code>cookie memory list</code> adds a line of ages
+  and size under each memory, and the new <code>cookie memory show &lt;URL&gt;</code> prints
+  the times, the size, the revision, and the text.</li>
+<li><strong>Editors leave the stamp lines out</strong> (<code>without_stamps</code>, <code>editor_text</code>):
+  <code>created:</code> and <code>modified:</code> at the top level of the frontmatter are
+  dropped from what <code>/memory</code>, the web editor, and <code>cookie memory edit</code>
+  open, and the text is saved as left; the daemon writes its stamps on
+  save, keeping <code>created</code>. Only a daemon of client protocol 1.14 or later
+  owns them (<code>daemon_stamps_memory</code>, <code>MEMORY_STAMPS_MINOR</code>); with an older
+  one the text opens whole. Everything else reads the new fields as
+  optional, so an older daemon shows only sizes.</li>
+<li><strong>The web <code>MemoryLine::Row</code></strong> boxes its row, and the
+  <code>clippy::large_enum_variant</code> allowance is gone. <code>revision</code> stays in the
+  client RPCs.</li>
 </ul>
 <h4 id="16916-implementation-notes-phase-3">16.9.16 Implementation notes: phase 3<a class="headerlink" href="#16916-implementation-notes-phase-3" title="Permanent link">&para;</a></h4>
 <p>Written 2026-10-22: the memory guide, the permissions pages (<code>extend/agents.md</code>, <code>concepts/permissions.md</code>), the system prompt reference's <code>Project:</code> line, memory section, and trimmed memory turn, and the concept page; the configuration reference and the tools reference were already current from phase 1.</p>
