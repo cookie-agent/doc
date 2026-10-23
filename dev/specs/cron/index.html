@@ -3267,6 +3267,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#82-cron_run" class="md-nav__link">
+    <span class="md-ellipsis">
+      8.2 cron_run
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3648,6 +3657,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#82-cron_run" class="md-nav__link">
+    <span class="md-ellipsis">
+      8.2 cron_run
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3756,7 +3774,8 @@ ones.</p>
 <li>You and agents can create, list, edit, and delete jobs. A job is an id,
   a prompt, a schedule, and a target.</li>
 <li><strong>Schedule:</strong> a 5-field cron expression, or a one-shot delay such as
-  <code>in 200s</code>. The only other schedule option is <code>max_runs</code>. Cron times are
+  <code>in 200s</code>. The only other schedule option is <code>max_runs</code>, default 1 (added
+  2026-10-22). Cron times are
   the daemon host's local time. There are no self-paced loops (an agent can
   already wait on a background command).</li>
 <li><strong>Payload:</strong> a prompt, nothing else (no shell commands, no scripts).</li>
@@ -3776,8 +3795,9 @@ ones.</p>
 <li><strong>Agents can manage every job.</strong> The <code>cron</code> permission's resource is the
   target kind (<code>session</code>, <code>subagent</code>, or <code>new</code>), and one action covers
   reading and changing jobs.</li>
-<li><strong>No expiry:</strong> a job without <code>max_runs</code> runs until it is deleted or
-  disabled.</li>
+<li><strong>No expiry:</strong> a job with <code>max_runs: "unlimited"</code> runs until it is
+  deleted or disabled. A job that reaches <code>max_runs</code> is deleted if an agent
+  created it and kept, disabled as finished, if you did.</li>
 <li><strong>No catch-up:</strong> a fire missed while the daemon was down is recorded as
   skipped and not run.</li>
 <li><strong>Failures:</strong> a job is disabled after <code>[cron] max_consecutive_failures</code>
@@ -3836,7 +3856,7 @@ triggers.</p>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Nightly dependency check"</span><span class="p">,</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Check for outdated dependencies and open a summary."</span><span class="p">,</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">"schedule"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"cron"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0 3 * * *"</span><span class="w"> </span><span class="p">},</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">"max_runs"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">"max_runs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"unlimited"</span><span class="p">,</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">"target"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"new"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"agent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"builder"</span><span class="p">,</span><span class="w"> </span><span class="nt">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cookie-agent"</span><span class="p">,</span><span class="w"> </span><span class="nt">"..."</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">},</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">"delivery"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">"permission_mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"auto_approve_n"</span><span class="p">,</span>
@@ -3861,8 +3881,12 @@ triggers.</p>
 <li><code>{"in": "&lt;duration&gt;"}</code> on create and update: a whole number with <code>s</code>,
     <code>m</code>, <code>h</code>, or <code>d</code>, from <code>1s</code> to <code>365d</code>. The daemon turns it into
     <code>{"at": "&lt;RFC 3339 time&gt;"}</code> at once and stores that; it fires once.</li>
-<li><strong><code>max_runs</code>:</strong> optional, 1 or more, cron schedules only. A job that has
-  run <code>max_runs</code> times is disabled with the reason "finished".</li>
+<li><strong><code>max_runs</code>:</strong> cron schedules only: a whole number from 1, or
+  <code>"unlimited"</code>. <strong>Default 1</strong>, so a job fires once unless told otherwise.
+  A job that has run <code>max_runs</code> times:</li>
+<li>created by an agent: is deleted;</li>
+<li>created by you: stays, disabled with the reason "finished", until you
+    delete or re-arm it.</li>
 <li><strong><code>target</code>:</strong> one of:</li>
 <li><code>{"session": "&lt;session id&gt;"}</code>: a root session;</li>
 <li><code>{"subagent": "&lt;session id&gt;"}</code>: a delegated session;</li>
@@ -3991,16 +4015,21 @@ each fire.</p>
 <li><strong>The session records its job:</strong> <code>SessionMeta::cron = {job_id,
   fired_at}</code>, so clients can mark and filter run sessions. The session is
   otherwise ordinary; it stays when the job is deleted.</li>
-<li>An agent in <code>subagent</code> mode can be a new-session job's agent: cron runs
-  are the one exception to "subagent-mode agents never run as roots".</li>
+<li>A new-session job's agent must be one that can run as a root
+  (<code>primary</code> or <code>all</code> mode). A <code>subagent</code>-mode agent reaches a job only
+  through an in-session job targeting a subagent's session.</li>
 <li><strong>Skipped</strong> while the job's previous run session is still running.</li>
 </ul>
 <h3 id="44-failures-and-finishing">4.4 Failures and finishing<a class="headerlink" href="#44-failures-and-finishing" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>A failure</strong> is a run the fire started that ends <code>failed</code>, or a fire
   that cannot start: the agent is missing or disabled, no model is
-  available, a runtime is offline, or session creation fails. A steered
-  fire counts the run it joined.</li>
+  available, a runtime is offline, or session creation fails.</li>
+<li><strong>A fire's outcome is the run its prompt lands in.</strong> Steering into a busy
+  turn is not a failure: the fire succeeds or fails with the turn it
+  joined. A queued fire succeeds or fails with the run that takes it. While
+  that prompt is still waiting, a new fire is skipped (section 4.2), so its
+  outcome is the earlier prompt's.</li>
 <li>A run that completes resets <code>consecutive_failures</code> to 0. A cancelled run
   and a skip change nothing.</li>
 <li>At <code>max_consecutive_failures</code> the job is disabled with the reason. Enabling
@@ -4068,7 +4097,7 @@ each fire.</p>
   client (<code>crons.create</code>, <code>crons.update</code>) can set it.</li>
 </ul>
 <h2 id="8-model-tools">8. Model tools<a class="headerlink" href="#8-model-tools" title="Permanent link">&para;</a></h2>
-<p>The cron provider, <code>builtin.cron</code>, offers four tools, each gated by
+<p>The cron provider, <code>builtin.cron</code>, offers five tools, each gated by
 <code>cron</code>:</p>
 <table>
 <thead>
@@ -4099,6 +4128,11 @@ each fire.</p>
 <td><code>id</code></td>
 <td>Confirmation</td>
 </tr>
+<tr>
+<td><code>cron_run</code></td>
+<td><code>id</code>, <code>background?</code></td>
+<td>Runs the job now as a delegated subagent of the caller (section 8.2)</td>
+</tr>
 </tbody>
 </table>
 <ul>
@@ -4106,7 +4140,8 @@ each fire.</p>
   <code>delegate_subagent</code> names it.</li>
 <li>Descriptions say: schedules are in the host's local time; a fire is
   marked as a scheduled job; prefer updating a job to creating a near
-  duplicate; a job without <code>max_runs</code> runs until deleted.</li>
+  duplicate; <code>max_runs</code> defaults to 1, and <code>"unlimited"</code> runs until
+  deleted.</li>
 </ul>
 <h3 id="81-list_agents">8.1 <code>list_agents</code><a class="headerlink" href="#81-list_agents" title="Permanent link">&para;</a></h3>
 <p>A tool of the <code>global</code> runtime (provider <code>builtin.agents</code>), so a model
@@ -4143,14 +4178,40 @@ is and which permissions it starts with.</p>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    list_runtimes: allow (default)
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    memory: * allow (default) ...
 </code></pre></div>
+<h3 id="82-cron_run">8.2 <code>cron_run</code><a class="headerlink" href="#82-cron_run" title="Permanent link">&para;</a></h3>
+<p>Added 2026-10-22. An agent runs a job now the way it delegates:</p>
+<ul>
+<li><strong>A delegated subagent of the caller.</strong> For a new-session job, the child
+  session uses the job's template (agent, permission rules, attachments)
+  and the prompt as its first input, under the caller's session, not as a
+  new root.</li>
+<li><strong>Foreground or background,</strong> like <code>delegate_subagent</code>: foreground waits
+  and returns the result; background returns the child's handle at once,
+  and the caller reads the result with <code>get_subagent_result</code> or receives
+  the usual background report.</li>
+<li>The child counts against the caller's delegation depth and its resident
+  subagents, like any delegated child.</li>
+<li><strong>The job's agent need not be a delegation target.</strong> A new-session job's
+  agent may be <code>primary</code>-only; <code>cron_run</code> is the one exception to "only
+  <code>subagent</code> and <code>all</code> agents are delegated to", since the job already names
+  the agent (decided 2026-10-22).</li>
+<li><strong>An in-session job</strong> fires into its target session, exactly as a
+  scheduled fire would (section 4.2), with its <code>steer</code> or <code>queue</code>; no child
+  is created.</li>
+<li><strong>In the job's state:</strong> a run-now is recorded in the job's history as
+  <code>run now</code>, but counts toward neither <code>max_runs</code> nor the failure count.
+  The same holds for <code>crons.run</code>.</li>
+</ul>
 <h2 id="9-client-protocol">9. Client protocol<a class="headerlink" href="#9-client-protocol" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>RPCs:</strong></li>
 <li><code>crons.list</code> → every job with its state and history;</li>
 <li><code>crons.create</code>, <code>crons.update</code> (any field, <code>permission_mode</code>
     included), <code>crons.delete</code>;</li>
-<li><code>crons.run</code>: fire a job now. It counts as a fire, is recorded with the
-    actual time as its scheduled time, and moves nothing else;</li>
+<li><code>crons.run</code>: fire a job now, as a scheduled fire would (a new root
+    session for a new-session job). It is recorded in the history as <code>run
+    now</code>, counts toward neither <code>max_runs</code> nor the failure count, and moves
+    nothing else;</li>
 <li><code>crons.changed</code>: notification, empty, coalesced like
     <code>projects.changed</code>.</li>
 <li><strong>Additions:</strong> <code>SessionMeta::cron</code>, <code>WaitingOn::ScheduledJob</code> (an open
