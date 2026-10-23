@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["acp_model","acp_source_label","is_acp_model","listed_in_root_picker","pickable","runtime_note","unpickable_reason"]};

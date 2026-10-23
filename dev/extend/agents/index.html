@@ -1789,6 +1789,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../browser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Giving agents a browser
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../plugins/" class="md-nav__link">
         
   
@@ -4181,12 +4227,56 @@ declaration.</p>
   <code>internal</code>. Its body may be empty; a nonempty body is sent with the
   session's first prompt to the agent.</li>
 <li><code>permissions</code> decide the calls the agent makes of cookie's tools, as for a
-  model, and the agent's own permission requests: its ACP tool kind maps to
-  an action (<code>read</code> and <code>search</code> to <code>read</code>, <code>edit</code>, <code>delete</code>, and <code>move</code> to
-  <code>write</code>, <code>execute</code> to <code>bash</code>, <code>fetch</code> to <code>webfetch</code>, every other kind to
-  <code>acp</code> with the resource <code>&lt;kind&gt; &lt;title&gt;</code>), and each resource must be
-  allowed. Without an <code>acp</code> key, <code>acp</code> defaults to <code>ask</code>.</li>
+  model, and the agent's own permission requests, whose ACP tool kind maps
+  to an action:</li>
 </ul>
+<table>
+<thead>
+<tr>
+<th>ACP request</th>
+<th>Decided as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read</code>, <code>search</code></td>
+<td><code>read</code>, by the location's path</td>
+</tr>
+<tr>
+<td><code>edit</code>, <code>delete</code>, <code>move</code></td>
+<td><code>write</code>, by the location's path</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><code>bash</code>, by the command</td>
+</tr>
+<tr>
+<td><code>fetch</code></td>
+<td><code>webfetch</code>, by the URL</td>
+</tr>
+<tr>
+<td>a tool of an MCP server the agent connects itself (<code>mcp__&lt;server&gt;__&lt;tool&gt;</code>)</td>
+<td><code>mcp</code>, by <code>&lt;server&gt;_&lt;tool&gt;</code>, the name cookie gives the same tool</td>
+</tr>
+<tr>
+<td>a tool of cookie's own MCP server (<code>mcp__cookie__&lt;tool&gt;</code>)</td>
+<td>allowed at once: the call reaches cookie, whose rules decide it</td>
+</tr>
+<tr>
+<td><code>think</code></td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><code>switch_mode</code>, any other kind</td>
+<td>asks, through the approval flow</td>
+</tr>
+</tbody>
+</table>
+<p>A request with several locations needs each allowed, so
+  <code>bash: {"git *": allow}</code> allows the agent's own <code>git</code> as it allows
+  cookie's <code>bash</code> tool, and <code>mcp: {"exa_*": allow}</code> covers both cookie's
+  and the agent's <code>exa</code> tools. Cookie answers with the agent's allow-once
+  or reject-once option, never an "always" one.</p>
 <h2 id="agentsmd-context">AGENTS.md context<a class="headerlink" href="#agentsmd-context" title="Permanent link">&para;</a></h2>
 <p>Root sessions automatically load AGENTS.md context at the start of every run
 unless it is turned off. The run agent's <code>agent_md</code> frontmatter decides when it is
@@ -4836,7 +4926,16 @@ configuration and project agent documents are version-controlled content
 equivalent to code: a repository can ship both a server definition and an agent
 that permits it. Review them and work only in repositories you trust.</p>
 <p>Delegation targets come from the keys in the <code>delegate</code> permission map and must
-resolve to enabled <code>subagent</code> or <code>all</code> agents. This action controls
+resolve to enabled <code>subagent</code> or <code>all</code> agents. A named target no agent has
+yet, and a pattern that matches none, do not fail the configuration: the
+name may be an <a href="../acp-agents/">ACP agent</a> whose runtime has not
+reported it, such as a dial-in runtime that has not connected since the
+daemon started. Until one does, the configuration status carries a
+diagnostic (<code>cookie config status</code>, <code>/config</code>, and the web's configuration
+page show it), the agent is not among the targets, and delegating to it is
+refused with "no agent <code>&lt;id&gt;</code> (its runtime is not connected)". A typo stays
+a diagnostic. A target whose document exists but is disabled or of mode
+<code>primary</code> still fails the configuration. This action controls
 <code>delegate_subagent</code> and <code>get_subagent_result</code>. Both tools use the target
 subagent's agent type as their permission resource.
 Result retains its existing ownership and argument
