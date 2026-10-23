@@ -1865,6 +1865,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/cron/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cron Jobs [cron]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -1901,10 +1924,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_17" >
         
           
-          <label class="md-nav__link" for="__nav_8_16" id="__nav_8_16_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8_17" id="__nav_8_17_label" tabindex="0">
             
   
   
@@ -1917,8 +1940,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_17">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -3344,6 +3367,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#16-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      16. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#161-phase-1-engine-and-protocol-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.1 Phase 1: engine and protocol (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3734,6 +3781,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#16-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      16. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#161-phase-1-engine-and-protocol-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.1 Phase 1: engine and protocol (2026-10-23)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3754,8 +3825,9 @@
 
 
 <h1 id="cron-jobs">Cron jobs<a class="headerlink" href="#cron-jobs" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-22), settled with the user, awaiting the go-ahead
-to implement. Builds on <a href="../background-tools/">background tool calls</a>
+<p>Status: <strong>phase 1 implemented</strong> (2026-10-23): the engine and the protocol;
+the clients (phase 2) and the docs (phase 3) follow. See
+<a href="#16-implementation-notes">Implementation notes</a>. Builds on <a href="../background-tools/">background tool calls</a>
 (sections 12 and 13: what keeps a parent waiting, and producer waits that
 let a session page out), <a href="../projects/">projects</a>, and the
 <a href="../memory/">memory spec</a> (its permission defaults).</p>
@@ -4301,6 +4373,176 @@ is and which permissions it starts with.</p>
 </ol>
 <h2 id="15-open-questions">15. Open questions<a class="headerlink" href="#15-open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
+<h2 id="16-implementation-notes">16. Implementation notes<a class="headerlink" href="#16-implementation-notes" title="Permanent link">&para;</a></h2>
+<h3 id="161-phase-1-engine-and-protocol-2026-10-23">16.1 Phase 1: engine and protocol (2026-10-23)<a class="headerlink" href="#161-phase-1-engine-and-protocol-2026-10-23" title="Permanent link">&para;</a></h3>
+<p>Landed: the store, the scheduler with exactly-once fires, missed-fire and
+interrupted-fire records, and the kill switch; in-session fires (<code>queue</code> and
+<code>steer</code>, the <code>&lt;scheduled_job&gt;</code> marking, the skip while undelivered);
+new-session fires (the template, <code>auto_approve_n</code> by default,
+<code>SessionMeta::cron</code>, the title, the skip while the previous run runs);
+failure counting and auto-disable; <code>max_runs</code>; deletion with sessions and
+projects; <code>WaitingOn::ScheduledJob</code> and the parent's wait; the <code>cron</code>
+permission with its root default and hard limits; the five tools and
+<code>list_agents</code>; <code>crons.list/create/update/delete/run</code> and <code>crons.changed</code>;
+and <code>[cron]</code>. Client protocol 1.15.0, plugin protocol 1.7.0; the runtime
+protocol and history format 1 are unchanged. The TUI, web, and CLI only
+compile against it; their UI is phase 2.</p>
+<p>Where it is:</p>
+<ul>
+<li><strong>Wire types:</strong> <code>crates/protocol/src/cron.rs</code> (<code>CronJob</code>, <code>CronSchedule</code>,
+  <code>CronTarget</code>, <code>CronTemplate</code>, <code>CronFire</code>, the params and results,
+  <code>SessionCron</code>), <code>CronJobId</code> in <code>identity.rs</code>, <code>WaitingOn::ScheduledJob</code>
+  and <code>SessionMeta::cron</code> in <code>event.rs</code>, <code>PermissionAction::CRON</code> in
+  <code>agent.rs</code>, the <code>cron_*</code> error codes in <code>errors.rs</code>.</li>
+<li><strong>Store and schedules:</strong> <code>crates/engine/src/crons.rs</code> (<code>CronStore</code>,
+  <code>crons.json</code>) and <code>crates/engine/src/crons/schedule.rs</code> (the five-field
+  parser and the delays). No dependency was added: the parser is about 250
+  lines over <code>jiff</code>, which the engine already uses.</li>
+<li><strong>Requests:</strong> <code>crates/engine/src/runtime/cron_api.rs</code>; <strong>firing:</strong>
+  <code>runtime/cron_fire.rs</code> (scheduler, fires, runs now, start-up
+  reconciliation, run outcomes); <strong><code>cron_run</code>:</strong> <code>runtime/cron_run.rs</code>.</li>
+<li><strong>Tools:</strong> <code>crates/engine/src/cron_tools.rs</code> (<code>builtin.cron</code>) and
+  <code>crates/engine/src/agents_tool.rs</code> (<code>builtin.agents</code>). Both are providers
+  of the <code>global</code> runtime bound to the engine like the memory tools and
+  <code>list_runtimes</code>, so they reach a session only with <code>global</code> attached.</li>
+<li><strong>Defaults:</strong> <code>cron_default_rules</code> in <code>crates/engine/src/permissions.rs</code>,
+  beside <code>memory_default_rules</code>; <code>run_default_rules</code> gathers every default.</li>
+<li><strong>Daemon:</strong> the routes in <code>crates/server/src/service/routes.rs</code>, the
+  notification in <code>runtime_notifications.rs</code>, the error mapping in
+  <code>crates/server/src/rpc.rs</code>; <code>[cron]</code> in <code>crates/config/src/runtime.rs</code>.</li>
+</ul>
+<p>Decisions taken where the spec left room, and deviations:</p>
+<ul>
+<li><strong>Delivery's owner (section 9).</strong> A fire's prompt is a producer message
+  owned by <code>ProducerOwner::External { source: "cron:&lt;job id&gt;", name:
+  "scheduled" }</code>. <code>ProducerOwner</code> keeps its shape; <code>ProducerSource</code> already
+  admits any lowercase kind, and <code>cron</code> is the daemon's own: every
+  connection's source is <code>plugin:</code> or <code>runtime:</code>, so none can claim it. The
+  engine accepts a <code>cron:</code> owner only without a connection epoch, keeps its
+  short-lived registration through reconciliation, and counts it for
+  nothing in <code>live_waiting_kinds</code> (the store adds <code>scheduled_job</code>). Older
+  readers show it as an external producer named <code>cron:&lt;id&gt; · scheduled</code>.</li>
+<li><strong><code>SessionMeta::cron</code></strong> is folded from an optional <code>cron</code> member of
+  <code>session_created</code>, which earlier readers ignore (an additive member, not a
+  new event, so no older reader opens such a log render-only). A cron run's
+  child session records it too.</li>
+<li><strong>The run session's title</strong> is committed with the session's creation as
+  <code>user_set</code>, with the client rename ID <code>cron:&lt;job id&gt;:&lt;fired at&gt;</code>: a root
+  session's only runless title change, and one that keeps automatic titles
+  away. The user can rename it as usual.</li>
+<li><strong>The fire's key</strong> is <code>&lt;job id&gt;:&lt;scheduled time&gt;</code> for a scheduled fire and
+  <code>&lt;job id&gt;:now:&lt;UUIDv7&gt;</code> for a run now; it is the producer idempotency key
+  and identifies the history entry.</li>
+<li><strong>Exactly once.</strong> The claim (job enabled, <code>next_fire</code> equal to the
+  scheduled time, no entry for that time) and the pending entry are written
+  before delivery, under the store's lock: section 11's "state lock" is the
+  memory lock (<code>memory/.lock</code>), which <code>machines.json</code> and the projects
+  already take, and every change rereads the file under it. At start, a pending entry whose
+  session holds a message with its owner and key becomes <code>delivered</code> (and
+  counts toward <code>max_runs</code>); a run session that records the job and fire
+  time but has no prompt gets the prompt then; anything else becomes
+  <code>skipped (interrupted)</code>.</li>
+<li><strong>Two daemons sharing a data root</strong> both read <code>crons.json</code>, and the claim
+  under the memory lock makes each fire happen once. A daemon whose session
+  store (working directory) lacks a target session fails that fire.</li>
+<li><strong>Missed fires</strong> are counted up to a million per entry; the entry's
+  <code>fired_at</code> is the daemon's start. A fire made late while the daemon runs
+  (a suspended host) fires once and moves to the next match after now, with
+  no record of the matches in between.</li>
+<li><strong>The kill switch</strong> records each due fire as <code>skipped</code> with the reason
+  <code>firing_disabled</code>, a value added to the open skip reasons, and moves the
+  job on, so turning firing back on does not fire a backlog. Runs now
+  (<code>crons.run</code>, <code>cron_run</code>) are explicit and ignore it.</li>
+<li><strong>Runs now</strong> obey the skips of scheduled fires (a run now of an in-session
+  job whose previous prompt still waits is recorded as skipped, and
+  <code>crons.run</code> returns no <code>session_id</code>). A run now never moves <code>next_fire</code>,
+  <code>runs</code>, or the failure count; its run's end is still recorded.</li>
+<li><strong>Finishing.</strong> A job with no next fire after a fire, delivered, skipped,
+  or failed, is finished: kept disabled as <code>finished</code> when you created it,
+  deleted when an agent did. This is how a one-shot ends. A failed fire does
+  not count toward <code>max_runs</code>, so a cron job keeps trying until it has
+  delivered <code>max_runs</code> times or reaches the failure limit. Enabling a
+  finished job resets its <code>runs</code>; enabling a one-shot whose time passed is
+  refused until it gets a new schedule.</li>
+<li><strong>Outcomes.</strong> A fire's run is the run that admitted or consumed its
+  prompt, recorded when that run ends. A message admitted to a run that is
+  cancelled and later taken by another run keeps the first run's end. An
+  interrupted run (a restart) counts for nothing, like a cancelled one. A
+  run session that fails to start (the agent is gone, no model, a runtime is
+  offline, creation fails) records the fire as <code>failed</code> with the error and
+  counts a failure.</li>
+<li><strong>Schedules.</strong> Cron fields accept the three-letter month and day names
+  and 7 for Sunday besides numbers. <code>a/n</code> runs from <code>a</code> to the field's end.
+  A spring-forward gap fires at the instant it jumps to; a fall-back fold
+  fires at the first occurrence only. An expression is refused when no
+  month has one of its days (<code>0 0 30 2 *</code>); restricting the day of week too
+  makes it reachable (Vixie OR). <code>crons.create</code> and <code>crons.update</code> also
+  take <code>{at}</code>, which must be in the future; <code>max_runs</code> other than 1 with a
+  one-shot schedule is refused.</li>
+<li><strong>Validation details.</strong> A name is trimmed, non-blank, at most 80
+  characters, without control characters; a prompt is non-blank and at most
+  32 KiB. <code>delivery</code> on a new-session job and <code>permission_mode</code> on an
+  in-session job are refused. A new schedule or target, or enabling, computes
+  <code>next_fire</code> from now. A template's runtimes must be known to the daemon
+  (a template or a remembered dial-in runtime); they are started only at a
+  fire.</li>
+<li><strong>Agents' requests.</strong> The tools never pass a mode or a model, and the
+  engine refuses an agent's request that names either; an agent's update may
+  keep a mode or a pin you set. <code>created_by</code> and <code>disabled by</code> name the
+  calling run's agent and session.</li>
+<li><strong>Template defaults (section 3.1).</strong> An agent's <code>{new: {}}</code> takes the
+  calling run's agent, the calling session's preset, its attachments as
+  explicit <code>runtimes</code> and <code>global</code> (so a fire attaches what the session had
+  when the job was made), and its project (a delegated session's root's).
+  <code>project</code> may be given by name or ID.</li>
+<li><strong>Permissions.</strong> The resource is the target kind; <code>cron_update</code> that
+  changes the kind is one call with two resources, the strictest deciding.
+  <code>cron_list</code> declares no permission of its own: it is published only next
+  to another cron tool and filters jobs by whether the rules allow or ask
+  for their kind. A job's target sessions are checked only when the agent
+  sets one: an agent may change or delete any job its rules allow.</li>
+<li><strong><code>list_agents</code></strong> is published exactly when the run's tools include
+  <code>delegate_subagent</code> or a cron tool other than <code>cron_list</code>; its prepared
+  operation names no permission. For a run offered the cron tools it lists
+  every enabled non-internal agent of the run's preset, as section 8.1 says,
+  including <code>subagent</code>-mode ones, which a new-session job refuses; the mode
+  is shown. An agent usable for both shows its rules as a root run and as a
+  subagent when they differ. Memory rule variables are shown unexpanded.</li>
+<li><strong><code>cron_run</code> of a new-session job</strong> goes through <code>delegate_subagent</code>'s
+  path: the call's template (rules, attachments, job) waits in
+  <code>DelegationRuntimeState::cron_runs</code> by tool call ID while the child is
+  admitted, which lets the job's agent through whatever the caller's
+  delegation targets are (any agent but an internal one), uses the caller's
+  delegation depth (or <code>[delegation] max_depth</code> when the caller delegates to
+  nothing), attaches the template's runtimes, and writes the template's
+  rules as the child's overlay with its creation. The child counts against
+  depth and residency like any child. The model pin is not applied: the
+  child takes the agent's own chain, as every delegated child does. The
+  agent is resolved in the caller's preset. Recovery treats a pending
+  <code>cron_run</code> like a pending <code>delegate_subagent</code>; a <code>cron_run</code> interrupted by
+  a restart is not redelivered. <code>get_subagent_result</code> exists only for a
+  caller that can delegate; a background <code>cron_run</code>'s child still reports
+  its turns. Its history entry is <code>delivered</code> with the child's session.</li>
+<li><strong><code>cron_run</code> is background-capable,</strong> so <code>stop_background</code> is offered next
+  to it.</li>
+<li><strong>Deletion.</strong> The jobs of every session a delete or a revert removes are
+  deleted with it. A project's delete first deletes the new-session jobs
+  naming it, then its sessions with their jobs.</li>
+<li><strong><code>crons.list</code></strong> also says whether the daemon is <code>firing</code>.</li>
+<li><strong>Corpora.</strong> No 1.15.0 corpus was recorded, as for 1.9.0 to 1.14.0.</li>
+<li><strong>Tests</strong> (<code>crates/engine/src/runtime/tests/crons.rs</code>) also cover a
+  <code>queue</code> fire into a busy session, which waits unadmitted behind the turn
+  and starts the next run, and a <code>steer</code> fire, which the running turn takes
+  and whose outcome is that run's; and the prepared resources of each cron
+  tool, <code>cron_update</code> across kinds checking both, with a rule that allows
+  <code>session</code> and denies <code>new</code> refusing the change.</li>
+</ul>
+<p>What phase 2 and 3 need: the TUI and web panels and the clock mark (from
+<code>SessionMeta::cron</code> and <code>crons.list</code>), <code>cookie cron</code>, the TUI's and web's
+labels for <code>scheduled_job</code> (the shared <code>waiting_label</code> already names it),
+and the scheduling guide and the permissions page. The protocol reference,
+changelog, tools reference, error reference, and the <code>[cron]</code> configuration
+page are up to date.</p>
 
 
 
