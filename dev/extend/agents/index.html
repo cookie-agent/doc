@@ -4033,8 +4033,9 @@ Two actions are the exception: an agent document, the built-in <code>default</co
 included, that names no key for <code>list_runtimes</code> or <code>mcp</code> gets that action's
 rules from its mode (see <a href="#listing-runtimes">Listing runtimes</a> and
 <a href="#mcp-default">MCP default</a>), so every agent that is not internal is offered
-MCP tools and asks before each call. Memory has no default, so the built-in
-<code>default</code> agent has no memory tools (see
+MCP tools and asks before each call. Memory has a default too, by whether
+the run is delegated rather than by mode, so the built-in <code>default</code> agent
+reads every memory and writes the memory related to its session (see
 <a href="#memory-permissions">Memory permissions</a>).</p>
 <h2 id="agent-presets">Agent presets<a class="headerlink" href="#agent-presets" title="Permanent link">&para;</a></h2>
 <p>Agent presets provide named, complete agent sets without duplicating every
@@ -4550,13 +4551,26 @@ agent document: the description names the agent and repeats the document's
 searching and reading and <code>memory_write</code> for writing, editing, and deleting,
 both with the memory URL as resource (<code>user://&lt;category&gt;</code>,
 <code>agent://&lt;agent&gt;</code>, <code>machine://&lt;machine&gt;/&lt;name&gt;</code>,
-<code>project://&lt;project&gt;/&lt;name&gt;</code>). Unlike <code>list_runtimes</code> and <code>mcp</code>, they have
-no default for a root run: an agent document, the built-in <code>default</code>
-included, that names no <code>memory</code> key gets no memory tools, no
-<code>memory_search</code>, and no memory snapshot. Memory is opt-in: <code>memory: allow</code>
-lets an agent read every memory, per-URL rules narrow it, and <code>memory_write</code>
-rules let it write. A session overlay can grant either for one session tree,
-as for any action.</p>
+<code>project://&lt;project&gt;/&lt;name&gt;</code>). <code>memory: allow</code> lets an agent read every
+memory, per-URL rules narrow it, and <code>memory_write</code> rules let it write. A
+session overlay can grant either for one session tree, as for any action.</p>
+<p><strong>Root runs.</strong> A root run of an agent that is not internal, the built-in
+<code>default</code> included, gets these rules for each of <code>memory</code> and
+<code>memory_write</code> its document names no key for:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nt">memory_write</span><span class="p">:</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+</code></pre></div>
+<p>It reads every memory, with the memory related to the session in its
+snapshot, and writes that related memory: the user's, its own agent file,
+and its session's machines and project. Another project's or machine's
+memory it can find with <code>memory_search</code> and read, but not change. A declared
+key replaces the default for its action only, so <code>memory_write: deny</code> leaves
+a run that reads, and <code>memory: deny</code> turns memory off. Internal agents get
+no default.</p>
 <p><strong>Variables.</strong> A <code>memory</code> or <code>memory_write</code> pattern may name the run's agent,
 machines, and project, so one document works wherever it runs:</p>
 <table>
@@ -4599,8 +4613,8 @@ agent, is gone: it is now an ordinary pattern, and <code>${agent_id}</code> repl
 <code>delegate_subagent</code>) whose agent document has no key for <code>memory</code>, or none for
 <code>memory_write</code>, gets <code>agent://${agent_id}: allow</code> for that action: it sees and
 maintains its own agent file and nothing else. The default depends on whether
-the run is delegated, not on the agent's mode, so an <code>all</code> agent has it when
-delegated and not as a root. A document that declares either action gets
+the run is delegated, not on the agent's mode, so an <code>all</code> agent has the root
+default as a root and this one when delegated. A document that declares either action gets
 exactly its own rules for it, delegated or not; there is no hard limit
 behind the default, so a subagent granted <code>user://*</code> may write it.</p>
 <p><strong>The write tools.</strong> <code>memory_write</code>, <code>memory_edit</code>, and <code>memory_delete</code>, and
@@ -4614,28 +4628,29 @@ reviewer or you in front of the rest.</p>
 <p>A worked agent document: a reviewer that keeps its own file, reads the
 memory of its session's project and machines, and writes to those two only
 after asking, and that never sees the user's memory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>---
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>description: Reviews a diff for bugs and missing tests
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mode: all
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>models:
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>permissions:
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>  memory:
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    "user://*": deny
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    "agent://${agent_id}": allow
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    "project://${session_project}/*": allow
-<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    "machine://${session_machine}/*": allow
-<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>  memory_write:
-<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    "agent://${agent_id}": allow
-<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>    "project://${session_project}/*": ask
-<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="gu">    "machine://${session_machine}/*": ask</span>
-<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="gu">---</span>
-<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>You review a diff for bugs and missing tests.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>---
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>description: Reviews a diff for bugs and missing tests
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mode: all
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>models:
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>permissions:
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  memory:
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    "user://*": deny
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    "agent://${agent_id}": allow
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    "project://${session_project}/*": allow
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    "machine://${session_machine}/*": allow
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>  memory_write:
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>    "agent://${agent_id}": allow
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>    "project://${session_project}/*": ask
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="gu">    "machine://${session_machine}/*": ask</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="gu">---</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>You review a diff for bugs and missing tests.
 </code></pre></div>
 <p>Run as a root, this agent's snapshot shows its own file and the session's
 project and machine memories, it can write its own file freely, and the
-others after approval. Delegated, it has these same rules rather than the
-default, since it declares both keys. A subagent that should only keep its own
+others after approval. Root or delegated, it has these same rules rather
+than a default, since it declares both keys; without them it would read and
+write the user's memory as a root. A subagent that should only keep its own
 file needs no rules at all: the delegated default covers it.</p>
 <p>Memory needs both the <code>global</code> runtime and a visible <code>memory</code> action: an
 agent without one gets no memory tools at all, even with <code>memory_write</code>
@@ -4664,9 +4679,9 @@ form, <code>mcp@&lt;runtime&gt;</code> included), the daemon supplies <code>mcp:
 <code>primary</code>, <code>all</code>, and <code>subagent</code> agents, so the connected servers' tools are
 offered and every call asks; <code>internal</code> agents get none. A declared <code>mcp</code>
 key replaces the default entirely:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>offers only the <code>my_chrome</code> server's tools, <code>mcp: allow</code> runs every MCP tool
 without asking, and <code>mcp: deny</code> hides them all. A key with only a runtime
@@ -4676,10 +4691,10 @@ the source <code>default</code>. Session overlays apply on top as for any action
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are

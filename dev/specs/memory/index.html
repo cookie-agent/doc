@@ -3237,6 +3237,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#16917-implementation-notes-the-root-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.17 Implementation notes: the root default
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4397,6 +4406,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#16917-implementation-notes-the-root-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.9.17 Implementation notes: the root default
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4480,8 +4498,9 @@ changes a session's attachments, runtimes, or workspaces.</p>
 <li>Agents that declare no memory rules get defaults by mode: <code>primary</code> and
   <code>all</code> agents may read and write all memory, <code>subagent</code> agents may read all
   memory and write only their own agent file
-  (<a href="#92-default-rules">section 9.2</a>). (Removed 2026-10-22: memory is now
-  opt-in; see the note in section 9.2.)</li>
+  (<a href="#92-default-rules">section 9.2</a>). (Replaced 2026-10-22: the defaults
+  now depend on whether the run is delegated; see the note in section 9.2
+  and section 16.9.11.)</li>
 <li>A snapshot changes only at the points in <a href="#72-when-a-snapshot-is-taken">section 7.2</a>;
   the user's own edits from a client do not refresh open sessions.</li>
 <li>Machine memory folders and URLs use machine names; renaming a machine
@@ -5390,7 +5409,12 @@ no snapshot. Memory is opt-in, with <code>memory: allow</code> (or per-URL rules
 table above records the defaults as they were from 2026-10-19 to
 2026-10-22. Delegated runs regain one default, their own agent file
 (<a href="#16911-related-memory-and-no-hard-limits-on-what-an-agent-touches">section 16.9.11</a>). <code>list_runtimes</code> keeps its default, and <code>mcp</code> gained one
-(<a href="../runtimes/#71-addendum-2026-10-22-the-mcp-default">runtimes spec section 7.1</a>).</p>
+(<a href="../runtimes/#71-addendum-2026-10-22-the-mcp-default">runtimes spec section 7.1</a>).
+Later the same day root runs regained a default too, chosen by delegation
+rather than by mode: read everything, write what is related to the session
+(<a href="#16911-related-memory-and-no-hard-limits-on-what-an-agent-touches">section 16.9.11</a>,
+decided 2026-10-22). Memory is opt-in no longer; <code>memory: deny</code> turns it
+off, as under the table above.</p>
 <h3 id="93-search-results">9.3 Search results<a class="headerlink" href="#93-search-results" title="Permanent link">&para;</a></h3>
 <p><code>memory_search</code> always searches every memory and is never checked as a
 whole: there is no approval prompt for a search. Instead, each match is
@@ -6149,7 +6173,8 @@ phase 1 of <a href="../runtime-delegation/#11-implementation-notes">delegating t
 <h3 id="169-addendum-2026-10-22-memory-that-stays-worth-keeping">16.9 Addendum 2026-10-22: memory that stays worth keeping<a class="headerlink" href="#169-addendum-2026-10-22-memory-that-stays-worth-keeping" title="Permanent link">&para;</a></h3>
 <p>Settled 2026-10-22. Phases 1 and 2, the engine and the clients, are
 implemented (section 16.9.15), and phase 3, the docs, is written (section
-16.9.16). Models with write
+16.9.16). The root default of section 16.9.11 landed after (section
+16.9.17). Models with write
 access saved things that are useless by the next session. For example,
 after "explore this directory", one saved the directory listing. The only
 save guidance was "save what a later session should know", and nothing
@@ -6159,9 +6184,11 @@ Hermes Agent, OpenClaw, mem0 and Letta.</p>
 <p><strong>Decided:</strong>
 - No background curator, no content-shape guard, and no extraction of
   memories from transcripts.
-- Memory stays opt-in per agent for root runs (section 9.2, as amended
-  2026-10-22). Delegated runs get one default: their own agent file
-  (section 16.9.11, decided 2026-10-22).
+- Every run of an agent that is not internal has a memory default chosen
+  by delegation, not mode (section 16.9.11, decided 2026-10-22): a root
+  run reads everything and writes what is related to the session, and a
+  delegated run reads and writes its own agent file. This replaces the
+  opt-in of section 9.2's first note of 2026-10-22.
 - The snapshot already follows the read rules, and an empty snapshot
   renders no memory turn. Both were implemented 2026-10-22.</p>
 <h4 id="1691-the-memory-providers-system-prompt-section">16.9.1 The memory provider's system-prompt section<a class="headerlink" href="#1691-the-memory-providers-system-prompt-section" title="Permanent link">&para;</a></h4>
@@ -6530,8 +6557,8 @@ run. Use memory_search for anything else.</p>
     file (section 6), so the default and the snapshot agree.</li>
 <li><strong>Chosen by depth, not mode.</strong> Permission defaults so far depend on
     the agent's mode. This one depends on whether the run is delegated,
-    so an <code>all</code>-mode agent gets it when delegated and not when it runs as
-    the root. Root runs keep no memory default.</li>
+    so an <code>all</code>-mode agent gets it when delegated and the root default
+    below when it runs as the root.</li>
 <li><strong>How a run is known to be delegated.</strong> Its session's origin is
     <code>SessionOrigin::Delegated</code>, set when <code>delegate_subagent</code> creates the
     session and never changed. The two policy freezes already differ
@@ -6546,21 +6573,36 @@ run. Use memory_search for anything else.</p>
     included if it grants it. That is the explicit opt-in; there is no
     hard limit behind it.</li>
 <li><strong>Session overlays</strong> apply on top as for any action.</li>
-<li><strong>A possible later default for root runs.</strong> Once this is in, the defaults (section 9.2,
-  none since 2026-10-22) could become "read everything, write what is
-  related". The relative names already express that, with no new
-  variable:</li>
+<li><strong>Default for root runs</strong> (decided 2026-10-22, the user's decision). A
+  root run (its session's origin is <code>SessionOrigin::Root</code>) of an agent
+  that is not internal, the built-in <code>default</code> agent included, whose agent
+  document has no key for <code>memory</code> or for <code>memory_write</code> gets these rules
+  for that action: read everything, write what is related. The relative
+  names express it with no new variable:</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">            </span><span class="c1"># "*": allow</span>
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">memory_write</span><span class="p">:</span>
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 <a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
-<p>This is not decided; it is recorded here so the change can be made
-  later without new mechanism. Delegated runs would keep their own default
-  above.</p>
+<ul>
+<li><strong>What it means.</strong> A root run sees its related memory in its snapshot,
+    can find and read any other memory with <code>memory_search</code> and
+    <code>memory_read</code>, and maintains its related memory (the write tools are
+    offered, section 16.9.1). Another project's or machine's memory stays
+    read-only to it. A session without a project, or with no machine,
+    drops the rule that names it (section 16.9.9), so such a run writes
+    <code>user://</code> and its own agent file only.</li>
+<li><strong>A document's own rules replace it</strong>, per action, as with every
+    default: <code>memory_write: deny</code> leaves a run that reads, and
+    <code>memory: deny</code> turns memory off, since the write tools need some memory
+    the run can read.</li>
+<li><strong>Internal agents</strong> get no memory default, root or delegated; they have
+    no memory (section 6).</li>
+<li>Delegated runs keep their own default above.</li>
+</ul>
 <h4 id="16912-the-approval-reviewer-knows-the-rubric">16.9.12 The approval reviewer knows the rubric<a class="headerlink" href="#16912-the-approval-reviewer-knows-the-rubric" title="Permanent link">&para;</a></h4>
 <p>When an agent's <code>memory_write</code> rule is <code>ask</code>, the approval reviewer
 receives part B of section 16.9.1 and the write's content. In auto-approve
@@ -6793,6 +6835,23 @@ reference's memory turn), remain.</p>
 </ul>
 <h4 id="16916-implementation-notes-phase-3">16.9.16 Implementation notes: phase 3<a class="headerlink" href="#16916-implementation-notes-phase-3" title="Permanent link">&para;</a></h4>
 <p>Written 2026-10-22: the memory guide, the permissions pages (<code>extend/agents.md</code>, <code>concepts/permissions.md</code>), the system prompt reference's <code>Project:</code> line, memory section, and trimmed memory turn, and the concept page; the configuration reference and the tools reference were already current from phase 1.</p>
+<h4 id="16917-implementation-notes-the-root-default">16.9.17 Implementation notes: the root default<a class="headerlink" href="#16917-implementation-notes-the-root-default" title="Permanent link">&para;</a></h4>
+<p>Landed 2026-10-22 (section 16.9.11, default for root runs). No wire change.</p>
+<ul>
+<li><strong>The rules</strong> (<code>crates/engine/src/permissions.rs</code>):
+  <code>memory_default_rules(mode, delegated)</code> replaces
+  <code>delegated_default_rules</code> and gives the root, delegated, or no default;
+  <code>agent_permission_rules</code> appends them after the mode defaults, for an
+  action the document names no key for, before the variables are expanded.</li>
+<li><strong>The permission view</strong> (<code>effective_permission_view</code>) now takes whether
+  the session is delegated and reports an action whose rules are its memory
+  default with the source <code>default</code>, matching each <code>${session_machine}</code> or
+  <code>${session_project}</code> default against the rules it expanded to (none or
+  more). The delegated default was reported as <code>agent_document</code> before.</li>
+<li><strong>Tests</strong> that are not about memory and size small contexts, or check
+  the prompt's blocks, give their agent <code>memory: deny</code>; the tool lists the
+  agent tests pin include the memory tools again.</li>
+</ul>
 
 
 
