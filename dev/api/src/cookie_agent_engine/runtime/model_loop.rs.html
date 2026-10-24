@@ -2826,227 +2826,229 @@
 <a href=#2826 id=2826 data-nosnippet>2826</a>}
 <a href=#2827 id=2827 data-nosnippet>2827</a>
 <a href=#2828 id=2828 data-nosnippet>2828</a><span class="doccomment">/// SHA-256 of the request's JSON form, streamed into the hasher without
-<a href=#2829 id=2829 data-nosnippet>2829</a>/// materializing the serialized bytes.
-<a href=#2830 id=2830 data-nosnippet>2830</a></span><span class="kw">fn </span>request_fingerprint(request: <span class="kw-2">&amp;</span>ModelRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Sha256Digest, EngineError&gt; {
-<a href=#2831 id=2831 data-nosnippet>2831</a>    <span class="kw">use </span>sha2::Digest <span class="kw">as _</span>;
-<a href=#2832 id=2832 data-nosnippet>2832</a>    <span class="kw">struct </span>HashWriter(sha2::Sha256);
-<a href=#2833 id=2833 data-nosnippet>2833</a>    <span class="kw">impl </span>std::io::Write <span class="kw">for </span>HashWriter {
-<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buffer: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
-<a href=#2835 id=2835 data-nosnippet>2835</a>            <span class="self">self</span>.<span class="number">0</span>.update(buffer);
-<a href=#2836 id=2836 data-nosnippet>2836</a>            <span class="prelude-val">Ok</span>(buffer.len())
-<a href=#2837 id=2837 data-nosnippet>2837</a>        }
-<a href=#2838 id=2838 data-nosnippet>2838</a>        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
-<a href=#2839 id=2839 data-nosnippet>2839</a>            <span class="prelude-val">Ok</span>(())
-<a href=#2840 id=2840 data-nosnippet>2840</a>        }
-<a href=#2841 id=2841 data-nosnippet>2841</a>    }
-<a href=#2842 id=2842 data-nosnippet>2842</a>    <span class="kw">let </span><span class="kw-2">mut </span>writer = HashWriter(sha2::Sha256::new());
-<a href=#2843 id=2843 data-nosnippet>2843</a>    serde_json::to_writer(<span class="kw-2">&amp;mut </span>writer, request)
-<a href=#2844 id=2844 data-nosnippet>2844</a>        .map_err(|error| EngineError::from(ModelError::invalid_request(error.to_string())))<span class="question-mark">?</span>;
-<a href=#2845 id=2845 data-nosnippet>2845</a>    <span class="kw">let </span>hex = writer
-<a href=#2846 id=2846 data-nosnippet>2846</a>        .<span class="number">0
-<a href=#2847 id=2847 data-nosnippet>2847</a>        </span>.finalize()
-<a href=#2848 id=2848 data-nosnippet>2848</a>        .iter()
-<a href=#2849 id=2849 data-nosnippet>2849</a>        .fold(String::with_capacity(<span class="number">64</span>), |<span class="kw-2">mut </span>hex, byte| {
-<a href=#2850 id=2850 data-nosnippet>2850</a>            <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
-<a href=#2851 id=2851 data-nosnippet>2851</a>            <span class="kw">let _ </span>= <span class="macro">write!</span>(hex, <span class="string">"{byte:02x}"</span>);
-<a href=#2852 id=2852 data-nosnippet>2852</a>            hex
-<a href=#2853 id=2853 data-nosnippet>2853</a>        });
-<a href=#2854 id=2854 data-nosnippet>2854</a>    <span class="prelude-val">Ok</span>(Sha256Digest::new(hex).expect(<span class="string">"SHA-256 hex digest is well-formed"</span>))
-<a href=#2855 id=2855 data-nosnippet>2855</a>}
-<a href=#2856 id=2856 data-nosnippet>2856</a>
-<a href=#2857 id=2857 data-nosnippet>2857</a><span class="kw">fn </span>extension_model_params(
-<a href=#2858 id=2858 data-nosnippet>2858</a>    request: <span class="kw-2">&amp;</span>ModelRequest,
-<a href=#2859 id=2859 data-nosnippet>2859</a>) -&gt; cookie_agent_protocol::ExtensionModelParamsAdjustments {
-<a href=#2860 id=2860 data-nosnippet>2860</a>    cookie_agent_protocol::ExtensionModelParamsAdjustments {
-<a href=#2861 id=2861 data-nosnippet>2861</a>        max_tokens: request.inference.max_output_tokens,
-<a href=#2862 id=2862 data-nosnippet>2862</a>        temperature: request.inference.temperature,
-<a href=#2863 id=2863 data-nosnippet>2863</a>        top_p: request.inference.top_p,
-<a href=#2864 id=2864 data-nosnippet>2864</a>    }
-<a href=#2865 id=2865 data-nosnippet>2865</a>}
-<a href=#2866 id=2866 data-nosnippet>2866</a>
-<a href=#2867 id=2867 data-nosnippet>2867</a><span class="kw">fn </span>apply_model_params(
-<a href=#2868 id=2868 data-nosnippet>2868</a>    request: <span class="kw-2">&amp;mut </span>ModelRequest,
-<a href=#2869 id=2869 data-nosnippet>2869</a>    adjustments: cookie_agent_protocol::ExtensionModelParamsAdjustments,
-<a href=#2870 id=2870 data-nosnippet>2870</a>) {
-<a href=#2871 id=2871 data-nosnippet>2871</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(max_tokens) = adjustments.max_tokens {
-<a href=#2872 id=2872 data-nosnippet>2872</a>        request.inference.max_output_tokens = <span class="prelude-val">Some</span>(max_tokens);
-<a href=#2873 id=2873 data-nosnippet>2873</a>    }
-<a href=#2874 id=2874 data-nosnippet>2874</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(temperature) = adjustments.temperature {
-<a href=#2875 id=2875 data-nosnippet>2875</a>        request.inference.temperature = <span class="prelude-val">Some</span>(temperature);
-<a href=#2876 id=2876 data-nosnippet>2876</a>    }
-<a href=#2877 id=2877 data-nosnippet>2877</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(top_p) = adjustments.top_p {
-<a href=#2878 id=2878 data-nosnippet>2878</a>        request.inference.top_p = <span class="prelude-val">Some</span>(top_p);
-<a href=#2879 id=2879 data-nosnippet>2879</a>    }
-<a href=#2880 id=2880 data-nosnippet>2880</a>}
-<a href=#2881 id=2881 data-nosnippet>2881</a>
-<a href=#2882 id=2882 data-nosnippet>2882</a><span class="attr">#[cfg(test)]
-<a href=#2883 id=2883 data-nosnippet>2883</a></span><span class="kw">mod </span>tests {
-<a href=#2884 id=2884 data-nosnippet>2884</a>    <span class="kw">use </span>std::time::Duration;
-<a href=#2885 id=2885 data-nosnippet>2885</a>
-<a href=#2886 id=2886 data-nosnippet>2886</a>    <span class="kw">use </span>oven_sdk::{ModelError, ModelErrorKind};
+<a href=#2829 id=2829 data-nosnippet>2829</a>/// materializing the serialized bytes. It fills only
+<a href=#2830 id=2830 data-nosnippet>2830</a>/// `ModelRequestPrepared.prompt_fingerprint`, which nothing reads and which
+<a href=#2831 id=2831 data-nosnippet>2831</a>/// goes at the next major version (compatibility-v1 spec, section 3.4).
+<a href=#2832 id=2832 data-nosnippet>2832</a></span><span class="kw">fn </span>request_fingerprint(request: <span class="kw-2">&amp;</span>ModelRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Sha256Digest, EngineError&gt; {
+<a href=#2833 id=2833 data-nosnippet>2833</a>    <span class="kw">use </span>sha2::Digest <span class="kw">as _</span>;
+<a href=#2834 id=2834 data-nosnippet>2834</a>    <span class="kw">struct </span>HashWriter(sha2::Sha256);
+<a href=#2835 id=2835 data-nosnippet>2835</a>    <span class="kw">impl </span>std::io::Write <span class="kw">for </span>HashWriter {
+<a href=#2836 id=2836 data-nosnippet>2836</a>        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buffer: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+<a href=#2837 id=2837 data-nosnippet>2837</a>            <span class="self">self</span>.<span class="number">0</span>.update(buffer);
+<a href=#2838 id=2838 data-nosnippet>2838</a>            <span class="prelude-val">Ok</span>(buffer.len())
+<a href=#2839 id=2839 data-nosnippet>2839</a>        }
+<a href=#2840 id=2840 data-nosnippet>2840</a>        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+<a href=#2841 id=2841 data-nosnippet>2841</a>            <span class="prelude-val">Ok</span>(())
+<a href=#2842 id=2842 data-nosnippet>2842</a>        }
+<a href=#2843 id=2843 data-nosnippet>2843</a>    }
+<a href=#2844 id=2844 data-nosnippet>2844</a>    <span class="kw">let </span><span class="kw-2">mut </span>writer = HashWriter(sha2::Sha256::new());
+<a href=#2845 id=2845 data-nosnippet>2845</a>    serde_json::to_writer(<span class="kw-2">&amp;mut </span>writer, request)
+<a href=#2846 id=2846 data-nosnippet>2846</a>        .map_err(|error| EngineError::from(ModelError::invalid_request(error.to_string())))<span class="question-mark">?</span>;
+<a href=#2847 id=2847 data-nosnippet>2847</a>    <span class="kw">let </span>hex = writer
+<a href=#2848 id=2848 data-nosnippet>2848</a>        .<span class="number">0
+<a href=#2849 id=2849 data-nosnippet>2849</a>        </span>.finalize()
+<a href=#2850 id=2850 data-nosnippet>2850</a>        .iter()
+<a href=#2851 id=2851 data-nosnippet>2851</a>        .fold(String::with_capacity(<span class="number">64</span>), |<span class="kw-2">mut </span>hex, byte| {
+<a href=#2852 id=2852 data-nosnippet>2852</a>            <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
+<a href=#2853 id=2853 data-nosnippet>2853</a>            <span class="kw">let _ </span>= <span class="macro">write!</span>(hex, <span class="string">"{byte:02x}"</span>);
+<a href=#2854 id=2854 data-nosnippet>2854</a>            hex
+<a href=#2855 id=2855 data-nosnippet>2855</a>        });
+<a href=#2856 id=2856 data-nosnippet>2856</a>    <span class="prelude-val">Ok</span>(Sha256Digest::new(hex).expect(<span class="string">"SHA-256 hex digest is well-formed"</span>))
+<a href=#2857 id=2857 data-nosnippet>2857</a>}
+<a href=#2858 id=2858 data-nosnippet>2858</a>
+<a href=#2859 id=2859 data-nosnippet>2859</a><span class="kw">fn </span>extension_model_params(
+<a href=#2860 id=2860 data-nosnippet>2860</a>    request: <span class="kw-2">&amp;</span>ModelRequest,
+<a href=#2861 id=2861 data-nosnippet>2861</a>) -&gt; cookie_agent_protocol::ExtensionModelParamsAdjustments {
+<a href=#2862 id=2862 data-nosnippet>2862</a>    cookie_agent_protocol::ExtensionModelParamsAdjustments {
+<a href=#2863 id=2863 data-nosnippet>2863</a>        max_tokens: request.inference.max_output_tokens,
+<a href=#2864 id=2864 data-nosnippet>2864</a>        temperature: request.inference.temperature,
+<a href=#2865 id=2865 data-nosnippet>2865</a>        top_p: request.inference.top_p,
+<a href=#2866 id=2866 data-nosnippet>2866</a>    }
+<a href=#2867 id=2867 data-nosnippet>2867</a>}
+<a href=#2868 id=2868 data-nosnippet>2868</a>
+<a href=#2869 id=2869 data-nosnippet>2869</a><span class="kw">fn </span>apply_model_params(
+<a href=#2870 id=2870 data-nosnippet>2870</a>    request: <span class="kw-2">&amp;mut </span>ModelRequest,
+<a href=#2871 id=2871 data-nosnippet>2871</a>    adjustments: cookie_agent_protocol::ExtensionModelParamsAdjustments,
+<a href=#2872 id=2872 data-nosnippet>2872</a>) {
+<a href=#2873 id=2873 data-nosnippet>2873</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(max_tokens) = adjustments.max_tokens {
+<a href=#2874 id=2874 data-nosnippet>2874</a>        request.inference.max_output_tokens = <span class="prelude-val">Some</span>(max_tokens);
+<a href=#2875 id=2875 data-nosnippet>2875</a>    }
+<a href=#2876 id=2876 data-nosnippet>2876</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(temperature) = adjustments.temperature {
+<a href=#2877 id=2877 data-nosnippet>2877</a>        request.inference.temperature = <span class="prelude-val">Some</span>(temperature);
+<a href=#2878 id=2878 data-nosnippet>2878</a>    }
+<a href=#2879 id=2879 data-nosnippet>2879</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(top_p) = adjustments.top_p {
+<a href=#2880 id=2880 data-nosnippet>2880</a>        request.inference.top_p = <span class="prelude-val">Some</span>(top_p);
+<a href=#2881 id=2881 data-nosnippet>2881</a>    }
+<a href=#2882 id=2882 data-nosnippet>2882</a>}
+<a href=#2883 id=2883 data-nosnippet>2883</a>
+<a href=#2884 id=2884 data-nosnippet>2884</a><span class="attr">#[cfg(test)]
+<a href=#2885 id=2885 data-nosnippet>2885</a></span><span class="kw">mod </span>tests {
+<a href=#2886 id=2886 data-nosnippet>2886</a>    <span class="kw">use </span>std::time::Duration;
 <a href=#2887 id=2887 data-nosnippet>2887</a>
-<a href=#2888 id=2888 data-nosnippet>2888</a>    <span class="kw">use </span>cookie_agent_protocol::{AttemptId, ReplayDecision, ReplayDisposition, ResolvedModelRef};
+<a href=#2888 id=2888 data-nosnippet>2888</a>    <span class="kw">use </span>oven_sdk::{ModelError, ModelErrorKind};
 <a href=#2889 id=2889 data-nosnippet>2889</a>
-<a href=#2890 id=2890 data-nosnippet>2890</a>    <span class="kw">use super</span>::{ReplayEvaluationBase, is_overload_retry, model_retry_delay, retry_budget_allows};
+<a href=#2890 id=2890 data-nosnippet>2890</a>    <span class="kw">use </span>cookie_agent_protocol::{AttemptId, ReplayDecision, ReplayDisposition, ResolvedModelRef};
 <a href=#2891 id=2891 data-nosnippet>2891</a>
-<a href=#2892 id=2892 data-nosnippet>2892</a>    <span class="kw">fn </span>model(name: <span class="kw-2">&amp;</span>str) -&gt; ResolvedModelRef {
-<a href=#2893 id=2893 data-nosnippet>2893</a>        <span class="kw">crate</span>::model_history::wire_model(<span class="kw-2">&amp;</span><span class="kw">crate</span>::test_support::model_binding_named(name))
-<a href=#2894 id=2894 data-nosnippet>2894</a>    }
-<a href=#2895 id=2895 data-nosnippet>2895</a>
-<a href=#2896 id=2896 data-nosnippet>2896</a>    <span class="kw">fn </span>decisions(dispositions: <span class="kw-2">&amp;</span>[ReplayDisposition]) -&gt; Vec&lt;ReplayDecision&gt; {
-<a href=#2897 id=2897 data-nosnippet>2897</a>        dispositions
-<a href=#2898 id=2898 data-nosnippet>2898</a>            .iter()
-<a href=#2899 id=2899 data-nosnippet>2899</a>            .enumerate()
-<a href=#2900 id=2900 data-nosnippet>2900</a>            .map(|(index, disposition)| ReplayDecision {
-<a href=#2901 id=2901 data-nosnippet>2901</a>                history_index: index <span class="kw">as </span>u64,
-<a href=#2902 id=2902 data-nosnippet>2902</a>                disposition: disposition.clone(),
-<a href=#2903 id=2903 data-nosnippet>2903</a>            })
-<a href=#2904 id=2904 data-nosnippet>2904</a>            .collect()
-<a href=#2905 id=2905 data-nosnippet>2905</a>    }
-<a href=#2906 id=2906 data-nosnippet>2906</a>
-<a href=#2907 id=2907 data-nosnippet>2907</a>    <span class="attr">#[test]
-<a href=#2908 id=2908 data-nosnippet>2908</a>    </span><span class="kw">fn </span>replay_evaluations_write_only_what_extends_the_previous_list() {
-<a href=#2909 id=2909 data-nosnippet>2909</a>        <span class="kw">let </span>model_a = model(<span class="string">"fallback-zero"</span>);
-<a href=#2910 id=2910 data-nosnippet>2910</a>        <span class="kw">let </span><span class="kw-2">mut </span>base = ReplayEvaluationBase::default();
-<a href=#2911 id=2911 data-nosnippet>2911</a>        <span class="kw">let </span>first = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::Replayed, ReplayDisposition::NoArtifact]);
-<a href=#2912 id=2912 data-nosnippet>2912</a>        <span class="macro">assert_eq!</span>(
-<a href=#2913 id=2913 data-nosnippet>2913</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>first),
-<a href=#2914 id=2914 data-nosnippet>2914</a>            (first.clone(), <span class="prelude-val">None</span>),
-<a href=#2915 id=2915 data-nosnippet>2915</a>            <span class="string">"a run's first evaluation is written in full"
-<a href=#2916 id=2916 data-nosnippet>2916</a>        </span>);
-<a href=#2917 id=2917 data-nosnippet>2917</a>        <span class="kw">let </span>first_attempt = AttemptId::new_v7();
-<a href=#2918 id=2918 data-nosnippet>2918</a>        base.record(first_attempt, model_a.clone(), first.clone());
-<a href=#2919 id=2919 data-nosnippet>2919</a>
-<a href=#2920 id=2920 data-nosnippet>2920</a>        <span class="kw">let </span>extended = decisions(<span class="kw-2">&amp;</span>[
-<a href=#2921 id=2921 data-nosnippet>2921</a>            ReplayDisposition::Replayed,
-<a href=#2922 id=2922 data-nosnippet>2922</a>            ReplayDisposition::NoArtifact,
+<a href=#2892 id=2892 data-nosnippet>2892</a>    <span class="kw">use super</span>::{ReplayEvaluationBase, is_overload_retry, model_retry_delay, retry_budget_allows};
+<a href=#2893 id=2893 data-nosnippet>2893</a>
+<a href=#2894 id=2894 data-nosnippet>2894</a>    <span class="kw">fn </span>model(name: <span class="kw-2">&amp;</span>str) -&gt; ResolvedModelRef {
+<a href=#2895 id=2895 data-nosnippet>2895</a>        <span class="kw">crate</span>::model_history::wire_model(<span class="kw-2">&amp;</span><span class="kw">crate</span>::test_support::model_binding_named(name))
+<a href=#2896 id=2896 data-nosnippet>2896</a>    }
+<a href=#2897 id=2897 data-nosnippet>2897</a>
+<a href=#2898 id=2898 data-nosnippet>2898</a>    <span class="kw">fn </span>decisions(dispositions: <span class="kw-2">&amp;</span>[ReplayDisposition]) -&gt; Vec&lt;ReplayDecision&gt; {
+<a href=#2899 id=2899 data-nosnippet>2899</a>        dispositions
+<a href=#2900 id=2900 data-nosnippet>2900</a>            .iter()
+<a href=#2901 id=2901 data-nosnippet>2901</a>            .enumerate()
+<a href=#2902 id=2902 data-nosnippet>2902</a>            .map(|(index, disposition)| ReplayDecision {
+<a href=#2903 id=2903 data-nosnippet>2903</a>                history_index: index <span class="kw">as </span>u64,
+<a href=#2904 id=2904 data-nosnippet>2904</a>                disposition: disposition.clone(),
+<a href=#2905 id=2905 data-nosnippet>2905</a>            })
+<a href=#2906 id=2906 data-nosnippet>2906</a>            .collect()
+<a href=#2907 id=2907 data-nosnippet>2907</a>    }
+<a href=#2908 id=2908 data-nosnippet>2908</a>
+<a href=#2909 id=2909 data-nosnippet>2909</a>    <span class="attr">#[test]
+<a href=#2910 id=2910 data-nosnippet>2910</a>    </span><span class="kw">fn </span>replay_evaluations_write_only_what_extends_the_previous_list() {
+<a href=#2911 id=2911 data-nosnippet>2911</a>        <span class="kw">let </span>model_a = model(<span class="string">"fallback-zero"</span>);
+<a href=#2912 id=2912 data-nosnippet>2912</a>        <span class="kw">let </span><span class="kw-2">mut </span>base = ReplayEvaluationBase::default();
+<a href=#2913 id=2913 data-nosnippet>2913</a>        <span class="kw">let </span>first = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::Replayed, ReplayDisposition::NoArtifact]);
+<a href=#2914 id=2914 data-nosnippet>2914</a>        <span class="macro">assert_eq!</span>(
+<a href=#2915 id=2915 data-nosnippet>2915</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>first),
+<a href=#2916 id=2916 data-nosnippet>2916</a>            (first.clone(), <span class="prelude-val">None</span>),
+<a href=#2917 id=2917 data-nosnippet>2917</a>            <span class="string">"a run's first evaluation is written in full"
+<a href=#2918 id=2918 data-nosnippet>2918</a>        </span>);
+<a href=#2919 id=2919 data-nosnippet>2919</a>        <span class="kw">let </span>first_attempt = AttemptId::new_v7();
+<a href=#2920 id=2920 data-nosnippet>2920</a>        base.record(first_attempt, model_a.clone(), first.clone());
+<a href=#2921 id=2921 data-nosnippet>2921</a>
+<a href=#2922 id=2922 data-nosnippet>2922</a>        <span class="kw">let </span>extended = decisions(<span class="kw-2">&amp;</span>[
 <a href=#2923 id=2923 data-nosnippet>2923</a>            ReplayDisposition::Replayed,
-<a href=#2924 id=2924 data-nosnippet>2924</a>        ]);
-<a href=#2925 id=2925 data-nosnippet>2925</a>        <span class="macro">assert_eq!</span>(
-<a href=#2926 id=2926 data-nosnippet>2926</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>extended),
-<a href=#2927 id=2927 data-nosnippet>2927</a>            (extended[<span class="number">2</span>..].to_vec(), <span class="prelude-val">Some</span>(first_attempt))
-<a href=#2928 id=2928 data-nosnippet>2928</a>        );
-<a href=#2929 id=2929 data-nosnippet>2929</a>        <span class="macro">assert_eq!</span>(
-<a href=#2930 id=2930 data-nosnippet>2930</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>first),
-<a href=#2931 id=2931 data-nosnippet>2931</a>            (Vec::new(), <span class="prelude-val">Some</span>(first_attempt)),
-<a href=#2932 id=2932 data-nosnippet>2932</a>            <span class="string">"an unchanged list writes nothing new"
-<a href=#2933 id=2933 data-nosnippet>2933</a>        </span>);
-<a href=#2934 id=2934 data-nosnippet>2934</a>
-<a href=#2935 id=2935 data-nosnippet>2935</a>        <span class="kw">let </span>changed = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::NoArtifact, ReplayDisposition::NoArtifact]);
-<a href=#2936 id=2936 data-nosnippet>2936</a>        <span class="macro">assert_eq!</span>(
-<a href=#2937 id=2937 data-nosnippet>2937</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>changed),
-<a href=#2938 id=2938 data-nosnippet>2938</a>            (changed.clone(), <span class="prelude-val">None</span>),
-<a href=#2939 id=2939 data-nosnippet>2939</a>            <span class="string">"a changed earlier decision is written in full"
-<a href=#2940 id=2940 data-nosnippet>2940</a>        </span>);
-<a href=#2941 id=2941 data-nosnippet>2941</a>        <span class="macro">assert_eq!</span>(
-<a href=#2942 id=2942 data-nosnippet>2942</a>            base.encode(<span class="kw-2">&amp;</span>model(<span class="string">"fallback-one"</span>), <span class="kw-2">&amp;</span>extended),
-<a href=#2943 id=2943 data-nosnippet>2943</a>            (extended.clone(), <span class="prelude-val">None</span>),
-<a href=#2944 id=2944 data-nosnippet>2944</a>            <span class="string">"a model change is written in full"
-<a href=#2945 id=2945 data-nosnippet>2945</a>        </span>);
-<a href=#2946 id=2946 data-nosnippet>2946</a>    }
-<a href=#2947 id=2947 data-nosnippet>2947</a>
-<a href=#2948 id=2948 data-nosnippet>2948</a>    <span class="attr">#[test]
-<a href=#2949 id=2949 data-nosnippet>2949</a>    </span><span class="kw">fn </span>an_empty_previous_list_is_never_a_base() {
-<a href=#2950 id=2950 data-nosnippet>2950</a>        <span class="kw">let </span>model_a = model(<span class="string">"fallback-zero"</span>);
-<a href=#2951 id=2951 data-nosnippet>2951</a>        <span class="kw">let </span><span class="kw-2">mut </span>base = ReplayEvaluationBase::default();
-<a href=#2952 id=2952 data-nosnippet>2952</a>        base.record(AttemptId::new_v7(), model_a.clone(), Vec::new());
-<a href=#2953 id=2953 data-nosnippet>2953</a>        <span class="kw">let </span>next = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::Replayed]);
-<a href=#2954 id=2954 data-nosnippet>2954</a>        <span class="macro">assert_eq!</span>(base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>next), (next.clone(), <span class="prelude-val">None</span>));
-<a href=#2955 id=2955 data-nosnippet>2955</a>    }
-<a href=#2956 id=2956 data-nosnippet>2956</a>
-<a href=#2957 id=2957 data-nosnippet>2957</a>    <span class="attr">#[test]
-<a href=#2958 id=2958 data-nosnippet>2958</a>    </span><span class="kw">fn </span>retry_budget_counts_retries_after_the_first_attempt() {
-<a href=#2959 id=2959 data-nosnippet>2959</a>        <span class="macro">assert!</span>(!retry_budget_allows(<span class="number">0</span>, <span class="number">0</span>));
-<a href=#2960 id=2960 data-nosnippet>2960</a>        <span class="macro">assert!</span>(retry_budget_allows(<span class="number">3</span>, <span class="number">0</span>));
-<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="macro">assert!</span>(retry_budget_allows(<span class="number">3</span>, <span class="number">2</span>));
-<a href=#2962 id=2962 data-nosnippet>2962</a>        <span class="macro">assert!</span>(!retry_budget_allows(<span class="number">3</span>, <span class="number">3</span>));
-<a href=#2963 id=2963 data-nosnippet>2963</a>        <span class="macro">assert!</span>(retry_budget_allows(-<span class="number">1</span>, u32::MAX));
-<a href=#2964 id=2964 data-nosnippet>2964</a>    }
-<a href=#2965 id=2965 data-nosnippet>2965</a>
-<a href=#2966 id=2966 data-nosnippet>2966</a>    <span class="attr">#[test]
-<a href=#2967 id=2967 data-nosnippet>2967</a>    </span><span class="kw">fn </span>overload_retry_classification_is_limited_to_overload_and_retryable_429_503() {
-<a href=#2968 id=2968 data-nosnippet>2968</a>        <span class="macro">assert!</span>(is_overload_retry(<span class="kw-2">&amp;</span>ModelError::new(
-<a href=#2969 id=2969 data-nosnippet>2969</a>            ModelErrorKind::Overload,
-<a href=#2970 id=2970 data-nosnippet>2970</a>            <span class="string">"overloaded"</span>,
-<a href=#2971 id=2971 data-nosnippet>2971</a>        )));
-<a href=#2972 id=2972 data-nosnippet>2972</a>        <span class="macro">assert!</span>(is_overload_retry(
-<a href=#2973 id=2973 data-nosnippet>2973</a>            <span class="kw-2">&amp;</span>ModelError::rate_limited(<span class="string">"rate limited"</span>).with_http_status(<span class="number">429</span>)
-<a href=#2974 id=2974 data-nosnippet>2974</a>        ));
-<a href=#2975 id=2975 data-nosnippet>2975</a>        <span class="macro">assert!</span>(is_overload_retry(
-<a href=#2976 id=2976 data-nosnippet>2976</a>            <span class="kw-2">&amp;</span>ModelError::provider(<span class="string">"unavailable"</span>)
-<a href=#2977 id=2977 data-nosnippet>2977</a>                .with_retryable(<span class="bool-val">true</span>)
-<a href=#2978 id=2978 data-nosnippet>2978</a>                .with_http_status(<span class="number">503</span>)
-<a href=#2979 id=2979 data-nosnippet>2979</a>        ));
-<a href=#2980 id=2980 data-nosnippet>2980</a>        <span class="macro">assert!</span>(!is_overload_retry(
-<a href=#2981 id=2981 data-nosnippet>2981</a>            <span class="kw-2">&amp;</span>ModelError::new(ModelErrorKind::Quota, <span class="string">"quota"</span>).with_http_status(<span class="number">429</span>)
-<a href=#2982 id=2982 data-nosnippet>2982</a>        ));
-<a href=#2983 id=2983 data-nosnippet>2983</a>        <span class="macro">assert!</span>(!is_overload_retry(
-<a href=#2984 id=2984 data-nosnippet>2984</a>            <span class="kw-2">&amp;</span>ModelError::provider(<span class="string">"server error"</span>)
-<a href=#2985 id=2985 data-nosnippet>2985</a>                .with_retryable(<span class="bool-val">true</span>)
-<a href=#2986 id=2986 data-nosnippet>2986</a>                .with_http_status(<span class="number">500</span>)
-<a href=#2987 id=2987 data-nosnippet>2987</a>        ));
-<a href=#2988 id=2988 data-nosnippet>2988</a>    }
-<a href=#2989 id=2989 data-nosnippet>2989</a>
-<a href=#2990 id=2990 data-nosnippet>2990</a>    <span class="attr">#[test]
-<a href=#2991 id=2991 data-nosnippet>2991</a>    </span><span class="kw">fn </span>model_retry_delay_has_jitter_bounds_and_uncapped_retry_after() {
-<a href=#2992 id=2992 data-nosnippet>2992</a>        <span class="kw">let </span>ceiling = Duration::from_secs(<span class="number">60</span>);
-<a href=#2993 id=2993 data-nosnippet>2993</a>        <span class="macro">assert_eq!</span>(
-<a href=#2994 id=2994 data-nosnippet>2994</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, ceiling),
-<a href=#2995 id=2995 data-nosnippet>2995</a>            Duration::from_millis(<span class="number">750</span>)
-<a href=#2996 id=2996 data-nosnippet>2996</a>        );
-<a href=#2997 id=2997 data-nosnippet>2997</a>        <span class="macro">assert_eq!</span>(
-<a href=#2998 id=2998 data-nosnippet>2998</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
-<a href=#2999 id=2999 data-nosnippet>2999</a>            Duration::from_millis(<span class="number">1250</span>)
-<a href=#3000 id=3000 data-nosnippet>3000</a>        );
-<a href=#3001 id=3001 data-nosnippet>3001</a>        <span class="macro">assert_eq!</span>(
-<a href=#3002 id=3002 data-nosnippet>3002</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, ceiling),
-<a href=#3003 id=3003 data-nosnippet>3003</a>            Duration::from_millis(<span class="number">1500</span>)
-<a href=#3004 id=3004 data-nosnippet>3004</a>        );
-<a href=#3005 id=3005 data-nosnippet>3005</a>        <span class="macro">assert_eq!</span>(
-<a href=#3006 id=3006 data-nosnippet>3006</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
-<a href=#3007 id=3007 data-nosnippet>3007</a>            Duration::from_millis(<span class="number">2500</span>)
-<a href=#3008 id=3008 data-nosnippet>3008</a>        );
-<a href=#3009 id=3009 data-nosnippet>3009</a>        <span class="macro">assert_eq!</span>(
-<a href=#3010 id=3010 data-nosnippet>3010</a>            model_retry_delay(<span class="number">63</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
-<a href=#3011 id=3011 data-nosnippet>3011</a>            Duration::from_secs(<span class="number">60</span>)
-<a href=#3012 id=3012 data-nosnippet>3012</a>        );
-<a href=#3013 id=3013 data-nosnippet>3013</a>        <span class="macro">assert_eq!</span>(
-<a href=#3014 id=3014 data-nosnippet>3014</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, Duration::from_millis(<span class="number">1200</span>)),
-<a href=#3015 id=3015 data-nosnippet>3015</a>            Duration::from_millis(<span class="number">1200</span>)
-<a href=#3016 id=3016 data-nosnippet>3016</a>        );
-<a href=#3017 id=3017 data-nosnippet>3017</a>        <span class="macro">assert_eq!</span>(
-<a href=#3018 id=3018 data-nosnippet>3018</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, Duration::from_millis(<span class="number">1</span>)),
-<a href=#3019 id=3019 data-nosnippet>3019</a>            Duration::from_millis(<span class="number">1</span>)
-<a href=#3020 id=3020 data-nosnippet>3020</a>        );
-<a href=#3021 id=3021 data-nosnippet>3021</a>        <span class="macro">assert_eq!</span>(
-<a href=#3022 id=3022 data-nosnippet>3022</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">10</span>)), <span class="number">0</span>, Duration::from_secs(<span class="number">2</span>),),
-<a href=#3023 id=3023 data-nosnippet>3023</a>            Duration::from_secs(<span class="number">10</span>)
-<a href=#3024 id=3024 data-nosnippet>3024</a>        );
-<a href=#3025 id=3025 data-nosnippet>3025</a>        <span class="macro">assert_eq!</span>(
-<a href=#3026 id=3026 data-nosnippet>3026</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_millis(<span class="number">500</span>)), <span class="number">0</span>, ceiling),
-<a href=#3027 id=3027 data-nosnippet>3027</a>            Duration::from_millis(<span class="number">750</span>)
-<a href=#3028 id=3028 data-nosnippet>3028</a>        );
-<a href=#3029 id=3029 data-nosnippet>3029</a>        <span class="macro">assert_eq!</span>(
-<a href=#3030 id=3030 data-nosnippet>3030</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">600</span>)), <span class="number">0</span>, ceiling),
-<a href=#3031 id=3031 data-nosnippet>3031</a>            Duration::from_secs(<span class="number">600</span>)
-<a href=#3032 id=3032 data-nosnippet>3032</a>        );
-<a href=#3033 id=3033 data-nosnippet>3033</a>    }
-<a href=#3034 id=3034 data-nosnippet>3034</a>}
-<a href=#3035 id=3035 data-nosnippet>3035</a>
-<a href=#3036 id=3036 data-nosnippet>3036</a><span class="attr">#[cfg(test)]
-<a href=#3037 id=3037 data-nosnippet>3037</a></span><span class="kw">mod </span>fingerprint_tests {
-<a href=#3038 id=3038 data-nosnippet>3038</a>    <span class="kw">use </span>cookie_agent_protocol::Sha256Digest;
-<a href=#3039 id=3039 data-nosnippet>3039</a>    <span class="kw">use </span>oven_sdk::{HistoryTurn, InputPart, Request <span class="kw">as </span>ModelRequest, TextPart, UserMessage};
-<a href=#3040 id=3040 data-nosnippet>3040</a>
-<a href=#3041 id=3041 data-nosnippet>3041</a>    <span class="attr">#[test]
-<a href=#3042 id=3042 data-nosnippet>3042</a>    </span><span class="kw">fn </span>streamed_request_fingerprint_matches_hash_of_serialized_bytes() {
-<a href=#3043 id=3043 data-nosnippet>3043</a>        <span class="kw">let </span>request = ModelRequest::new(<span class="macro">vec!</span>[HistoryTurn::user(UserMessage::new(<span class="macro">vec!</span>[
-<a href=#3044 id=3044 data-nosnippet>3044</a>            InputPart::Text(TextPart::new(<span class="string">"hello \"world\" \u{1F600}"</span>.repeat(<span class="number">5_000</span>))),
-<a href=#3045 id=3045 data-nosnippet>3045</a>        ]))]);
-<a href=#3046 id=3046 data-nosnippet>3046</a>        <span class="macro">assert_eq!</span>(
-<a href=#3047 id=3047 data-nosnippet>3047</a>            <span class="kw">super</span>::request_fingerprint(<span class="kw-2">&amp;</span>request).unwrap(),
-<a href=#3048 id=3048 data-nosnippet>3048</a>            Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>serde_json::to_vec(<span class="kw-2">&amp;</span>request).unwrap())
-<a href=#3049 id=3049 data-nosnippet>3049</a>        );
-<a href=#3050 id=3050 data-nosnippet>3050</a>    }
-<a href=#3051 id=3051 data-nosnippet>3051</a>}
+<a href=#2924 id=2924 data-nosnippet>2924</a>            ReplayDisposition::NoArtifact,
+<a href=#2925 id=2925 data-nosnippet>2925</a>            ReplayDisposition::Replayed,
+<a href=#2926 id=2926 data-nosnippet>2926</a>        ]);
+<a href=#2927 id=2927 data-nosnippet>2927</a>        <span class="macro">assert_eq!</span>(
+<a href=#2928 id=2928 data-nosnippet>2928</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>extended),
+<a href=#2929 id=2929 data-nosnippet>2929</a>            (extended[<span class="number">2</span>..].to_vec(), <span class="prelude-val">Some</span>(first_attempt))
+<a href=#2930 id=2930 data-nosnippet>2930</a>        );
+<a href=#2931 id=2931 data-nosnippet>2931</a>        <span class="macro">assert_eq!</span>(
+<a href=#2932 id=2932 data-nosnippet>2932</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>first),
+<a href=#2933 id=2933 data-nosnippet>2933</a>            (Vec::new(), <span class="prelude-val">Some</span>(first_attempt)),
+<a href=#2934 id=2934 data-nosnippet>2934</a>            <span class="string">"an unchanged list writes nothing new"
+<a href=#2935 id=2935 data-nosnippet>2935</a>        </span>);
+<a href=#2936 id=2936 data-nosnippet>2936</a>
+<a href=#2937 id=2937 data-nosnippet>2937</a>        <span class="kw">let </span>changed = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::NoArtifact, ReplayDisposition::NoArtifact]);
+<a href=#2938 id=2938 data-nosnippet>2938</a>        <span class="macro">assert_eq!</span>(
+<a href=#2939 id=2939 data-nosnippet>2939</a>            base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>changed),
+<a href=#2940 id=2940 data-nosnippet>2940</a>            (changed.clone(), <span class="prelude-val">None</span>),
+<a href=#2941 id=2941 data-nosnippet>2941</a>            <span class="string">"a changed earlier decision is written in full"
+<a href=#2942 id=2942 data-nosnippet>2942</a>        </span>);
+<a href=#2943 id=2943 data-nosnippet>2943</a>        <span class="macro">assert_eq!</span>(
+<a href=#2944 id=2944 data-nosnippet>2944</a>            base.encode(<span class="kw-2">&amp;</span>model(<span class="string">"fallback-one"</span>), <span class="kw-2">&amp;</span>extended),
+<a href=#2945 id=2945 data-nosnippet>2945</a>            (extended.clone(), <span class="prelude-val">None</span>),
+<a href=#2946 id=2946 data-nosnippet>2946</a>            <span class="string">"a model change is written in full"
+<a href=#2947 id=2947 data-nosnippet>2947</a>        </span>);
+<a href=#2948 id=2948 data-nosnippet>2948</a>    }
+<a href=#2949 id=2949 data-nosnippet>2949</a>
+<a href=#2950 id=2950 data-nosnippet>2950</a>    <span class="attr">#[test]
+<a href=#2951 id=2951 data-nosnippet>2951</a>    </span><span class="kw">fn </span>an_empty_previous_list_is_never_a_base() {
+<a href=#2952 id=2952 data-nosnippet>2952</a>        <span class="kw">let </span>model_a = model(<span class="string">"fallback-zero"</span>);
+<a href=#2953 id=2953 data-nosnippet>2953</a>        <span class="kw">let </span><span class="kw-2">mut </span>base = ReplayEvaluationBase::default();
+<a href=#2954 id=2954 data-nosnippet>2954</a>        base.record(AttemptId::new_v7(), model_a.clone(), Vec::new());
+<a href=#2955 id=2955 data-nosnippet>2955</a>        <span class="kw">let </span>next = decisions(<span class="kw-2">&amp;</span>[ReplayDisposition::Replayed]);
+<a href=#2956 id=2956 data-nosnippet>2956</a>        <span class="macro">assert_eq!</span>(base.encode(<span class="kw-2">&amp;</span>model_a, <span class="kw-2">&amp;</span>next), (next.clone(), <span class="prelude-val">None</span>));
+<a href=#2957 id=2957 data-nosnippet>2957</a>    }
+<a href=#2958 id=2958 data-nosnippet>2958</a>
+<a href=#2959 id=2959 data-nosnippet>2959</a>    <span class="attr">#[test]
+<a href=#2960 id=2960 data-nosnippet>2960</a>    </span><span class="kw">fn </span>retry_budget_counts_retries_after_the_first_attempt() {
+<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="macro">assert!</span>(!retry_budget_allows(<span class="number">0</span>, <span class="number">0</span>));
+<a href=#2962 id=2962 data-nosnippet>2962</a>        <span class="macro">assert!</span>(retry_budget_allows(<span class="number">3</span>, <span class="number">0</span>));
+<a href=#2963 id=2963 data-nosnippet>2963</a>        <span class="macro">assert!</span>(retry_budget_allows(<span class="number">3</span>, <span class="number">2</span>));
+<a href=#2964 id=2964 data-nosnippet>2964</a>        <span class="macro">assert!</span>(!retry_budget_allows(<span class="number">3</span>, <span class="number">3</span>));
+<a href=#2965 id=2965 data-nosnippet>2965</a>        <span class="macro">assert!</span>(retry_budget_allows(-<span class="number">1</span>, u32::MAX));
+<a href=#2966 id=2966 data-nosnippet>2966</a>    }
+<a href=#2967 id=2967 data-nosnippet>2967</a>
+<a href=#2968 id=2968 data-nosnippet>2968</a>    <span class="attr">#[test]
+<a href=#2969 id=2969 data-nosnippet>2969</a>    </span><span class="kw">fn </span>overload_retry_classification_is_limited_to_overload_and_retryable_429_503() {
+<a href=#2970 id=2970 data-nosnippet>2970</a>        <span class="macro">assert!</span>(is_overload_retry(<span class="kw-2">&amp;</span>ModelError::new(
+<a href=#2971 id=2971 data-nosnippet>2971</a>            ModelErrorKind::Overload,
+<a href=#2972 id=2972 data-nosnippet>2972</a>            <span class="string">"overloaded"</span>,
+<a href=#2973 id=2973 data-nosnippet>2973</a>        )));
+<a href=#2974 id=2974 data-nosnippet>2974</a>        <span class="macro">assert!</span>(is_overload_retry(
+<a href=#2975 id=2975 data-nosnippet>2975</a>            <span class="kw-2">&amp;</span>ModelError::rate_limited(<span class="string">"rate limited"</span>).with_http_status(<span class="number">429</span>)
+<a href=#2976 id=2976 data-nosnippet>2976</a>        ));
+<a href=#2977 id=2977 data-nosnippet>2977</a>        <span class="macro">assert!</span>(is_overload_retry(
+<a href=#2978 id=2978 data-nosnippet>2978</a>            <span class="kw-2">&amp;</span>ModelError::provider(<span class="string">"unavailable"</span>)
+<a href=#2979 id=2979 data-nosnippet>2979</a>                .with_retryable(<span class="bool-val">true</span>)
+<a href=#2980 id=2980 data-nosnippet>2980</a>                .with_http_status(<span class="number">503</span>)
+<a href=#2981 id=2981 data-nosnippet>2981</a>        ));
+<a href=#2982 id=2982 data-nosnippet>2982</a>        <span class="macro">assert!</span>(!is_overload_retry(
+<a href=#2983 id=2983 data-nosnippet>2983</a>            <span class="kw-2">&amp;</span>ModelError::new(ModelErrorKind::Quota, <span class="string">"quota"</span>).with_http_status(<span class="number">429</span>)
+<a href=#2984 id=2984 data-nosnippet>2984</a>        ));
+<a href=#2985 id=2985 data-nosnippet>2985</a>        <span class="macro">assert!</span>(!is_overload_retry(
+<a href=#2986 id=2986 data-nosnippet>2986</a>            <span class="kw-2">&amp;</span>ModelError::provider(<span class="string">"server error"</span>)
+<a href=#2987 id=2987 data-nosnippet>2987</a>                .with_retryable(<span class="bool-val">true</span>)
+<a href=#2988 id=2988 data-nosnippet>2988</a>                .with_http_status(<span class="number">500</span>)
+<a href=#2989 id=2989 data-nosnippet>2989</a>        ));
+<a href=#2990 id=2990 data-nosnippet>2990</a>    }
+<a href=#2991 id=2991 data-nosnippet>2991</a>
+<a href=#2992 id=2992 data-nosnippet>2992</a>    <span class="attr">#[test]
+<a href=#2993 id=2993 data-nosnippet>2993</a>    </span><span class="kw">fn </span>model_retry_delay_has_jitter_bounds_and_uncapped_retry_after() {
+<a href=#2994 id=2994 data-nosnippet>2994</a>        <span class="kw">let </span>ceiling = Duration::from_secs(<span class="number">60</span>);
+<a href=#2995 id=2995 data-nosnippet>2995</a>        <span class="macro">assert_eq!</span>(
+<a href=#2996 id=2996 data-nosnippet>2996</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, ceiling),
+<a href=#2997 id=2997 data-nosnippet>2997</a>            Duration::from_millis(<span class="number">750</span>)
+<a href=#2998 id=2998 data-nosnippet>2998</a>        );
+<a href=#2999 id=2999 data-nosnippet>2999</a>        <span class="macro">assert_eq!</span>(
+<a href=#3000 id=3000 data-nosnippet>3000</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
+<a href=#3001 id=3001 data-nosnippet>3001</a>            Duration::from_millis(<span class="number">1250</span>)
+<a href=#3002 id=3002 data-nosnippet>3002</a>        );
+<a href=#3003 id=3003 data-nosnippet>3003</a>        <span class="macro">assert_eq!</span>(
+<a href=#3004 id=3004 data-nosnippet>3004</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, ceiling),
+<a href=#3005 id=3005 data-nosnippet>3005</a>            Duration::from_millis(<span class="number">1500</span>)
+<a href=#3006 id=3006 data-nosnippet>3006</a>        );
+<a href=#3007 id=3007 data-nosnippet>3007</a>        <span class="macro">assert_eq!</span>(
+<a href=#3008 id=3008 data-nosnippet>3008</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
+<a href=#3009 id=3009 data-nosnippet>3009</a>            Duration::from_millis(<span class="number">2500</span>)
+<a href=#3010 id=3010 data-nosnippet>3010</a>        );
+<a href=#3011 id=3011 data-nosnippet>3011</a>        <span class="macro">assert_eq!</span>(
+<a href=#3012 id=3012 data-nosnippet>3012</a>            model_retry_delay(<span class="number">63</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, ceiling),
+<a href=#3013 id=3013 data-nosnippet>3013</a>            Duration::from_secs(<span class="number">60</span>)
+<a href=#3014 id=3014 data-nosnippet>3014</a>        );
+<a href=#3015 id=3015 data-nosnippet>3015</a>        <span class="macro">assert_eq!</span>(
+<a href=#3016 id=3016 data-nosnippet>3016</a>            model_retry_delay(<span class="number">1</span>, <span class="prelude-val">None</span>, <span class="number">500</span>, Duration::from_millis(<span class="number">1200</span>)),
+<a href=#3017 id=3017 data-nosnippet>3017</a>            Duration::from_millis(<span class="number">1200</span>)
+<a href=#3018 id=3018 data-nosnippet>3018</a>        );
+<a href=#3019 id=3019 data-nosnippet>3019</a>        <span class="macro">assert_eq!</span>(
+<a href=#3020 id=3020 data-nosnippet>3020</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">None</span>, <span class="number">0</span>, Duration::from_millis(<span class="number">1</span>)),
+<a href=#3021 id=3021 data-nosnippet>3021</a>            Duration::from_millis(<span class="number">1</span>)
+<a href=#3022 id=3022 data-nosnippet>3022</a>        );
+<a href=#3023 id=3023 data-nosnippet>3023</a>        <span class="macro">assert_eq!</span>(
+<a href=#3024 id=3024 data-nosnippet>3024</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">10</span>)), <span class="number">0</span>, Duration::from_secs(<span class="number">2</span>),),
+<a href=#3025 id=3025 data-nosnippet>3025</a>            Duration::from_secs(<span class="number">10</span>)
+<a href=#3026 id=3026 data-nosnippet>3026</a>        );
+<a href=#3027 id=3027 data-nosnippet>3027</a>        <span class="macro">assert_eq!</span>(
+<a href=#3028 id=3028 data-nosnippet>3028</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_millis(<span class="number">500</span>)), <span class="number">0</span>, ceiling),
+<a href=#3029 id=3029 data-nosnippet>3029</a>            Duration::from_millis(<span class="number">750</span>)
+<a href=#3030 id=3030 data-nosnippet>3030</a>        );
+<a href=#3031 id=3031 data-nosnippet>3031</a>        <span class="macro">assert_eq!</span>(
+<a href=#3032 id=3032 data-nosnippet>3032</a>            model_retry_delay(<span class="number">0</span>, <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">600</span>)), <span class="number">0</span>, ceiling),
+<a href=#3033 id=3033 data-nosnippet>3033</a>            Duration::from_secs(<span class="number">600</span>)
+<a href=#3034 id=3034 data-nosnippet>3034</a>        );
+<a href=#3035 id=3035 data-nosnippet>3035</a>    }
+<a href=#3036 id=3036 data-nosnippet>3036</a>}
+<a href=#3037 id=3037 data-nosnippet>3037</a>
+<a href=#3038 id=3038 data-nosnippet>3038</a><span class="attr">#[cfg(test)]
+<a href=#3039 id=3039 data-nosnippet>3039</a></span><span class="kw">mod </span>fingerprint_tests {
+<a href=#3040 id=3040 data-nosnippet>3040</a>    <span class="kw">use </span>cookie_agent_protocol::Sha256Digest;
+<a href=#3041 id=3041 data-nosnippet>3041</a>    <span class="kw">use </span>oven_sdk::{HistoryTurn, InputPart, Request <span class="kw">as </span>ModelRequest, TextPart, UserMessage};
+<a href=#3042 id=3042 data-nosnippet>3042</a>
+<a href=#3043 id=3043 data-nosnippet>3043</a>    <span class="attr">#[test]
+<a href=#3044 id=3044 data-nosnippet>3044</a>    </span><span class="kw">fn </span>streamed_request_fingerprint_matches_hash_of_serialized_bytes() {
+<a href=#3045 id=3045 data-nosnippet>3045</a>        <span class="kw">let </span>request = ModelRequest::new(<span class="macro">vec!</span>[HistoryTurn::user(UserMessage::new(<span class="macro">vec!</span>[
+<a href=#3046 id=3046 data-nosnippet>3046</a>            InputPart::Text(TextPart::new(<span class="string">"hello \"world\" \u{1F600}"</span>.repeat(<span class="number">5_000</span>))),
+<a href=#3047 id=3047 data-nosnippet>3047</a>        ]))]);
+<a href=#3048 id=3048 data-nosnippet>3048</a>        <span class="macro">assert_eq!</span>(
+<a href=#3049 id=3049 data-nosnippet>3049</a>            <span class="kw">super</span>::request_fingerprint(<span class="kw-2">&amp;</span>request).unwrap(),
+<a href=#3050 id=3050 data-nosnippet>3050</a>            Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>serde_json::to_vec(<span class="kw-2">&amp;</span>request).unwrap())
+<a href=#3051 id=3051 data-nosnippet>3051</a>        );
+<a href=#3052 id=3052 data-nosnippet>3052</a>    }
+<a href=#3053 id=3053 data-nosnippet>3053</a>}
 </code></pre></div></section></main></body></html>
