@@ -3940,7 +3940,10 @@ which stays the name of cookie's own protocol.</p>
   <code>client-myhost-codex</code>), available while that runtime is connected. The
   runtime travels next to the ID wherever agents are described; it is never
   parsed from the ID. <em>(Decided 2026-10-23, replacing the dotted form, which
-  the agent ID grammar does not allow and could not gain within a minor.)</em></li>
+  the agent ID grammar does not allow and could not gain within a minor.
+  Superseded the same day: the ID is the declaration's key, and the
+  session's attachments decide which runtime runs it; section 15,
+  naming.)</em></li>
 <li><strong>The runtime spawns the agent</strong> on its own machine and relays its ACP
   messages to the daemon over the runtime protocol. <strong>The daemon speaks
   ACP</strong>: sessions, rendering, permissions, cancel, resume.</li>
@@ -3950,7 +3953,8 @@ which stays the name of cookie's own protocol.</p>
   the daemon. (MCP-over-ACP, which would carry MCP on the ACP connection
   itself, is a draft RFD; not used.)</li>
 <li><strong>Cookie settings come from a daemon-side agent document with the same id</strong>
-  (<code>~/.cookie-agent/agents/labpc-codex.md</code>): mode, permissions, body,
+  (<code>~/.cookie-agent/agents/labpc-codex.md</code>; since the naming of section 15,
+  <code>agents/codex.md</code>, shared by every runtime that offers <code>codex</code>): mode, permissions, body,
   <code>hide_tools</code>, starting mode and config options. Without one, the agent gets
   the defaults (section 4).</li>
 <li><strong>cwd:</strong> the session's workspace on that runtime, else the runtime's home.</li>
@@ -3963,13 +3967,16 @@ which stays the name of cookie's own protocol.</p>
 <li><strong>Login:</strong> credentials already on the runtime's machine; authentication
   errors reach the session with what the agent said. No login flow in cookie.</li>
 <li><strong>The agent document's body</strong> is sent with the session's first prompt; an
-  empty body sends nothing.</li>
+  empty body sends nothing. <em>(Extended 2026-10-23: the first prompt also
+  carries the tool instructions and the memory snapshot; section 15,
+  round 3.)</em></li>
 <li><strong>Slash commands</strong> the agent offers appear in the TUI and web composers.</li>
 <li><strong><code>deny</code></strong> stays the spelling for turning a permission off.</li>
 </ul>
 <p><strong>Out of scope for v1:</strong> ACP <code>fs</code> and <code>terminal</code>, logins run from cookie,
-ACP v2, MCP-over-ACP, the agents' vendor extensions (<code>_meta</code>, AIR,
-steering, goal).</p>
+ACP v2, MCP-over-ACP, the agents' vendor extensions (<code>_meta</code>, AIR, goal).
+<em>(Revised 2026-10-23: the steering extension is used when advertised, and
+<code>_meta</code> enriches tool calls where it helps; section 15, round 3.)</em></p>
 <h2 id="2-acp-in-brief">2. ACP in brief<a class="headerlink" href="#2-acp-in-brief" title="Permanent link">&para;</a></h2>
 <p>JSON-RPC 2.0 over the agent's stdin and stdout, one message per line; the
 agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
@@ -4097,7 +4104,9 @@ agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
 <li><strong>The end.</strong> <code>end_turn</code> completes the run with the last message as its
   final text; <code>cancelled</code> cancels it; <code>max_tokens</code>, <code>max_turn_requests</code>, and
   <code>refusal</code> fail it with that reason.</li>
-<li><strong>Steering</strong> falls back to queueing: ACP has no standard steer.</li>
+<li><strong>Steering</strong> falls back to queueing: ACP has no standard steer. <em>(Revised
+  2026-10-23: through the agent's steering extension when it advertises
+  one; section 15, round 3.)</em></li>
 <li><strong>Interrupt</strong> sends <code>session/cancel</code>, answers every pending permission
   request <code>cancelled</code>, and waits for the <code>cancelled</code> stop reason within the
   existing cleanup grace.</li>
@@ -4463,6 +4472,189 @@ the spec did not anticipate:</p>
   cookie's own tools, as kind <code>other</code> titled <code>mcp__cookie__&lt;tool&gt;</code>. These
   are now allowed at once, so the bridge's rules decide such a call alone
   (section 8).</li>
+</ul>
+<p><strong>Round 3</strong> (2026-10-23; user decisions of the same day; client protocol
+1.20.0, plugin protocol 1.9.0; history format unchanged):</p>
+<ul>
+<li><strong>First-prompt context.</strong> The first <code>session/prompt</code> of an ACP session
+  carries, as separate text blocks before the input and each left out when
+  empty: the <code>&lt;tool_instructions provider=...&gt;</code> sections cookie would
+  compose for a model run, for exactly the tools the agent is offered over
+  the bridge (after <code>hide_tools</code> and the merged rules: a provider gives its
+  sections only when one of its tools is offered, and memory's section has
+  part A when a memory tool is offered and part B when a write tool is);
+  the session's memory snapshot as a model run sees it (the latest
+  <code>memory_loaded</code>, which ACP runs record at admission like model runs, so
+  it is there even when no memory tool is offered); and the agent
+  document's body. No cookie-written preamble or guidelines: those belong in
+  the agent document, and the <a href="../../extend/acp-agents/#a-reference-document-for-claude-code">guide</a>
+  has a reference document for Claude Code. <code>AGENTS.md</code> is not sent. The
+  context goes with the first prompt of every new ACP session, so a lost
+  session's replacement gets it again; a resumed or loaded one does not.</li>
+<li><strong>Prompt boundary.</strong> A round's prompt is now the input after the
+  <code>input_through_seq</code> of the session's last committed turn (was: after that
+  turn's own sequence number). The two agree for every round so far; the
+  new one also covers input taken to steer that the agent did not take.</li>
+<li><strong>Steering.</strong> An agent advertises the steering extension with
+  <code>_meta.steering.supported: true</code> in its <code>initialize</code> answer (top-level
+  <code>_meta</code>, not <code>agentCapabilities</code>; Claude Code's adapter 0.95.0 and
+  Codex's do). The client declares nothing to enable it. While a round runs,
+  input admitted to steer (a user's steer, a producer message of mode
+  <code>steer</code>: a cron <code>steer</code> fire, a subagent report) wakes the runner, which
+  commits the turn so far, promotes and claims the input as a round does,
+  and sends <code>_session/steering</code> <code>{sessionId, prompt, _meta: {steering:
+  {idleBehavior: "promptRequired"}}}</code>. <code>injected</code> (and <code>startedNewTurn</code>, an
+  agent that does not know <code>idleBehavior</code>) means the agent took it: the
+  turns after cover the input, and <code>acp_session_updated.steered</code> records
+  which (<code>user_inputs</code>, the <code>user_input_submitted</code> sequence numbers, and
+  <code>producer_messages</code>). <code>promptRequired</code> (no turn running), <code>failed</code>, or an
+  error leave the input for the next round, which the run then takes even
+  when nothing else is pending; an error is reported in the session as a
+  diagnostic. A steer still waiting when the round ends is awaited for up
+  to 10 s. Claude Code's adapter also advertises
+  <code>agentCapabilities._meta.claudeCode.promptQueueing</code> (a second
+  <code>session/prompt</code> while one runs is queued by the agent); cookie does not
+  use it, since it queues input itself. <code>acp_session_started.steering</code>
+  records whether the agent steers; clients derive the Steer button from it
+  (the web client's reads "Queue (this agent can't be steered)", the TUI's
+  pending strip says so) when the session's running agent is that ACP
+  agent.</li>
+<li><strong>Tool calls.</strong> A call's presentation is rebuilt from what the agent
+  reported so far (title, the kind's hint, a primary argument from the raw
+  input's <code>command</code>, <code>file_path</code>, <code>path</code>, <code>url</code>, <code>pattern</code>, or <code>query</code>, and
+  the raw input as arguments) and recorded as
+  <code>acp_session_updated.tool_presentation</code> whenever it changes, since Claude
+  Code's adapter sends the raw input in a later <code>tool_call_update</code> (and
+  then once more per streamed field). Clients replace the call's title,
+  hint, primary argument, arguments, and preview with it. Content renders
+  as Markdown (text), media (images, stored as artifacts), links (resource
+  links), code (embedded text resources), and diff blocks; locations as
+  file links; raw output as code or JSON when the call has no content.
+  <code>_meta</code> is optional enrichment only: Claude Code's
+  <code>claudeCode.toolName</code> becomes the call's published name and
+  <code>metadata.acp.tool_name</code>; its <code>claudeCode.toolResponse</code> (the whole tool
+  response, including written files) is not kept.</li>
+<li><strong>Notices and compaction.</strong> <code>initialize</code> declares
+  <code>clientCapabilities.session: {notices: {}, compaction: {}}</code>. A <code>notice</code>
+  update (<code>severity</code>, <code>title</code>, <code>description</code>) and a completed or failed
+  <code>compaction_update</code> (its <code>summary</code>, else the streamed
+  <code>compaction_summary_chunk</code>s; its <code>error</code>) are recorded as
+  <code>acp_session_updated.notice</code>; clients show it where it arrived, with no
+  level filter. In progress and cancelled compactions show nothing.</li>
+<li><strong>Usage and session info</strong> were already handled (<code>usage_update</code>,
+  <code>session_info_update</code>); Claude Code's <code>PromptResponse._meta.quota</code> is not
+  read.</li>
+<li><strong>Checked by hand against Claude Code</strong> (<code>claude</code> 2.1.309, adapter
+  0.95.0, scratch daemon): the first prompt's context; a <code>Read</code> (its raw
+  input arrived after the call started and the header updated; content as
+  Markdown and a file link); an <code>Edit</code> (presentation updated three times as
+  <code>old_string</code>, <code>new_string</code>, and <code>replace_all</code> streamed in; a diff); a
+  <code>Bash</code> call; a steer during a running <code>sleep</code> (<code>injected</code>, and Claude
+  moved the foreground command to the background so the message could
+  reach it); and a cancel. The adapter sent no <code>notice</code> or
+  <code>compaction_update</code> in these short turns; it did send
+  <code>current_mode_update</code>, three <code>session_info_update</code>s, and a background
+  task's follow-up text after a turn ended, which cookie drops as output
+  between rounds.</li>
+</ul>
+<p><strong>Tests</strong> (round 3): the first prompt's parts and their order, with and
+without memory write tools and with every memory tool hidden; a steer
+through the fixture's extension (one round, the <code>steered</code> record, the
+request's <code>idleBehavior</code>) and without it (the next round); a cancel after
+a steered turn; a call whose raw input arrives later (the recorded
+presentation, Markdown, media, and link content, the tool name); notices
+and a compaction; the client reducer, the TUI, and the web rendering of
+notices, steered messages, and presentations.</p>
+<p><strong>Naming</strong> (2026-10-23, user decision; client protocol 1.21.0, no runtime
+or plugin protocol change):</p>
+<ul>
+<li><strong>IDs come straight from the declaration.</strong> <code>[runtimes.local.acp.agents.claude]</code>
+  is the agent <code>claude</code>; the <code>&lt;runtime&gt;-&lt;agent&gt;</code> ID, the <code>_</code>-to-<code>-</code>
+  spelling, and the refusals of combined IDs that are malformed, too long,
+  or shared are gone (<code>cookie_agent_protocol::runtime_agent_id</code> is
+  removed). Every runtime that declares an ID offers the one agent of that
+  ID (the engine's <code>AcpOffers</code>), sorted by runtime ID.</li>
+<li><strong>The session's attachments decide where it runs.</strong> A turn of <code>claude</code>
+  runs on the attached runtime that offers it. With none attached, or with
+  two or more, it cannot run in that session: <code>session.create</code>, a run's
+  admission (before <code>run_started</code>), and a delegation (against the child's
+  attachments: the parent's inherited ones, or the delegated capabilities;
+  a resumed child is checked when its run starts) are refused with
+  <code>`claude` needs a runtime that offers it attached: labpc, local</code> or
+  <code>`claude` is offered by more than one attached runtime (labpc, local);
+  a session runs it on one, so detach the others</code>; an offering runtime that is
+  away or has the agent disabled refuses with that reason. A session whose
+  current agent is an ACP agent cannot attach a second runtime that offers
+  it (<code>runtime.attach</code> is refused, naming both); sessions of other agents
+  attach any runtimes.</li>
+<li><strong>One document per ID.</strong> <code>~/.cookie-agent/agents/claude.md</code> serves every
+  runtime that offers <code>claude</code>. Without one, the default document takes the
+  first offering runtime's description (in runtime ID order).</li>
+<li><strong>Assumptions</strong> (recorded for the user to adjust):</li>
+<li>A daemon document <em>without</em> an <code>acp</code> block whose ID a runtime declares
+    wins as the daemon's own agent; the declaration is ignored and
+    <code>ConfigStatus.diagnostics</code> says so (<code>ACP agent \</code>claude` of runtime
+    `local` is ignored: ...`). This used to fail the configuration load.</li>
+<li>When the hosting runtime is detached and another attached runtime
+    offers the agent, the next turn starts a new ACP session there, with a
+    diagnostic in the transcript: the old ACP session lives on the old
+    machine.</li>
+<li>A delegated child resolves its ACP agent against its own attachments
+    with the same one-provider rule.</li>
+<li>The ACP session record keeps the hosting runtime (<code>runtime_id</code>), and
+    resume and load require it: the latest record for the agent is resumed
+    only when its runtime is the one that runs the agent now.</li>
+<li><strong>Synthetic binding.</strong> <code>acp/&lt;agent&gt;</code>'s binding no longer names a runtime
+  (<code>cookie-agent/acp-binding/v2</code>, <code>frozen: {"acp": {"agent"}}</code>); a run's
+  policy names the agent, and the runner places it on a runtime.</li>
+<li><strong>Protocol.</strong> <code>AgentDescriptor.runtimes</code> lists every offering runtime
+  (<code>runtime_id</code>, <code>agent</code>, <code>available</code>); <code>runtime</code> stays populated when
+  exactly one runtime offers the agent, so a client older than 1.21.0
+  lists an agent several runtimes offer as a daemon agent.
+  <code>runnable_as_root</code> is true while some offering runtime could run it; the
+  clients compute where it runs from the draft's or session's attachments
+  (<code>cookie_agent_client_state::acp::placement</code>): the TUI's and web's agent
+  pickers show <code>[on local]</code>, <code>[needs labpc, local attached]</code>,
+  <code>[offered by labpc, local: attach one]</code>, or <code>[on lab · unavailable]</code>, and
+  refuse the ones that cannot run with the reason.</li>
+<li><strong>Model-facing tools.</strong> <code>list_agents</code> marks an ACP agent <code>(&lt;mode&gt;, acp)</code>,
+  drops its synthetic model line, and adds <code>offered by runtimes: labpc,
+  local</code> and <code>runs here: yes, on runtime local</code> (or <code>no — needs one of:
+  labpc, local attached</code>, <code>no — two attached runtimes offer it: labpc,
+  local</code>, <code>no — runtime lab is not connected</code>, <code>no — disabled on runtime
+  local</code>), judged against the calling session's attachments (a child
+  inherits them). <code>list_runtimes</code> gives each runtime an <code>acp_agents</code>
+  attribute (<code>acp_agents="claude, codex"</code>). Both tool descriptions say so.</li>
+<li><strong>cwd.</strong> With the agent's runtime always attached, the runtime's home is
+  the working directory only when that attachment has no workspace.</li>
+<li><strong>Delegation diagnostics</strong> resolve unknown names against the plain IDs:
+  a target clears once any runtime declares it. A refused delegation to a
+  name no runtime offers yet says <code>no agent \</code>codex` (no connected runtime
+  offers it)`.</li>
+</ul>
+<p><strong>Tests</strong> (naming): two runtimes offering one ID (the descriptor's
+<code>runtimes</code>, a turn placed on <code>local</code>, <code>list_agents</code> and <code>list_runtimes</code>,
+attaching the second refused, a move to <code>labpc</code> starting a new ACP
+session with the notice, none or both attached refused at creation); a
+session and a run without the agent's runtime refused before the run
+starts; a daemon document without an <code>acp</code> block shadowing a declaration
+(the configuration diagnostic); the client placement and picker notes; the
+<code>list_agents</code> placement lines.</p>
+<p><strong>Fixes</strong> (2026-10-23):</p>
+<ul>
+<li><strong>Processes stop with the daemon.</strong> <code>agent/stop</code> and a runtime that
+  stops (the end of its connection, <code>runtime/shutdown</code>) kill each agent's
+  process group and answer only once it has been reaped; before, the kill
+  ran after the answer, so a daemon that exited right after stopping its
+  agents (its shutdown, SIGTERM, or <code>daemon.restart</code>) could leave an agent
+  and its children running.</li>
+<li><strong>A cancel always reaches the agent.</strong> The round's loop polls the run's
+  cancellation first (a biased select), so an agent that streams without a
+  pause cannot hold <code>session/cancel</code> back; a steer being taken when the run
+  is cancelled is dropped instead of sent; and a turn the agent ends after
+  the cancel was accepted ends the run as cancelled, as a model run's does.
+  The manual check of round 3 saw an accepted <code>run.cancel</code> that never sent
+  <code>session/cancel</code> while Claude Code streamed updates; this was the window.</li>
 </ul>
 
 

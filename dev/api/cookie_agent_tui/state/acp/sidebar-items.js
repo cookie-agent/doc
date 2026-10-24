@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["acp_model","acp_source_label","is_acp_model","listed_in_root_picker","pickable","runtime_note","unpickable_reason"]};
+window.SIDEBAR_ITEMS = {"enum":["AcpPlacement"],"fn":["acp_model","acp_source_label","is_acp","is_acp_model","listed_in_root_picker","offering_runtimes","pickable","placement","runtime_note","unpickable_reason"]};
