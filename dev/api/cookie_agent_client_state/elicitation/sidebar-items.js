@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DraftValue","QuestionKind"],"fn":["field_hint","resolution_text","url_host","url_warnings"],"struct":["FieldProblem","FormDraft","QuestionState"]};

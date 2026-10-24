@@ -4385,7 +4385,8 @@ types).</p>
 <li><strong>ACP client.</strong> Hand-written JSON-RPC types over the protocol crate's peer
   (the <code>agent-client-protocol</code> crate was not needed); <code>initialize</code>
   advertises no <code>fs</code> and no <code>terminal</code> (it asks for terminal output, see
-  the display round below). A runtime that cannot start an
+  the display round below, and declares <code>elicitation</code> <code>{form, url}</code>, see
+  elicitation below). A runtime that cannot start an
   agent answers the new error <code>agent_failed</code>.</li>
 </ul>
 <p><strong>Revisions of 2026-10-23</strong> (user decisions; client protocol 1.18.0):
@@ -4875,6 +4876,111 @@ only closing; usage on failed and cancelled rounds; the stop reasons'
 messages and finish reasons; <code>/compact</code> forwarded and refused; the
 generated title, the agent's later one, and no title without
 <code>small_model</code>.</p>
+<p><strong>Elicitation</strong> (2026-10-24; client protocol 1.25.0, plugin protocol
+1.13.0; history format unchanged, two new event types). ACP v1's stable
+<code>elicitation/create</code> and <code>elicitation/complete</code>, which Claude Code's adapter
+(0.95.0) uses for its <code>AskUserQuestion</code> tool (a form tied to the tool call:
+a titled <code>oneOf</code> per question, an array of titled <code>anyOf</code> for a
+multi-select one, and a free-text <code>question_&lt;n&gt;_custom</code> beside each) and
+for an MCP server's sign-in (a URL), and Codex's adapter for its
+elicitations. Before, cookie advertised neither mode and these degraded.</p>
+<ul>
+<li><strong>Capabilities.</strong> <code>initialize</code> declares <code>clientCapabilities.elicitation:
+  {form: {}, url: {}}</code>.</li>
+<li><strong>Routing</strong> (<code>crates/engine/src/runtime/acp/elicitation.rs</code>). A
+  session-scoped <code>elicitation/create</code> goes to its session's runner like a
+  permission request. During a prompt round it becomes a question of the
+  run; between rounds, after the round's answer, after a cancel, for a
+  session no turn runs in, and when request-scoped (<code>requestId</code>, no
+  <code>sessionId</code>), it is answered <code>cancel</code>. That includes a question asked
+  while the agent opens its session (an MCP server of the agent's own that
+  wants a sign-in while <code>session/new</code> or <code>session/resume</code> runs): the
+  session is not routed, or its round has not started, yet. A mode other than <code>form</code> and <code>url</code>,
+  or a URL question without a <code>url</code>, is refused with <code>-32602</code>, as ACP asks.</li>
+<li><strong>Cookie's model of a question</strong> is a new client protocol concept, not an
+  approval: approvals are tool-call operations with fingerprints,
+  evaluations, grants, and the reviewer, none of which apply, and a form's
+  answer carries values. <code>elicitation_requested</code> (run-bound) records the
+  question: <code>elicitation_id</code> (cookie's own UUID), <code>agent</code>, the cookie
+  <code>tool_call_id</code> the agent's <code>toolCallId</code> is shown as (when the agent
+  reported that call), <code>message</code>, and a <code>form</code> or a <code>url</code>. The form's
+  properties become typed fields: <code>string</code> → <code>text</code> (<code>minLength</code>,
+  <code>maxLength</code>, <code>pattern</code>, <code>format</code>, <code>default</code>), <code>string</code> with <code>oneOf</code>, or
+  with <code>enum</code> (titled by <code>enumNames</code> when present) → <code>choice</code>, <code>array</code> with
+  <code>items.anyOf</code>/<code>items.enum</code> → <code>multi_choice</code> (<code>minItems</code>, <code>maxItems</code>,
+  <code>default</code>), <code>number</code>, <code>integer</code>, <code>boolean</code>; <code>required</code> from the schema;
+  any other type is kept as an unknown input (<code>Open::Unknown</code>) that no
+  client can fill in. <strong>Field order:</strong> the runtime relay carries the agent's
+  messages as parsed JSON and the daemon's <code>serde_json</code> keeps no member
+  order, so the order of the schema's properties is lost before the engine
+  sees them; fields are sorted in natural order of their names
+  (<code>question_2</code> before <code>question_10</code>), which keeps Claude Code's forms in
+  its order. Keeping the agent's order would need the relay to carry raw
+  text (a runtime protocol change).</li>
+<li><strong>Answers.</strong> <code>elicitation.respond</code> (<code>session_id</code>, <code>elicitation_id</code>,
+  <code>action</code>, <code>content</code>) hands the user's answer to the waiting question; an
+  accepted form is checked against its fields first (required, type,
+  bounds, choices, formats <code>email</code>, <code>uri</code>, <code>date</code>, <code>date-time</code>; <code>pattern</code>
+  is shown, not checked: the protocol crate has no regex engine), and a
+  refused answer (<code>elicitation_answer_invalid</code>) leaves it waiting. A
+  question no run waits on is <code>elicitation_not_pending</code>.
+  <code>elicitation_resolved</code> records <code>action</code>, an accepted form's <code>content</code>,
+  <code>answered_by</code>, and the daemon's <code>reason</code>, before the run's end; the agent
+  gets <code>{action, content?}</code>.</li>
+<li><strong>No rule or mode answers a question</strong> <em>(task decision: it is the agent
+  asking the user, not an action)</em>, with these daemon answers, each
+  recorded: a session whose tree's permission mode is <code>auto_approve_n</code> (a
+  cron run's default, and the mode that already answers escalated
+  approvals for an absent user) declines at once (<code>unattended</code>); a
+  headless <code>cookie run</code> declines what waits in its tree on its approval
+  tick (<code>unattended</code>, "a headless <code>cookie run</code> has no one to answer"); the
+  run's cancel answers <code>cancel</code> at once, and the round's end cancels what
+  still waits (<code>run_ended</code>); a form with a <em>required</em> input of an unknown
+  type declines (<code>unsupported</code>). Questions do not expire: <code>[approval]
+  timeout_ms</code> (30 s by default) suits a yes/no, not a form. Yolo,
+  auto-approve, and auto-approve(Y) sessions still ask, since someone who
+  chose not to be asked about permissions may still want the agent's
+  questions.</li>
+<li><strong>URL completion.</strong> Each agent process keeps its URL questions by the
+  agent's <code>elicitationId</code>; an <code>elicitation/complete</code> for one still waiting
+  accepts it (<code>completed</code>), and an unknown or answered ID is ignored, as ACP
+  asks.</li>
+<li><strong>Clients.</strong> The client state keeps a session's waiting questions
+  (<code>SessionState.questions</code>) until <code>elicitation_resolved</code> or the run's end,
+  and shares the form draft, field hints, URL host and warnings, and
+  resolution words (<code>cookie_agent_client_state::elicitation</code>); a resolved
+  question is an info event row. The TUI docks a question panel where the
+  approval panel goes (an approval stays on top), keyboard-only, with the
+  approval hotkey grace before an answer; the web client shows a card above
+  the composer, says <em>waiting for your answer</em> in its bottom bar and on a
+  subagent's delegate row (<code>tree::Activity::WaitingForAnswer</code>, ahead of a
+  waiting approval). Both show who asks, the message, a form's fields with their
+  hints and the first field that does not fit, or a URL with its host and
+  warnings, and Submit/Done, Decline, and Cancel.</li>
+</ul>
+<p><strong>Tests</strong> (elicitation): the fixture's <code>elicit form|url|url-complete</code> and
+<code>elicit-wait</code>; an AskUserQuestion-shaped form answered (fields, the call it
+belongs to, a refused answer that leaves it waiting, the accepted values
+reaching the agent, <code>elicitation_not_pending</code> after, the <code>initialize</code>
+capability); a declined URL question and one the agent completes (after an
+unknown ID); a cancel that answers a waiting question <code>cancel</code> before the
+run finishes; an <code>auto_approve_n</code> session declining at once and a headless
+driver declining a waiting one; the schema conversion (natural order,
+choices from <code>oneOf</code>, <code>enum</code>, and <code>enumNames</code>, multi-choices, defaults,
+unknown types), the ACP answer shape, the protocol's answer checks and
+formats, the client state's draft, hints, URL warnings, and reducer; and
+the TUI panel (rendering, keyboard, a required field, a URL question, Esc
+and the grace); the web client's helpers and the <code>acp_questions</code> browser
+scenario (a form refused for its required field, then answered; a URL
+question's host and link, declined).</p>
+<p><strong>Checked by hand against Claude Code</strong> (elicitation; adapter 0.95.0 on
+<code>local</code> of a scratch daemon, driven over the client protocol): asked to use
+<code>AskUserQuestion</code>, the agent announced the call ("Asking for your input"),
+then sent a form tied to it, recorded as <code>question_0</code> (a choice of Red and
+Blue, each with its description, titled "Color") and <code>question_0_custom</code>
+("Other", text), with the question as the message. Accepting
+<code>{"question_0": "Blue"}</code> ended the call and the agent replied "You chose
+Blue."; declining another made it reply "You skipped.".</p>
 
 
 
