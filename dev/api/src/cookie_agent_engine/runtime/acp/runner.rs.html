@@ -2619,538 +2619,600 @@
 <a href=#2619 id=2619 data-nosnippet>2619</a>    }
 <a href=#2620 id=2620 data-nosnippet>2620</a>
 <a href=#2621 id=2621 data-nosnippet>2621</a>    <span class="doccomment">/// The starting mode (section 5): the document's `acp.mode`, else the
-<a href=#2622 id=2622 data-nosnippet>2622</a>    /// agent's `auto`, else its default; then the document's `acp.config`.
-<a href=#2623 id=2623 data-nosnippet>2623</a>    </span><span class="kw">async fn </span>apply_starting_options(
-<a href=#2624 id=2624 data-nosnippet>2624</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2625 id=2625 data-nosnippet>2625</a>        session: SessionId,
-<a href=#2626 id=2626 data-nosnippet>2626</a>        run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
-<a href=#2627 id=2627 data-nosnippet>2627</a>        live: <span class="kw-2">&amp;mut </span>LiveSession,
-<a href=#2628 id=2628 data-nosnippet>2628</a>        document: <span class="kw-2">&amp;</span>cookie_agent_config::AgentDocument,
-<a href=#2629 id=2629 data-nosnippet>2629</a>    ) {
-<a href=#2630 id=2630 data-nosnippet>2630</a>        <span class="kw">let </span>settings = document.frontmatter.acp.clone().unwrap_or_default();
-<a href=#2631 id=2631 data-nosnippet>2631</a>        <span class="kw">let </span>mode_option = <span class="kw">super</span>::options::mode_option(<span class="kw-2">&amp;</span>live.options).cloned();
-<a href=#2632 id=2632 data-nosnippet>2632</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(option) = mode_option {
-<a href=#2633 id=2633 data-nosnippet>2633</a>            <span class="kw">let </span>wanted = <span class="kw">super</span>::options::wanted_mode(<span class="kw-2">&amp;</span>option, <span class="kw-2">&amp;</span>settings);
-<a href=#2634 id=2634 data-nosnippet>2634</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(wanted) = wanted
-<a href=#2635 id=2635 data-nosnippet>2635</a>                &amp;&amp; wanted != option.current_value
-<a href=#2636 id=2636 data-nosnippet>2636</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Err</span>(reason) = <span class="self">self</span>.set_live_option(live, <span class="kw-2">&amp;</span>option.id, <span class="kw-2">&amp;</span>wanted).<span class="kw">await
-<a href=#2637 id=2637 data-nosnippet>2637</a>            </span>{
-<a href=#2638 id=2638 data-nosnippet>2638</a>                <span class="self">self</span>.acp_notice(
-<a href=#2639 id=2639 data-nosnippet>2639</a>                    session,
-<a href=#2640 id=2640 data-nosnippet>2640</a>                    run,
-<a href=#2641 id=2641 data-nosnippet>2641</a>                    <span class="macro">format!</span>(<span class="string">"The agent's mode was not set to `{wanted}`: {reason}"</span>),
-<a href=#2642 id=2642 data-nosnippet>2642</a>                )
-<a href=#2643 id=2643 data-nosnippet>2643</a>                .<span class="kw">await</span>;
-<a href=#2644 id=2644 data-nosnippet>2644</a>            }
-<a href=#2645 id=2645 data-nosnippet>2645</a>        }
-<a href=#2646 id=2646 data-nosnippet>2646</a>        <span class="kw">for </span>(id, value) <span class="kw">in </span><span class="kw-2">&amp;</span>settings.config {
-<a href=#2647 id=2647 data-nosnippet>2647</a>            <span class="kw">let </span>known = live
-<a href=#2648 id=2648 data-nosnippet>2648</a>                .options
-<a href=#2649 id=2649 data-nosnippet>2649</a>                .iter()
-<a href=#2650 id=2650 data-nosnippet>2650</a>                .find(|option| <span class="kw-2">&amp;</span>option.id == id)
-<a href=#2651 id=2651 data-nosnippet>2651</a>                .map(|option| {
-<a href=#2652 id=2652 data-nosnippet>2652</a>                    option
-<a href=#2653 id=2653 data-nosnippet>2653</a>                        .values
-<a href=#2654 id=2654 data-nosnippet>2654</a>                        .iter()
-<a href=#2655 id=2655 data-nosnippet>2655</a>                        .any(|candidate| <span class="kw-2">&amp;</span>candidate.value == value)
-<a href=#2656 id=2656 data-nosnippet>2656</a>                });
-<a href=#2657 id=2657 data-nosnippet>2657</a>            <span class="kw">let </span>problem = <span class="kw">match </span>known {
-<a href=#2658 id=2658 data-nosnippet>2658</a>                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"the agent offers no option `{id}`"</span>)),
-<a href=#2659 id=2659 data-nosnippet>2659</a>                <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) =&gt; <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"option `{id}` takes no value `{value}`"</span>)),
-<a href=#2660 id=2660 data-nosnippet>2660</a>                <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) =&gt; <span class="self">self</span>.set_live_option(live, id, value).<span class="kw">await</span>.err(),
-<a href=#2661 id=2661 data-nosnippet>2661</a>            };
-<a href=#2662 id=2662 data-nosnippet>2662</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(problem) = problem {
-<a href=#2663 id=2663 data-nosnippet>2663</a>                <span class="self">self</span>.acp_notice(
-<a href=#2664 id=2664 data-nosnippet>2664</a>                    session,
-<a href=#2665 id=2665 data-nosnippet>2665</a>                    run,
-<a href=#2666 id=2666 data-nosnippet>2666</a>                    <span class="macro">format!</span>(<span class="string">"The agent document's `acp.config` was skipped there: {problem}"</span>),
-<a href=#2667 id=2667 data-nosnippet>2667</a>                )
-<a href=#2668 id=2668 data-nosnippet>2668</a>                .<span class="kw">await</span>;
-<a href=#2669 id=2669 data-nosnippet>2669</a>            }
-<a href=#2670 id=2670 data-nosnippet>2670</a>        }
-<a href=#2671 id=2671 data-nosnippet>2671</a>    }
-<a href=#2672 id=2672 data-nosnippet>2672</a>
-<a href=#2673 id=2673 data-nosnippet>2673</a>    <span class="doccomment">/// Sets option `id` of `live` to `value` with the agent.
-<a href=#2674 id=2674 data-nosnippet>2674</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>set_live_option(
-<a href=#2675 id=2675 data-nosnippet>2675</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2676 id=2676 data-nosnippet>2676</a>        live: <span class="kw-2">&amp;mut </span>LiveSession,
-<a href=#2677 id=2677 data-nosnippet>2677</a>        id: <span class="kw-2">&amp;</span>str,
-<a href=#2678 id=2678 data-nosnippet>2678</a>        value: <span class="kw-2">&amp;</span>str,
-<a href=#2679 id=2679 data-nosnippet>2679</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-<a href=#2680 id=2680 data-nosnippet>2680</a>        <span class="kw">if </span>live.modes_as_option &amp;&amp; id == <span class="string">"mode" </span>{
-<a href=#2681 id=2681 data-nosnippet>2681</a>            live.process
-<a href=#2682 id=2682 data-nosnippet>2682</a>                .peer
-<a href=#2683 id=2683 data-nosnippet>2683</a>                .request::&lt;<span class="kw">_</span>, Value&gt;(
-<a href=#2684 id=2684 data-nosnippet>2684</a>                    wire::method::SESSION_SET_MODE,
-<a href=#2685 id=2685 data-nosnippet>2685</a>                    <span class="kw-2">&amp;</span>wire::SetModeRequest {
-<a href=#2686 id=2686 data-nosnippet>2686</a>                        session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
-<a href=#2687 id=2687 data-nosnippet>2687</a>                        mode_id: value,
-<a href=#2688 id=2688 data-nosnippet>2688</a>                    },
-<a href=#2689 id=2689 data-nosnippet>2689</a>                )
-<a href=#2690 id=2690 data-nosnippet>2690</a>                .<span class="kw">await
-<a href=#2691 id=2691 data-nosnippet>2691</a>                </span>.map_err(|error| agent_error_message(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
-<a href=#2692 id=2692 data-nosnippet>2692</a>            <span class="kw">for </span>option <span class="kw">in </span><span class="kw-2">&amp;mut </span>live.options {
-<a href=#2693 id=2693 data-nosnippet>2693</a>                <span class="kw">if </span>option.id == <span class="string">"mode" </span>{
-<a href=#2694 id=2694 data-nosnippet>2694</a>                    value.clone_into(<span class="kw-2">&amp;mut </span>option.current_value);
-<a href=#2695 id=2695 data-nosnippet>2695</a>                }
-<a href=#2696 id=2696 data-nosnippet>2696</a>            }
-<a href=#2697 id=2697 data-nosnippet>2697</a>        } <span class="kw">else </span>{
-<a href=#2698 id=2698 data-nosnippet>2698</a>            <span class="comment">// A boolean option takes a boolean (`type: boolean`); a select
-<a href=#2699 id=2699 data-nosnippet>2699</a>            // the value's ID, as ACP v1 sends it.
-<a href=#2700 id=2700 data-nosnippet>2700</a>            </span><span class="kw">let </span>boolean = live
-<a href=#2701 id=2701 data-nosnippet>2701</a>                .options
-<a href=#2702 id=2702 data-nosnippet>2702</a>                .iter()
-<a href=#2703 id=2703 data-nosnippet>2703</a>                .any(|option| option.id == id &amp;&amp; option.kind == AcpConfigOptionKind::Boolean);
-<a href=#2704 id=2704 data-nosnippet>2704</a>            <span class="kw">let </span>request = <span class="kw">if </span>boolean {
-<a href=#2705 id=2705 data-nosnippet>2705</a>                wire::SetConfigOptionRequest {
-<a href=#2706 id=2706 data-nosnippet>2706</a>                    session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
-<a href=#2707 id=2707 data-nosnippet>2707</a>                    config_id: id,
-<a href=#2708 id=2708 data-nosnippet>2708</a>                    value_type: <span class="prelude-val">Some</span>(<span class="string">"boolean"</span>),
-<a href=#2709 id=2709 data-nosnippet>2709</a>                    value: Value::Bool(value == <span class="string">"true"</span>),
-<a href=#2710 id=2710 data-nosnippet>2710</a>                }
-<a href=#2711 id=2711 data-nosnippet>2711</a>            } <span class="kw">else </span>{
-<a href=#2712 id=2712 data-nosnippet>2712</a>                wire::SetConfigOptionRequest {
-<a href=#2713 id=2713 data-nosnippet>2713</a>                    session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
-<a href=#2714 id=2714 data-nosnippet>2714</a>                    config_id: id,
-<a href=#2715 id=2715 data-nosnippet>2715</a>                    value_type: <span class="prelude-val">None</span>,
-<a href=#2716 id=2716 data-nosnippet>2716</a>                    value: Value::from(value),
-<a href=#2717 id=2717 data-nosnippet>2717</a>                }
-<a href=#2718 id=2718 data-nosnippet>2718</a>            };
-<a href=#2719 id=2719 data-nosnippet>2719</a>            <span class="kw">let </span>response = live
-<a href=#2720 id=2720 data-nosnippet>2720</a>                .process
-<a href=#2721 id=2721 data-nosnippet>2721</a>                .peer
-<a href=#2722 id=2722 data-nosnippet>2722</a>                .request::&lt;<span class="kw">_</span>, wire::SetConfigOptionResponse&gt;(
-<a href=#2723 id=2723 data-nosnippet>2723</a>                    wire::method::SESSION_SET_CONFIG_OPTION,
-<a href=#2724 id=2724 data-nosnippet>2724</a>                    <span class="kw-2">&amp;</span>request,
-<a href=#2725 id=2725 data-nosnippet>2725</a>                )
-<a href=#2726 id=2726 data-nosnippet>2726</a>                .<span class="kw">await
-<a href=#2727 id=2727 data-nosnippet>2727</a>                </span>.map_err(|error| agent_error_message(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
-<a href=#2728 id=2728 data-nosnippet>2728</a>            <span class="kw">match </span>response.config_options {
-<a href=#2729 id=2729 data-nosnippet>2729</a>                <span class="prelude-val">Some</span>(options) =&gt; {
-<a href=#2730 id=2730 data-nosnippet>2730</a>                    <span class="kw">let </span>(<span class="kw-2">mut </span>options, <span class="kw">_</span>) = options_of(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>options), <span class="prelude-val">None</span>);
-<a href=#2731 id=2731 data-nosnippet>2731</a>                    <span class="kw">if </span>live.modes_as_option
-<a href=#2732 id=2732 data-nosnippet>2732</a>                        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(mode) = live.options.iter().find(|option| option.id == <span class="string">"mode"</span>)
-<a href=#2733 id=2733 data-nosnippet>2733</a>                    {
-<a href=#2734 id=2734 data-nosnippet>2734</a>                        options.push(mode.clone());
-<a href=#2735 id=2735 data-nosnippet>2735</a>                    }
-<a href=#2736 id=2736 data-nosnippet>2736</a>                    live.options = options;
-<a href=#2737 id=2737 data-nosnippet>2737</a>                }
-<a href=#2738 id=2738 data-nosnippet>2738</a>                <span class="prelude-val">None </span>=&gt; {
-<a href=#2739 id=2739 data-nosnippet>2739</a>                    <span class="kw">for </span>option <span class="kw">in </span><span class="kw-2">&amp;mut </span>live.options {
-<a href=#2740 id=2740 data-nosnippet>2740</a>                        <span class="kw">if </span>option.id == id {
-<a href=#2741 id=2741 data-nosnippet>2741</a>                            value.clone_into(<span class="kw-2">&amp;mut </span>option.current_value);
-<a href=#2742 id=2742 data-nosnippet>2742</a>                        }
-<a href=#2743 id=2743 data-nosnippet>2743</a>                    }
-<a href=#2744 id=2744 data-nosnippet>2744</a>                }
-<a href=#2745 id=2745 data-nosnippet>2745</a>            }
-<a href=#2746 id=2746 data-nosnippet>2746</a>        }
-<a href=#2747 id=2747 data-nosnippet>2747</a>        <span class="self">self</span>.remember_live(live);
-<a href=#2748 id=2748 data-nosnippet>2748</a>        <span class="prelude-val">Ok</span>(())
-<a href=#2749 id=2749 data-nosnippet>2749</a>    }
-<a href=#2750 id=2750 data-nosnippet>2750</a>
-<a href=#2751 id=2751 data-nosnippet>2751</a>    <span class="doccomment">/// Records a notice about the session's ACP agent.
-<a href=#2752 id=2752 data-nosnippet>2752</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>acp_notice(
-<a href=#2753 id=2753 data-nosnippet>2753</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2754 id=2754 data-nosnippet>2754</a>        session: SessionId,
-<a href=#2755 id=2755 data-nosnippet>2755</a>        _run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
-<a href=#2756 id=2756 data-nosnippet>2756</a>        message: String,
-<a href=#2757 id=2757 data-nosnippet>2757</a>    ) {
-<a href=#2758 id=2758 data-nosnippet>2758</a>        <span class="kw">let _ </span>= <span class="self">self
-<a href=#2759 id=2759 data-nosnippet>2759</a>            </span>.append(
-<a href=#2760 id=2760 data-nosnippet>2760</a>                session,
-<a href=#2761 id=2761 data-nosnippet>2761</a>                <span class="prelude-val">None</span>,
-<a href=#2762 id=2762 data-nosnippet>2762</a>                origin(),
-<a href=#2763 id=2763 data-nosnippet>2763</a>                Event::Diagnostic {
-<a href=#2764 id=2764 data-nosnippet>2764</a>                    source: cookie_agent_protocol::DiagnosticSource::engine(<span class="string">"acp"</span>)
-<a href=#2765 id=2765 data-nosnippet>2765</a>                        .expect(<span class="string">"static diagnostic source is valid"</span>),
-<a href=#2766 id=2766 data-nosnippet>2766</a>                    kind: cookie_agent_protocol::DiagnosticKind::new(<span class="string">"acp_agent"</span>)
-<a href=#2767 id=2767 data-nosnippet>2767</a>                        .expect(<span class="string">"static diagnostic kind is valid"</span>),
-<a href=#2768 id=2768 data-nosnippet>2768</a>                    message,
-<a href=#2769 id=2769 data-nosnippet>2769</a>                    count: <span class="prelude-val">None</span>,
-<a href=#2770 id=2770 data-nosnippet>2770</a>                    detail: <span class="prelude-val">None</span>,
-<a href=#2771 id=2771 data-nosnippet>2771</a>                },
-<a href=#2772 id=2772 data-nosnippet>2772</a>            )
-<a href=#2773 id=2773 data-nosnippet>2773</a>            .<span class="kw">await</span>;
-<a href=#2774 id=2774 data-nosnippet>2774</a>    }
-<a href=#2775 id=2775 data-nosnippet>2775</a>
-<a href=#2776 id=2776 data-nosnippet>2776</a>    <span class="doccomment">/// The working directory of `agent`'s sessions for `session`: its
-<a href=#2777 id=2777 data-nosnippet>2777</a>    /// workspace attachment on the agent's runtime, else the runtime's home.
-<a href=#2778 id=2778 data-nosnippet>2778</a>    </span><span class="kw">fn </span>acp_cwd(
-<a href=#2779 id=2779 data-nosnippet>2779</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2780 id=2780 data-nosnippet>2780</a>        session: SessionId,
-<a href=#2781 id=2781 data-nosnippet>2781</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
-<a href=#2782 id=2782 data-nosnippet>2782</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
-<a href=#2783 id=2783 data-nosnippet>2783</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, EngineError&gt; {
-<a href=#2784 id=2784 data-nosnippet>2784</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#2785 id=2785 data-nosnippet>2785</a>        <span class="kw">let </span>workspace = projection
-<a href=#2786 id=2786 data-nosnippet>2786</a>            .meta
-<a href=#2787 id=2787 data-nosnippet>2787</a>            .attachments
-<a href=#2788 id=2788 data-nosnippet>2788</a>            .iter()
-<a href=#2789 id=2789 data-nosnippet>2789</a>            .find(|attachment| {
-<a href=#2790 id=2790 data-nosnippet>2790</a>                attachment.runtime_id == agent.runtime &amp;&amp; attachment.workspace.is_some()
-<a href=#2791 id=2791 data-nosnippet>2791</a>            })
-<a href=#2792 id=2792 data-nosnippet>2792</a>            .and_then(|attachment| attachment.workspace.clone());
-<a href=#2793 id=2793 data-nosnippet>2793</a>        workspace.or_else(|| process.client.home()).ok_or_else(|| {
-<a href=#2794 id=2794 data-nosnippet>2794</a>            EngineError::Acp(<span class="macro">format!</span>(
-<a href=#2795 id=2795 data-nosnippet>2795</a>                <span class="string">"the agent has no working directory: the session has no workspace on runtime \
-<a href=#2796 id=2796 data-nosnippet>2796</a>                     `{}`, which reported no home directory"</span>,
-<a href=#2797 id=2797 data-nosnippet>2797</a>                agent.runtime
-<a href=#2798 id=2798 data-nosnippet>2798</a>            ))
-<a href=#2799 id=2799 data-nosnippet>2799</a>        })
-<a href=#2800 id=2800 data-nosnippet>2800</a>    }
-<a href=#2801 id=2801 data-nosnippet>2801</a>
-<a href=#2802 id=2802 data-nosnippet>2802</a>    <span class="doccomment">/// The workspace roots besides `cwd` that `session` attaches on
-<a href=#2803 id=2803 data-nosnippet>2803</a>    /// `agent`'s runtime, each once, in attachment order: the agent's
-<a href=#2804 id=2804 data-nosnippet>2804</a>    /// `additionalDirectories`. Workspaces on other runtimes are on other
-<a href=#2805 id=2805 data-nosnippet>2805</a>    /// machines, and are left out.
-<a href=#2806 id=2806 data-nosnippet>2806</a>    </span><span class="kw">fn </span>acp_additional_directories(
-<a href=#2807 id=2807 data-nosnippet>2807</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2808 id=2808 data-nosnippet>2808</a>        session: SessionId,
-<a href=#2809 id=2809 data-nosnippet>2809</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
-<a href=#2810 id=2810 data-nosnippet>2810</a>        cwd: <span class="kw-2">&amp;</span>str,
-<a href=#2811 id=2811 data-nosnippet>2811</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, EngineError&gt; {
-<a href=#2812 id=2812 data-nosnippet>2812</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#2813 id=2813 data-nosnippet>2813</a>        <span class="kw">let </span><span class="kw-2">mut </span>directories = Vec::&lt;String&gt;::new();
-<a href=#2814 id=2814 data-nosnippet>2814</a>        <span class="kw">for </span>workspace <span class="kw">in </span>projection
-<a href=#2815 id=2815 data-nosnippet>2815</a>            .meta
-<a href=#2816 id=2816 data-nosnippet>2816</a>            .attachments
-<a href=#2817 id=2817 data-nosnippet>2817</a>            .iter()
-<a href=#2818 id=2818 data-nosnippet>2818</a>            .filter(|attachment| attachment.runtime_id == agent.runtime)
-<a href=#2819 id=2819 data-nosnippet>2819</a>            .filter_map(|attachment| attachment.workspace.as_ref())
-<a href=#2820 id=2820 data-nosnippet>2820</a>        {
-<a href=#2821 id=2821 data-nosnippet>2821</a>            <span class="kw">if </span>workspace != cwd &amp;&amp; !directories.contains(workspace) {
-<a href=#2822 id=2822 data-nosnippet>2822</a>                directories.push(workspace.clone());
-<a href=#2823 id=2823 data-nosnippet>2823</a>            }
-<a href=#2824 id=2824 data-nosnippet>2824</a>        }
-<a href=#2825 id=2825 data-nosnippet>2825</a>        <span class="prelude-val">Ok</span>(directories)
-<a href=#2826 id=2826 data-nosnippet>2826</a>    }
-<a href=#2827 id=2827 data-nosnippet>2827</a>
-<a href=#2828 id=2828 data-nosnippet>2828</a>    <span class="kw">async fn </span>open_acp_bridge(
-<a href=#2829 id=2829 data-nosnippet>2829</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2830 id=2830 data-nosnippet>2830</a>        _session: SessionId,
-<a href=#2831 id=2831 data-nosnippet>2831</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
-<a href=#2832 id=2832 data-nosnippet>2832</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
-<a href=#2833 id=2833 data-nosnippet>2833</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AgentMcpOpenResult, String&gt; {
-<a href=#2834 id=2834 data-nosnippet>2834</a>        process
-<a href=#2835 id=2835 data-nosnippet>2835</a>            .client
-<a href=#2836 id=2836 data-nosnippet>2836</a>            .agent_request::&lt;<span class="kw">_</span>, AgentMcpOpenResult&gt;(
-<a href=#2837 id=2837 data-nosnippet>2837</a>                method::AGENT_MCP_OPEN,
-<a href=#2838 id=2838 data-nosnippet>2838</a>                <span class="kw-2">&amp;</span>AgentRef {
-<a href=#2839 id=2839 data-nosnippet>2839</a>                    agent: agent.agent.to_string(),
-<a href=#2840 id=2840 data-nosnippet>2840</a>                },
-<a href=#2841 id=2841 data-nosnippet>2841</a>                Duration::from_secs(<span class="number">30</span>),
-<a href=#2842 id=2842 data-nosnippet>2842</a>            )
-<a href=#2843 id=2843 data-nosnippet>2843</a>            .<span class="kw">await
-<a href=#2844 id=2844 data-nosnippet>2844</a>    </span>}
-<a href=#2845 id=2845 data-nosnippet>2845</a>
-<a href=#2846 id=2846 data-nosnippet>2846</a>    <span class="doccomment">/// The IDs of the runtimes `session` attaches, each once.
-<a href=#2847 id=2847 data-nosnippet>2847</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>session_runtime_ids(
-<a href=#2848 id=2848 data-nosnippet>2848</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2849 id=2849 data-nosnippet>2849</a>        session: SessionId,
-<a href=#2850 id=2850 data-nosnippet>2850</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;cookie_agent_protocol::RuntimeId&gt;, EngineError&gt; {
-<a href=#2851 id=2851 data-nosnippet>2851</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#2852 id=2852 data-nosnippet>2852</a>        <span class="kw">let </span><span class="kw-2">mut </span>ids = Vec::new();
-<a href=#2853 id=2853 data-nosnippet>2853</a>        <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>projection.meta.attachments {
-<a href=#2854 id=2854 data-nosnippet>2854</a>            <span class="kw">if </span>!ids.contains(<span class="kw-2">&amp;</span>attachment.runtime_id) {
-<a href=#2855 id=2855 data-nosnippet>2855</a>                ids.push(attachment.runtime_id.clone());
-<a href=#2856 id=2856 data-nosnippet>2856</a>            }
-<a href=#2857 id=2857 data-nosnippet>2857</a>        }
-<a href=#2858 id=2858 data-nosnippet>2858</a>        <span class="prelude-val">Ok</span>(ids)
-<a href=#2859 id=2859 data-nosnippet>2859</a>    }
-<a href=#2860 id=2860 data-nosnippet>2860</a>
-<a href=#2861 id=2861 data-nosnippet>2861</a>    <span class="doccomment">/// The runtimes that offer the ACP agent `session` runs now, when it
-<a href=#2862 id=2862 data-nosnippet>2862</a>    /// runs one.
-<a href=#2863 id=2863 data-nosnippet>2863</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>session_acp_offers(
-<a href=#2864 id=2864 data-nosnippet>2864</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2865 id=2865 data-nosnippet>2865</a>        session: SessionId,
-<a href=#2866 id=2866 data-nosnippet>2866</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::runtime_snapshot::AcpOffers&gt;, EngineError&gt; {
-<a href=#2867 id=2867 data-nosnippet>2867</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#2868 id=2868 data-nosnippet>2868</a>        <span class="kw">let </span>selection =
-<a href=#2869 id=2869 data-nosnippet>2869</a>            cookie_agent_protocol::SessionModelState::from_events(<span class="kw-2">&amp;</span>projection.log.event_snapshot())
-<a href=#2870 id=2870 data-nosnippet>2870</a>                .selection
-<a href=#2871 id=2871 data-nosnippet>2871</a>                .unwrap_or_else(|| projection.meta.creation_selection.clone());
-<a href=#2872 id=2872 data-nosnippet>2872</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
-<a href=#2873 id=2873 data-nosnippet>2873</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(agents) = runtime.agents_for_preset(selection.preset.as_deref()) <span class="kw">else </span>{
-<a href=#2874 id=2874 data-nosnippet>2874</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#2875 id=2875 data-nosnippet>2875</a>        };
-<a href=#2876 id=2876 data-nosnippet>2876</a>        <span class="prelude-val">Ok</span>(agents
-<a href=#2877 id=2877 data-nosnippet>2877</a>            .get(<span class="kw-2">&amp;</span>selection.agent)
-<a href=#2878 id=2878 data-nosnippet>2878</a>            .and_then(|agent| agent.acp.clone()))
-<a href=#2879 id=2879 data-nosnippet>2879</a>    }
-<a href=#2880 id=2880 data-nosnippet>2880</a>
-<a href=#2881 id=2881 data-nosnippet>2881</a>    <span class="doccomment">/// The ACP agent of `offers` on the one runtime `session` attaches
-<a href=#2882 id=2882 data-nosnippet>2882</a>    /// that offers it; refused, saying why, when there is none or more
-<a href=#2883 id=2883 data-nosnippet>2883</a>    /// than one, or it is away or disabled there.
-<a href=#2884 id=2884 data-nosnippet>2884</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>place_acp_agent(
-<a href=#2885 id=2885 data-nosnippet>2885</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2886 id=2886 data-nosnippet>2886</a>        session: SessionId,
-<a href=#2887 id=2887 data-nosnippet>2887</a>        offers: <span class="kw-2">&amp;</span><span class="kw">crate</span>::runtime_snapshot::AcpOffers,
-<a href=#2888 id=2888 data-nosnippet>2888</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeAgent, EngineError&gt; {
-<a href=#2889 id=2889 data-nosnippet>2889</a>        offers
-<a href=#2890 id=2890 data-nosnippet>2890</a>            .place(<span class="kw-2">&amp;</span><span class="self">self</span>.session_runtime_ids(session)<span class="question-mark">?</span>)
-<a href=#2891 id=2891 data-nosnippet>2891</a>            .map_err(EngineError::Acp)
-<a href=#2892 id=2892 data-nosnippet>2892</a>    }
-<a href=#2893 id=2893 data-nosnippet>2893</a>
-<a href=#2894 id=2894 data-nosnippet>2894</a>    <span class="doccomment">/// The live ACP session of `session`, if any.
-<a href=#2895 id=2895 data-nosnippet>2895</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>live_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) -&gt; <span class="prelude-ty">Option</span>&lt;LiveSession&gt; {
-<a href=#2896 id=2896 data-nosnippet>2896</a>        <span class="self">self</span>.inner
-<a href=#2897 id=2897 data-nosnippet>2897</a>            .acp
-<a href=#2898 id=2898 data-nosnippet>2898</a>            .processes
-<a href=#2899 id=2899 data-nosnippet>2899</a>            .sessions
-<a href=#2900 id=2900 data-nosnippet>2900</a>            .lock()
-<a href=#2901 id=2901 data-nosnippet>2901</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#2902 id=2902 data-nosnippet>2902</a>            .get(<span class="kw-2">&amp;</span>session)
-<a href=#2903 id=2903 data-nosnippet>2903</a>            .cloned()
-<a href=#2904 id=2904 data-nosnippet>2904</a>    }
-<a href=#2905 id=2905 data-nosnippet>2905</a>
-<a href=#2906 id=2906 data-nosnippet>2906</a>    <span class="doccomment">/// Remembers `live` as the ACP session of its cookie session.
-<a href=#2907 id=2907 data-nosnippet>2907</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remember_live(<span class="kw-2">&amp;</span><span class="self">self</span>, live: <span class="kw-2">&amp;</span>LiveSession) {
-<a href=#2908 id=2908 data-nosnippet>2908</a>        <span class="self">self</span>.inner
-<a href=#2909 id=2909 data-nosnippet>2909</a>            .acp
-<a href=#2910 id=2910 data-nosnippet>2910</a>            .processes
-<a href=#2911 id=2911 data-nosnippet>2911</a>            .sessions
-<a href=#2912 id=2912 data-nosnippet>2912</a>            .lock()
-<a href=#2913 id=2913 data-nosnippet>2913</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#2914 id=2914 data-nosnippet>2914</a>            .insert(live.session, live.clone());
-<a href=#2915 id=2915 data-nosnippet>2915</a>    }
-<a href=#2916 id=2916 data-nosnippet>2916</a>
-<a href=#2917 id=2917 data-nosnippet>2917</a>    <span class="doccomment">/// The bytes of a file the user attached, when the store has them.
-<a href=#2918 id=2918 data-nosnippet>2918</a>    </span><span class="kw">fn </span>read_user_artifact(
-<a href=#2919 id=2919 data-nosnippet>2919</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2920 id=2920 data-nosnippet>2920</a>        session: SessionId,
-<a href=#2921 id=2921 data-nosnippet>2921</a>        artifact: <span class="kw-2">&amp;</span>cookie_agent_protocol::ArtifactRef,
-<a href=#2922 id=2922 data-nosnippet>2922</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;bytes::Bytes&gt; {
-<a href=#2923 id=2923 data-nosnippet>2923</a>        <span class="kw">let </span>attachment = cookie_agent_protocol::ToolAttachment {
-<a href=#2924 id=2924 data-nosnippet>2924</a>            mime_type: cookie_agent_protocol::MimeType::new(artifact.media_type.clone()).ok()<span class="question-mark">?</span>,
-<a href=#2925 id=2925 data-nosnippet>2925</a>            filename: artifact.filename.clone(),
-<a href=#2926 id=2926 data-nosnippet>2926</a>            byte_length: artifact.byte_length,
-<a href=#2927 id=2927 data-nosnippet>2927</a>            sha256: cookie_agent_protocol::Sha256Digest::new(artifact.sha256.clone()).ok()<span class="question-mark">?</span>,
-<a href=#2928 id=2928 data-nosnippet>2928</a>            reference: cookie_agent_protocol::ArtifactReference {
-<a href=#2929 id=2929 data-nosnippet>2929</a>                uri: <span class="macro">format!</span>(<span class="string">"artifact://sha256/{}"</span>, artifact.sha256),
-<a href=#2930 id=2930 data-nosnippet>2930</a>            },
-<a href=#2931 id=2931 data-nosnippet>2931</a>        };
-<a href=#2932 id=2932 data-nosnippet>2932</a>        <span class="self">self</span>.inner
-<a href=#2933 id=2933 data-nosnippet>2933</a>            .artifacts
-<a href=#2934 id=2934 data-nosnippet>2934</a>            .read_verified_attachment(session, <span class="kw-2">&amp;</span>attachment)
-<a href=#2935 id=2935 data-nosnippet>2935</a>            .ok()
-<a href=#2936 id=2936 data-nosnippet>2936</a>    }
-<a href=#2937 id=2937 data-nosnippet>2937</a>
-<a href=#2938 id=2938 data-nosnippet>2938</a>    <span class="kw">fn </span>forget_live(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId, live: <span class="kw-2">&amp;</span>LiveSession) {
-<a href=#2939 id=2939 data-nosnippet>2939</a>        <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
-<a href=#2940 id=2940 data-nosnippet>2940</a>            </span>.inner
-<a href=#2941 id=2941 data-nosnippet>2941</a>            .acp
-<a href=#2942 id=2942 data-nosnippet>2942</a>            .processes
-<a href=#2943 id=2943 data-nosnippet>2943</a>            .sessions
-<a href=#2944 id=2944 data-nosnippet>2944</a>            .lock()
-<a href=#2945 id=2945 data-nosnippet>2945</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#2946 id=2946 data-nosnippet>2946</a>        <span class="kw">if </span>sessions
-<a href=#2947 id=2947 data-nosnippet>2947</a>            .get(<span class="kw-2">&amp;</span>session)
-<a href=#2948 id=2948 data-nosnippet>2948</a>            .is_some_and(|known| known.acp_session_id == live.acp_session_id)
-<a href=#2949 id=2949 data-nosnippet>2949</a>        {
-<a href=#2950 id=2950 data-nosnippet>2950</a>            sessions.remove(<span class="kw-2">&amp;</span>session);
-<a href=#2951 id=2951 data-nosnippet>2951</a>        }
-<a href=#2952 id=2952 data-nosnippet>2952</a>    }
-<a href=#2953 id=2953 data-nosnippet>2953</a>
-<a href=#2954 id=2954 data-nosnippet>2954</a>    <span class="doccomment">/// Ends the ACP session of `session`, as the session is unloaded:
-<a href=#2955 id=2955 data-nosnippet>2955</a>    /// `session/close` when the agent offers it, and its bridge closes.
-<a href=#2956 id=2956 data-nosnippet>2956</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>close_acp_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) {
-<a href=#2957 id=2957 data-nosnippet>2957</a>        <span class="kw">let </span>live = <span class="self">self
-<a href=#2958 id=2958 data-nosnippet>2958</a>            </span>.inner
+<a href=#2622 id=2622 data-nosnippet>2622</a>    /// agent's `auto`, else its default; then the document's `acp.config`,
+<a href=#2623 id=2623 data-nosnippet>2623</a>    /// except the model and effort options when the document names
+<a href=#2624 id=2624 data-nosnippet>2624</a>    /// `models`; then the first `models` entry the agent offers, and its
+<a href=#2625 id=2625 data-nosnippet>2625</a>    /// variant.
+<a href=#2626 id=2626 data-nosnippet>2626</a>    </span><span class="kw">async fn </span>apply_starting_options(
+<a href=#2627 id=2627 data-nosnippet>2627</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2628 id=2628 data-nosnippet>2628</a>        session: SessionId,
+<a href=#2629 id=2629 data-nosnippet>2629</a>        run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
+<a href=#2630 id=2630 data-nosnippet>2630</a>        live: <span class="kw-2">&amp;mut </span>LiveSession,
+<a href=#2631 id=2631 data-nosnippet>2631</a>        document: <span class="kw-2">&amp;</span>cookie_agent_config::AgentDocument,
+<a href=#2632 id=2632 data-nosnippet>2632</a>    ) {
+<a href=#2633 id=2633 data-nosnippet>2633</a>        <span class="kw">let </span>settings = document.frontmatter.acp.clone().unwrap_or_default();
+<a href=#2634 id=2634 data-nosnippet>2634</a>        <span class="kw">let </span>mode_option = <span class="kw">super</span>::options::mode_option(<span class="kw-2">&amp;</span>live.options).cloned();
+<a href=#2635 id=2635 data-nosnippet>2635</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(option) = mode_option {
+<a href=#2636 id=2636 data-nosnippet>2636</a>            <span class="kw">let </span>wanted = <span class="kw">super</span>::options::wanted_mode(<span class="kw-2">&amp;</span>option, <span class="kw-2">&amp;</span>settings);
+<a href=#2637 id=2637 data-nosnippet>2637</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(wanted) = wanted
+<a href=#2638 id=2638 data-nosnippet>2638</a>                &amp;&amp; wanted != option.current_value
+<a href=#2639 id=2639 data-nosnippet>2639</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Err</span>(reason) = <span class="self">self</span>.set_live_option(live, <span class="kw-2">&amp;</span>option.id, <span class="kw-2">&amp;</span>wanted).<span class="kw">await
+<a href=#2640 id=2640 data-nosnippet>2640</a>            </span>{
+<a href=#2641 id=2641 data-nosnippet>2641</a>                <span class="self">self</span>.acp_notice(
+<a href=#2642 id=2642 data-nosnippet>2642</a>                    session,
+<a href=#2643 id=2643 data-nosnippet>2643</a>                    run,
+<a href=#2644 id=2644 data-nosnippet>2644</a>                    <span class="macro">format!</span>(<span class="string">"The agent's mode was not set to `{wanted}`: {reason}"</span>),
+<a href=#2645 id=2645 data-nosnippet>2645</a>                )
+<a href=#2646 id=2646 data-nosnippet>2646</a>                .<span class="kw">await</span>;
+<a href=#2647 id=2647 data-nosnippet>2647</a>            }
+<a href=#2648 id=2648 data-nosnippet>2648</a>        }
+<a href=#2649 id=2649 data-nosnippet>2649</a>        <span class="kw">for </span>(id, value) <span class="kw">in </span><span class="kw-2">&amp;</span>settings.config {
+<a href=#2650 id=2650 data-nosnippet>2650</a>            <span class="kw">if </span><span class="kw">super</span>::options::models_decide(<span class="kw-2">&amp;</span>settings, <span class="kw-2">&amp;</span>live.options, id) {
+<a href=#2651 id=2651 data-nosnippet>2651</a>                <span class="kw">continue</span>;
+<a href=#2652 id=2652 data-nosnippet>2652</a>            }
+<a href=#2653 id=2653 data-nosnippet>2653</a>            <span class="kw">let </span>known = live
+<a href=#2654 id=2654 data-nosnippet>2654</a>                .options
+<a href=#2655 id=2655 data-nosnippet>2655</a>                .iter()
+<a href=#2656 id=2656 data-nosnippet>2656</a>                .find(|option| <span class="kw-2">&amp;</span>option.id == id)
+<a href=#2657 id=2657 data-nosnippet>2657</a>                .map(|option| {
+<a href=#2658 id=2658 data-nosnippet>2658</a>                    option
+<a href=#2659 id=2659 data-nosnippet>2659</a>                        .values
+<a href=#2660 id=2660 data-nosnippet>2660</a>                        .iter()
+<a href=#2661 id=2661 data-nosnippet>2661</a>                        .any(|candidate| <span class="kw-2">&amp;</span>candidate.value == value)
+<a href=#2662 id=2662 data-nosnippet>2662</a>                });
+<a href=#2663 id=2663 data-nosnippet>2663</a>            <span class="kw">let </span>problem = <span class="kw">match </span>known {
+<a href=#2664 id=2664 data-nosnippet>2664</a>                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"the agent offers no option `{id}`"</span>)),
+<a href=#2665 id=2665 data-nosnippet>2665</a>                <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) =&gt; <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"option `{id}` takes no value `{value}`"</span>)),
+<a href=#2666 id=2666 data-nosnippet>2666</a>                <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) =&gt; <span class="self">self</span>.set_live_option(live, id, value).<span class="kw">await</span>.err(),
+<a href=#2667 id=2667 data-nosnippet>2667</a>            };
+<a href=#2668 id=2668 data-nosnippet>2668</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(problem) = problem {
+<a href=#2669 id=2669 data-nosnippet>2669</a>                <span class="self">self</span>.acp_notice(
+<a href=#2670 id=2670 data-nosnippet>2670</a>                    session,
+<a href=#2671 id=2671 data-nosnippet>2671</a>                    run,
+<a href=#2672 id=2672 data-nosnippet>2672</a>                    <span class="macro">format!</span>(<span class="string">"The agent document's `acp.config` was skipped there: {problem}"</span>),
+<a href=#2673 id=2673 data-nosnippet>2673</a>                )
+<a href=#2674 id=2674 data-nosnippet>2674</a>                .<span class="kw">await</span>;
+<a href=#2675 id=2675 data-nosnippet>2675</a>            }
+<a href=#2676 id=2676 data-nosnippet>2676</a>        }
+<a href=#2677 id=2677 data-nosnippet>2677</a>        <span class="self">self</span>.apply_document_models(session, run, live, <span class="kw-2">&amp;</span>settings)
+<a href=#2678 id=2678 data-nosnippet>2678</a>            .<span class="kw">await</span>;
+<a href=#2679 id=2679 data-nosnippet>2679</a>    }
+<a href=#2680 id=2680 data-nosnippet>2680</a>
+<a href=#2681 id=2681 data-nosnippet>2681</a>    <span class="doccomment">/// The first of the document's `models` whose model the agent offers,
+<a href=#2682 id=2682 data-nosnippet>2682</a>    /// then its variant when it names one; an entry that cannot apply is
+<a href=#2683 id=2683 data-nosnippet>2683</a>    /// reported in the session and the agent keeps its default.
+<a href=#2684 id=2684 data-nosnippet>2684</a>    </span><span class="kw">async fn </span>apply_document_models(
+<a href=#2685 id=2685 data-nosnippet>2685</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2686 id=2686 data-nosnippet>2686</a>        session: SessionId,
+<a href=#2687 id=2687 data-nosnippet>2687</a>        run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
+<a href=#2688 id=2688 data-nosnippet>2688</a>        live: <span class="kw-2">&amp;mut </span>LiveSession,
+<a href=#2689 id=2689 data-nosnippet>2689</a>        settings: <span class="kw-2">&amp;</span>cookie_agent_config::AcpDocumentSettings,
+<a href=#2690 id=2690 data-nosnippet>2690</a>    ) {
+<a href=#2691 id=2691 data-nosnippet>2691</a>        <span class="kw">let </span>pick = <span class="kw">super</span>::options::pick_model(<span class="kw-2">&amp;</span>live.options, settings);
+<a href=#2692 id=2692 data-nosnippet>2692</a>        <span class="kw">let </span>chosen = <span class="kw">match </span><span class="kw-2">&amp;</span>pick {
+<a href=#2693 id=2693 data-nosnippet>2693</a>            <span class="kw">super</span>::options::ModelPick::Chosen { option, choice } =&gt; {
+<a href=#2694 id=2694 data-nosnippet>2694</a>                <span class="prelude-val">Some</span>((option.clone(), (<span class="kw-2">*</span>choice).clone()))
+<a href=#2695 id=2695 data-nosnippet>2695</a>            }
+<a href=#2696 id=2696 data-nosnippet>2696</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#2697 id=2697 data-nosnippet>2697</a>        };
+<a href=#2698 id=2698 data-nosnippet>2698</a>        <span class="kw">let </span><span class="kw-2">mut </span>problem = pick.problem(settings);
+<a href=#2699 id=2699 data-nosnippet>2699</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((option, choice)) = chosen {
+<a href=#2700 id=2700 data-nosnippet>2700</a>            <span class="kw">let </span>current = <span class="kw">super</span>::options::model_option(<span class="kw-2">&amp;</span>live.options)
+<a href=#2701 id=2701 data-nosnippet>2701</a>                .is_some_and(|model| model.current_value == choice.model);
+<a href=#2702 id=2702 data-nosnippet>2702</a>            <span class="kw">if </span>!current {
+<a href=#2703 id=2703 data-nosnippet>2703</a>                problem = <span class="self">self
+<a href=#2704 id=2704 data-nosnippet>2704</a>                    </span>.set_live_option(live, <span class="kw-2">&amp;</span>option, <span class="kw-2">&amp;</span>choice.model)
+<a href=#2705 id=2705 data-nosnippet>2705</a>                    .<span class="kw">await
+<a href=#2706 id=2706 data-nosnippet>2706</a>                    </span>.err();
+<a href=#2707 id=2707 data-nosnippet>2707</a>            }
+<a href=#2708 id=2708 data-nosnippet>2708</a>            <span class="kw">if </span>problem.is_none()
+<a href=#2709 id=2709 data-nosnippet>2709</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(variant) = <span class="kw-2">&amp;</span>choice.variant
+<a href=#2710 id=2710 data-nosnippet>2710</a>            {
+<a href=#2711 id=2711 data-nosnippet>2711</a>                problem = <span class="kw">match </span><span class="kw">super</span>::options::pick_variant(<span class="kw-2">&amp;</span>live.options, variant) {
+<a href=#2712 id=2712 data-nosnippet>2712</a>                    <span class="prelude-val">Err</span>(problem) =&gt; <span class="prelude-val">Some</span>(problem),
+<a href=#2713 id=2713 data-nosnippet>2713</a>                    <span class="prelude-val">Ok</span>(option) =&gt; {
+<a href=#2714 id=2714 data-nosnippet>2714</a>                        <span class="kw">let </span>current = <span class="kw">super</span>::options::effort_option(<span class="kw-2">&amp;</span>live.options)
+<a href=#2715 id=2715 data-nosnippet>2715</a>                            .is_some_and(|effort| <span class="kw-2">&amp;</span>effort.current_value == variant);
+<a href=#2716 id=2716 data-nosnippet>2716</a>                        <span class="kw">if </span>current {
+<a href=#2717 id=2717 data-nosnippet>2717</a>                            <span class="prelude-val">None
+<a href=#2718 id=2718 data-nosnippet>2718</a>                        </span>} <span class="kw">else </span>{
+<a href=#2719 id=2719 data-nosnippet>2719</a>                            <span class="self">self</span>.set_live_option(live, <span class="kw-2">&amp;</span>option, variant).<span class="kw">await</span>.err()
+<a href=#2720 id=2720 data-nosnippet>2720</a>                        }
+<a href=#2721 id=2721 data-nosnippet>2721</a>                    }
+<a href=#2722 id=2722 data-nosnippet>2722</a>                };
+<a href=#2723 id=2723 data-nosnippet>2723</a>            }
+<a href=#2724 id=2724 data-nosnippet>2724</a>        }
+<a href=#2725 id=2725 data-nosnippet>2725</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(problem) = problem {
+<a href=#2726 id=2726 data-nosnippet>2726</a>            <span class="self">self</span>.acp_notice(
+<a href=#2727 id=2727 data-nosnippet>2727</a>                session,
+<a href=#2728 id=2728 data-nosnippet>2728</a>                run,
+<a href=#2729 id=2729 data-nosnippet>2729</a>                <span class="macro">format!</span>(<span class="string">"The agent document's `models` was skipped there: {problem}"</span>),
+<a href=#2730 id=2730 data-nosnippet>2730</a>            )
+<a href=#2731 id=2731 data-nosnippet>2731</a>            .<span class="kw">await</span>;
+<a href=#2732 id=2732 data-nosnippet>2732</a>        }
+<a href=#2733 id=2733 data-nosnippet>2733</a>    }
+<a href=#2734 id=2734 data-nosnippet>2734</a>
+<a href=#2735 id=2735 data-nosnippet>2735</a>    <span class="doccomment">/// Sets option `id` of `live` to `value` with the agent.
+<a href=#2736 id=2736 data-nosnippet>2736</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>set_live_option(
+<a href=#2737 id=2737 data-nosnippet>2737</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2738 id=2738 data-nosnippet>2738</a>        live: <span class="kw-2">&amp;mut </span>LiveSession,
+<a href=#2739 id=2739 data-nosnippet>2739</a>        id: <span class="kw-2">&amp;</span>str,
+<a href=#2740 id=2740 data-nosnippet>2740</a>        value: <span class="kw-2">&amp;</span>str,
+<a href=#2741 id=2741 data-nosnippet>2741</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#2742 id=2742 data-nosnippet>2742</a>        <span class="kw">if </span>live.modes_as_option &amp;&amp; id == <span class="string">"mode" </span>{
+<a href=#2743 id=2743 data-nosnippet>2743</a>            live.process
+<a href=#2744 id=2744 data-nosnippet>2744</a>                .peer
+<a href=#2745 id=2745 data-nosnippet>2745</a>                .request::&lt;<span class="kw">_</span>, Value&gt;(
+<a href=#2746 id=2746 data-nosnippet>2746</a>                    wire::method::SESSION_SET_MODE,
+<a href=#2747 id=2747 data-nosnippet>2747</a>                    <span class="kw-2">&amp;</span>wire::SetModeRequest {
+<a href=#2748 id=2748 data-nosnippet>2748</a>                        session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
+<a href=#2749 id=2749 data-nosnippet>2749</a>                        mode_id: value,
+<a href=#2750 id=2750 data-nosnippet>2750</a>                    },
+<a href=#2751 id=2751 data-nosnippet>2751</a>                )
+<a href=#2752 id=2752 data-nosnippet>2752</a>                .<span class="kw">await
+<a href=#2753 id=2753 data-nosnippet>2753</a>                </span>.map_err(|error| agent_error_message(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
+<a href=#2754 id=2754 data-nosnippet>2754</a>            <span class="kw">for </span>option <span class="kw">in </span><span class="kw-2">&amp;mut </span>live.options {
+<a href=#2755 id=2755 data-nosnippet>2755</a>                <span class="kw">if </span>option.id == <span class="string">"mode" </span>{
+<a href=#2756 id=2756 data-nosnippet>2756</a>                    value.clone_into(<span class="kw-2">&amp;mut </span>option.current_value);
+<a href=#2757 id=2757 data-nosnippet>2757</a>                }
+<a href=#2758 id=2758 data-nosnippet>2758</a>            }
+<a href=#2759 id=2759 data-nosnippet>2759</a>        } <span class="kw">else </span>{
+<a href=#2760 id=2760 data-nosnippet>2760</a>            <span class="comment">// A boolean option takes a boolean (`type: boolean`); a select
+<a href=#2761 id=2761 data-nosnippet>2761</a>            // the value's ID, as ACP v1 sends it.
+<a href=#2762 id=2762 data-nosnippet>2762</a>            </span><span class="kw">let </span>boolean = live
+<a href=#2763 id=2763 data-nosnippet>2763</a>                .options
+<a href=#2764 id=2764 data-nosnippet>2764</a>                .iter()
+<a href=#2765 id=2765 data-nosnippet>2765</a>                .any(|option| option.id == id &amp;&amp; option.kind == AcpConfigOptionKind::Boolean);
+<a href=#2766 id=2766 data-nosnippet>2766</a>            <span class="kw">let </span>request = <span class="kw">if </span>boolean {
+<a href=#2767 id=2767 data-nosnippet>2767</a>                wire::SetConfigOptionRequest {
+<a href=#2768 id=2768 data-nosnippet>2768</a>                    session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
+<a href=#2769 id=2769 data-nosnippet>2769</a>                    config_id: id,
+<a href=#2770 id=2770 data-nosnippet>2770</a>                    value_type: <span class="prelude-val">Some</span>(<span class="string">"boolean"</span>),
+<a href=#2771 id=2771 data-nosnippet>2771</a>                    value: Value::Bool(value == <span class="string">"true"</span>),
+<a href=#2772 id=2772 data-nosnippet>2772</a>                }
+<a href=#2773 id=2773 data-nosnippet>2773</a>            } <span class="kw">else </span>{
+<a href=#2774 id=2774 data-nosnippet>2774</a>                wire::SetConfigOptionRequest {
+<a href=#2775 id=2775 data-nosnippet>2775</a>                    session_id: <span class="kw-2">&amp;</span>live.acp_session_id,
+<a href=#2776 id=2776 data-nosnippet>2776</a>                    config_id: id,
+<a href=#2777 id=2777 data-nosnippet>2777</a>                    value_type: <span class="prelude-val">None</span>,
+<a href=#2778 id=2778 data-nosnippet>2778</a>                    value: Value::from(value),
+<a href=#2779 id=2779 data-nosnippet>2779</a>                }
+<a href=#2780 id=2780 data-nosnippet>2780</a>            };
+<a href=#2781 id=2781 data-nosnippet>2781</a>            <span class="kw">let </span>response = live
+<a href=#2782 id=2782 data-nosnippet>2782</a>                .process
+<a href=#2783 id=2783 data-nosnippet>2783</a>                .peer
+<a href=#2784 id=2784 data-nosnippet>2784</a>                .request::&lt;<span class="kw">_</span>, wire::SetConfigOptionResponse&gt;(
+<a href=#2785 id=2785 data-nosnippet>2785</a>                    wire::method::SESSION_SET_CONFIG_OPTION,
+<a href=#2786 id=2786 data-nosnippet>2786</a>                    <span class="kw-2">&amp;</span>request,
+<a href=#2787 id=2787 data-nosnippet>2787</a>                )
+<a href=#2788 id=2788 data-nosnippet>2788</a>                .<span class="kw">await
+<a href=#2789 id=2789 data-nosnippet>2789</a>                </span>.map_err(|error| agent_error_message(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
+<a href=#2790 id=2790 data-nosnippet>2790</a>            <span class="kw">match </span>response.config_options {
+<a href=#2791 id=2791 data-nosnippet>2791</a>                <span class="prelude-val">Some</span>(options) =&gt; {
+<a href=#2792 id=2792 data-nosnippet>2792</a>                    <span class="kw">let </span>(<span class="kw-2">mut </span>options, <span class="kw">_</span>) = options_of(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>options), <span class="prelude-val">None</span>);
+<a href=#2793 id=2793 data-nosnippet>2793</a>                    <span class="kw">if </span>live.modes_as_option
+<a href=#2794 id=2794 data-nosnippet>2794</a>                        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(mode) = live.options.iter().find(|option| option.id == <span class="string">"mode"</span>)
+<a href=#2795 id=2795 data-nosnippet>2795</a>                    {
+<a href=#2796 id=2796 data-nosnippet>2796</a>                        options.push(mode.clone());
+<a href=#2797 id=2797 data-nosnippet>2797</a>                    }
+<a href=#2798 id=2798 data-nosnippet>2798</a>                    live.options = options;
+<a href=#2799 id=2799 data-nosnippet>2799</a>                }
+<a href=#2800 id=2800 data-nosnippet>2800</a>                <span class="prelude-val">None </span>=&gt; {
+<a href=#2801 id=2801 data-nosnippet>2801</a>                    <span class="kw">for </span>option <span class="kw">in </span><span class="kw-2">&amp;mut </span>live.options {
+<a href=#2802 id=2802 data-nosnippet>2802</a>                        <span class="kw">if </span>option.id == id {
+<a href=#2803 id=2803 data-nosnippet>2803</a>                            value.clone_into(<span class="kw-2">&amp;mut </span>option.current_value);
+<a href=#2804 id=2804 data-nosnippet>2804</a>                        }
+<a href=#2805 id=2805 data-nosnippet>2805</a>                    }
+<a href=#2806 id=2806 data-nosnippet>2806</a>                }
+<a href=#2807 id=2807 data-nosnippet>2807</a>            }
+<a href=#2808 id=2808 data-nosnippet>2808</a>        }
+<a href=#2809 id=2809 data-nosnippet>2809</a>        <span class="self">self</span>.remember_live(live);
+<a href=#2810 id=2810 data-nosnippet>2810</a>        <span class="prelude-val">Ok</span>(())
+<a href=#2811 id=2811 data-nosnippet>2811</a>    }
+<a href=#2812 id=2812 data-nosnippet>2812</a>
+<a href=#2813 id=2813 data-nosnippet>2813</a>    <span class="doccomment">/// Records a notice about the session's ACP agent.
+<a href=#2814 id=2814 data-nosnippet>2814</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>acp_notice(
+<a href=#2815 id=2815 data-nosnippet>2815</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2816 id=2816 data-nosnippet>2816</a>        session: SessionId,
+<a href=#2817 id=2817 data-nosnippet>2817</a>        _run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
+<a href=#2818 id=2818 data-nosnippet>2818</a>        message: String,
+<a href=#2819 id=2819 data-nosnippet>2819</a>    ) {
+<a href=#2820 id=2820 data-nosnippet>2820</a>        <span class="kw">let _ </span>= <span class="self">self
+<a href=#2821 id=2821 data-nosnippet>2821</a>            </span>.append(
+<a href=#2822 id=2822 data-nosnippet>2822</a>                session,
+<a href=#2823 id=2823 data-nosnippet>2823</a>                <span class="prelude-val">None</span>,
+<a href=#2824 id=2824 data-nosnippet>2824</a>                origin(),
+<a href=#2825 id=2825 data-nosnippet>2825</a>                Event::Diagnostic {
+<a href=#2826 id=2826 data-nosnippet>2826</a>                    source: cookie_agent_protocol::DiagnosticSource::engine(<span class="string">"acp"</span>)
+<a href=#2827 id=2827 data-nosnippet>2827</a>                        .expect(<span class="string">"static diagnostic source is valid"</span>),
+<a href=#2828 id=2828 data-nosnippet>2828</a>                    kind: cookie_agent_protocol::DiagnosticKind::new(<span class="string">"acp_agent"</span>)
+<a href=#2829 id=2829 data-nosnippet>2829</a>                        .expect(<span class="string">"static diagnostic kind is valid"</span>),
+<a href=#2830 id=2830 data-nosnippet>2830</a>                    message,
+<a href=#2831 id=2831 data-nosnippet>2831</a>                    count: <span class="prelude-val">None</span>,
+<a href=#2832 id=2832 data-nosnippet>2832</a>                    detail: <span class="prelude-val">None</span>,
+<a href=#2833 id=2833 data-nosnippet>2833</a>                },
+<a href=#2834 id=2834 data-nosnippet>2834</a>            )
+<a href=#2835 id=2835 data-nosnippet>2835</a>            .<span class="kw">await</span>;
+<a href=#2836 id=2836 data-nosnippet>2836</a>    }
+<a href=#2837 id=2837 data-nosnippet>2837</a>
+<a href=#2838 id=2838 data-nosnippet>2838</a>    <span class="doccomment">/// The working directory of `agent`'s sessions for `session`: its
+<a href=#2839 id=2839 data-nosnippet>2839</a>    /// workspace attachment on the agent's runtime, else the runtime's home.
+<a href=#2840 id=2840 data-nosnippet>2840</a>    </span><span class="kw">fn </span>acp_cwd(
+<a href=#2841 id=2841 data-nosnippet>2841</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2842 id=2842 data-nosnippet>2842</a>        session: SessionId,
+<a href=#2843 id=2843 data-nosnippet>2843</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
+<a href=#2844 id=2844 data-nosnippet>2844</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
+<a href=#2845 id=2845 data-nosnippet>2845</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, EngineError&gt; {
+<a href=#2846 id=2846 data-nosnippet>2846</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
+<a href=#2847 id=2847 data-nosnippet>2847</a>        <span class="kw">let </span>workspace = projection
+<a href=#2848 id=2848 data-nosnippet>2848</a>            .meta
+<a href=#2849 id=2849 data-nosnippet>2849</a>            .attachments
+<a href=#2850 id=2850 data-nosnippet>2850</a>            .iter()
+<a href=#2851 id=2851 data-nosnippet>2851</a>            .find(|attachment| {
+<a href=#2852 id=2852 data-nosnippet>2852</a>                attachment.runtime_id == agent.runtime &amp;&amp; attachment.workspace.is_some()
+<a href=#2853 id=2853 data-nosnippet>2853</a>            })
+<a href=#2854 id=2854 data-nosnippet>2854</a>            .and_then(|attachment| attachment.workspace.clone());
+<a href=#2855 id=2855 data-nosnippet>2855</a>        workspace.or_else(|| process.client.home()).ok_or_else(|| {
+<a href=#2856 id=2856 data-nosnippet>2856</a>            EngineError::Acp(<span class="macro">format!</span>(
+<a href=#2857 id=2857 data-nosnippet>2857</a>                <span class="string">"the agent has no working directory: the session has no workspace on runtime \
+<a href=#2858 id=2858 data-nosnippet>2858</a>                     `{}`, which reported no home directory"</span>,
+<a href=#2859 id=2859 data-nosnippet>2859</a>                agent.runtime
+<a href=#2860 id=2860 data-nosnippet>2860</a>            ))
+<a href=#2861 id=2861 data-nosnippet>2861</a>        })
+<a href=#2862 id=2862 data-nosnippet>2862</a>    }
+<a href=#2863 id=2863 data-nosnippet>2863</a>
+<a href=#2864 id=2864 data-nosnippet>2864</a>    <span class="doccomment">/// The workspace roots besides `cwd` that `session` attaches on
+<a href=#2865 id=2865 data-nosnippet>2865</a>    /// `agent`'s runtime, each once, in attachment order: the agent's
+<a href=#2866 id=2866 data-nosnippet>2866</a>    /// `additionalDirectories`. Workspaces on other runtimes are on other
+<a href=#2867 id=2867 data-nosnippet>2867</a>    /// machines, and are left out.
+<a href=#2868 id=2868 data-nosnippet>2868</a>    </span><span class="kw">fn </span>acp_additional_directories(
+<a href=#2869 id=2869 data-nosnippet>2869</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2870 id=2870 data-nosnippet>2870</a>        session: SessionId,
+<a href=#2871 id=2871 data-nosnippet>2871</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
+<a href=#2872 id=2872 data-nosnippet>2872</a>        cwd: <span class="kw-2">&amp;</span>str,
+<a href=#2873 id=2873 data-nosnippet>2873</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, EngineError&gt; {
+<a href=#2874 id=2874 data-nosnippet>2874</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
+<a href=#2875 id=2875 data-nosnippet>2875</a>        <span class="kw">let </span><span class="kw-2">mut </span>directories = Vec::&lt;String&gt;::new();
+<a href=#2876 id=2876 data-nosnippet>2876</a>        <span class="kw">for </span>workspace <span class="kw">in </span>projection
+<a href=#2877 id=2877 data-nosnippet>2877</a>            .meta
+<a href=#2878 id=2878 data-nosnippet>2878</a>            .attachments
+<a href=#2879 id=2879 data-nosnippet>2879</a>            .iter()
+<a href=#2880 id=2880 data-nosnippet>2880</a>            .filter(|attachment| attachment.runtime_id == agent.runtime)
+<a href=#2881 id=2881 data-nosnippet>2881</a>            .filter_map(|attachment| attachment.workspace.as_ref())
+<a href=#2882 id=2882 data-nosnippet>2882</a>        {
+<a href=#2883 id=2883 data-nosnippet>2883</a>            <span class="kw">if </span>workspace != cwd &amp;&amp; !directories.contains(workspace) {
+<a href=#2884 id=2884 data-nosnippet>2884</a>                directories.push(workspace.clone());
+<a href=#2885 id=2885 data-nosnippet>2885</a>            }
+<a href=#2886 id=2886 data-nosnippet>2886</a>        }
+<a href=#2887 id=2887 data-nosnippet>2887</a>        <span class="prelude-val">Ok</span>(directories)
+<a href=#2888 id=2888 data-nosnippet>2888</a>    }
+<a href=#2889 id=2889 data-nosnippet>2889</a>
+<a href=#2890 id=2890 data-nosnippet>2890</a>    <span class="kw">async fn </span>open_acp_bridge(
+<a href=#2891 id=2891 data-nosnippet>2891</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2892 id=2892 data-nosnippet>2892</a>        _session: SessionId,
+<a href=#2893 id=2893 data-nosnippet>2893</a>        agent: <span class="kw-2">&amp;</span>RuntimeAgent,
+<a href=#2894 id=2894 data-nosnippet>2894</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
+<a href=#2895 id=2895 data-nosnippet>2895</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AgentMcpOpenResult, String&gt; {
+<a href=#2896 id=2896 data-nosnippet>2896</a>        process
+<a href=#2897 id=2897 data-nosnippet>2897</a>            .client
+<a href=#2898 id=2898 data-nosnippet>2898</a>            .agent_request::&lt;<span class="kw">_</span>, AgentMcpOpenResult&gt;(
+<a href=#2899 id=2899 data-nosnippet>2899</a>                method::AGENT_MCP_OPEN,
+<a href=#2900 id=2900 data-nosnippet>2900</a>                <span class="kw-2">&amp;</span>AgentRef {
+<a href=#2901 id=2901 data-nosnippet>2901</a>                    agent: agent.agent.to_string(),
+<a href=#2902 id=2902 data-nosnippet>2902</a>                },
+<a href=#2903 id=2903 data-nosnippet>2903</a>                Duration::from_secs(<span class="number">30</span>),
+<a href=#2904 id=2904 data-nosnippet>2904</a>            )
+<a href=#2905 id=2905 data-nosnippet>2905</a>            .<span class="kw">await
+<a href=#2906 id=2906 data-nosnippet>2906</a>    </span>}
+<a href=#2907 id=2907 data-nosnippet>2907</a>
+<a href=#2908 id=2908 data-nosnippet>2908</a>    <span class="doccomment">/// The IDs of the runtimes `session` attaches, each once.
+<a href=#2909 id=2909 data-nosnippet>2909</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>session_runtime_ids(
+<a href=#2910 id=2910 data-nosnippet>2910</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2911 id=2911 data-nosnippet>2911</a>        session: SessionId,
+<a href=#2912 id=2912 data-nosnippet>2912</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;cookie_agent_protocol::RuntimeId&gt;, EngineError&gt; {
+<a href=#2913 id=2913 data-nosnippet>2913</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
+<a href=#2914 id=2914 data-nosnippet>2914</a>        <span class="kw">let </span><span class="kw-2">mut </span>ids = Vec::new();
+<a href=#2915 id=2915 data-nosnippet>2915</a>        <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>projection.meta.attachments {
+<a href=#2916 id=2916 data-nosnippet>2916</a>            <span class="kw">if </span>!ids.contains(<span class="kw-2">&amp;</span>attachment.runtime_id) {
+<a href=#2917 id=2917 data-nosnippet>2917</a>                ids.push(attachment.runtime_id.clone());
+<a href=#2918 id=2918 data-nosnippet>2918</a>            }
+<a href=#2919 id=2919 data-nosnippet>2919</a>        }
+<a href=#2920 id=2920 data-nosnippet>2920</a>        <span class="prelude-val">Ok</span>(ids)
+<a href=#2921 id=2921 data-nosnippet>2921</a>    }
+<a href=#2922 id=2922 data-nosnippet>2922</a>
+<a href=#2923 id=2923 data-nosnippet>2923</a>    <span class="doccomment">/// The runtimes that offer the ACP agent `session` runs now, when it
+<a href=#2924 id=2924 data-nosnippet>2924</a>    /// runs one.
+<a href=#2925 id=2925 data-nosnippet>2925</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>session_acp_offers(
+<a href=#2926 id=2926 data-nosnippet>2926</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2927 id=2927 data-nosnippet>2927</a>        session: SessionId,
+<a href=#2928 id=2928 data-nosnippet>2928</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::runtime_snapshot::AcpOffers&gt;, EngineError&gt; {
+<a href=#2929 id=2929 data-nosnippet>2929</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
+<a href=#2930 id=2930 data-nosnippet>2930</a>        <span class="kw">let </span>selection =
+<a href=#2931 id=2931 data-nosnippet>2931</a>            cookie_agent_protocol::SessionModelState::from_events(<span class="kw-2">&amp;</span>projection.log.event_snapshot())
+<a href=#2932 id=2932 data-nosnippet>2932</a>                .selection
+<a href=#2933 id=2933 data-nosnippet>2933</a>                .unwrap_or_else(|| projection.meta.creation_selection.clone());
+<a href=#2934 id=2934 data-nosnippet>2934</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
+<a href=#2935 id=2935 data-nosnippet>2935</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(agents) = runtime.agents_for_preset(selection.preset.as_deref()) <span class="kw">else </span>{
+<a href=#2936 id=2936 data-nosnippet>2936</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#2937 id=2937 data-nosnippet>2937</a>        };
+<a href=#2938 id=2938 data-nosnippet>2938</a>        <span class="prelude-val">Ok</span>(agents
+<a href=#2939 id=2939 data-nosnippet>2939</a>            .get(<span class="kw-2">&amp;</span>selection.agent)
+<a href=#2940 id=2940 data-nosnippet>2940</a>            .and_then(|agent| agent.acp.clone()))
+<a href=#2941 id=2941 data-nosnippet>2941</a>    }
+<a href=#2942 id=2942 data-nosnippet>2942</a>
+<a href=#2943 id=2943 data-nosnippet>2943</a>    <span class="doccomment">/// The ACP agent of `offers` on the one runtime `session` attaches
+<a href=#2944 id=2944 data-nosnippet>2944</a>    /// that offers it; refused, saying why, when there is none or more
+<a href=#2945 id=2945 data-nosnippet>2945</a>    /// than one, or it is away or disabled there.
+<a href=#2946 id=2946 data-nosnippet>2946</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>place_acp_agent(
+<a href=#2947 id=2947 data-nosnippet>2947</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2948 id=2948 data-nosnippet>2948</a>        session: SessionId,
+<a href=#2949 id=2949 data-nosnippet>2949</a>        offers: <span class="kw-2">&amp;</span><span class="kw">crate</span>::runtime_snapshot::AcpOffers,
+<a href=#2950 id=2950 data-nosnippet>2950</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeAgent, EngineError&gt; {
+<a href=#2951 id=2951 data-nosnippet>2951</a>        offers
+<a href=#2952 id=2952 data-nosnippet>2952</a>            .place(<span class="kw-2">&amp;</span><span class="self">self</span>.session_runtime_ids(session)<span class="question-mark">?</span>)
+<a href=#2953 id=2953 data-nosnippet>2953</a>            .map_err(EngineError::Acp)
+<a href=#2954 id=2954 data-nosnippet>2954</a>    }
+<a href=#2955 id=2955 data-nosnippet>2955</a>
+<a href=#2956 id=2956 data-nosnippet>2956</a>    <span class="doccomment">/// The live ACP session of `session`, if any.
+<a href=#2957 id=2957 data-nosnippet>2957</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>live_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) -&gt; <span class="prelude-ty">Option</span>&lt;LiveSession&gt; {
+<a href=#2958 id=2958 data-nosnippet>2958</a>        <span class="self">self</span>.inner
 <a href=#2959 id=2959 data-nosnippet>2959</a>            .acp
 <a href=#2960 id=2960 data-nosnippet>2960</a>            .processes
 <a href=#2961 id=2961 data-nosnippet>2961</a>            .sessions
 <a href=#2962 id=2962 data-nosnippet>2962</a>            .lock()
 <a href=#2963 id=2963 data-nosnippet>2963</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#2964 id=2964 data-nosnippet>2964</a>            .remove(<span class="kw-2">&amp;</span>session);
-<a href=#2965 id=2965 data-nosnippet>2965</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(live) = live {
-<a href=#2966 id=2966 data-nosnippet>2966</a>            <span class="self">self</span>.end_live_session(live, <span class="bool-val">false</span>).<span class="kw">await</span>;
-<a href=#2967 id=2967 data-nosnippet>2967</a>        }
-<a href=#2968 id=2968 data-nosnippet>2968</a>    }
-<a href=#2969 id=2969 data-nosnippet>2969</a>
-<a href=#2970 id=2970 data-nosnippet>2970</a>    <span class="doccomment">/// Closes the bridge of `live`, which no longer serves its session,
-<a href=#2971 id=2971 data-nosnippet>2971</a>    /// and ends it with the agent: `session/close`, and with `delete` also
-<a href=#2972 id=2972 data-nosnippet>2972</a>    /// `session/delete` when the agent offers it.
-<a href=#2973 id=2973 data-nosnippet>2973</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>end_live_session(<span class="kw-2">&amp;</span><span class="self">self</span>, live: LiveSession, delete: bool) {
-<a href=#2974 id=2974 data-nosnippet>2974</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(bridge) = <span class="kw-2">&amp;</span>live.bridge {
-<a href=#2975 id=2975 data-nosnippet>2975</a>            <span class="self">self</span>.inner
-<a href=#2976 id=2976 data-nosnippet>2976</a>                .acp
-<a href=#2977 id=2977 data-nosnippet>2977</a>                .processes
-<a href=#2978 id=2978 data-nosnippet>2978</a>                .bridges
-<a href=#2979 id=2979 data-nosnippet>2979</a>                .lock()
-<a href=#2980 id=2980 data-nosnippet>2980</a>                .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#2981 id=2981 data-nosnippet>2981</a>                .remove(<span class="kw-2">&amp;</span>(live.process.key.runtime.clone(), bridge.clone()));
-<a href=#2982 id=2982 data-nosnippet>2982</a>            <span class="kw">let _ </span>= live
-<a href=#2983 id=2983 data-nosnippet>2983</a>                .process
-<a href=#2984 id=2984 data-nosnippet>2984</a>                .client
-<a href=#2985 id=2985 data-nosnippet>2985</a>                .agent_notify(
-<a href=#2986 id=2986 data-nosnippet>2986</a>                    method::AGENT_MCP_CLOSE,
-<a href=#2987 id=2987 data-nosnippet>2987</a>                    <span class="kw-2">&amp;</span>cookie_agent_runtime_api::protocol::AgentMcpBridgeRef {
-<a href=#2988 id=2988 data-nosnippet>2988</a>                        bridge: bridge.clone(),
-<a href=#2989 id=2989 data-nosnippet>2989</a>                    },
-<a href=#2990 id=2990 data-nosnippet>2990</a>                )
-<a href=#2991 id=2991 data-nosnippet>2991</a>                .<span class="kw">await</span>;
-<a href=#2992 id=2992 data-nosnippet>2992</a>        }
-<a href=#2993 id=2993 data-nosnippet>2993</a>        <span class="kw">if </span>!live.is_live() {
-<a href=#2994 id=2994 data-nosnippet>2994</a>            <span class="kw">return</span>;
-<a href=#2995 id=2995 data-nosnippet>2995</a>        }
-<a href=#2996 id=2996 data-nosnippet>2996</a>        <span class="kw">super</span>::lifecycle::end_agent_session(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>live.acp_session_id, <span class="bool-val">true</span>, delete)
-<a href=#2997 id=2997 data-nosnippet>2997</a>            .<span class="kw">await</span>;
-<a href=#2998 id=2998 data-nosnippet>2998</a>        live.process.unroute(<span class="kw-2">&amp;</span>live.acp_session_id);
-<a href=#2999 id=2999 data-nosnippet>2999</a>    }
-<a href=#3000 id=3000 data-nosnippet>3000</a>
-<a href=#3001 id=3001 data-nosnippet>3001</a>    <span class="doccomment">/// Names a session the agent has not named after its round: cookie's
-<a href=#3002 id=3002 data-nosnippet>3002</a>    /// own title generation, on the title agent's models but never the
-<a href=#3003 id=3003 data-nosnippet>3003</a>    /// synthetic `acp/&lt;agent&gt;` it would inherit as `${parent_model}`;
-<a href=#3004 id=3004 data-nosnippet>3004</a>    /// nothing when that leaves no model (no `small_model`).
-<a href=#3005 id=3005 data-nosnippet>3005</a>    </span><span class="kw">async fn </span>acp_fallback_title(
-<a href=#3006 id=3006 data-nosnippet>3006</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#3007 id=3007 data-nosnippet>3007</a>        active: <span class="kw-2">&amp;</span>ActiveRun,
-<a href=#3008 id=3008 data-nosnippet>3008</a>        run: RunId,
-<a href=#3009 id=3009 data-nosnippet>3009</a>        input_through_seq: u64,
-<a href=#3010 id=3010 data-nosnippet>3010</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#3011 id=3011 data-nosnippet>3011</a>        <span class="kw">if </span><span class="self">self</span>.inner.store.get(active.session)<span class="question-mark">?</span>.meta.title.is_some()
-<a href=#3012 id=3012 data-nosnippet>3012</a>            || <span class="macro">matches!</span>(
-<a href=#3013 id=3013 data-nosnippet>3013</a>                <span class="self">self</span>.inner.store.origin(active.session)<span class="question-mark">?</span>,
-<a href=#3014 id=3014 data-nosnippet>3014</a>                cookie_agent_protocol::SessionOrigin::Delegated { .. }
-<a href=#3015 id=3015 data-nosnippet>3015</a>            )
-<a href=#3016 id=3016 data-nosnippet>3016</a>        {
-<a href=#3017 id=3017 data-nosnippet>3017</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#3018 id=3018 data-nosnippet>3018</a>        }
-<a href=#3019 id=3019 data-nosnippet>3019</a>        <span class="kw">let </span>policy = <span class="self">self</span>.internal_agent_policy(
-<a href=#3020 id=3020 data-nosnippet>3020</a>            cookie_agent_protocol::InternalAgentKind::SessionTitle,
-<a href=#3021 id=3021 data-nosnippet>3021</a>            <span class="kw-2">&amp;</span>active.policy,
-<a href=#3022 id=3022 data-nosnippet>3022</a>            <span class="prelude-val">None</span>,
-<a href=#3023 id=3023 data-nosnippet>3023</a>        )<span class="question-mark">?</span>;
-<a href=#3024 id=3024 data-nosnippet>3024</a>        <span class="kw">if </span>policy.models.is_empty() {
-<a href=#3025 id=3025 data-nosnippet>3025</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#3026 id=3026 data-nosnippet>3026</a>        }
-<a href=#3027 id=3027 data-nosnippet>3027</a>        <span class="self">self</span>.maybe_generate_session_title(
-<a href=#3028 id=3028 data-nosnippet>3028</a>            active.session,
-<a href=#3029 id=3029 data-nosnippet>3029</a>            run,
-<a href=#3030 id=3030 data-nosnippet>3030</a>            input_through_seq,
-<a href=#3031 id=3031 data-nosnippet>3031</a>            <span class="kw-2">&amp;</span>active.cancellation,
-<a href=#3032 id=3032 data-nosnippet>3032</a>            <span class="kw-2">&amp;</span>policy,
-<a href=#3033 id=3033 data-nosnippet>3033</a>        )
-<a href=#3034 id=3034 data-nosnippet>3034</a>        .<span class="kw">await
-<a href=#3035 id=3035 data-nosnippet>3035</a>    </span>}
-<a href=#3036 id=3036 data-nosnippet>3036</a>
-<a href=#3037 id=3037 data-nosnippet>3037</a>    <span class="doccomment">/// Sets the session's title from the agent's, unless the user set one.
-<a href=#3038 id=3038 data-nosnippet>3038</a>    </span><span class="kw">async fn </span>set_acp_title(
-<a href=#3039 id=3039 data-nosnippet>3039</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#3040 id=3040 data-nosnippet>3040</a>        session: SessionId,
-<a href=#3041 id=3041 data-nosnippet>3041</a>        run: RunId,
-<a href=#3042 id=3042 data-nosnippet>3042</a>        title: <span class="kw-2">&amp;</span>str,
-<a href=#3043 id=3043 data-nosnippet>3043</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#3044 id=3044 data-nosnippet>3044</a>        <span class="comment">// The agent's title applies, again and again, until the user names
-<a href=#3045 id=3045 data-nosnippet>3045</a>        // the session, even over a title cookie generated.
-<a href=#3046 id=3046 data-nosnippet>3046</a>        </span><span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#3047 id=3047 data-nosnippet>3047</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(title) = cookie_agent_protocol::SessionTitle::new(truncate(title.trim(), <span class="number">512</span>))
-<a href=#3048 id=3048 data-nosnippet>3048</a>        <span class="kw">else </span>{
-<a href=#3049 id=3049 data-nosnippet>3049</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#3050 id=3050 data-nosnippet>3050</a>        };
-<a href=#3051 id=3051 data-nosnippet>3051</a>        <span class="kw">if </span>projection.fold.titled_by_user() || projection.meta.title.as_ref() == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>title) {
-<a href=#3052 id=3052 data-nosnippet>3052</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#3053 id=3053 data-nosnippet>3053</a>        }
-<a href=#3054 id=3054 data-nosnippet>3054</a>        <span class="kw">let </span>input_through_seq = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>.meta.last_event_seq;
-<a href=#3055 id=3055 data-nosnippet>3055</a>        <span class="self">self</span>.append(
-<a href=#3056 id=3056 data-nosnippet>3056</a>            session,
-<a href=#3057 id=3057 data-nosnippet>3057</a>            <span class="prelude-val">Some</span>(run),
-<a href=#3058 id=3058 data-nosnippet>3058</a>            event_origin(<span class="string">"engine:session-title"</span>),
-<a href=#3059 id=3059 data-nosnippet>3059</a>            Event::SessionTitleCommitted {
-<a href=#3060 id=3060 data-nosnippet>3060</a>                change: cookie_agent_protocol::SessionTitleChange::FallbackSet { title },
-<a href=#3061 id=3061 data-nosnippet>3061</a>                input_through_seq,
-<a href=#3062 id=3062 data-nosnippet>3062</a>            },
-<a href=#3063 id=3063 data-nosnippet>3063</a>        )
-<a href=#3064 id=3064 data-nosnippet>3064</a>        .<span class="kw">await
-<a href=#3065 id=3065 data-nosnippet>3065</a>    </span>}
-<a href=#3066 id=3066 data-nosnippet>3066</a>}
-<a href=#3067 id=3067 data-nosnippet>3067</a>
-<a href=#3068 id=3068 data-nosnippet>3068</a><span class="kw">impl </span>Engine {
-<a href=#3069 id=3069 data-nosnippet>3069</a>    <span class="doccomment">/// `session.agent_option.set`: sets option `option_id` of the ACP agent
-<a href=#3070 id=3070 data-nosnippet>3070</a>    /// of session `session_id` with the agent, resuming its ACP session when
-<a href=#3071 id=3071 data-nosnippet>3071</a>    /// it is not live, and records the session's options.
-<a href=#3072 id=3072 data-nosnippet>3072</a>    </span><span class="kw">pub async fn </span>set_session_agent_option(
-<a href=#3073 id=3073 data-nosnippet>3073</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#3074 id=3074 data-nosnippet>3074</a>        params: cookie_agent_protocol::SessionAgentOptionSetParams,
-<a href=#3075 id=3075 data-nosnippet>3075</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;cookie_agent_protocol::SessionAgentOptionSetResult, EngineError&gt; {
-<a href=#3076 id=3076 data-nosnippet>3076</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(params.session_id)<span class="question-mark">?</span>;
-<a href=#3077 id=3077 data-nosnippet>3077</a>        <span class="kw">let </span>agent_id =
-<a href=#3078 id=3078 data-nosnippet>3078</a>            cookie_agent_protocol::SessionModelState::from_events(<span class="kw-2">&amp;</span>projection.log.event_snapshot())
-<a href=#3079 id=3079 data-nosnippet>3079</a>                .selection
-<a href=#3080 id=3080 data-nosnippet>3080</a>                .unwrap_or_else(|| projection.meta.creation_selection.clone())
-<a href=#3081 id=3081 data-nosnippet>3081</a>                .agent;
-<a href=#3082 id=3082 data-nosnippet>3082</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
-<a href=#3083 id=3083 data-nosnippet>3083</a>        <span class="kw">let </span>resolved = runtime
-<a href=#3084 id=3084 data-nosnippet>3084</a>            .agents
-<a href=#3085 id=3085 data-nosnippet>3085</a>            .get(<span class="kw-2">&amp;</span>agent_id)
-<a href=#3086 id=3086 data-nosnippet>3086</a>            .filter(|agent| agent.acp.is_some())
-<a href=#3087 id=3087 data-nosnippet>3087</a>            .ok_or_else(|| {
-<a href=#3088 id=3088 data-nosnippet>3088</a>                EngineError::Acp(<span class="macro">format!</span>(
-<a href=#3089 id=3089 data-nosnippet>3089</a>                    <span class="string">"session {} does not run an ACP agent"</span>,
-<a href=#3090 id=3090 data-nosnippet>3090</a>                    params.session_id
-<a href=#3091 id=3091 data-nosnippet>3091</a>                ))
-<a href=#3092 id=3092 data-nosnippet>3092</a>            })<span class="question-mark">?</span>;
-<a href=#3093 id=3093 data-nosnippet>3093</a>        <span class="kw">let </span>offers = resolved.acp.clone().expect(<span class="string">"filtered to ACP agents"</span>);
-<a href=#3094 id=3094 data-nosnippet>3094</a>        <span class="kw">let </span>agent = <span class="self">self</span>.place_acp_agent(params.session_id, <span class="kw-2">&amp;</span>offers)<span class="question-mark">?</span>;
-<a href=#3095 id=3095 data-nosnippet>3095</a>        <span class="kw">let </span>(process, _use) = <span class="self">self
-<a href=#3096 id=3096 data-nosnippet>3096</a>            </span>.inner
-<a href=#3097 id=3097 data-nosnippet>3097</a>            .acp
-<a href=#3098 id=3098 data-nosnippet>3098</a>            .processes
-<a href=#3099 id=3099 data-nosnippet>3099</a>            .acquire(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, <span class="kw-2">&amp;</span>agent)
-<a href=#3100 id=3100 data-nosnippet>3100</a>            .<span class="kw">await
-<a href=#3101 id=3101 data-nosnippet>3101</a>            </span>.map_err(EngineError::Acp)<span class="question-mark">?</span>;
-<a href=#3102 id=3102 data-nosnippet>3102</a>        <span class="kw">let </span><span class="kw-2">mut </span>live = <span class="self">self
-<a href=#3103 id=3103 data-nosnippet>3103</a>            </span>.acp_session(
-<a href=#3104 id=3104 data-nosnippet>3104</a>                params.session_id,
-<a href=#3105 id=3105 data-nosnippet>3105</a>                <span class="prelude-val">None</span>,
-<a href=#3106 id=3106 data-nosnippet>3106</a>                <span class="kw-2">&amp;</span>agent,
-<a href=#3107 id=3107 data-nosnippet>3107</a>                <span class="kw-2">&amp;</span>resolved.document,
-<a href=#3108 id=3108 data-nosnippet>3108</a>                <span class="kw-2">&amp;</span>process,
-<a href=#3109 id=3109 data-nosnippet>3109</a>            )
-<a href=#3110 id=3110 data-nosnippet>3110</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#3111 id=3111 data-nosnippet>3111</a>        <span class="kw">let </span>known = live
-<a href=#3112 id=3112 data-nosnippet>3112</a>            .options
-<a href=#3113 id=3113 data-nosnippet>3113</a>            .iter()
-<a href=#3114 id=3114 data-nosnippet>3114</a>            .find(|option| option.id == params.option_id)
-<a href=#3115 id=3115 data-nosnippet>3115</a>            .map(|option| {
-<a href=#3116 id=3116 data-nosnippet>3116</a>                option
-<a href=#3117 id=3117 data-nosnippet>3117</a>                    .values
-<a href=#3118 id=3118 data-nosnippet>3118</a>                    .iter()
-<a href=#3119 id=3119 data-nosnippet>3119</a>                    .any(|value| value.value == params.value)
-<a href=#3120 id=3120 data-nosnippet>3120</a>            });
-<a href=#3121 id=3121 data-nosnippet>3121</a>        <span class="kw">match </span>known {
-<a href=#3122 id=3122 data-nosnippet>3122</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#3123 id=3123 data-nosnippet>3123</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::Acp(<span class="macro">format!</span>(
-<a href=#3124 id=3124 data-nosnippet>3124</a>                    <span class="string">"the agent offers no option `{}`"</span>,
-<a href=#3125 id=3125 data-nosnippet>3125</a>                    params.option_id
-<a href=#3126 id=3126 data-nosnippet>3126</a>                )));
-<a href=#3127 id=3127 data-nosnippet>3127</a>            }
-<a href=#3128 id=3128 data-nosnippet>3128</a>            <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) =&gt; {
-<a href=#3129 id=3129 data-nosnippet>3129</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::Acp(<span class="macro">format!</span>(
-<a href=#3130 id=3130 data-nosnippet>3130</a>                    <span class="string">"option `{}` takes no value `{}`"</span>,
-<a href=#3131 id=3131 data-nosnippet>3131</a>                    params.option_id, params.value
-<a href=#3132 id=3132 data-nosnippet>3132</a>                )));
-<a href=#3133 id=3133 data-nosnippet>3133</a>            }
-<a href=#3134 id=3134 data-nosnippet>3134</a>            <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) =&gt; {}
-<a href=#3135 id=3135 data-nosnippet>3135</a>        }
-<a href=#3136 id=3136 data-nosnippet>3136</a>        <span class="self">self</span>.set_live_option(<span class="kw-2">&amp;mut </span>live, <span class="kw-2">&amp;</span>params.option_id, <span class="kw-2">&amp;</span>params.value)
-<a href=#3137 id=3137 data-nosnippet>3137</a>            .<span class="kw">await
-<a href=#3138 id=3138 data-nosnippet>3138</a>            </span>.map_err(EngineError::Acp)<span class="question-mark">?</span>;
-<a href=#3139 id=3139 data-nosnippet>3139</a>        <span class="self">self</span>.append(
-<a href=#3140 id=3140 data-nosnippet>3140</a>            params.session_id,
-<a href=#3141 id=3141 data-nosnippet>3141</a>            <span class="prelude-val">None</span>,
-<a href=#3142 id=3142 data-nosnippet>3142</a>            origin(),
-<a href=#3143 id=3143 data-nosnippet>3143</a>            Event::AcpSessionUpdated {
-<a href=#3144 id=3144 data-nosnippet>3144</a>                update: AcpSessionUpdate {
-<a href=#3145 id=3145 data-nosnippet>3145</a>                    options: <span class="prelude-val">Some</span>(live.options.clone()),
-<a href=#3146 id=3146 data-nosnippet>3146</a>                    ..AcpSessionUpdate::default()
-<a href=#3147 id=3147 data-nosnippet>3147</a>                },
-<a href=#3148 id=3148 data-nosnippet>3148</a>            },
-<a href=#3149 id=3149 data-nosnippet>3149</a>        )
-<a href=#3150 id=3150 data-nosnippet>3150</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#3151 id=3151 data-nosnippet>3151</a>        <span class="prelude-val">Ok</span>(cookie_agent_protocol::SessionAgentOptionSetResult {
-<a href=#3152 id=3152 data-nosnippet>3152</a>            options: live.options,
-<a href=#3153 id=3153 data-nosnippet>3153</a>        })
-<a href=#3154 id=3154 data-nosnippet>3154</a>    }
-<a href=#3155 id=3155 data-nosnippet>3155</a>}
+<a href=#2964 id=2964 data-nosnippet>2964</a>            .get(<span class="kw-2">&amp;</span>session)
+<a href=#2965 id=2965 data-nosnippet>2965</a>            .cloned()
+<a href=#2966 id=2966 data-nosnippet>2966</a>    }
+<a href=#2967 id=2967 data-nosnippet>2967</a>
+<a href=#2968 id=2968 data-nosnippet>2968</a>    <span class="doccomment">/// Remembers `live` as the ACP session of its cookie session.
+<a href=#2969 id=2969 data-nosnippet>2969</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remember_live(<span class="kw-2">&amp;</span><span class="self">self</span>, live: <span class="kw-2">&amp;</span>LiveSession) {
+<a href=#2970 id=2970 data-nosnippet>2970</a>        <span class="self">self</span>.inner
+<a href=#2971 id=2971 data-nosnippet>2971</a>            .acp
+<a href=#2972 id=2972 data-nosnippet>2972</a>            .processes
+<a href=#2973 id=2973 data-nosnippet>2973</a>            .sessions
+<a href=#2974 id=2974 data-nosnippet>2974</a>            .lock()
+<a href=#2975 id=2975 data-nosnippet>2975</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#2976 id=2976 data-nosnippet>2976</a>            .insert(live.session, live.clone());
+<a href=#2977 id=2977 data-nosnippet>2977</a>    }
+<a href=#2978 id=2978 data-nosnippet>2978</a>
+<a href=#2979 id=2979 data-nosnippet>2979</a>    <span class="doccomment">/// The bytes of a file the user attached, when the store has them.
+<a href=#2980 id=2980 data-nosnippet>2980</a>    </span><span class="kw">fn </span>read_user_artifact(
+<a href=#2981 id=2981 data-nosnippet>2981</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2982 id=2982 data-nosnippet>2982</a>        session: SessionId,
+<a href=#2983 id=2983 data-nosnippet>2983</a>        artifact: <span class="kw-2">&amp;</span>cookie_agent_protocol::ArtifactRef,
+<a href=#2984 id=2984 data-nosnippet>2984</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;bytes::Bytes&gt; {
+<a href=#2985 id=2985 data-nosnippet>2985</a>        <span class="kw">let </span>attachment = cookie_agent_protocol::ToolAttachment {
+<a href=#2986 id=2986 data-nosnippet>2986</a>            mime_type: cookie_agent_protocol::MimeType::new(artifact.media_type.clone()).ok()<span class="question-mark">?</span>,
+<a href=#2987 id=2987 data-nosnippet>2987</a>            filename: artifact.filename.clone(),
+<a href=#2988 id=2988 data-nosnippet>2988</a>            byte_length: artifact.byte_length,
+<a href=#2989 id=2989 data-nosnippet>2989</a>            sha256: cookie_agent_protocol::Sha256Digest::new(artifact.sha256.clone()).ok()<span class="question-mark">?</span>,
+<a href=#2990 id=2990 data-nosnippet>2990</a>            reference: cookie_agent_protocol::ArtifactReference {
+<a href=#2991 id=2991 data-nosnippet>2991</a>                uri: <span class="macro">format!</span>(<span class="string">"artifact://sha256/{}"</span>, artifact.sha256),
+<a href=#2992 id=2992 data-nosnippet>2992</a>            },
+<a href=#2993 id=2993 data-nosnippet>2993</a>        };
+<a href=#2994 id=2994 data-nosnippet>2994</a>        <span class="self">self</span>.inner
+<a href=#2995 id=2995 data-nosnippet>2995</a>            .artifacts
+<a href=#2996 id=2996 data-nosnippet>2996</a>            .read_verified_attachment(session, <span class="kw-2">&amp;</span>attachment)
+<a href=#2997 id=2997 data-nosnippet>2997</a>            .ok()
+<a href=#2998 id=2998 data-nosnippet>2998</a>    }
+<a href=#2999 id=2999 data-nosnippet>2999</a>
+<a href=#3000 id=3000 data-nosnippet>3000</a>    <span class="kw">fn </span>forget_live(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId, live: <span class="kw-2">&amp;</span>LiveSession) {
+<a href=#3001 id=3001 data-nosnippet>3001</a>        <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
+<a href=#3002 id=3002 data-nosnippet>3002</a>            </span>.inner
+<a href=#3003 id=3003 data-nosnippet>3003</a>            .acp
+<a href=#3004 id=3004 data-nosnippet>3004</a>            .processes
+<a href=#3005 id=3005 data-nosnippet>3005</a>            .sessions
+<a href=#3006 id=3006 data-nosnippet>3006</a>            .lock()
+<a href=#3007 id=3007 data-nosnippet>3007</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#3008 id=3008 data-nosnippet>3008</a>        <span class="kw">if </span>sessions
+<a href=#3009 id=3009 data-nosnippet>3009</a>            .get(<span class="kw-2">&amp;</span>session)
+<a href=#3010 id=3010 data-nosnippet>3010</a>            .is_some_and(|known| known.acp_session_id == live.acp_session_id)
+<a href=#3011 id=3011 data-nosnippet>3011</a>        {
+<a href=#3012 id=3012 data-nosnippet>3012</a>            sessions.remove(<span class="kw-2">&amp;</span>session);
+<a href=#3013 id=3013 data-nosnippet>3013</a>        }
+<a href=#3014 id=3014 data-nosnippet>3014</a>    }
+<a href=#3015 id=3015 data-nosnippet>3015</a>
+<a href=#3016 id=3016 data-nosnippet>3016</a>    <span class="doccomment">/// Ends the ACP session of `session`, as the session is unloaded:
+<a href=#3017 id=3017 data-nosnippet>3017</a>    /// `session/close` when the agent offers it, and its bridge closes.
+<a href=#3018 id=3018 data-nosnippet>3018</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>close_acp_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) {
+<a href=#3019 id=3019 data-nosnippet>3019</a>        <span class="kw">let </span>live = <span class="self">self
+<a href=#3020 id=3020 data-nosnippet>3020</a>            </span>.inner
+<a href=#3021 id=3021 data-nosnippet>3021</a>            .acp
+<a href=#3022 id=3022 data-nosnippet>3022</a>            .processes
+<a href=#3023 id=3023 data-nosnippet>3023</a>            .sessions
+<a href=#3024 id=3024 data-nosnippet>3024</a>            .lock()
+<a href=#3025 id=3025 data-nosnippet>3025</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#3026 id=3026 data-nosnippet>3026</a>            .remove(<span class="kw-2">&amp;</span>session);
+<a href=#3027 id=3027 data-nosnippet>3027</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(live) = live {
+<a href=#3028 id=3028 data-nosnippet>3028</a>            <span class="self">self</span>.end_live_session(live, <span class="bool-val">false</span>).<span class="kw">await</span>;
+<a href=#3029 id=3029 data-nosnippet>3029</a>        }
+<a href=#3030 id=3030 data-nosnippet>3030</a>    }
+<a href=#3031 id=3031 data-nosnippet>3031</a>
+<a href=#3032 id=3032 data-nosnippet>3032</a>    <span class="doccomment">/// Closes the bridge of `live`, which no longer serves its session,
+<a href=#3033 id=3033 data-nosnippet>3033</a>    /// and ends it with the agent: `session/close`, and with `delete` also
+<a href=#3034 id=3034 data-nosnippet>3034</a>    /// `session/delete` when the agent offers it.
+<a href=#3035 id=3035 data-nosnippet>3035</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>end_live_session(<span class="kw-2">&amp;</span><span class="self">self</span>, live: LiveSession, delete: bool) {
+<a href=#3036 id=3036 data-nosnippet>3036</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(bridge) = <span class="kw-2">&amp;</span>live.bridge {
+<a href=#3037 id=3037 data-nosnippet>3037</a>            <span class="self">self</span>.inner
+<a href=#3038 id=3038 data-nosnippet>3038</a>                .acp
+<a href=#3039 id=3039 data-nosnippet>3039</a>                .processes
+<a href=#3040 id=3040 data-nosnippet>3040</a>                .bridges
+<a href=#3041 id=3041 data-nosnippet>3041</a>                .lock()
+<a href=#3042 id=3042 data-nosnippet>3042</a>                .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#3043 id=3043 data-nosnippet>3043</a>                .remove(<span class="kw-2">&amp;</span>(live.process.key.runtime.clone(), bridge.clone()));
+<a href=#3044 id=3044 data-nosnippet>3044</a>            <span class="kw">let _ </span>= live
+<a href=#3045 id=3045 data-nosnippet>3045</a>                .process
+<a href=#3046 id=3046 data-nosnippet>3046</a>                .client
+<a href=#3047 id=3047 data-nosnippet>3047</a>                .agent_notify(
+<a href=#3048 id=3048 data-nosnippet>3048</a>                    method::AGENT_MCP_CLOSE,
+<a href=#3049 id=3049 data-nosnippet>3049</a>                    <span class="kw-2">&amp;</span>cookie_agent_runtime_api::protocol::AgentMcpBridgeRef {
+<a href=#3050 id=3050 data-nosnippet>3050</a>                        bridge: bridge.clone(),
+<a href=#3051 id=3051 data-nosnippet>3051</a>                    },
+<a href=#3052 id=3052 data-nosnippet>3052</a>                )
+<a href=#3053 id=3053 data-nosnippet>3053</a>                .<span class="kw">await</span>;
+<a href=#3054 id=3054 data-nosnippet>3054</a>        }
+<a href=#3055 id=3055 data-nosnippet>3055</a>        <span class="kw">if </span>!live.is_live() {
+<a href=#3056 id=3056 data-nosnippet>3056</a>            <span class="kw">return</span>;
+<a href=#3057 id=3057 data-nosnippet>3057</a>        }
+<a href=#3058 id=3058 data-nosnippet>3058</a>        <span class="kw">super</span>::lifecycle::end_agent_session(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>live.acp_session_id, <span class="bool-val">true</span>, delete)
+<a href=#3059 id=3059 data-nosnippet>3059</a>            .<span class="kw">await</span>;
+<a href=#3060 id=3060 data-nosnippet>3060</a>        live.process.unroute(<span class="kw-2">&amp;</span>live.acp_session_id);
+<a href=#3061 id=3061 data-nosnippet>3061</a>    }
+<a href=#3062 id=3062 data-nosnippet>3062</a>
+<a href=#3063 id=3063 data-nosnippet>3063</a>    <span class="doccomment">/// Names a session the agent has not named after its round: cookie's
+<a href=#3064 id=3064 data-nosnippet>3064</a>    /// own title generation, on the title agent's models but never the
+<a href=#3065 id=3065 data-nosnippet>3065</a>    /// synthetic `acp/&lt;agent&gt;` it would inherit as `${parent_model}`;
+<a href=#3066 id=3066 data-nosnippet>3066</a>    /// nothing when that leaves no model (no `small_model`).
+<a href=#3067 id=3067 data-nosnippet>3067</a>    </span><span class="kw">async fn </span>acp_fallback_title(
+<a href=#3068 id=3068 data-nosnippet>3068</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#3069 id=3069 data-nosnippet>3069</a>        active: <span class="kw-2">&amp;</span>ActiveRun,
+<a href=#3070 id=3070 data-nosnippet>3070</a>        run: RunId,
+<a href=#3071 id=3071 data-nosnippet>3071</a>        input_through_seq: u64,
+<a href=#3072 id=3072 data-nosnippet>3072</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#3073 id=3073 data-nosnippet>3073</a>        <span class="kw">if </span><span class="self">self</span>.inner.store.get(active.session)<span class="question-mark">?</span>.meta.title.is_some()
+<a href=#3074 id=3074 data-nosnippet>3074</a>            || <span class="macro">matches!</span>(
+<a href=#3075 id=3075 data-nosnippet>3075</a>                <span class="self">self</span>.inner.store.origin(active.session)<span class="question-mark">?</span>,
+<a href=#3076 id=3076 data-nosnippet>3076</a>                cookie_agent_protocol::SessionOrigin::Delegated { .. }
+<a href=#3077 id=3077 data-nosnippet>3077</a>            )
+<a href=#3078 id=3078 data-nosnippet>3078</a>        {
+<a href=#3079 id=3079 data-nosnippet>3079</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#3080 id=3080 data-nosnippet>3080</a>        }
+<a href=#3081 id=3081 data-nosnippet>3081</a>        <span class="kw">let </span>policy = <span class="self">self</span>.internal_agent_policy(
+<a href=#3082 id=3082 data-nosnippet>3082</a>            cookie_agent_protocol::InternalAgentKind::SessionTitle,
+<a href=#3083 id=3083 data-nosnippet>3083</a>            <span class="kw-2">&amp;</span>active.policy,
+<a href=#3084 id=3084 data-nosnippet>3084</a>            <span class="prelude-val">None</span>,
+<a href=#3085 id=3085 data-nosnippet>3085</a>        )<span class="question-mark">?</span>;
+<a href=#3086 id=3086 data-nosnippet>3086</a>        <span class="kw">if </span>policy.models.is_empty() {
+<a href=#3087 id=3087 data-nosnippet>3087</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#3088 id=3088 data-nosnippet>3088</a>        }
+<a href=#3089 id=3089 data-nosnippet>3089</a>        <span class="self">self</span>.maybe_generate_session_title(
+<a href=#3090 id=3090 data-nosnippet>3090</a>            active.session,
+<a href=#3091 id=3091 data-nosnippet>3091</a>            run,
+<a href=#3092 id=3092 data-nosnippet>3092</a>            input_through_seq,
+<a href=#3093 id=3093 data-nosnippet>3093</a>            <span class="kw-2">&amp;</span>active.cancellation,
+<a href=#3094 id=3094 data-nosnippet>3094</a>            <span class="kw-2">&amp;</span>policy,
+<a href=#3095 id=3095 data-nosnippet>3095</a>        )
+<a href=#3096 id=3096 data-nosnippet>3096</a>        .<span class="kw">await
+<a href=#3097 id=3097 data-nosnippet>3097</a>    </span>}
+<a href=#3098 id=3098 data-nosnippet>3098</a>
+<a href=#3099 id=3099 data-nosnippet>3099</a>    <span class="doccomment">/// Sets the session's title from the agent's, unless the user set one.
+<a href=#3100 id=3100 data-nosnippet>3100</a>    </span><span class="kw">async fn </span>set_acp_title(
+<a href=#3101 id=3101 data-nosnippet>3101</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#3102 id=3102 data-nosnippet>3102</a>        session: SessionId,
+<a href=#3103 id=3103 data-nosnippet>3103</a>        run: RunId,
+<a href=#3104 id=3104 data-nosnippet>3104</a>        title: <span class="kw-2">&amp;</span>str,
+<a href=#3105 id=3105 data-nosnippet>3105</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#3106 id=3106 data-nosnippet>3106</a>        <span class="comment">// The agent's title applies, again and again, until the user names
+<a href=#3107 id=3107 data-nosnippet>3107</a>        // the session, even over a title cookie generated.
+<a href=#3108 id=3108 data-nosnippet>3108</a>        </span><span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
+<a href=#3109 id=3109 data-nosnippet>3109</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(title) = cookie_agent_protocol::SessionTitle::new(truncate(title.trim(), <span class="number">512</span>))
+<a href=#3110 id=3110 data-nosnippet>3110</a>        <span class="kw">else </span>{
+<a href=#3111 id=3111 data-nosnippet>3111</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#3112 id=3112 data-nosnippet>3112</a>        };
+<a href=#3113 id=3113 data-nosnippet>3113</a>        <span class="kw">if </span>projection.fold.titled_by_user() || projection.meta.title.as_ref() == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>title) {
+<a href=#3114 id=3114 data-nosnippet>3114</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#3115 id=3115 data-nosnippet>3115</a>        }
+<a href=#3116 id=3116 data-nosnippet>3116</a>        <span class="kw">let </span>input_through_seq = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>.meta.last_event_seq;
+<a href=#3117 id=3117 data-nosnippet>3117</a>        <span class="self">self</span>.append(
+<a href=#3118 id=3118 data-nosnippet>3118</a>            session,
+<a href=#3119 id=3119 data-nosnippet>3119</a>            <span class="prelude-val">Some</span>(run),
+<a href=#3120 id=3120 data-nosnippet>3120</a>            event_origin(<span class="string">"engine:session-title"</span>),
+<a href=#3121 id=3121 data-nosnippet>3121</a>            Event::SessionTitleCommitted {
+<a href=#3122 id=3122 data-nosnippet>3122</a>                change: cookie_agent_protocol::SessionTitleChange::FallbackSet { title },
+<a href=#3123 id=3123 data-nosnippet>3123</a>                input_through_seq,
+<a href=#3124 id=3124 data-nosnippet>3124</a>            },
+<a href=#3125 id=3125 data-nosnippet>3125</a>        )
+<a href=#3126 id=3126 data-nosnippet>3126</a>        .<span class="kw">await
+<a href=#3127 id=3127 data-nosnippet>3127</a>    </span>}
+<a href=#3128 id=3128 data-nosnippet>3128</a>}
+<a href=#3129 id=3129 data-nosnippet>3129</a>
+<a href=#3130 id=3130 data-nosnippet>3130</a><span class="kw">impl </span>Engine {
+<a href=#3131 id=3131 data-nosnippet>3131</a>    <span class="doccomment">/// `session.agent_option.set`: sets option `option_id` of the ACP agent
+<a href=#3132 id=3132 data-nosnippet>3132</a>    /// of session `session_id` with the agent, resuming its ACP session when
+<a href=#3133 id=3133 data-nosnippet>3133</a>    /// it is not live, and records the session's options.
+<a href=#3134 id=3134 data-nosnippet>3134</a>    </span><span class="kw">pub async fn </span>set_session_agent_option(
+<a href=#3135 id=3135 data-nosnippet>3135</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#3136 id=3136 data-nosnippet>3136</a>        params: cookie_agent_protocol::SessionAgentOptionSetParams,
+<a href=#3137 id=3137 data-nosnippet>3137</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;cookie_agent_protocol::SessionAgentOptionSetResult, EngineError&gt; {
+<a href=#3138 id=3138 data-nosnippet>3138</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(params.session_id)<span class="question-mark">?</span>;
+<a href=#3139 id=3139 data-nosnippet>3139</a>        <span class="kw">let </span>agent_id =
+<a href=#3140 id=3140 data-nosnippet>3140</a>            cookie_agent_protocol::SessionModelState::from_events(<span class="kw-2">&amp;</span>projection.log.event_snapshot())
+<a href=#3141 id=3141 data-nosnippet>3141</a>                .selection
+<a href=#3142 id=3142 data-nosnippet>3142</a>                .unwrap_or_else(|| projection.meta.creation_selection.clone())
+<a href=#3143 id=3143 data-nosnippet>3143</a>                .agent;
+<a href=#3144 id=3144 data-nosnippet>3144</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
+<a href=#3145 id=3145 data-nosnippet>3145</a>        <span class="kw">let </span>resolved = runtime
+<a href=#3146 id=3146 data-nosnippet>3146</a>            .agents
+<a href=#3147 id=3147 data-nosnippet>3147</a>            .get(<span class="kw-2">&amp;</span>agent_id)
+<a href=#3148 id=3148 data-nosnippet>3148</a>            .filter(|agent| agent.acp.is_some())
+<a href=#3149 id=3149 data-nosnippet>3149</a>            .ok_or_else(|| {
+<a href=#3150 id=3150 data-nosnippet>3150</a>                EngineError::Acp(<span class="macro">format!</span>(
+<a href=#3151 id=3151 data-nosnippet>3151</a>                    <span class="string">"session {} does not run an ACP agent"</span>,
+<a href=#3152 id=3152 data-nosnippet>3152</a>                    params.session_id
+<a href=#3153 id=3153 data-nosnippet>3153</a>                ))
+<a href=#3154 id=3154 data-nosnippet>3154</a>            })<span class="question-mark">?</span>;
+<a href=#3155 id=3155 data-nosnippet>3155</a>        <span class="kw">let </span>offers = resolved.acp.clone().expect(<span class="string">"filtered to ACP agents"</span>);
+<a href=#3156 id=3156 data-nosnippet>3156</a>        <span class="kw">let </span>agent = <span class="self">self</span>.place_acp_agent(params.session_id, <span class="kw-2">&amp;</span>offers)<span class="question-mark">?</span>;
+<a href=#3157 id=3157 data-nosnippet>3157</a>        <span class="kw">let </span>(process, _use) = <span class="self">self
+<a href=#3158 id=3158 data-nosnippet>3158</a>            </span>.inner
+<a href=#3159 id=3159 data-nosnippet>3159</a>            .acp
+<a href=#3160 id=3160 data-nosnippet>3160</a>            .processes
+<a href=#3161 id=3161 data-nosnippet>3161</a>            .acquire(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, <span class="kw-2">&amp;</span>agent)
+<a href=#3162 id=3162 data-nosnippet>3162</a>            .<span class="kw">await
+<a href=#3163 id=3163 data-nosnippet>3163</a>            </span>.map_err(EngineError::Acp)<span class="question-mark">?</span>;
+<a href=#3164 id=3164 data-nosnippet>3164</a>        <span class="kw">let </span><span class="kw-2">mut </span>live = <span class="self">self
+<a href=#3165 id=3165 data-nosnippet>3165</a>            </span>.acp_session(
+<a href=#3166 id=3166 data-nosnippet>3166</a>                params.session_id,
+<a href=#3167 id=3167 data-nosnippet>3167</a>                <span class="prelude-val">None</span>,
+<a href=#3168 id=3168 data-nosnippet>3168</a>                <span class="kw-2">&amp;</span>agent,
+<a href=#3169 id=3169 data-nosnippet>3169</a>                <span class="kw-2">&amp;</span>resolved.document,
+<a href=#3170 id=3170 data-nosnippet>3170</a>                <span class="kw-2">&amp;</span>process,
+<a href=#3171 id=3171 data-nosnippet>3171</a>            )
+<a href=#3172 id=3172 data-nosnippet>3172</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#3173 id=3173 data-nosnippet>3173</a>        <span class="kw">let </span>known = live
+<a href=#3174 id=3174 data-nosnippet>3174</a>            .options
+<a href=#3175 id=3175 data-nosnippet>3175</a>            .iter()
+<a href=#3176 id=3176 data-nosnippet>3176</a>            .find(|option| option.id == params.option_id)
+<a href=#3177 id=3177 data-nosnippet>3177</a>            .map(|option| {
+<a href=#3178 id=3178 data-nosnippet>3178</a>                option
+<a href=#3179 id=3179 data-nosnippet>3179</a>                    .values
+<a href=#3180 id=3180 data-nosnippet>3180</a>                    .iter()
+<a href=#3181 id=3181 data-nosnippet>3181</a>                    .any(|value| value.value == params.value)
+<a href=#3182 id=3182 data-nosnippet>3182</a>            });
+<a href=#3183 id=3183 data-nosnippet>3183</a>        <span class="kw">match </span>known {
+<a href=#3184 id=3184 data-nosnippet>3184</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#3185 id=3185 data-nosnippet>3185</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::Acp(<span class="macro">format!</span>(
+<a href=#3186 id=3186 data-nosnippet>3186</a>                    <span class="string">"the agent offers no option `{}`"</span>,
+<a href=#3187 id=3187 data-nosnippet>3187</a>                    params.option_id
+<a href=#3188 id=3188 data-nosnippet>3188</a>                )));
+<a href=#3189 id=3189 data-nosnippet>3189</a>            }
+<a href=#3190 id=3190 data-nosnippet>3190</a>            <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) =&gt; {
+<a href=#3191 id=3191 data-nosnippet>3191</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(EngineError::Acp(<span class="macro">format!</span>(
+<a href=#3192 id=3192 data-nosnippet>3192</a>                    <span class="string">"option `{}` takes no value `{}`"</span>,
+<a href=#3193 id=3193 data-nosnippet>3193</a>                    params.option_id, params.value
+<a href=#3194 id=3194 data-nosnippet>3194</a>                )));
+<a href=#3195 id=3195 data-nosnippet>3195</a>            }
+<a href=#3196 id=3196 data-nosnippet>3196</a>            <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) =&gt; {}
+<a href=#3197 id=3197 data-nosnippet>3197</a>        }
+<a href=#3198 id=3198 data-nosnippet>3198</a>        <span class="self">self</span>.set_live_option(<span class="kw-2">&amp;mut </span>live, <span class="kw-2">&amp;</span>params.option_id, <span class="kw-2">&amp;</span>params.value)
+<a href=#3199 id=3199 data-nosnippet>3199</a>            .<span class="kw">await
+<a href=#3200 id=3200 data-nosnippet>3200</a>            </span>.map_err(EngineError::Acp)<span class="question-mark">?</span>;
+<a href=#3201 id=3201 data-nosnippet>3201</a>        <span class="self">self</span>.append(
+<a href=#3202 id=3202 data-nosnippet>3202</a>            params.session_id,
+<a href=#3203 id=3203 data-nosnippet>3203</a>            <span class="prelude-val">None</span>,
+<a href=#3204 id=3204 data-nosnippet>3204</a>            origin(),
+<a href=#3205 id=3205 data-nosnippet>3205</a>            Event::AcpSessionUpdated {
+<a href=#3206 id=3206 data-nosnippet>3206</a>                update: AcpSessionUpdate {
+<a href=#3207 id=3207 data-nosnippet>3207</a>                    options: <span class="prelude-val">Some</span>(live.options.clone()),
+<a href=#3208 id=3208 data-nosnippet>3208</a>                    ..AcpSessionUpdate::default()
+<a href=#3209 id=3209 data-nosnippet>3209</a>                },
+<a href=#3210 id=3210 data-nosnippet>3210</a>            },
+<a href=#3211 id=3211 data-nosnippet>3211</a>        )
+<a href=#3212 id=3212 data-nosnippet>3212</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#3213 id=3213 data-nosnippet>3213</a>        <span class="prelude-val">Ok</span>(cookie_agent_protocol::SessionAgentOptionSetResult {
+<a href=#3214 id=3214 data-nosnippet>3214</a>            options: live.options,
+<a href=#3215 id=3215 data-nosnippet>3215</a>        })
+<a href=#3216 id=3216 data-nosnippet>3216</a>    }
+<a href=#3217 id=3217 data-nosnippet>3217</a>}
 </code></pre></div></section></main></body></html>

@@ -4248,7 +4248,7 @@ wrong type, or malformed YAML construct is also rejected.</p>
 <td><code>models</code></td>
 <td>array</td>
 <td><code>[]</code></td>
-<td>Ordered model chain; must be nonempty for <code>primary</code> (unless the document has an <code>acp</code> block). Other modes may omit it.</td>
+<td>Ordered model chain; must be nonempty for <code>primary</code> (unless the document has an <code>acp</code> block). Other modes may omit it. In an ACP agent's document, the agent's own model and effort values; see <a href="#acp-agent-documents">ACP agent documents</a>.</td>
 </tr>
 <tr>
 <td><code>limits</code></td>
@@ -4408,9 +4408,9 @@ configuration status says so).</p>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nn">---</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Codex on labpc, for refactors</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">acp</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">models</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="p p-Indicator">,</span><span class="nt"> variant</span><span class="p">:</span><span class="w"> </span><span class="s">"high"</span><span class="w"> </span><span class="p p-Indicator">},</span><span class="w"> </span><span class="s">"gpt-5-mini"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">acp</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">hide_tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">read</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">write</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">edit</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">bash</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">webfetch</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nt">permissions</span><span class="p">:</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
@@ -4428,6 +4428,12 @@ configuration status says so).</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>models</code></td>
+<td>array</td>
+<td><code>[]</code></td>
+<td>The model and effort the agent's sessions start with, a fallback chain over the agent's own values; see below.</td>
+</tr>
 <tr>
 <td><code>acp.mode</code></td>
 <td>string</td>
@@ -4449,9 +4455,32 @@ configuration status says so).</p>
 </tbody>
 </table>
 <ul>
-<li>The agent chooses its own model, so the document names no <code>models</code>; nor
-  <code>agent_md</code> (the agent reads its own context files), nor <code>limits</code>, nor mode
-  <code>internal</code>. Its body may be empty; a nonempty body is sent with the
+<li><code>models</code> names values of the agent's own options, not cookie's model
+  keys. Each entry's <code>model</code> is a value of the agent's model option (the
+  option of category <code>model</code>, else the option <code>model</code>), such as Claude
+  Code's <code>opus</code>, and its <code>variant</code> a value of its effort option (category
+  <code>thought_level</code>), such as <code>high</code>, or <code>null</code> (or no <code>variant</code>) for the
+  agent's default effort; a plain string is an entry with no variant. The
+  model and variant pickers show each value's ID dimmed beside its name,
+  as they show a native model's <code>provider/model</code> key and a variant's ID.
+  When the agent's session
+  starts, the first entry whose model the agent offers applies, then its
+  variant; when the agent offers none of them, or not the variant, the
+  session says so and the agent keeps its own. Entries are 1–256 bytes
+  without control characters, each model once, at most 256 entries, and
+  take no <code>cache</code>.</li>
+<li><code>models</code> decide the model and effort options: <code>acp.config</code> values for
+  either are ignored, and the configuration status (<code>cookie config
+  status</code>, the TUI's <code>/config</code>, the web's configuration page) says
+  <code>models</code> takes precedence. A draft's or session's own choices still
+  apply after <code>models</code>, and a draft shows what <code>models</code> picks.</li>
+<li><code>${default_model}</code>, <code>${small_model}</code>, and <code>${parent_model}</code> name cookie's
+  models, which an ACP agent does not run on: such an entry is skipped
+  with a configuration diagnostic (<code>agent `claude` skips a `models` entry:
+  `${default_model}` names one of cookie's models, ...</code>), and the document
+  still loads.</li>
+<li>The document names no <code>agent_md</code> (the agent reads its own context
+  files), nor <code>limits</code>, nor mode <code>internal</code>. Its body may be empty; a nonempty body is sent with the
   session's first prompt to the agent, after the tool instructions and the
   memory snapshot (<a href="../acp-agents/#what-the-first-prompt-carries">What the first prompt carries</a>).</li>
 <li><code>permissions</code> decide the calls the agent makes of cookie's tools, as for a

@@ -56,47 +56,55 @@
 <a href=#56 id=56 data-nosnippet>56</a>    }
 <a href=#57 id=57 data-nosnippet>57</a>}
 <a href=#58 id=58 data-nosnippet>58</a>
-<a href=#59 id=59 data-nosnippet>59</a><span class="doccomment">/// The variant retained in a selection, rendered as `base` when the
-<a href=#60 id=60 data-nosnippet>60</a>/// selection is exact base behavior.
-<a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">pub fn </span>variant_label(selection: <span class="kw-2">&amp;</span>ModelSelection) -&gt; String {
-<a href=#62 id=62 data-nosnippet>62</a>    selection
-<a href=#63 id=63 data-nosnippet>63</a>        .variant
-<a href=#64 id=64 data-nosnippet>64</a>        .as_ref()
-<a href=#65 id=65 data-nosnippet>65</a>        .map_or_else(|| <span class="string">"base"</span>.to_owned(), ToString::to_string)
-<a href=#66 id=66 data-nosnippet>66</a>}
-<a href=#67 id=67 data-nosnippet>67</a>
-<a href=#68 id=68 data-nosnippet>68</a><span class="kw">fn </span>snapshot_names(snapshot: <span class="kw-2">&amp;</span>ModelCatalogView) -&gt; BTreeMap&lt;ModelKey, String&gt; {
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">let </span><span class="kw-2">mut </span>names = BTreeMap::new();
-<a href=#70 id=70 data-nosnippet>70</a>    <span class="comment">// Unavailable models keep their names so a model that dropped out of
-<a href=#71 id=71 data-nosnippet>71</a>    // the runnable set still reads by name; runnable entries win on overlap.
-<a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">for </span>provider <span class="kw">in </span><span class="kw-2">&amp;</span>snapshot.providers {
-<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">for </span>model <span class="kw">in </span><span class="kw-2">&amp;</span>provider.unavailable_models {
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(key) = ModelKey::new(provider.id.clone(), model.id.clone()) <span class="kw">else </span>{
-<a href=#75 id=75 data-nosnippet>75</a>                <span class="kw">continue</span>;
-<a href=#76 id=76 data-nosnippet>76</a>            };
-<a href=#77 id=77 data-nosnippet>77</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = distinct_name(<span class="kw-2">&amp;</span>key, model.display_name.as_str()) {
-<a href=#78 id=78 data-nosnippet>78</a>                names.insert(key, name);
-<a href=#79 id=79 data-nosnippet>79</a>            }
-<a href=#80 id=80 data-nosnippet>80</a>        }
-<a href=#81 id=81 data-nosnippet>81</a>    }
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">for </span>model <span class="kw">in </span><span class="kw-2">&amp;</span>snapshot.models {
-<a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">match </span>distinct_name(<span class="kw-2">&amp;</span>model.key, <span class="kw-2">&amp;</span>model.display_name) {
-<a href=#84 id=84 data-nosnippet>84</a>            <span class="prelude-val">Some</span>(name) =&gt; {
-<a href=#85 id=85 data-nosnippet>85</a>                names.insert(model.key.clone(), name);
-<a href=#86 id=86 data-nosnippet>86</a>            }
-<a href=#87 id=87 data-nosnippet>87</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#88 id=88 data-nosnippet>88</a>                names.remove(<span class="kw-2">&amp;</span>model.key);
-<a href=#89 id=89 data-nosnippet>89</a>            }
-<a href=#90 id=90 data-nosnippet>90</a>        }
-<a href=#91 id=91 data-nosnippet>91</a>    }
-<a href=#92 id=92 data-nosnippet>92</a>    names
-<a href=#93 id=93 data-nosnippet>93</a>}
-<a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a><span class="doccomment">/// `name` trimmed, unless it is empty or just repeats the key or its bare
-<a href=#96 id=96 data-nosnippet>96</a>/// model id.
-<a href=#97 id=97 data-nosnippet>97</a></span><span class="kw">fn </span>distinct_name(key: <span class="kw-2">&amp;</span>ModelKey, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span>name = name.trim();
-<a href=#99 id=99 data-nosnippet>99</a>    (!name.is_empty() &amp;&amp; name != key.as_str() &amp;&amp; name != key.model_id().as_str())
-<a href=#100 id=100 data-nosnippet>100</a>        .then(|| name.to_owned())
+<a href=#59 id=59 data-nosnippet>59</a><span class="doccomment">/// The ID an agent document's `models` entry writes for a choice a picker
+<a href=#60 id=60 data-nosnippet>60</a>/// names `name` (a native model's full key, a variant's ID, or an ACP
+<a href=#61 id=61 data-nosnippet>61</a>/// agent's option value), which pickers show dimmed beside the name; `None`
+<a href=#62 id=62 data-nosnippet>62</a>/// when the name already is that ID, so it shows once.
+<a href=#63 id=63 data-nosnippet>63</a></span><span class="kw">pub fn </span>document_id&lt;<span class="lifetime">'a</span>&gt;(name: <span class="kw-2">&amp;</span>str, id: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt; {
+<a href=#64 id=64 data-nosnippet>64</a>    (name != id).then_some(id)
+<a href=#65 id=65 data-nosnippet>65</a>}
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a><span class="doccomment">/// The variant retained in a selection, rendered as `base` when the
+<a href=#68 id=68 data-nosnippet>68</a>/// selection is exact base behavior.
+<a href=#69 id=69 data-nosnippet>69</a></span><span class="kw">pub fn </span>variant_label(selection: <span class="kw-2">&amp;</span>ModelSelection) -&gt; String {
+<a href=#70 id=70 data-nosnippet>70</a>    selection
+<a href=#71 id=71 data-nosnippet>71</a>        .variant
+<a href=#72 id=72 data-nosnippet>72</a>        .as_ref()
+<a href=#73 id=73 data-nosnippet>73</a>        .map_or_else(|| <span class="string">"base"</span>.to_owned(), ToString::to_string)
+<a href=#74 id=74 data-nosnippet>74</a>}
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a><span class="kw">fn </span>snapshot_names(snapshot: <span class="kw-2">&amp;</span>ModelCatalogView) -&gt; BTreeMap&lt;ModelKey, String&gt; {
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">let </span><span class="kw-2">mut </span>names = BTreeMap::new();
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="comment">// Unavailable models keep their names so a model that dropped out of
+<a href=#79 id=79 data-nosnippet>79</a>    // the runnable set still reads by name; runnable entries win on overlap.
+<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">for </span>provider <span class="kw">in </span><span class="kw-2">&amp;</span>snapshot.providers {
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="kw">for </span>model <span class="kw">in </span><span class="kw-2">&amp;</span>provider.unavailable_models {
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(key) = ModelKey::new(provider.id.clone(), model.id.clone()) <span class="kw">else </span>{
+<a href=#83 id=83 data-nosnippet>83</a>                <span class="kw">continue</span>;
+<a href=#84 id=84 data-nosnippet>84</a>            };
+<a href=#85 id=85 data-nosnippet>85</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = distinct_name(<span class="kw-2">&amp;</span>key, model.display_name.as_str()) {
+<a href=#86 id=86 data-nosnippet>86</a>                names.insert(key, name);
+<a href=#87 id=87 data-nosnippet>87</a>            }
+<a href=#88 id=88 data-nosnippet>88</a>        }
+<a href=#89 id=89 data-nosnippet>89</a>    }
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">for </span>model <span class="kw">in </span><span class="kw-2">&amp;</span>snapshot.models {
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">match </span>distinct_name(<span class="kw-2">&amp;</span>model.key, <span class="kw-2">&amp;</span>model.display_name) {
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="prelude-val">Some</span>(name) =&gt; {
+<a href=#93 id=93 data-nosnippet>93</a>                names.insert(model.key.clone(), name);
+<a href=#94 id=94 data-nosnippet>94</a>            }
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#96 id=96 data-nosnippet>96</a>                names.remove(<span class="kw-2">&amp;</span>model.key);
+<a href=#97 id=97 data-nosnippet>97</a>            }
+<a href=#98 id=98 data-nosnippet>98</a>        }
+<a href=#99 id=99 data-nosnippet>99</a>    }
+<a href=#100 id=100 data-nosnippet>100</a>    names
 <a href=#101 id=101 data-nosnippet>101</a>}
+<a href=#102 id=102 data-nosnippet>102</a>
+<a href=#103 id=103 data-nosnippet>103</a><span class="doccomment">/// `name` trimmed, unless it is empty or just repeats the key or its bare
+<a href=#104 id=104 data-nosnippet>104</a>/// model id.
+<a href=#105 id=105 data-nosnippet>105</a></span><span class="kw">fn </span>distinct_name(key: <span class="kw-2">&amp;</span>ModelKey, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">let </span>name = name.trim();
+<a href=#107 id=107 data-nosnippet>107</a>    (!name.is_empty() &amp;&amp; name != key.as_str() &amp;&amp; name != key.model_id().as_str())
+<a href=#108 id=108 data-nosnippet>108</a>        .then(|| name.to_owned())
+<a href=#109 id=109 data-nosnippet>109</a>}
 </code></pre></div></section></main></body></html>

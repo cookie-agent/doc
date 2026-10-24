@@ -4050,9 +4050,9 @@ agent's stderr is diagnostics. Version 1 (schema 1.26, Oct 2026).</p>
 <li><strong>Optional.</strong> Without it, <code>&lt;runtime_id&gt;-&lt;agent_id&gt;</code> is an agent of mode
   <code>all</code> with the runtime's description, the defaults every agent gets for
   actions it names no key for, and the default <code>hide_tools</code>.</li>
-<li><strong>No <code>models</code>, no <code>acp.command</code>:</strong> the runtime launches the agent and the
-  agent chooses its own model (set through <code>acp.config</code> when it offers a
-  model option).</li>
+<li><strong>No <code>acp.command</code>:</strong> the runtime launches the agent. <em>(Revised
+  2026-10-24: <code>models</code> names the agent's own model and effort values; see
+  <strong>Document models</strong> in section 15.)</em></li>
 <li><strong><code>acp.hide_tools</code>:</strong> patterns with <code>*</code> and <code>?</code> over the tool names cookie
   publishes (<code>read</code>, <code>bash</code>, <code>memory_*</code>, <code>exa_*</code>). Default: cookie's coding
   runtime tools (<code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, <code>webfetch</code>), since the agent
@@ -4306,7 +4306,8 @@ types).</p>
   <code>agent/configure</code> was needed.</li>
 <li><strong>The agent document.</strong> Its <code>acp</code> block marks it as an ACP agent's (<code>acp:
   {}</code> is enough); such a document is an agent only while a runtime declares
-  the id. It names no <code>models</code>, <code>agent_md</code>, <code>limits</code>, or mode <code>internal</code>,
+  the id. It names no <code>agent_md</code>, <code>limits</code>, or mode <code>internal</code> (nor
+  <code>models</code>, until <strong>Document models and picker IDs</strong> below),
   and its body may be empty. <code>models</code> and <code>enabled</code> became optional for
   every document (<code>enabled</code> defaults to <code>true</code>). A delegation target
   needs no document <em>(user decision of 2026-10-23)</em>: a named target no agent
@@ -5064,6 +5065,55 @@ Blue, each with its description, titled "Color") and <code>question_0_custom</co
 ("Other", text), with the question as the message. Accepting
 <code>{"question_0": "Blue"}</code> ended the call and the agent replied "You chose
 Blue."; declining another made it reply "You skipped.".</p>
+<p><strong>Document models and picker IDs</strong> (2026-10-24; no wire change, history format
+unchanged):</p>
+<ul>
+<li><strong><code>models</code> in an ACP document.</strong> The top-level <code>models</code> of a document
+  with an <code>acp</code> block is a fallback chain over the agent's own values:
+  each entry's <code>model</code> is a value of its model option (category <code>model</code>,
+  else ID <code>model</code>), its <code>variant</code> a value of its effort option (category
+  <code>thought_level</code>), <code>null</code> or absent for the agent's default effort, and
+  a plain string an entry without a variant. The loader reads it into
+  <code>AcpDocumentSettings::models</code> (<code>AcpModelChoice</code>), so
+  <code>AgentFrontmatter::models</code> stays empty and no native code sees it;
+  entries are ACP labels (1–256 bytes, no control characters), each model
+  once, at most 256, with no <code>cache</code> (strict, so a hard error).</li>
+<li><strong>At session start</strong> (<code>apply_starting_options</code>): the mode, then
+  <code>acp.config</code> without the model and effort options when <code>models</code> has an
+  entry naming a value, then the first entry whose model the agent offers
+  (<code>options::pick_model</code>), then its variant against the effort option as
+  the model change left it, then the session's starting options. No
+  offered model, no model option, or a variant the effort option does not
+  take is a session notice (<em>The agent document's <code>models</code> was skipped
+  there: ...</em>), as an unknown <code>acp.config</code> value is, and the agent keeps
+  its own value. <code>AgentRuntime.options</code> (a draft's) applies the same
+  choice (<code>options::starting_view</code>), so the chip shows what the session
+  starts with.</li>
+<li><strong>Configuration diagnostics</strong> (<code>ResolvedAgents::diagnostics</code>, recomputed
+  from the published agents like the delegation ones): an entry naming a
+  variable (<code>${default_model}</code>, <code>${small_model}</code>, <code>${parent_model}</code>, any
+  <code>${...}</code>) is skipped, with <em>agent <code>&lt;id&gt;</code> skips a <code>models</code> entry:
+  <code>&lt;variable&gt;</code> names one of cookie's models, ...</em>, rather than failing the
+  load, as an entry naming an unset <code>default_model</code> does; and an
+  <code>acp.config</code> key for the model or effort option of a document whose
+  <code>models</code> name a value gives <em>... <code>models</code> takes precedence ...</em>. The
+  option IDs are those the agent last offered on any runtime; before it
+  offered any, only <code>model</code> is known to be the model option.</li>
+<li><strong>IDs in the pickers</strong> (no wire change: the IDs are the descriptors'
+  model keys, variant IDs, and option <code>values[].value</code>). Every model and
+  variant picker shows, dimmed after each row's name, the ID a <code>models</code>
+  entry writes (<code>cookie_agent_client_state::document_id</code>, <code>None</code> when the
+  name is the ID, which then shows once): a native model's full key, a
+  native variant's ID (<code>base</code> for the base), and an ACP agent's model and
+  effort values. The TUI's rows (<code>pickers::document_id_row</code>: the name and
+  its <code>(current)</code> or <code>(default)</code>, then the ID in the theme's <code>internal</code>
+  style, the model picker's key style, truncated first with an ellipsis)
+  stay <code>PickerRow</code> targets, so hover and click cover the ID; <code>/model</code>'s
+  variant step and <code>/options</code>' value step now render styled rows. The web
+  client's rows put the ID on a muted line under the name, its chips
+  beside the name, each <code>data-doc-id</code>, truncated so a phone's sheet does
+  not scroll sideways.</li>
+</ul>
 
 
 

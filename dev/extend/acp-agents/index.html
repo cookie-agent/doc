@@ -4085,9 +4085,9 @@ itself permissions. Every runtime that offers the agent shares it:</p>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nn">---</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Codex on labpc, for refactors</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nt">acp</span><span class="p">:</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nt">models</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="p p-Indicator">,</span><span class="nt"> variant</span><span class="p">:</span><span class="w"> </span><span class="s">"high"</span><span class="w"> </span><span class="p p-Indicator">}]</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="nt">acp</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">hide_tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">read</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">write</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">edit</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">bash</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">webfetch</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="nt">permissions</span><span class="p">:</span>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
@@ -4105,11 +4105,22 @@ itself permissions. Every runtime that offers the agent shares it:</p>
   key for, and the default <code>hide_tools</code>.</li>
 <li><strong><code>acp</code></strong> marks the document as the agent's; <code>acp: {}</code> is enough. <code>mode</code>
   picks the mode its sessions start in (else the agent's <code>auto</code> mode, else
-  its default), and <code>config</code> sets its config options by ID, such as its
-  <code>model</code> or reasoning <code>effort</code>; an unknown option or value is reported in
-  the session and skipped.</li>
-<li><strong>No <code>models</code>.</strong> The agent chooses its own model; set it through
-  <code>acp.config</code> when the agent offers a model option.</li>
+  its default), and <code>config</code> sets its other config options by ID, such as
+  Claude Code's <code>fast</code>; an unknown option or value is reported in the
+  session and skipped.</li>
+<li><strong><code>models</code></strong> picks the agent's model and effort, as a fallback chain
+  over the agent's own values (not cookie's model keys): each entry's
+  <code>model</code> is a value of the agent's model option and its <code>variant</code> one of
+  its effort option, or <code>null</code> for the agent's default effort. For Claude
+  Code, <code>models: [{ model: "opus", variant: "high" }, "sonnet"]</code>. The
+  first entry whose model the agent offers applies when its session
+  starts; when none does, the session says so and the agent keeps its own.
+  The model and variant pickers show each value's ID, dimmed beside its
+  name: the ID to write here. <code>models</code> beats <code>acp.config</code> for the model and effort
+  (the configuration status says so when both set one), and a draft's or
+  session's own choice beats <code>models</code>. <code>${default_model}</code> and the other
+  variables name cookie's models, so an entry naming one is skipped with a
+  configuration diagnostic.</li>
 <li><strong>A document without an <code>acp</code> block</strong> of the same ID is the daemon's own
   agent: it keeps the ID, the runtimes' declarations are ignored, and the
   configuration status (<code>cookie config status</code>, the TUI's <code>/config</code>, the
@@ -4130,38 +4141,39 @@ another agent:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>---
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>description: Claude Code
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>mode: all
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>acp: {}
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>permissions:
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  read: allow
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  write: { "${workspace_dir}/*": allow, "*": ask }
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  bash: { "git status*": allow, "git diff*": allow, "*": ask }
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="gu">  memory: allow</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="gu">---</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>You are an agent in cookie agent, running in ACP mode: cookie drives you
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>over the Agent Client Protocol, and your actual harness is Claude Code. The
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>user talks to you through cookie (its terminal UI, web client, or CLI,
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>possibly from another machine), and cookie records this conversation.
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>Guidelines:
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="k">-</span><span class="w"> </span>Cookie's tools come from the MCP server named <span class="sb">`cookie`</span>. Your harness's
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>  own tools stay available, but when a cookie tool covers the same job, use
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>  the cookie tool: cookie applies the user's permission rules, shows the
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>  call in its transcript, and other cookie agents can see the result.
-<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="k">-</span><span class="w"> </span>Keep durable notes in cookie memory (memory_search, memory_read,
-<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>  memory_write), not in your harness's own memory or notes files.
-<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="k">-</span><span class="w"> </span>Delegate with cookie's delegate_subagent (list_agents shows who), not
-<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  with your harness's own subagents; schedule follow-ups with cookie's cron
-<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>  tools.
-<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="k">-</span><span class="w"> </span>Your built-in file and shell tools work in this session's workspace.
-<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="k">-</span><span class="w"> </span>Some calls need the user's approval through cookie; if one is refused,
-<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>  do not retry the same call.
-<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="k">-</span><span class="w"> </span>Messages wrapped in &lt;scheduled_job&gt; or &lt;subagent_report&gt; come from
-<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a>  cookie, not from the user typing.
-<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="k">-</span><span class="w"> </span>When you finish a delegated task, make your last message a
-<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a>  self-contained summary: cookie returns it as your report.
-<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a><span class="k">-</span><span class="w"> </span>Change cookie's own configuration only when the user asks (the
-<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a>  customize-cookie-agent skill explains how).
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>models: [{ model: "opus", variant: "high" }]
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>acp: {}
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>permissions:
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  read: allow
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  write: { "${workspace_dir}/*": allow, "*": ask }
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  bash: { "git status*": allow, "git diff*": allow, "*": ask }
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="gu">  memory: allow</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="gu">---</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>You are an agent in cookie agent, running in ACP mode: cookie drives you
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>over the Agent Client Protocol, and your actual harness is Claude Code. The
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>user talks to you through cookie (its terminal UI, web client, or CLI,
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>possibly from another machine), and cookie records this conversation.
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>Guidelines:
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="k">-</span><span class="w"> </span>Cookie's tools come from the MCP server named <span class="sb">`cookie`</span>. Your harness's
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>  own tools stay available, but when a cookie tool covers the same job, use
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>  the cookie tool: cookie applies the user's permission rules, shows the
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>  call in its transcript, and other cookie agents can see the result.
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="k">-</span><span class="w"> </span>Keep durable notes in cookie memory (memory_search, memory_read,
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  memory_write), not in your harness's own memory or notes files.
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="k">-</span><span class="w"> </span>Delegate with cookie's delegate_subagent (list_agents shows who), not
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>  with your harness's own subagents; schedule follow-ups with cookie's cron
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>  tools.
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="k">-</span><span class="w"> </span>Your built-in file and shell tools work in this session's workspace.
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="k">-</span><span class="w"> </span>Some calls need the user's approval through cookie; if one is refused,
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>  do not retry the same call.
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="k">-</span><span class="w"> </span>Messages wrapped in &lt;scheduled_job&gt; or &lt;subagent_report&gt; come from
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>  cookie, not from the user typing.
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="k">-</span><span class="w"> </span>When you finish a delegated task, make your last message a
+<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a>  self-contained summary: cookie returns it as your report.
+<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a><span class="k">-</span><span class="w"> </span>Change cookie's own configuration only when the user asks (the
+<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a>  customize-cookie-agent skill explains how).
 </code></pre></div>
 <p>Save it as <code>~/.cookie-agent/agents/claude.md</code>: every runtime that offers
 <code>claude</code> shares it.</p>
@@ -4332,15 +4344,16 @@ each call decided by the rules as a model's would be.</p>
   picker (the TUI's <code>/model</code> or the title's model, the web client's model
   chip) lists the model option's values, and the variant (the TUI's
   bracketed variant or ctrl+t, the efforts in the web client's model sheet)
-  the effort option's. Claude Code offers <code>model</code> and <code>effort</code>; Codex
-  <code>model</code> and <code>reasoning_effort</code>.</li>
+  the effort option's, each value with its ID dimmed beside its name: the
+  ID an agent document's <code>models</code> names it by. Claude Code offers <code>model</code>
+  and <code>effort</code>; Codex <code>model</code> and <code>reasoning_effort</code>.</li>
 <li><strong>A new session's draft</strong> offers the options the agent last started a
   session with on the runtime the draft would run it on, with the
-  document's <code>acp.mode</code> and <code>acp.config</code> applied: what its new session
-  would start with. The daemon remembers them per agent and runtime in
+  document's <code>acp.mode</code>, <code>acp.config</code>, and <code>models</code> applied: what its new
+  session would start with. The daemon remembers them per agent and runtime in
   <code>acp-agents.json</code> in its data folder, across restarts. Your choices go
   with the new session and apply when its agent session starts, after the
-  document's <code>acp.config</code>; one the agent no longer takes is skipped with a
+  document's <code>acp.config</code> and <code>models</code>; one the agent no longer takes is skipped with a
   note in the transcript. Before the agent has started a session on that
   runtime, there is nothing to offer yet: send a first message.</li>
 <li><strong>Attachments.</strong> Files go to the agent as it takes them: images to an
@@ -4437,10 +4450,18 @@ the agent is a target. Delegating to it before then is refused with
 note.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>An authentication error ends the turn.</strong> The run fails with what the
+<li>
+<p><strong>"The agent document's <code>models</code> was skipped there".</strong> The agent offers
+  none of the entries' models, or not the entry's variant, on that
+  runtime: the session runs on the agent's own choice. The model and
+  variant pickers show the IDs the agent takes, dimmed beside each name.</p>
+</li>
+<li>
+<p><strong>An authentication error ends the turn.</strong> The run fails with what the
   agent said, typically that authentication is required. Log in to the agent on the
   runtime's machine, as the runtime's user (for a service, the account it
-  runs as), and send the message again.</li>
+  runs as), and send the message again.</p>
+</li>
 <li><strong>The agent is dimmed in the picker, or a session with it is refused
   with "runtime <code>lab</code> is not connected".</strong> Its runtime is away. Start
   <code>cookie runtime serve --daemon ...</code> on that machine; the agent becomes
