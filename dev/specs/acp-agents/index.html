@@ -4371,9 +4371,11 @@ types).</p>
   user names the session, and an untitled session gets cookie's generated
   title after a round; see the lifecycle round below.)</em></li>
 <li><strong>Not run for ACP agents:</strong> <code>AGENTS.md</code> loading, the skill listing and tool
-  prompt sections, the <code>agent_before_start</code> hook, and input media admission
-  (images go to an agent whose <code>promptCapabilities.image</code> is set; other
-  files become a note).</li>
+  prompt sections in a system prompt (round 3 and <strong>Input and pickers</strong>
+  put them in the first prompt), the <code>agent_before_start</code> hook, and input
+  media admission
+  (files go to the agent as its prompt capabilities allow, others become a
+  note; see <strong>Input and pickers</strong> below).</li>
 <li><strong>The bridge.</strong> The daemon's MCP server is hand-written (<code>initialize</code>,
   <code>ping</code>, <code>tools/list</code>, <code>tools/call</code>); rmcp's server features are not used.
   A bridged call runs inside the agent's turn as a cookie tool call of the
@@ -4646,6 +4648,87 @@ session and a run without the agent's runtime refused before the run
 starts; a daemon document without an <code>acp</code> block shadowing a declaration
 (the configuration diagnostic); the client placement and picker notes; the
 <code>list_agents</code> placement lines.</p>
+<p><strong>Input and pickers</strong> (2026-10-24; client protocol 1.26.0, plugin
+protocol 1.14.0; history format unchanged):</p>
+<ul>
+<li><strong>Model and effort as cookie's model and variant.</strong> ACP dropped
+  <code>session/set_model</code>: an agent's model is a config option of category
+  <code>model</code>, its reasoning effort one of category <code>thought_level</code> (Claude
+  Code's adapter: <code>model</code> and <code>effort</code>; Codex's: <code>model</code> and
+  <code>reasoning_effort</code>). The clients show them as the model and variant
+  (<code>cookie_agent_client_state::acp::model_label</code>, <code>Opus • High</code>; the TUI's
+  title <code>claude • Opus[High]</code>), the model picker lists the model option's
+  values and the variant (the TUI's bracketed variant and ctrl+t, the web
+  sheet's effort buttons) the effort option's, and choosing one is
+  <code>session.agent_option.set</code>. The other options stay in <code>/options</code> and the
+  web client's <strong>All agent options</strong>. An option is the model by its ID
+  <code>model</code> when none has the category. Gemini CLI's older <code>models</code> API is
+  not read.</li>
+<li><strong>Drafts.</strong> The daemon remembers, per agent and runtime, the options a
+  new ACP session answered <code>session/new</code> with (the agent's own starting
+  values, before cookie sets any), and keeps them in <code>acp-agents.json</code> in
+  its data folder, a cache it rewrites when they change and ignores when
+  unreadable. A resumed or loaded session's options are taken only while
+  nothing is known (their values are that session's). They reach clients as
+  <code>AgentRuntime.options</code>, with the document's <code>acp.mode</code> (or <code>auto</code>) and
+  <code>acp.config</code> applied, so a draft shows what its session would start with;
+  a change republishes the agents. A draft's choices are kept per agent
+  (<code>DraftAgentOptions</code>) and sent as <code>session.create</code>'s <code>agent_options</code>;
+  they need an ACP agent, at most 64, each option once. The session records
+  them as <code>acp_session_updated.starting_options</code>, and every new ACP session
+  of that cookie session applies them after <code>acp.config</code> (a session
+  created but not started yet shows them over the remembered options);
+  one the agent does not offer, or a value it does not take, is skipped
+  with a diagnostic as <code>acp.config</code> is. <em>Assumption:</em> they apply to every
+  new ACP session of the cookie session, a lost session's replacement
+  included, not only the first.</li>
+<li><strong>Files as prompt input.</strong> An agent's <code>promptCapabilities</code> decide how a
+  file the user attached reaches it (<code>acp/prompt.rs</code>): an image as an
+  <code>image</code> block (as before), audio as an <code>audio</code> block when it advertises
+  <code>audio</code> (Gemini CLI does), and a text file as a <code>resource</code> block
+  (<code>uri</code> <code>attachment:///&lt;file name&gt;</code>, <code>mimeType</code>, <code>text</code>) when it
+  advertises <code>embeddedContext</code> (Claude Code's and Codex's adapters do).
+  Anything else, PDFs and video included, stays the note <code>[attached file
+  &lt;name&gt; (&lt;type&gt;), which this agent cannot read]</code>: ACP's blob resources
+  would carry them, but Claude Code's adapter drops blob resources, so a
+  note says more. Uploads take text files: content that is no media file
+  but UTF-8 without NUL bytes is <code>text/plain</code> of the new media kind
+  <code>text</code> (an open label), up to 1 MiB (<code>MAX_TEXT_ATTACHMENT_BYTES</code>);
+  models list no <code>text</code>, so a model run still refuses one at admission.
+  Audio was already admitted (<code>audio/flac</code>, <code>mpeg</code>, <code>ogg</code>, <code>wav</code>, 20 MiB).
+  The clients check attachments against <code>AgentRuntime.input_media</code>, which
+  the daemon records from the agent's <code>initialize</code> answer each time it
+  starts (image, audio, and text entries with the upload types and caps,
+  20 files of a kind), since the synthetic model is in no catalog; the web
+  client's file picker offers every file when the agent takes text.</li>
+<li><strong>Additional directories.</strong> When the agent offers
+  <code>sessionCapabilities.additionalDirectories</code>, <code>session/new</code>,
+  <code>session/resume</code>, <code>session/load</code>, and the <code>session/fork</code> a fork or a
+  revert branches off with carry <code>additionalDirectories</code>: the
+  workspaces of the session's attachments on the agent's runtime other
+  than <code>cwd</code> (the first of them), each once, in attachment order, as the
+  runtime reported them (canonical paths on its machine). Workspaces on
+  other runtimes are left out. An agent without the capability gets none,
+  and the member is left out when there are none. They are the
+  attachments when the ACP session starts or resumes: attaching a
+  workspace to a live ACP session reaches the agent with its next new,
+  resumed, or loaded session. <em>(ACP has no request that changes a live
+  session's roots.)</em></li>
+<li><strong>Skills.</strong> When the agent is offered cookie's <code>skill</code> tool over the
+  bridge (after <code>hide_tools</code> and the merged rules), the first prompt's
+  context carries the <code>&lt;available_skills&gt;</code> listing a model run's system
+  prompt would, right after the tool instruction sections: the session's
+  skills with the native visibility rules (<code>Engine::skill_listing</code>, which
+  <code>compose_skill_listing</code> now uses too), sized for a 200k-token context
+  since the agent's own is unknown. Without the tool the agent could not
+  load a skill, so nothing is listed. <code>acp_first_prompt_context</code> keeps its
+  signature.</li>
+<li><strong>Protocol shape.</strong> <code>session.create</code> rather than the first <code>run.start</code>:
+  the draft becomes a session there in both clients (attachments are
+  uploaded into it first), the choices are the session's like its
+  permission overlay, and recording them at creation keeps <code>run.start</code>
+  free of a member that would mean something only once.</li>
+</ul>
 <p><strong>Fixes</strong> (2026-10-23):</p>
 <ul>
 <li><strong>Processes stop with the daemon.</strong> <code>agent/stop</code> and a runtime that
