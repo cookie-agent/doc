@@ -4168,7 +4168,8 @@ deltas, and restart instead of summarising.</p>
    verdicts stay in it as assistant turns.</li>
 <li><strong>Caching.</strong> A rolling cache breakpoint at the end of each request. The
    reviewer's cache TTL has its own setting, <code>[approval] cache_ttl</code>, which
-   defaults to the 1-hour TTL (section 5).</li>
+   defaults to the 1-hour TTL where the reviewer model's provider uses TTL
+   markers (section 5).</li>
 <li><strong>Bounded by budgets and epochs.</strong></li>
 <li>Two budgets (user messages, and the agent's trajectory), with
      per-entry caps.</li>
@@ -4188,7 +4189,10 @@ deltas, and restart instead of summarising.</p>
    stand.</li>
 <li>Tool-call outcomes are shown (section 4.4).</li>
 <li>A scheduled prompt carries user authority (section 4.2).</li>
-<li>The reviewer's cache TTL gets its own setting (section 5).</li>
+<li>The reviewer's cache TTL gets its own setting (section 5). It applies to
+   the reviewer model's own provider, which may differ from the session's.
+   It has no <code>provider</code> value: providers without TTL markers cache
+   automatically, and the setting has no effect on them.</li>
 <li>No reviewer variant is set in the starter kit:</li>
 <li>The <code>approval</code> agent already runs <code>${small_model}</code> with its variant.</li>
 <li>The kit's <code>explore</code> agent moves from <code>${small_model}</code> to
@@ -4377,17 +4381,42 @@ strings. The current flow does not escape the user message (section 10, d).</p>
 <li><strong>Current behaviour to remove:</strong> <code>internal_cache_strategies</code>
   (<code>internal_agents.rs</code>) currently sets <code>rolling = None</code> for the approval
   agent.</li>
-<li><strong>The reviewer's chain</strong> uses the run's provider cache configuration with
-  rolling on, and with the TTL set by its own knob:</li>
+<li><strong>Which provider's settings apply.</strong> The reviewer's cache settings come
+  from the reviewer model's own provider, never the session's.
+  <code>internal_cache_strategies</code> already resolves each reviewer binding through
+  that binding's provider configuration. It reuses the parent's only when the
+  reviewer runs the very same model. A session on one provider with a
+  reviewer on another works without special handling. The reviewer's chain
+  is a different prompt from the session's anyway, so the two never share a
+  cache.</li>
+<li><strong>The knob.</strong> The reviewer's own setting:</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[approval]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">    </span><span class="c1"># "1h" (the default), "5m", or "provider" for the provider's configured TTL</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">    </span><span class="c1"># "1h" (the default), "5m", or "off"</span>
 </code></pre></div>
 <ul>
-<li><strong><code>1h</code></strong> asks for the provider's extended TTL (Anthropic). A provider
-    without one uses its default.</li>
-<li><strong><code>5m</code></strong> asks for the short TTL.</li>
-<li><strong><code>provider</code></strong> follows the run's own cache configuration.</li>
+<li><strong>Providers with TTL markers (Anthropic, Bedrock):</strong> <code>cache_ttl</code> sets
+    the reviewer's rolling marker, and its system marker is raised to at
+    least the same TTL, as the ordering rule requires (a one-hour marker
+    cannot follow a five-minute one).<ul>
+<li><strong><code>1h</code> without the beta flag:</strong> when the reviewer model's authored
+  Anthropic <code>beta</code> options lack <code>extended-cache-ttl-2025-04-11</code>, <code>1h</code>
+  falls back to <code>5m</code>, and config status reports it. Cookie never adds
+  the beta flag itself.</li>
+<li><strong>The provider config:</strong> today <code>rolling</code> accepts only <code>"5m"</code> or
+  <code>"off"</code>, so the strategy type gains a one-hour rolling marker for
+  internal agents. Authored provider config keeps its current values.</li>
+</ul>
+</li>
+<li><strong>Providers with automatic caching</strong> (OpenAI and Azure,
+    OpenAI-compatible, Gemini, Cohere): <code>cache_ttl</code> has no effect, and config
+    status says so when the reviewer runs on one. The append-only chain gets
+    their automatic prefix discount anyway. OpenAI's <code>24h</code> retention is a
+    different mechanism, so it is not mapped.</li>
+<li><strong><code>off</code>:</strong> no reviewer markers.</li>
+<li><strong>Fallback:</strong> a reviewer that falls back from <code>${small_model}</code> to
+    <code>${parent_model}</code> on another provider follows the same rules for that
+    model's provider.</li>
 </ul>
 <p>The knob is read at each review, so a config apply takes effect at the
   next one. The title agent keeps <code>rolling = None</code>.
@@ -4555,8 +4584,10 @@ always escalates, is corrected: it uses <code>${small_model}</code>.</p>
   readers skip it.</li>
 <li><strong>Tool-denial <code>source: "approval_reviewer"</code>:</strong> this is model-facing text,
   not a wire schema.</li>
-<li><strong><code>[approval] cache_ttl</code>:</strong> <code>"1h"</code> (the default), <code>"5m"</code>, or <code>"provider"</code>.
-  Unknown values fail, as for every config key.</li>
+<li><strong><code>[approval] cache_ttl</code>:</strong> <code>"1h"</code> (the default), <code>"5m"</code>, or <code>"off"</code>.
+  It applies to the reviewer model's own provider when that provider uses TTL
+  markers (section 5). Unknown values fail, as for every config key.</li>
+<li><strong>Internal agents' cache strategy:</strong> gains a one-hour rolling marker.</li>
 <li><strong>The starter kit's <code>explore</code></strong> uses <code>${default_model}</code> (already done,
   with this spec).</li>
 <li><strong>No change to <code>ApprovalRequest</code>.</strong> Moving <code>expires_at</code> (section 10, b)
