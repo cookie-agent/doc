@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CommandDecodeError"],"fn":["check_command","decode_command"]};
+window.SIDEBAR_ITEMS = {"enum":["CommandDecodeError"],"fn":["check_command","check_command_params","decode_command"]};
