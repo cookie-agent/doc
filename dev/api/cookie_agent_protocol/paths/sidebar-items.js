@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PathError"],"fn":["canonical_home_dir","canonicalize","home_dir","host_name","machine_id","search_path_candidates","simplified","user_data_root"]};
+window.SIDEBAR_ITEMS = {"enum":["PathError"],"fn":["canonical_home_dir","canonicalize","home_dir","host_name","machine_id","resolve_program","search_path_candidates","simplified","user_data_root"]};

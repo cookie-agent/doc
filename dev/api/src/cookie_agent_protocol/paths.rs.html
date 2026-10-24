@@ -221,225 +221,420 @@
 <a href=#221 id=221 data-nosnippet>221</a>    .next()
 <a href=#222 id=222 data-nosnippet>222</a>}
 <a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a><span class="doccomment">/// Pure candidate selection behind `where.exe`-style lookups: for each
-<a href=#225 id=225 data-nosnippet>225</a>/// `PATH` entry in order, tries `name` with each `PATHEXT` extension in order
-<a href=#226 id=226 data-nosnippet>226</a>/// (default `.COM;.EXE;.BAT;.CMD`). Like `where`, a name that already ends in
-<a href=#227 id=227 data-nosnippet>227</a>/// a `PATHEXT` extension (case-insensitive) is tried as written instead.
-<a href=#228 id=228 data-nosnippet>228</a>/// Entries are `;`-separated, may be double-quoted, and empty ones are
-<a href=#229 id=229 data-nosnippet>229</a>/// skipped. No filtering happens here; callers vet the candidates.
-<a href=#230 id=230 data-nosnippet>230</a></span><span class="kw">pub fn </span>search_path_candidates(
-<a href=#231 id=231 data-nosnippet>231</a>    name: <span class="kw-2">&amp;</span>str,
-<a href=#232 id=232 data-nosnippet>232</a>    path: <span class="kw-2">&amp;</span>str,
-<a href=#233 id=233 data-nosnippet>233</a>    pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#234 id=234 data-nosnippet>234</a>    exists: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Path) -&gt; bool,
-<a href=#235 id=235 data-nosnippet>235</a>) -&gt; Vec&lt;PathBuf&gt; {
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">let </span>extensions: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = pathext
-<a href=#237 id=237 data-nosnippet>237</a>        .unwrap_or(<span class="string">".COM;.EXE;.BAT;.CMD"</span>)
-<a href=#238 id=238 data-nosnippet>238</a>        .split(<span class="string">';'</span>)
-<a href=#239 id=239 data-nosnippet>239</a>        .map(str::trim)
-<a href=#240 id=240 data-nosnippet>240</a>        .filter(|extension| !extension.is_empty())
-<a href=#241 id=241 data-nosnippet>241</a>        .collect();
-<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">let </span>has_extension = extensions.iter().any(|extension| {
-<a href=#243 id=243 data-nosnippet>243</a>        name.len() &gt; extension.len()
-<a href=#244 id=244 data-nosnippet>244</a>            &amp;&amp; name.is_char_boundary(name.len() - extension.len())
-<a href=#245 id=245 data-nosnippet>245</a>            &amp;&amp; name[name.len() - extension.len()..].eq_ignore_ascii_case(extension)
-<a href=#246 id=246 data-nosnippet>246</a>    });
-<a href=#247 id=247 data-nosnippet>247</a>    <span class="kw">let </span>names: Vec&lt;String&gt; = <span class="kw">if </span>has_extension {
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">vec!</span>[name.to_owned()]
-<a href=#249 id=249 data-nosnippet>249</a>    } <span class="kw">else </span>{
-<a href=#250 id=250 data-nosnippet>250</a>        extensions
-<a href=#251 id=251 data-nosnippet>251</a>            .iter()
-<a href=#252 id=252 data-nosnippet>252</a>            .map(|extension| <span class="macro">format!</span>(<span class="string">"{name}{extension}"</span>))
-<a href=#253 id=253 data-nosnippet>253</a>            .collect()
-<a href=#254 id=254 data-nosnippet>254</a>    };
-<a href=#255 id=255 data-nosnippet>255</a>
-<a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">let </span><span class="kw-2">mut </span>entries = Vec::new();
-<a href=#257 id=257 data-nosnippet>257</a>    <span class="kw">let </span><span class="kw-2">mut </span>current = String::new();
-<a href=#258 id=258 data-nosnippet>258</a>    <span class="kw">let </span><span class="kw-2">mut </span>quoted = <span class="bool-val">false</span>;
-<a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">for </span>character <span class="kw">in </span>path.chars() {
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">match </span>character {
-<a href=#261 id=261 data-nosnippet>261</a>            <span class="string">'"' </span>=&gt; quoted = !quoted,
-<a href=#262 id=262 data-nosnippet>262</a>            <span class="string">';' </span><span class="kw">if </span>!quoted =&gt; entries.push(std::mem::take(<span class="kw-2">&amp;mut </span>current)),
-<a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">_ </span>=&gt; current.push(character),
-<a href=#264 id=264 data-nosnippet>264</a>        }
-<a href=#265 id=265 data-nosnippet>265</a>    }
-<a href=#266 id=266 data-nosnippet>266</a>    entries.push(current);
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">let </span><span class="kw-2">mut </span>found = Vec::new();
-<a href=#269 id=269 data-nosnippet>269</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries.iter().filter(|entry| !entry.is_empty()) {
-<a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">for </span>file <span class="kw">in </span><span class="kw-2">&amp;</span>names {
-<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">let </span>candidate = Path::new(entry).join(file);
-<a href=#272 id=272 data-nosnippet>272</a>            <span class="kw">if </span>exists(<span class="kw-2">&amp;</span>candidate) {
-<a href=#273 id=273 data-nosnippet>273</a>                found.push(candidate);
-<a href=#274 id=274 data-nosnippet>274</a>            }
-<a href=#275 id=275 data-nosnippet>275</a>        }
-<a href=#276 id=276 data-nosnippet>276</a>    }
-<a href=#277 id=277 data-nosnippet>277</a>    found
-<a href=#278 id=278 data-nosnippet>278</a>}
-<a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a><span class="attr">#[cfg(test)]
-<a href=#281 id=281 data-nosnippet>281</a></span><span class="kw">mod </span>tests {
-<a href=#282 id=282 data-nosnippet>282</a>    <span class="attr">#[test]
-<a href=#283 id=283 data-nosnippet>283</a>    </span><span class="kw">fn </span>a_verbatim_path_is_simplified_when_it_means_the_same() {
-<a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">let </span>simple = |path: <span class="kw-2">&amp;</span>str| <span class="kw">super</span>::simplified_windows(path);
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="macro">assert_eq!</span>(
-<a href=#286 id=286 data-nosnippet>286</a>            simple(<span class="string">r"\\?\C:\Users\me\work"</span>).as_deref(),
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="prelude-val">Some</span>(<span class="string">r"C:\Users\me\work"</span>)
-<a href=#288 id=288 data-nosnippet>288</a>        );
-<a href=#289 id=289 data-nosnippet>289</a>        <span class="macro">assert_eq!</span>(
-<a href=#290 id=290 data-nosnippet>290</a>            simple(<span class="string">r"\\?\UNC\server\share\work"</span>).as_deref(),
-<a href=#291 id=291 data-nosnippet>291</a>            <span class="prelude-val">Some</span>(<span class="string">r"\\server\share\work"</span>)
-<a href=#292 id=292 data-nosnippet>292</a>        );
-<a href=#293 id=293 data-nosnippet>293</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"C:\Users\me"</span>), <span class="prelude-val">None</span>, <span class="string">"not verbatim"</span>);
-<a href=#294 id=294 data-nosnippet>294</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\con.txt"</span>), <span class="prelude-val">None</span>, <span class="string">"a device name"</span>);
-<a href=#295 id=295 data-nosnippet>295</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\trailing."</span>), <span class="prelude-val">None</span>, <span class="string">"a trailing dot"</span>);
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\Volume{0}\work"</span>), <span class="prelude-val">None</span>, <span class="string">"not a drive"</span>);
-<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span>long = <span class="macro">format!</span>(<span class="string">r"\\?\C:\{}"</span>, <span class="string">"a"</span>.repeat(<span class="number">300</span>));
-<a href=#298 id=298 data-nosnippet>298</a>        <span class="macro">assert_eq!</span>(simple(<span class="kw-2">&amp;</span>long), <span class="prelude-val">None</span>, <span class="string">"longer than MAX_PATH"</span>);
-<a href=#299 id=299 data-nosnippet>299</a>    }
-<a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="attr">#[test]
-<a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">fn </span>user_data_root_is_below_home() {
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>home = <span class="kw">super</span>::home_dir().expect(<span class="string">"home directory"</span>);
-<a href=#304 id=304 data-nosnippet>304</a>        <span class="macro">assert_eq!</span>(
-<a href=#305 id=305 data-nosnippet>305</a>            <span class="kw">super</span>::user_data_root().expect(<span class="string">"user data root"</span>),
-<a href=#306 id=306 data-nosnippet>306</a>            home.join(<span class="string">".cookie-agent"</span>)
-<a href=#307 id=307 data-nosnippet>307</a>        );
-<a href=#308 id=308 data-nosnippet>308</a>    }
-<a href=#309 id=309 data-nosnippet>309</a>
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="attr">#[test]
-<a href=#311 id=311 data-nosnippet>311</a>    </span><span class="kw">fn </span>the_machine_id_is_a_stable_opaque_digest() {
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(id) = <span class="kw">super</span>::machine_id() <span class="kw">else </span>{
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="kw">return</span>;
-<a href=#314 id=314 data-nosnippet>314</a>        };
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="macro">assert_eq!</span>(id.len(), <span class="number">32</span>);
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="macro">assert!</span>(id.bytes().all(|byte| byte.is_ascii_hexdigit()), <span class="string">"{id}"</span>);
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::machine_id().as_deref(), <span class="prelude-val">Some</span>(id.as_str()));
-<a href=#318 id=318 data-nosnippet>318</a>    }
-<a href=#319 id=319 data-nosnippet>319</a>}
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a><span class="attr">#[cfg(test)]
-<a href=#322 id=322 data-nosnippet>322</a></span><span class="kw">mod </span>path_search_tests {
-<a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">use </span>std::path::Path;
-<a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a>    <span class="kw">use </span><span class="kw">super</span>::search_path_candidates;
-<a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="comment">// `Path::join` uses the host separator, so compare with separators normalized.
-<a href=#328 id=328 data-nosnippet>328</a>    </span><span class="kw">fn </span>norm(path: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#329 id=329 data-nosnippet>329</a>        path.replace(<span class="string">'\\'</span>, <span class="string">"/"</span>)
-<a href=#330 id=330 data-nosnippet>330</a>    }
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">fn </span>search(name: <span class="kw-2">&amp;</span>str, path: <span class="kw-2">&amp;</span>str, pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, present: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;String&gt; {
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>present: Vec&lt;String&gt; = present.iter().map(|file| norm(file)).collect();
-<a href=#334 id=334 data-nosnippet>334</a>        search_path_candidates(name, path, pathext, |candidate: <span class="kw-2">&amp;</span>Path| {
-<a href=#335 id=335 data-nosnippet>335</a>            present.contains(<span class="kw-2">&amp;</span>norm(<span class="kw-2">&amp;</span>candidate.to_string_lossy()))
-<a href=#336 id=336 data-nosnippet>336</a>        })
-<a href=#337 id=337 data-nosnippet>337</a>        .iter()
-<a href=#338 id=338 data-nosnippet>338</a>        .map(|candidate| norm(<span class="kw-2">&amp;</span>candidate.to_string_lossy()))
-<a href=#339 id=339 data-nosnippet>339</a>        .collect()
-<a href=#340 id=340 data-nosnippet>340</a>    }
-<a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a>    <span class="kw">fn </span>expected(files: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;String&gt; {
-<a href=#343 id=343 data-nosnippet>343</a>        files.iter().map(|file| norm(file)).collect()
-<a href=#344 id=344 data-nosnippet>344</a>    }
-<a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a>    <span class="attr">#[test]
-<a href=#347 id=347 data-nosnippet>347</a>    </span><span class="kw">fn </span>candidates_follow_path_order_then_extension_order() {
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span>found = search(
-<a href=#349 id=349 data-nosnippet>349</a>            <span class="string">"bash"</span>,
-<a href=#350 id=350 data-nosnippet>350</a>            <span class="string">r"C:\b;C:\a"</span>,
-<a href=#351 id=351 data-nosnippet>351</a>            <span class="prelude-val">Some</span>(<span class="string">".EXE;.CMD"</span>),
-<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw-2">&amp;</span>[
-<a href=#353 id=353 data-nosnippet>353</a>                <span class="string">r"C:\a\bash.EXE"</span>,
-<a href=#354 id=354 data-nosnippet>354</a>                <span class="string">r"C:\b\bash.CMD"</span>,
-<a href=#355 id=355 data-nosnippet>355</a>                <span class="string">r"C:\b\bash.EXE"</span>,
-<a href=#356 id=356 data-nosnippet>356</a>                <span class="string">r"C:\a\bash.CMD"</span>,
-<a href=#357 id=357 data-nosnippet>357</a>            ],
-<a href=#358 id=358 data-nosnippet>358</a>        );
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="macro">assert_eq!</span>(
-<a href=#360 id=360 data-nosnippet>360</a>            found,
-<a href=#361 id=361 data-nosnippet>361</a>            expected(<span class="kw-2">&amp;</span>[
-<a href=#362 id=362 data-nosnippet>362</a>                <span class="string">r"C:\b\bash.EXE"</span>,
-<a href=#363 id=363 data-nosnippet>363</a>                <span class="string">r"C:\b\bash.CMD"</span>,
-<a href=#364 id=364 data-nosnippet>364</a>                <span class="string">r"C:\a\bash.EXE"</span>,
-<a href=#365 id=365 data-nosnippet>365</a>                <span class="string">r"C:\a\bash.CMD"
-<a href=#366 id=366 data-nosnippet>366</a>            </span>])
-<a href=#367 id=367 data-nosnippet>367</a>        );
+<a href=#224 id=224 data-nosnippet>224</a><span class="doccomment">/// The program to hand `std::process::Command` (or tokio's) for a
+<a href=#225 id=225 data-nosnippet>225</a>/// user-configured command: MCP stdio servers, ACP agents, runtime launch
+<a href=#226 id=226 data-nosnippet>226</a>/// commands, and plugins all go through here. `env` is the child's
+<a href=#227 id=227 data-nosnippet>227</a>/// configured environment; a `PATH` in it is searched instead of the
+<a href=#228 id=228 data-nosnippet>228</a>/// daemon's, as `Command` itself does.
+<a href=#229 id=229 data-nosnippet>229</a>///
+<a href=#230 id=230 data-nosnippet>230</a>/// On Windows, `Command` appends only `.exe` to a bare name, so `npx`, which
+<a href=#231 id=231 data-nosnippet>231</a>/// npm installs as `npx.cmd`, is "program not found". A `program` with no
+<a href=#232 id=232 data-nosnippet>232</a>/// path separator that does not already end in a `PATHEXT` extension is
+<a href=#233 id=233 data-nosnippet>233</a>/// therefore looked up on `PATH` with each `PATHEXT` extension, as
+<a href=#234 id=234 data-nosnippet>234</a>/// [`search_path_candidates`] does, and the first hit `CreateProcess` can
+<a href=#235 id=235 data-nosnippet>235</a>/// start (`.com`, `.exe`, `.bat`, `.cmd`; never `.ps1`) replaces it. A
+<a href=#236 id=236 data-nosnippet>236</a>/// `.bat` or `.cmd` hit goes to `Command` as is: since Rust 1.77.2
+<a href=#237 id=237 data-nosnippet>237</a>/// (CVE-2024-24576, "BatBadBut") the standard library runs a batch file
+<a href=#238 id=238 data-nosnippet>238</a>/// through `cmd.exe /e:ON /v:OFF /d /c` with escaping that keeps every
+<a href=#239 id=239 data-nosnippet>239</a>/// argument literal, and fails the spawn when an argument cannot be passed
+<a href=#240 id=240 data-nosnippet>240</a>/// safely. Never build that `cmd.exe /c` line by hand.
+<a href=#241 id=241 data-nosnippet>241</a>///
+<a href=#242 id=242 data-nosnippet>242</a>/// Elsewhere, and when nothing is found, `program` comes back unchanged.
+<a href=#243 id=243 data-nosnippet>243</a></span><span class="attr">#[must_use]
+<a href=#244 id=244 data-nosnippet>244</a></span><span class="kw">pub fn </span>resolve_program&lt;K, V&gt;(program: <span class="kw-2">&amp;</span>str, env: <span class="kw">impl </span>IntoIterator&lt;Item = (K, V)&gt;) -&gt; PathBuf
+<a href=#245 id=245 data-nosnippet>245</a><span class="kw">where
+<a href=#246 id=246 data-nosnippet>246</a>    </span>K: AsRef&lt;str&gt;,
+<a href=#247 id=247 data-nosnippet>247</a>    V: AsRef&lt;str&gt;,
+<a href=#248 id=248 data-nosnippet>248</a>{
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="attr">#[cfg(windows)]
+<a href=#250 id=250 data-nosnippet>250</a>    </span>{
+<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">let </span>path = env
+<a href=#252 id=252 data-nosnippet>252</a>            .into_iter()
+<a href=#253 id=253 data-nosnippet>253</a>            .find(|(key, <span class="kw">_</span>)| key.as_ref().eq_ignore_ascii_case(<span class="string">"PATH"</span>))
+<a href=#254 id=254 data-nosnippet>254</a>            .map(|(<span class="kw">_</span>, value)| value.as_ref().to_owned())
+<a href=#255 id=255 data-nosnippet>255</a>            .or_else(|| std::env::var_os(<span class="string">"PATH"</span>).map(|value| value.to_string_lossy().into_owned()))
+<a href=#256 id=256 data-nosnippet>256</a>            .unwrap_or_default();
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span>pathext = std::env::var_os(<span class="string">"PATHEXT"</span>);
+<a href=#258 id=258 data-nosnippet>258</a>        windows_program(
+<a href=#259 id=259 data-nosnippet>259</a>            program,
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw-2">&amp;</span>path,
+<a href=#261 id=261 data-nosnippet>261</a>            pathext
+<a href=#262 id=262 data-nosnippet>262</a>                .as_deref()
+<a href=#263 id=263 data-nosnippet>263</a>                .map(|value| value.to_string_lossy())
+<a href=#264 id=264 data-nosnippet>264</a>                .as_deref(),
+<a href=#265 id=265 data-nosnippet>265</a>            Path::is_file,
+<a href=#266 id=266 data-nosnippet>266</a>        )
+<a href=#267 id=267 data-nosnippet>267</a>        .unwrap_or_else(|| PathBuf::from(program))
+<a href=#268 id=268 data-nosnippet>268</a>    }
+<a href=#269 id=269 data-nosnippet>269</a>    <span class="attr">#[cfg(not(windows))]
+<a href=#270 id=270 data-nosnippet>270</a>    </span>{
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">let _ </span>= env;
+<a href=#272 id=272 data-nosnippet>272</a>        PathBuf::from(program)
+<a href=#273 id=273 data-nosnippet>273</a>    }
+<a href=#274 id=274 data-nosnippet>274</a>}
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a><span class="doccomment">/// The Windows lookup behind [`resolve_program`]; `None` leaves `program`
+<a href=#277 id=277 data-nosnippet>277</a>/// to `Command`.
+<a href=#278 id=278 data-nosnippet>278</a></span><span class="attr">#[cfg(any(windows, test))]
+<a href=#279 id=279 data-nosnippet>279</a></span><span class="kw">fn </span>windows_program(
+<a href=#280 id=280 data-nosnippet>280</a>    program: <span class="kw-2">&amp;</span>str,
+<a href=#281 id=281 data-nosnippet>281</a>    path: <span class="kw-2">&amp;</span>str,
+<a href=#282 id=282 data-nosnippet>282</a>    pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#283 id=283 data-nosnippet>283</a>    exists: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Path) -&gt; bool,
+<a href=#284 id=284 data-nosnippet>284</a>) -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">const </span>RUNNABLE: [<span class="kw-2">&amp;</span>str; <span class="number">4</span>] = [<span class="string">"com"</span>, <span class="string">"exe"</span>, <span class="string">"bat"</span>, <span class="string">"cmd"</span>];
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="kw">if </span>program.is_empty() || program.contains([<span class="string">'/'</span>, <span class="string">'\\'</span>, <span class="string">':'</span>]) {
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#288 id=288 data-nosnippet>288</a>    }
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">let </span>has_extension = pathext
+<a href=#290 id=290 data-nosnippet>290</a>        .unwrap_or(<span class="string">".COM;.EXE;.BAT;.CMD"</span>)
+<a href=#291 id=291 data-nosnippet>291</a>        .split(<span class="string">';'</span>)
+<a href=#292 id=292 data-nosnippet>292</a>        .map(str::trim)
+<a href=#293 id=293 data-nosnippet>293</a>        .filter(|extension| !extension.is_empty())
+<a href=#294 id=294 data-nosnippet>294</a>        .any(|extension| {
+<a href=#295 id=295 data-nosnippet>295</a>            program.len() &gt; extension.len()
+<a href=#296 id=296 data-nosnippet>296</a>                &amp;&amp; program.is_char_boundary(program.len() - extension.len())
+<a href=#297 id=297 data-nosnippet>297</a>                &amp;&amp; program[program.len() - extension.len()..].eq_ignore_ascii_case(extension)
+<a href=#298 id=298 data-nosnippet>298</a>        });
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">if </span>has_extension {
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#301 id=301 data-nosnippet>301</a>    }
+<a href=#302 id=302 data-nosnippet>302</a>    search_path_candidates(program, path, pathext, exists)
+<a href=#303 id=303 data-nosnippet>303</a>        .into_iter()
+<a href=#304 id=304 data-nosnippet>304</a>        .find(|candidate| {
+<a href=#305 id=305 data-nosnippet>305</a>            candidate
+<a href=#306 id=306 data-nosnippet>306</a>                .extension()
+<a href=#307 id=307 data-nosnippet>307</a>                .and_then(|extension| extension.to_str())
+<a href=#308 id=308 data-nosnippet>308</a>                .is_some_and(|extension| {
+<a href=#309 id=309 data-nosnippet>309</a>                    RUNNABLE
+<a href=#310 id=310 data-nosnippet>310</a>                        .iter()
+<a href=#311 id=311 data-nosnippet>311</a>                        .any(|runnable| extension.eq_ignore_ascii_case(runnable))
+<a href=#312 id=312 data-nosnippet>312</a>                })
+<a href=#313 id=313 data-nosnippet>313</a>        })
+<a href=#314 id=314 data-nosnippet>314</a>}
+<a href=#315 id=315 data-nosnippet>315</a>
+<a href=#316 id=316 data-nosnippet>316</a><span class="doccomment">/// Pure candidate selection behind `where.exe`-style lookups: for each
+<a href=#317 id=317 data-nosnippet>317</a>/// `PATH` entry in order, tries `name` with each `PATHEXT` extension in order
+<a href=#318 id=318 data-nosnippet>318</a>/// (default `.COM;.EXE;.BAT;.CMD`). Like `where`, a name that already ends in
+<a href=#319 id=319 data-nosnippet>319</a>/// a `PATHEXT` extension (case-insensitive) is tried as written instead.
+<a href=#320 id=320 data-nosnippet>320</a>/// Entries are `;`-separated, may be double-quoted, and empty ones are
+<a href=#321 id=321 data-nosnippet>321</a>/// skipped. No filtering happens here; callers vet the candidates.
+<a href=#322 id=322 data-nosnippet>322</a></span><span class="kw">pub fn </span>search_path_candidates(
+<a href=#323 id=323 data-nosnippet>323</a>    name: <span class="kw-2">&amp;</span>str,
+<a href=#324 id=324 data-nosnippet>324</a>    path: <span class="kw-2">&amp;</span>str,
+<a href=#325 id=325 data-nosnippet>325</a>    pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#326 id=326 data-nosnippet>326</a>    exists: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Path) -&gt; bool,
+<a href=#327 id=327 data-nosnippet>327</a>) -&gt; Vec&lt;PathBuf&gt; {
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">let </span>extensions: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = pathext
+<a href=#329 id=329 data-nosnippet>329</a>        .unwrap_or(<span class="string">".COM;.EXE;.BAT;.CMD"</span>)
+<a href=#330 id=330 data-nosnippet>330</a>        .split(<span class="string">';'</span>)
+<a href=#331 id=331 data-nosnippet>331</a>        .map(str::trim)
+<a href=#332 id=332 data-nosnippet>332</a>        .filter(|extension| !extension.is_empty())
+<a href=#333 id=333 data-nosnippet>333</a>        .collect();
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">let </span>has_extension = extensions.iter().any(|extension| {
+<a href=#335 id=335 data-nosnippet>335</a>        name.len() &gt; extension.len()
+<a href=#336 id=336 data-nosnippet>336</a>            &amp;&amp; name.is_char_boundary(name.len() - extension.len())
+<a href=#337 id=337 data-nosnippet>337</a>            &amp;&amp; name[name.len() - extension.len()..].eq_ignore_ascii_case(extension)
+<a href=#338 id=338 data-nosnippet>338</a>    });
+<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">let </span>names: Vec&lt;String&gt; = <span class="kw">if </span>has_extension {
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="macro">vec!</span>[name.to_owned()]
+<a href=#341 id=341 data-nosnippet>341</a>    } <span class="kw">else </span>{
+<a href=#342 id=342 data-nosnippet>342</a>        extensions
+<a href=#343 id=343 data-nosnippet>343</a>            .iter()
+<a href=#344 id=344 data-nosnippet>344</a>            .map(|extension| <span class="macro">format!</span>(<span class="string">"{name}{extension}"</span>))
+<a href=#345 id=345 data-nosnippet>345</a>            .collect()
+<a href=#346 id=346 data-nosnippet>346</a>    };
+<a href=#347 id=347 data-nosnippet>347</a>
+<a href=#348 id=348 data-nosnippet>348</a>    <span class="kw">let </span><span class="kw-2">mut </span>entries = Vec::new();
+<a href=#349 id=349 data-nosnippet>349</a>    <span class="kw">let </span><span class="kw-2">mut </span>current = String::new();
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">let </span><span class="kw-2">mut </span>quoted = <span class="bool-val">false</span>;
+<a href=#351 id=351 data-nosnippet>351</a>    <span class="kw">for </span>character <span class="kw">in </span>path.chars() {
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">match </span>character {
+<a href=#353 id=353 data-nosnippet>353</a>            <span class="string">'"' </span>=&gt; quoted = !quoted,
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="string">';' </span><span class="kw">if </span>!quoted =&gt; entries.push(std::mem::take(<span class="kw-2">&amp;mut </span>current)),
+<a href=#355 id=355 data-nosnippet>355</a>            <span class="kw">_ </span>=&gt; current.push(character),
+<a href=#356 id=356 data-nosnippet>356</a>        }
+<a href=#357 id=357 data-nosnippet>357</a>    }
+<a href=#358 id=358 data-nosnippet>358</a>    entries.push(current);
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">let </span><span class="kw-2">mut </span>found = Vec::new();
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries.iter().filter(|entry| !entry.is_empty()) {
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw">for </span>file <span class="kw">in </span><span class="kw-2">&amp;</span>names {
+<a href=#363 id=363 data-nosnippet>363</a>            <span class="kw">let </span>candidate = Path::new(entry).join(file);
+<a href=#364 id=364 data-nosnippet>364</a>            <span class="kw">if </span>exists(<span class="kw-2">&amp;</span>candidate) {
+<a href=#365 id=365 data-nosnippet>365</a>                found.push(candidate);
+<a href=#366 id=366 data-nosnippet>366</a>            }
+<a href=#367 id=367 data-nosnippet>367</a>        }
 <a href=#368 id=368 data-nosnippet>368</a>    }
-<a href=#369 id=369 data-nosnippet>369</a>
-<a href=#370 id=370 data-nosnippet>370</a>    <span class="attr">#[test]
-<a href=#371 id=371 data-nosnippet>371</a>    </span><span class="kw">fn </span>pathext_extensions_are_used_verbatim_and_default_applies() {
-<a href=#372 id=372 data-nosnippet>372</a>        <span class="macro">assert_eq!</span>(
-<a href=#373 id=373 data-nosnippet>373</a>            search(
-<a href=#374 id=374 data-nosnippet>374</a>                <span class="string">"bash"</span>,
-<a href=#375 id=375 data-nosnippet>375</a>                <span class="string">r"C:\a"</span>,
-<a href=#376 id=376 data-nosnippet>376</a>                <span class="prelude-val">Some</span>(<span class="string">".exe"</span>),
-<a href=#377 id=377 data-nosnippet>377</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.exe"</span>, <span class="string">r"C:\a\bash.EXE"</span>]
-<a href=#378 id=378 data-nosnippet>378</a>            ),
-<a href=#379 id=379 data-nosnippet>379</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.exe"</span>])
+<a href=#369 id=369 data-nosnippet>369</a>    found
+<a href=#370 id=370 data-nosnippet>370</a>}
+<a href=#371 id=371 data-nosnippet>371</a>
+<a href=#372 id=372 data-nosnippet>372</a><span class="attr">#[cfg(test)]
+<a href=#373 id=373 data-nosnippet>373</a></span><span class="kw">mod </span>tests {
+<a href=#374 id=374 data-nosnippet>374</a>    <span class="attr">#[test]
+<a href=#375 id=375 data-nosnippet>375</a>    </span><span class="kw">fn </span>a_verbatim_path_is_simplified_when_it_means_the_same() {
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="kw">let </span>simple = |path: <span class="kw-2">&amp;</span>str| <span class="kw">super</span>::simplified_windows(path);
+<a href=#377 id=377 data-nosnippet>377</a>        <span class="macro">assert_eq!</span>(
+<a href=#378 id=378 data-nosnippet>378</a>            simple(<span class="string">r"\\?\C:\Users\me\work"</span>).as_deref(),
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="prelude-val">Some</span>(<span class="string">r"C:\Users\me\work"</span>)
 <a href=#380 id=380 data-nosnippet>380</a>        );
 <a href=#381 id=381 data-nosnippet>381</a>        <span class="macro">assert_eq!</span>(
-<a href=#382 id=382 data-nosnippet>382</a>            search(<span class="string">"bash"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.EXE"</span>, <span class="string">r"C:\a\bash.BAT"</span>]),
-<a href=#383 id=383 data-nosnippet>383</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.EXE"</span>, <span class="string">r"C:\a\bash.BAT"</span>])
+<a href=#382 id=382 data-nosnippet>382</a>            simple(<span class="string">r"\\?\UNC\server\share\work"</span>).as_deref(),
+<a href=#383 id=383 data-nosnippet>383</a>            <span class="prelude-val">Some</span>(<span class="string">r"\\server\share\work"</span>)
 <a href=#384 id=384 data-nosnippet>384</a>        );
-<a href=#385 id=385 data-nosnippet>385</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>), <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash"</span>]).is_empty());
-<a href=#386 id=386 data-nosnippet>386</a>    }
-<a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a>    <span class="attr">#[test]
-<a href=#389 id=389 data-nosnippet>389</a>    </span><span class="kw">fn </span>name_with_known_extension_is_tried_as_written_case_insensitively() {
-<a href=#390 id=390 data-nosnippet>390</a>        <span class="macro">assert_eq!</span>(
-<a href=#391 id=391 data-nosnippet>391</a>            search(
-<a href=#392 id=392 data-nosnippet>392</a>                <span class="string">"git.exe"</span>,
-<a href=#393 id=393 data-nosnippet>393</a>                <span class="string">r"C:\a"</span>,
-<a href=#394 id=394 data-nosnippet>394</a>                <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>),
-<a href=#395 id=395 data-nosnippet>395</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\git.exe"</span>, <span class="string">r"C:\a\git.exe.EXE"</span>]
-<a href=#396 id=396 data-nosnippet>396</a>            ),
-<a href=#397 id=397 data-nosnippet>397</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\git.exe"</span>])
-<a href=#398 id=398 data-nosnippet>398</a>        );
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="macro">assert_eq!</span>(
-<a href=#400 id=400 data-nosnippet>400</a>            search(<span class="string">"GIT.Exe"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">Some</span>(<span class="string">".exe"</span>), <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\GIT.Exe"</span>]),
-<a href=#401 id=401 data-nosnippet>401</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\GIT.Exe"</span>])
-<a href=#402 id=402 data-nosnippet>402</a>        );
-<a href=#403 id=403 data-nosnippet>403</a>    }
-<a href=#404 id=404 data-nosnippet>404</a>
-<a href=#405 id=405 data-nosnippet>405</a>    <span class="attr">#[test]
-<a href=#406 id=406 data-nosnippet>406</a>    </span><span class="kw">fn </span>system32_candidate_is_kept_in_order_for_the_validator_to_reject() {
-<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">let </span>found = search(
-<a href=#408 id=408 data-nosnippet>408</a>            <span class="string">"bash"</span>,
-<a href=#409 id=409 data-nosnippet>409</a>            <span class="string">r"C:\Windows\System32;C:\Git\bin"</span>,
-<a href=#410 id=410 data-nosnippet>410</a>            <span class="prelude-val">None</span>,
-<a href=#411 id=411 data-nosnippet>411</a>            <span class="kw-2">&amp;</span>[<span class="string">r"C:\Windows\System32\bash.EXE"</span>, <span class="string">r"C:\Git\bin\bash.EXE"</span>],
-<a href=#412 id=412 data-nosnippet>412</a>        );
-<a href=#413 id=413 data-nosnippet>413</a>        <span class="macro">assert_eq!</span>(
-<a href=#414 id=414 data-nosnippet>414</a>            found,
-<a href=#415 id=415 data-nosnippet>415</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\Windows\System32\bash.EXE"</span>, <span class="string">r"C:\Git\bin\bash.EXE"</span>])
-<a href=#416 id=416 data-nosnippet>416</a>        );
-<a href=#417 id=417 data-nosnippet>417</a>    }
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"C:\Users\me"</span>), <span class="prelude-val">None</span>, <span class="string">"not verbatim"</span>);
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\con.txt"</span>), <span class="prelude-val">None</span>, <span class="string">"a device name"</span>);
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\C:\work\trailing."</span>), <span class="prelude-val">None</span>, <span class="string">"a trailing dot"</span>);
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="macro">assert_eq!</span>(simple(<span class="string">r"\\?\Volume{0}\work"</span>), <span class="prelude-val">None</span>, <span class="string">"not a drive"</span>);
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>long = <span class="macro">format!</span>(<span class="string">r"\\?\C:\{}"</span>, <span class="string">"a"</span>.repeat(<span class="number">300</span>));
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="macro">assert_eq!</span>(simple(<span class="kw-2">&amp;</span>long), <span class="prelude-val">None</span>, <span class="string">"longer than MAX_PATH"</span>);
+<a href=#391 id=391 data-nosnippet>391</a>    }
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a>    <span class="attr">#[test]
+<a href=#394 id=394 data-nosnippet>394</a>    </span><span class="kw">fn </span>user_data_root_is_below_home() {
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">let </span>home = <span class="kw">super</span>::home_dir().expect(<span class="string">"home directory"</span>);
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="macro">assert_eq!</span>(
+<a href=#397 id=397 data-nosnippet>397</a>            <span class="kw">super</span>::user_data_root().expect(<span class="string">"user data root"</span>),
+<a href=#398 id=398 data-nosnippet>398</a>            home.join(<span class="string">".cookie-agent"</span>)
+<a href=#399 id=399 data-nosnippet>399</a>        );
+<a href=#400 id=400 data-nosnippet>400</a>    }
+<a href=#401 id=401 data-nosnippet>401</a>
+<a href=#402 id=402 data-nosnippet>402</a>    <span class="attr">#[test]
+<a href=#403 id=403 data-nosnippet>403</a>    </span><span class="kw">fn </span>the_machine_id_is_a_stable_opaque_digest() {
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(id) = <span class="kw">super</span>::machine_id() <span class="kw">else </span>{
+<a href=#405 id=405 data-nosnippet>405</a>            <span class="kw">return</span>;
+<a href=#406 id=406 data-nosnippet>406</a>        };
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="macro">assert_eq!</span>(id.len(), <span class="number">32</span>);
+<a href=#408 id=408 data-nosnippet>408</a>        <span class="macro">assert!</span>(id.bytes().all(|byte| byte.is_ascii_hexdigit()), <span class="string">"{id}"</span>);
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::machine_id().as_deref(), <span class="prelude-val">Some</span>(id.as_str()));
+<a href=#410 id=410 data-nosnippet>410</a>    }
+<a href=#411 id=411 data-nosnippet>411</a>}
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a><span class="attr">#[cfg(test)]
+<a href=#414 id=414 data-nosnippet>414</a></span><span class="kw">mod </span>path_search_tests {
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="kw">use </span>std::path::Path;
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">use </span><span class="kw">super</span>::search_path_candidates;
 <a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a>    <span class="attr">#[test]
-<a href=#420 id=420 data-nosnippet>420</a>    </span><span class="kw">fn </span>quoted_and_empty_entries_are_handled() {
-<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">let </span>found = search(
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="string">"bash"</span>,
-<a href=#423 id=423 data-nosnippet>423</a>            <span class="string">r#";;"C:\Program Files\Git\bin";"C:\semi;colon";"#</span>,
-<a href=#424 id=424 data-nosnippet>424</a>            <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>),
-<a href=#425 id=425 data-nosnippet>425</a>            <span class="kw-2">&amp;</span>[
-<a href=#426 id=426 data-nosnippet>426</a>                <span class="string">r"C:\Program Files\Git\bin\bash.EXE"</span>,
-<a href=#427 id=427 data-nosnippet>427</a>                <span class="string">r"C:\semi;colon\bash.EXE"</span>,
-<a href=#428 id=428 data-nosnippet>428</a>            ],
-<a href=#429 id=429 data-nosnippet>429</a>        );
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="macro">assert_eq!</span>(
-<a href=#431 id=431 data-nosnippet>431</a>            found,
-<a href=#432 id=432 data-nosnippet>432</a>            expected(<span class="kw-2">&amp;</span>[
-<a href=#433 id=433 data-nosnippet>433</a>                <span class="string">r"C:\Program Files\Git\bin\bash.EXE"</span>,
-<a href=#434 id=434 data-nosnippet>434</a>                <span class="string">r"C:\semi;colon\bash.EXE"
-<a href=#435 id=435 data-nosnippet>435</a>            </span>])
-<a href=#436 id=436 data-nosnippet>436</a>        );
-<a href=#437 id=437 data-nosnippet>437</a>    }
-<a href=#438 id=438 data-nosnippet>438</a>
-<a href=#439 id=439 data-nosnippet>439</a>    <span class="attr">#[test]
-<a href=#440 id=440 data-nosnippet>440</a>    </span><span class="kw">fn </span>no_match_and_empty_path_yield_nothing() {
-<a href=#441 id=441 data-nosnippet>441</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">r"C:\a;C:\b"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]).is_empty());
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">""</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[<span class="string">"bash.EXE"</span>]).is_empty());
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>}
+<a href=#419 id=419 data-nosnippet>419</a>    <span class="comment">// `Path::join` uses the host separator, so compare with separators normalized.
+<a href=#420 id=420 data-nosnippet>420</a>    </span><span class="kw">fn </span>norm(path: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#421 id=421 data-nosnippet>421</a>        path.replace(<span class="string">'\\'</span>, <span class="string">"/"</span>)
+<a href=#422 id=422 data-nosnippet>422</a>    }
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a>    <span class="kw">fn </span>search(name: <span class="kw-2">&amp;</span>str, path: <span class="kw-2">&amp;</span>str, pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, present: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;String&gt; {
+<a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">let </span>present: Vec&lt;String&gt; = present.iter().map(|file| norm(file)).collect();
+<a href=#426 id=426 data-nosnippet>426</a>        search_path_candidates(name, path, pathext, |candidate: <span class="kw-2">&amp;</span>Path| {
+<a href=#427 id=427 data-nosnippet>427</a>            present.contains(<span class="kw-2">&amp;</span>norm(<span class="kw-2">&amp;</span>candidate.to_string_lossy()))
+<a href=#428 id=428 data-nosnippet>428</a>        })
+<a href=#429 id=429 data-nosnippet>429</a>        .iter()
+<a href=#430 id=430 data-nosnippet>430</a>        .map(|candidate| norm(<span class="kw-2">&amp;</span>candidate.to_string_lossy()))
+<a href=#431 id=431 data-nosnippet>431</a>        .collect()
+<a href=#432 id=432 data-nosnippet>432</a>    }
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="kw">fn </span>expected(files: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;String&gt; {
+<a href=#435 id=435 data-nosnippet>435</a>        files.iter().map(|file| norm(file)).collect()
+<a href=#436 id=436 data-nosnippet>436</a>    }
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>    <span class="attr">#[test]
+<a href=#439 id=439 data-nosnippet>439</a>    </span><span class="kw">fn </span>candidates_follow_path_order_then_extension_order() {
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="kw">let </span>found = search(
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="string">"bash"</span>,
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="string">r"C:\b;C:\a"</span>,
+<a href=#443 id=443 data-nosnippet>443</a>            <span class="prelude-val">Some</span>(<span class="string">".EXE;.CMD"</span>),
+<a href=#444 id=444 data-nosnippet>444</a>            <span class="kw-2">&amp;</span>[
+<a href=#445 id=445 data-nosnippet>445</a>                <span class="string">r"C:\a\bash.EXE"</span>,
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="string">r"C:\b\bash.CMD"</span>,
+<a href=#447 id=447 data-nosnippet>447</a>                <span class="string">r"C:\b\bash.EXE"</span>,
+<a href=#448 id=448 data-nosnippet>448</a>                <span class="string">r"C:\a\bash.CMD"</span>,
+<a href=#449 id=449 data-nosnippet>449</a>            ],
+<a href=#450 id=450 data-nosnippet>450</a>        );
+<a href=#451 id=451 data-nosnippet>451</a>        <span class="macro">assert_eq!</span>(
+<a href=#452 id=452 data-nosnippet>452</a>            found,
+<a href=#453 id=453 data-nosnippet>453</a>            expected(<span class="kw-2">&amp;</span>[
+<a href=#454 id=454 data-nosnippet>454</a>                <span class="string">r"C:\b\bash.EXE"</span>,
+<a href=#455 id=455 data-nosnippet>455</a>                <span class="string">r"C:\b\bash.CMD"</span>,
+<a href=#456 id=456 data-nosnippet>456</a>                <span class="string">r"C:\a\bash.EXE"</span>,
+<a href=#457 id=457 data-nosnippet>457</a>                <span class="string">r"C:\a\bash.CMD"
+<a href=#458 id=458 data-nosnippet>458</a>            </span>])
+<a href=#459 id=459 data-nosnippet>459</a>        );
+<a href=#460 id=460 data-nosnippet>460</a>    }
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a>    <span class="attr">#[test]
+<a href=#463 id=463 data-nosnippet>463</a>    </span><span class="kw">fn </span>pathext_extensions_are_used_verbatim_and_default_applies() {
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="macro">assert_eq!</span>(
+<a href=#465 id=465 data-nosnippet>465</a>            search(
+<a href=#466 id=466 data-nosnippet>466</a>                <span class="string">"bash"</span>,
+<a href=#467 id=467 data-nosnippet>467</a>                <span class="string">r"C:\a"</span>,
+<a href=#468 id=468 data-nosnippet>468</a>                <span class="prelude-val">Some</span>(<span class="string">".exe"</span>),
+<a href=#469 id=469 data-nosnippet>469</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.exe"</span>, <span class="string">r"C:\a\bash.EXE"</span>]
+<a href=#470 id=470 data-nosnippet>470</a>            ),
+<a href=#471 id=471 data-nosnippet>471</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.exe"</span>])
+<a href=#472 id=472 data-nosnippet>472</a>        );
+<a href=#473 id=473 data-nosnippet>473</a>        <span class="macro">assert_eq!</span>(
+<a href=#474 id=474 data-nosnippet>474</a>            search(<span class="string">"bash"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.EXE"</span>, <span class="string">r"C:\a\bash.BAT"</span>]),
+<a href=#475 id=475 data-nosnippet>475</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash.EXE"</span>, <span class="string">r"C:\a\bash.BAT"</span>])
+<a href=#476 id=476 data-nosnippet>476</a>        );
+<a href=#477 id=477 data-nosnippet>477</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>), <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\bash"</span>]).is_empty());
+<a href=#478 id=478 data-nosnippet>478</a>    }
+<a href=#479 id=479 data-nosnippet>479</a>
+<a href=#480 id=480 data-nosnippet>480</a>    <span class="attr">#[test]
+<a href=#481 id=481 data-nosnippet>481</a>    </span><span class="kw">fn </span>name_with_known_extension_is_tried_as_written_case_insensitively() {
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="macro">assert_eq!</span>(
+<a href=#483 id=483 data-nosnippet>483</a>            search(
+<a href=#484 id=484 data-nosnippet>484</a>                <span class="string">"git.exe"</span>,
+<a href=#485 id=485 data-nosnippet>485</a>                <span class="string">r"C:\a"</span>,
+<a href=#486 id=486 data-nosnippet>486</a>                <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>),
+<a href=#487 id=487 data-nosnippet>487</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\git.exe"</span>, <span class="string">r"C:\a\git.exe.EXE"</span>]
+<a href=#488 id=488 data-nosnippet>488</a>            ),
+<a href=#489 id=489 data-nosnippet>489</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\git.exe"</span>])
+<a href=#490 id=490 data-nosnippet>490</a>        );
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="macro">assert_eq!</span>(
+<a href=#492 id=492 data-nosnippet>492</a>            search(<span class="string">"GIT.Exe"</span>, <span class="string">r"C:\a"</span>, <span class="prelude-val">Some</span>(<span class="string">".exe"</span>), <span class="kw-2">&amp;</span>[<span class="string">r"C:\a\GIT.Exe"</span>]),
+<a href=#493 id=493 data-nosnippet>493</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\a\GIT.Exe"</span>])
+<a href=#494 id=494 data-nosnippet>494</a>        );
+<a href=#495 id=495 data-nosnippet>495</a>    }
+<a href=#496 id=496 data-nosnippet>496</a>
+<a href=#497 id=497 data-nosnippet>497</a>    <span class="attr">#[test]
+<a href=#498 id=498 data-nosnippet>498</a>    </span><span class="kw">fn </span>system32_candidate_is_kept_in_order_for_the_validator_to_reject() {
+<a href=#499 id=499 data-nosnippet>499</a>        <span class="kw">let </span>found = search(
+<a href=#500 id=500 data-nosnippet>500</a>            <span class="string">"bash"</span>,
+<a href=#501 id=501 data-nosnippet>501</a>            <span class="string">r"C:\Windows\System32;C:\Git\bin"</span>,
+<a href=#502 id=502 data-nosnippet>502</a>            <span class="prelude-val">None</span>,
+<a href=#503 id=503 data-nosnippet>503</a>            <span class="kw-2">&amp;</span>[<span class="string">r"C:\Windows\System32\bash.EXE"</span>, <span class="string">r"C:\Git\bin\bash.EXE"</span>],
+<a href=#504 id=504 data-nosnippet>504</a>        );
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="macro">assert_eq!</span>(
+<a href=#506 id=506 data-nosnippet>506</a>            found,
+<a href=#507 id=507 data-nosnippet>507</a>            expected(<span class="kw-2">&amp;</span>[<span class="string">r"C:\Windows\System32\bash.EXE"</span>, <span class="string">r"C:\Git\bin\bash.EXE"</span>])
+<a href=#508 id=508 data-nosnippet>508</a>        );
+<a href=#509 id=509 data-nosnippet>509</a>    }
+<a href=#510 id=510 data-nosnippet>510</a>
+<a href=#511 id=511 data-nosnippet>511</a>    <span class="attr">#[test]
+<a href=#512 id=512 data-nosnippet>512</a>    </span><span class="kw">fn </span>quoted_and_empty_entries_are_handled() {
+<a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">let </span>found = search(
+<a href=#514 id=514 data-nosnippet>514</a>            <span class="string">"bash"</span>,
+<a href=#515 id=515 data-nosnippet>515</a>            <span class="string">r#";;"C:\Program Files\Git\bin";"C:\semi;colon";"#</span>,
+<a href=#516 id=516 data-nosnippet>516</a>            <span class="prelude-val">Some</span>(<span class="string">".EXE"</span>),
+<a href=#517 id=517 data-nosnippet>517</a>            <span class="kw-2">&amp;</span>[
+<a href=#518 id=518 data-nosnippet>518</a>                <span class="string">r"C:\Program Files\Git\bin\bash.EXE"</span>,
+<a href=#519 id=519 data-nosnippet>519</a>                <span class="string">r"C:\semi;colon\bash.EXE"</span>,
+<a href=#520 id=520 data-nosnippet>520</a>            ],
+<a href=#521 id=521 data-nosnippet>521</a>        );
+<a href=#522 id=522 data-nosnippet>522</a>        <span class="macro">assert_eq!</span>(
+<a href=#523 id=523 data-nosnippet>523</a>            found,
+<a href=#524 id=524 data-nosnippet>524</a>            expected(<span class="kw-2">&amp;</span>[
+<a href=#525 id=525 data-nosnippet>525</a>                <span class="string">r"C:\Program Files\Git\bin\bash.EXE"</span>,
+<a href=#526 id=526 data-nosnippet>526</a>                <span class="string">r"C:\semi;colon\bash.EXE"
+<a href=#527 id=527 data-nosnippet>527</a>            </span>])
+<a href=#528 id=528 data-nosnippet>528</a>        );
+<a href=#529 id=529 data-nosnippet>529</a>    }
+<a href=#530 id=530 data-nosnippet>530</a>
+<a href=#531 id=531 data-nosnippet>531</a>    <span class="attr">#[test]
+<a href=#532 id=532 data-nosnippet>532</a>    </span><span class="kw">fn </span>no_match_and_empty_path_yield_nothing() {
+<a href=#533 id=533 data-nosnippet>533</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">r"C:\a;C:\b"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]).is_empty());
+<a href=#534 id=534 data-nosnippet>534</a>        <span class="macro">assert!</span>(search(<span class="string">"bash"</span>, <span class="string">""</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[<span class="string">"bash.EXE"</span>]).is_empty());
+<a href=#535 id=535 data-nosnippet>535</a>    }
+<a href=#536 id=536 data-nosnippet>536</a>
+<a href=#537 id=537 data-nosnippet>537</a>    <span class="kw">fn </span>program(name: <span class="kw-2">&amp;</span>str, path: <span class="kw-2">&amp;</span>str, pathext: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, present: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#538 id=538 data-nosnippet>538</a>        <span class="kw">let </span>present: Vec&lt;String&gt; = present.iter().map(|file| norm(file)).collect();
+<a href=#539 id=539 data-nosnippet>539</a>        <span class="kw">super</span>::windows_program(name, path, pathext, |candidate: <span class="kw-2">&amp;</span>Path| {
+<a href=#540 id=540 data-nosnippet>540</a>            present.contains(<span class="kw-2">&amp;</span>norm(<span class="kw-2">&amp;</span>candidate.to_string_lossy()))
+<a href=#541 id=541 data-nosnippet>541</a>        })
+<a href=#542 id=542 data-nosnippet>542</a>        .map(|found| norm(<span class="kw-2">&amp;</span>found.to_string_lossy()))
+<a href=#543 id=543 data-nosnippet>543</a>    }
+<a href=#544 id=544 data-nosnippet>544</a>
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="attr">#[test]
+<a href=#546 id=546 data-nosnippet>546</a>    </span><span class="kw">fn </span>a_bare_program_resolves_to_its_first_runnable_launcher() {
+<a href=#547 id=547 data-nosnippet>547</a>        <span class="macro">assert_eq!</span>(
+<a href=#548 id=548 data-nosnippet>548</a>            program(
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="string">"npx"</span>,
+<a href=#550 id=550 data-nosnippet>550</a>                <span class="string">r"C:\empty;C:\node"</span>,
+<a href=#551 id=551 data-nosnippet>551</a>                <span class="prelude-val">None</span>,
+<a href=#552 id=552 data-nosnippet>552</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\node\npx"</span>, <span class="string">r"C:\node\npx.CMD"</span>]
+<a href=#553 id=553 data-nosnippet>553</a>            ),
+<a href=#554 id=554 data-nosnippet>554</a>            <span class="prelude-val">Some</span>(norm(<span class="string">r"C:\node\npx.CMD"</span>))
+<a href=#555 id=555 data-nosnippet>555</a>        );
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="comment">// `CreateProcess` cannot start a PowerShell script, even when
+<a href=#557 id=557 data-nosnippet>557</a>        // `PATHEXT` lists it first.
+<a href=#558 id=558 data-nosnippet>558</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#559 id=559 data-nosnippet>559</a>            program(
+<a href=#560 id=560 data-nosnippet>560</a>                <span class="string">"npx"</span>,
+<a href=#561 id=561 data-nosnippet>561</a>                <span class="string">r"C:\node"</span>,
+<a href=#562 id=562 data-nosnippet>562</a>                <span class="prelude-val">Some</span>(<span class="string">".PS1;.EXE;.CMD"</span>),
+<a href=#563 id=563 data-nosnippet>563</a>                <span class="kw-2">&amp;</span>[<span class="string">r"C:\node\npx.PS1"</span>, <span class="string">r"C:\node\npx.CMD"</span>]
+<a href=#564 id=564 data-nosnippet>564</a>            ),
+<a href=#565 id=565 data-nosnippet>565</a>            <span class="prelude-val">Some</span>(norm(<span class="string">r"C:\node\npx.CMD"</span>))
+<a href=#566 id=566 data-nosnippet>566</a>        );
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="macro">assert_eq!</span>(
+<a href=#568 id=568 data-nosnippet>568</a>            program(<span class="string">"npx"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">Some</span>(<span class="string">".PS1"</span>), <span class="kw-2">&amp;</span>[<span class="string">r"C:\node\npx.PS1"</span>]),
+<a href=#569 id=569 data-nosnippet>569</a>            <span class="prelude-val">None
+<a href=#570 id=570 data-nosnippet>570</a>        </span>);
+<a href=#571 id=571 data-nosnippet>571</a>    }
+<a href=#572 id=572 data-nosnippet>572</a>
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="attr">#[test]
+<a href=#574 id=574 data-nosnippet>574</a>    </span><span class="kw">fn </span>paths_extensions_and_misses_are_left_to_command() {
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="kw">let </span>present = [<span class="string">r"C:\node\npx.CMD"</span>, <span class="string">r"C:\node\npx.cmd.CMD"</span>];
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="macro">assert_eq!</span>(program(<span class="string">r"C:\node\npx"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="macro">assert_eq!</span>(program(<span class="string">r"node\npx"</span>, <span class="string">r"C:"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="macro">assert_eq!</span>(program(<span class="string">"./npx"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="macro">assert_eq!</span>(program(<span class="string">"C:npx"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#580 id=580 data-nosnippet>580</a>        <span class="macro">assert_eq!</span>(program(<span class="string">"npx.cmd"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#581 id=581 data-nosnippet>581</a>        <span class="macro">assert_eq!</span>(program(<span class="string">""</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="macro">assert_eq!</span>(program(<span class="string">"uvx"</span>, <span class="string">r"C:\node"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>present), <span class="prelude-val">None</span>);
+<a href=#583 id=583 data-nosnippet>583</a>    }
+<a href=#584 id=584 data-nosnippet>584</a>
+<a href=#585 id=585 data-nosnippet>585</a>    <span class="attr">#[cfg(not(windows))]
+<a href=#586 id=586 data-nosnippet>586</a>    #[test]
+<a href=#587 id=587 data-nosnippet>587</a>    </span><span class="kw">fn </span>programs_are_unchanged_off_windows() {
+<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>directory = tempfile::tempdir().unwrap();
+<a href=#589 id=589 data-nosnippet>589</a>        std::fs::write(directory.path().join(<span class="string">"cookie-shim.cmd"</span>), <span class="string">""</span>).unwrap();
+<a href=#590 id=590 data-nosnippet>590</a>        <span class="kw">let </span>path = directory.path().to_string_lossy().into_owned();
+<a href=#591 id=591 data-nosnippet>591</a>        <span class="macro">assert_eq!</span>(
+<a href=#592 id=592 data-nosnippet>592</a>            <span class="kw">super</span>::resolve_program(<span class="string">"cookie-shim"</span>, [(<span class="string">"PATH"</span>, path.as_str())]),
+<a href=#593 id=593 data-nosnippet>593</a>            Path::new(<span class="string">"cookie-shim"</span>)
+<a href=#594 id=594 data-nosnippet>594</a>        );
+<a href=#595 id=595 data-nosnippet>595</a>    }
+<a href=#596 id=596 data-nosnippet>596</a>
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="attr">#[cfg(windows)]
+<a href=#598 id=598 data-nosnippet>598</a>    #[test]
+<a href=#599 id=599 data-nosnippet>599</a>    </span><span class="kw">fn </span>a_cmd_launcher_on_the_child_path_runs_with_literal_arguments() {
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">let </span>directory = tempfile::tempdir().unwrap();
+<a href=#601 id=601 data-nosnippet>601</a>        std::fs::write(
+<a href=#602 id=602 data-nosnippet>602</a>            directory.path().join(<span class="string">"cookie-shim.cmd"</span>),
+<a href=#603 id=603 data-nosnippet>603</a>            <span class="string">"@echo off\r\necho %*&gt; \"%~dp0out.txt\"\r\n"</span>,
+<a href=#604 id=604 data-nosnippet>604</a>        )
+<a href=#605 id=605 data-nosnippet>605</a>        .unwrap();
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="kw">let </span>path = directory.path().to_string_lossy().into_owned();
+<a href=#607 id=607 data-nosnippet>607</a>        <span class="kw">let </span>program = <span class="kw">super</span>::resolve_program(<span class="string">"cookie-shim"</span>, [(<span class="string">"Path"</span>, path.as_str())]);
+<a href=#608 id=608 data-nosnippet>608</a>        <span class="macro">assert_eq!</span>(
+<a href=#609 id=609 data-nosnippet>609</a>            program.to_string_lossy().to_lowercase(),
+<a href=#610 id=610 data-nosnippet>610</a>            directory
+<a href=#611 id=611 data-nosnippet>611</a>                .path()
+<a href=#612 id=612 data-nosnippet>612</a>                .join(<span class="string">"cookie-shim.cmd"</span>)
+<a href=#613 id=613 data-nosnippet>613</a>                .to_string_lossy()
+<a href=#614 id=614 data-nosnippet>614</a>                .to_lowercase()
+<a href=#615 id=615 data-nosnippet>615</a>        );
+<a href=#616 id=616 data-nosnippet>616</a>        <span class="comment">// The BatBadBut shape: a quote that would end the argument and an
+<a href=#617 id=617 data-nosnippet>617</a>        // `&amp;` that would start a second command.
+<a href=#618 id=618 data-nosnippet>618</a>        </span><span class="kw">let </span>status = std::process::Command::new(<span class="kw-2">&amp;</span>program)
+<a href=#619 id=619 data-nosnippet>619</a>            .args([<span class="string">"hello world"</span>, <span class="string">"x\" &amp; echo injected&gt; pwned.txt &amp; \""</span>])
+<a href=#620 id=620 data-nosnippet>620</a>            .current_dir(directory.path())
+<a href=#621 id=621 data-nosnippet>621</a>            .status()
+<a href=#622 id=622 data-nosnippet>622</a>            .unwrap();
+<a href=#623 id=623 data-nosnippet>623</a>        <span class="macro">assert!</span>(status.success());
+<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">let </span>out = std::fs::read_to_string(directory.path().join(<span class="string">"out.txt"</span>)).unwrap();
+<a href=#625 id=625 data-nosnippet>625</a>        <span class="macro">assert!</span>(out.contains(<span class="string">"hello world"</span>), <span class="string">"{out}"</span>);
+<a href=#626 id=626 data-nosnippet>626</a>        <span class="macro">assert!</span>(!directory.path().join(<span class="string">"pwned.txt"</span>).exists(), <span class="string">"{out}"</span>);
+<a href=#627 id=627 data-nosnippet>627</a>    }
+<a href=#628 id=628 data-nosnippet>628</a>
+<a href=#629 id=629 data-nosnippet>629</a>    <span class="attr">#[cfg(windows)]
+<a href=#630 id=630 data-nosnippet>630</a>    #[test]
+<a href=#631 id=631 data-nosnippet>631</a>    </span><span class="kw">fn </span>a_missing_program_is_left_to_command() {
+<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">let </span>directory = tempfile::tempdir().unwrap();
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>path = directory.path().to_string_lossy().into_owned();
+<a href=#634 id=634 data-nosnippet>634</a>        <span class="macro">assert_eq!</span>(
+<a href=#635 id=635 data-nosnippet>635</a>            <span class="kw">super</span>::resolve_program(<span class="string">"cookie-missing"</span>, [(<span class="string">"PATH"</span>, path.as_str())]),
+<a href=#636 id=636 data-nosnippet>636</a>            Path::new(<span class="string">"cookie-missing"</span>)
+<a href=#637 id=637 data-nosnippet>637</a>        );
+<a href=#638 id=638 data-nosnippet>638</a>    }
+<a href=#639 id=639 data-nosnippet>639</a>}
 </code></pre></div></section></main></body></html>
