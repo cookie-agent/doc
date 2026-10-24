@@ -4380,7 +4380,8 @@ types).</p>
   keeps the default security descriptor, not one limited to the user.</li>
 <li><strong>ACP client.</strong> Hand-written JSON-RPC types over the protocol crate's peer
   (the <code>agent-client-protocol</code> crate was not needed); <code>initialize</code>
-  advertises no <code>fs</code> and no <code>terminal</code>. A runtime that cannot start an
+  advertises no <code>fs</code> and no <code>terminal</code> (it asks for terminal output, see
+  the display round below). A runtime that cannot start an
   agent answers the new error <code>agent_failed</code>.</li>
 </ul>
 <p><strong>Revisions of 2026-10-23</strong> (user decisions; client protocol 1.18.0):
@@ -4656,6 +4657,92 @@ starts; a daemon document without an <code>acp</code> block shadowing a declarat
   The manual check of round 3 saw an accepted <code>run.cancel</code> that never sent
   <code>session/cancel</code> while Claude Code streamed updates; this was the window.</li>
 </ul>
+<p><strong>Display round</strong> (2026-10-24; client protocol 1.23.0, plugin protocol
+1.11.0; history format unchanged):</p>
+<ul>
+<li><strong>Context.</strong> Each <code>usage_update</code> whose <code>used</code> or <code>size</code> changed is
+  recorded as <code>acp_session_updated.context</code> (<code>used</code>, and <code>size</code> when it is
+  not 0). ACP turns still commit with empty usage, since the turns' usage
+  feeds the session's usage totals and the round's usage is recorded once
+  (above); the reducer keeps an ACP agent's context across its turns
+  (a turn of the <code>acp</code> provider leaves it standing) and takes the window
+  from <code>size</code>, which no catalog lists for <code>acp/&lt;agent&gt;</code>. The TUI's status
+  line shows <code>ctx</code> with the percentage of that window, the web's the tokens
+  (the window in its title). All three adapters send <code>usage_update</code>.</li>
+<li><strong>Mode updates.</strong> <code>current_mode_update</code> moves the current value of the
+  option that shows the agent's modes (id <code>mode</code> or category <code>mode</code>) when it
+  lists the new mode, whether cookie made the option of the agent's modes
+  or the agent offers its own mode option beside them, as Claude Code's
+  adapter does; before, only the made-up option followed, and Claude Code
+  leaving plan mode by itself left the chip on <code>plan</code>.</li>
+<li><strong>Terminal output.</strong> <code>initialize</code> declares
+  <code>clientCapabilities._meta.terminal_output: true</code> (and still <code>terminal:
+  false</code>: cookie runs no <code>terminal/*</code>). Claude Code's and Codex's adapters
+  then report an execute call's output in <code>_meta</code>: <code>terminal_info</code>
+  (<code>terminal_id</code>) names the call's terminal, <code>terminal_output</code> or
+  <code>terminal_output_delta</code> (<code>terminal_id</code>, <code>data</code>) carry output, which cookie
+  appends in both cases (Codex sends chunks under either key, Claude Code
+  the whole output once), and <code>terminal_exit</code> (<code>exit_code</code>, <code>signal</code>) the
+  end. The runner (<code>acp/terminal.rs</code>) treats them as cookie's <code>bash</code> tool
+  treats a command: the output goes to an output capture (retained, an
+  artifact past the preview, <code>retained_output</code> on the result) and the
+  call's output hub, and the live display gets a <code>terminal</code> block, replaced
+  once with the display and then grown by appends to it, up to the display
+  budget. A <code>terminal</code> content item renders that block, with the exit code,
+  where it stands (first when no item names it), plus a line for a signal;
+  the old <code>[terminal &lt;id&gt;]</code> placeholder is gone. The result's output is the
+  capture's preview. A failed call keeps its output as the termination's
+  partial result, marked incomplete like every failed call's, and says
+  <code>the command exited with code &lt;n&gt;</code> when its content says nothing; calls
+  left open when the round ends keep theirs the same way.</li>
+<li><strong>Boolean options.</strong> <code>initialize</code> declares
+  <code>clientCapabilities.session.configOptions.boolean: {}</code>, so an agent sends
+  its on/off options as <code>type: boolean</code> (Claude Code's <code>fast</code>, category
+  <code>model_config</code>) rather than an <code>on</code>/<code>off</code> select. <code>AcpConfigOption.kind</code>
+  (<code>select</code>, left out, or <code>boolean</code>) says which; a boolean's
+  <code>current_value</code> is <code>true</code> or <code>false</code> and its <code>values</code> list both (<code>true</code>
+  named On, <code>false</code> Off), so a client older than 1.23.0 still shows a
+  two-value select that sets it. <code>session.agent_option.set</code> keeps its
+  string <code>value</code> (<code>"true"</code> or <code>"false"</code>), and the daemon sends
+  <code>session/set_config_option</code> with <code>type: boolean</code> and a JSON boolean; a
+  select's request is unchanged (no <code>type</code>). <code>acp.config</code> takes <code>"true"</code>
+  or <code>"false"</code> for a boolean. An option of a type cookie does not know is
+  left out, as ACP asks. The TUI's <code>/options</code> toggles a boolean from its
+  row and stays open; the web's Agent options sheet shows a switch
+  (<code>role="switch"</code>).</li>
+<li><strong>Images in replies.</strong> An <code>agent_message_chunk</code> whose content is an image
+  becomes a <code>file</code> part of the turn (an artifact of the session, like a
+  model's generated image) in place of the <code>[image]</code> note, so the clients
+  show it as media in the reply (<code>AssistantChild::MediaFile</code>); text after
+  it starts a new text part. An image that cannot be decoded or stored
+  still becomes the note. Images in thoughts stay notes.</li>
+<li><strong>Subagents stay flat.</strong> Claude Code's Task subagents arrive as flat tool
+  calls whose <code>_meta.claudeCode.parentToolUseId</code> names the Task call, and
+  ACP's <code>subagent_update</code> and child sessions (for a client that declares
+  <code>clientCapabilities.subagents</code>) are unstable. Cookie deliberately shows
+  them as the turn's own calls and declares no <code>subagents</code> capability:
+  neither nesting by <code>parentToolUseId</code> nor child sessions is implemented
+  until the subagent API is stable.</li>
+<li><strong>Checked by hand against Claude Code</strong> (<code>claude</code> 2.1.309, adapter
+  0.95.0, scratch daemon): a <code>Bash</code> call of <code>printf 'one\ntwo\n'; exit 3</code>
+  showed its output in a <code>terminal</code> block (replaced into the live display
+  once the adapter sent it, with the result) and ended failed with exit
+  code 3, <code>the command exited with code 3</code>, and the output retained; the
+  context was recorded twice (<code>used</code> 21205, then 21285, of a 1000000-token
+  window); the options came as <code>mode</code>, <code>model</code>, <code>effort</code>, and <code>fast</code> as a
+  boolean, which <code>session.agent_option.set</code> turned on.</li>
+</ul>
+<p><strong>Tests</strong> (display round): the context use recorded once for a repeated
+<code>usage_update</code>, and the client reducer keeping it across ACP turns and
+clearing it at a model's; the TUI status line's <code>ctx</code> with the agent's
+window; the agent's own mode switch on its own mode option and on one made
+of its modes, and an unknown mode ignored; terminal output streamed as
+Codex and Claude Code send it (the capabilities, the live replacement and
+append, the exit codes, the retained output, a failed call's partial
+result); a boolean option recorded with its values and set with a JSON
+boolean, and the TUI toggling it; an image in a reply as a file part whose
+artifact holds its bytes; the <code>acp_agents</code> browser scenario (context chip,
+command output, the reply's image, the boolean switch).</p>
 
 
 
