@@ -1614,6 +1614,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Models
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#modes" class="md-nav__link">
     <span class="md-ellipsis">
       Modes
@@ -1649,6 +1658,15 @@
   <a href="#subagent-tools" class="md-nav__link">
     <span class="md-ellipsis">
       Subagent tools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-starter-kit" class="md-nav__link">
+    <span class="md-ellipsis">
+      The starter kit
     </span>
   </a>
   
@@ -3891,6 +3909,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Models
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#modes" class="md-nav__link">
     <span class="md-ellipsis">
       Modes
@@ -3926,6 +3953,15 @@
   <a href="#subagent-tools" class="md-nav__link">
     <span class="md-ellipsis">
       Subagent tools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-starter-kit" class="md-nav__link">
+    <span class="md-ellipsis">
+      The starter kit
     </span>
   </a>
   
@@ -4281,13 +4317,63 @@ whose context limit is unknown uses a 16,384-token input budget.</p>
 <p>The durable protocol event for advancing through a model chain remains named
 <code>model_fallback</code> for wire-schema compatibility. This event name is independent
 of the agent-frontmatter <code>models</code> key.</p>
-<p><code>models</code> entries contain <code>model</code>, optional <code>variant</code>, and optional <code>cache</code>.
-The <code>variant</code> field is optional: omitted (<code>null</code>) selects the model's configured
-default variant, the string <code>"base"</code> selects the base variant explicitly, and any
-other string selects that named variant. A primary agent must
-declare at least one fallback. The chain may contain up to 256 entries with no
-duplicate model keys. Only internal agents may use the <code>${parent_model}</code> model
-expression, and only without a variant.</p>
+<h3 id="models">Models<a class="headerlink" href="#models" title="Permanent link">&para;</a></h3>
+<p><code>models</code> is the ordered model chain. Each entry is a mapping with <code>model</code>,
+optional <code>variant</code>, and optional <code>cache</code>, or a plain string, which is the
+entry's <code>model</code> with nothing overridden; the two forms mix freely:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">models</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${default_model}</span><span class="w">                               </span><span class="c1"># model and variant from config.toml</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"${small_model}"</span><span class="p p-Indicator">,</span><span class="nt"> variant</span><span class="p">:</span><span class="w"> </span><span class="s">"max"</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">    </span><span class="c1"># the variant overridden</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deepseek/deepseek-flash</span><span class="w">                        </span><span class="c1"># a plain model key</span>
+</code></pre></div>
+<p>YAML reads <code>- ${default_model}</code> as a string without quotes; only an entry
+starting with <code>{</code> or <code>[</code> needs them. Any other entry shape, such as a number
+or a mapping with unknown keys, is an error.</p>
+<p><code>model</code> is a model key or one of three variables, which carry a model and its
+variant together:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Names</th>
+<th>Allowed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>${default_model}</code></td>
+<td><a href="../../engine/configuration/#default-models"><code>default_model</code></a> in <code>config.toml</code></td>
+<td>any agent</td>
+</tr>
+<tr>
+<td><code>${small_model}</code></td>
+<td><a href="../../engine/configuration/#default-models"><code>small_model</code></a> in <code>config.toml</code></td>
+<td>any agent</td>
+</tr>
+<tr>
+<td><code>${parent_model}</code></td>
+<td>the model the owner run is using</td>
+<td>internal agents only</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>variant</code> field is optional. For a model key, omitted selects the model's
+configured default variant, the string <code>"base"</code> selects the base variant
+explicitly, and any other string selects that named variant. Beside a
+variable, a <code>variant</code> overrides the variant the variable carries; without one
+the variable's variant applies, and a variable that carries none means the
+model's default variant.</p>
+<p>The variables resolve when the agents compile: at start and on every
+configuration reload, so changing <code>default_model</code> retargets every agent that
+uses it without touching documents. An entry naming a field that is not set
+is skipped, and the agent reports the field: <code>unset_models</code> in the agent
+listing, and a configuration diagnostic ("agent <code>explore</code> skips a <code>models</code>
+entry: <code>small_model</code> is not set") in <code>cookie config status</code> and <code>/config</code>.
+Later entries still apply. An agent left with no entry is unavailable until
+the field is set.</p>
+<p>A primary agent must declare at least one entry. The chain may contain up to
+256 entries with no duplicates, compared as written: <code>${default_model}</code> and
+the key it currently names may both appear.</p>
 <p><code>cache</code> uses the provider-specific shapes documented under
 <a href="../providers/#prompt-caching"><code>[providers.&lt;id&gt;.cache]</code></a>. The
 resolution order is family default, provider <code>cache</code>, then entry-level <code>cache</code>
@@ -4318,19 +4404,19 @@ block, even <code>acp: {}</code>, marks the document as the agent's: it is an ag
 only while a runtime declares it, and a document of that name without the
 block is a daemon agent, whose ID wins over the declarations (the
 configuration status says so).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ~/.cookie-agent/agents/codex.md</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nn">---</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Codex on labpc, for refactors</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">acp</span><span class="p">:</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="w"> </span><span class="p p-Indicator">}</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">hide_tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">read</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">write</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">edit</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">bash</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">webfetch</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"> </span><span class="s">"git</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">allow</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">ask</span><span class="w"> </span><span class="p p-Indicator">}</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="nn">---</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="l l-Scalar l-Scalar-Plain">You review changes for this project before they are committed.</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># ~/.cookie-agent/agents/codex.md</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nn">---</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Codex on labpc, for refactors</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">acp</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="s">"gpt-5"</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">hide_tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">read</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">write</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">edit</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">bash</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">webfetch</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"> </span><span class="s">"git</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">allow</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">ask</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="nn">---</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="l l-Scalar l-Scalar-Plain">You review changes for this project before they are committed.</span>
 </code></pre></div>
 <table>
 <thead>
@@ -4546,6 +4632,49 @@ reopens its event log and rebuilds the in-memory projection and actor.</p>
 (running or idle). A finished child's history loads when you open it in the
 Agents panel, so resuming a tree with many long finished children stays fast.
 A finished child that is woken again is picked up on the next tree refresh.</p>
+<h2 id="the-starter-kit">The starter kit<a class="headerlink" href="#the-starter-kit" title="Permanent link">&para;</a></h2>
+<p><code>cookie onboard</code>, the TUI's <code>/onboard</code>, and the web page's setup sheet can
+install the starter kit, a release asset (<code>cookie-agent-defaults.tar.gz</code>)
+holding three agents to start from or replace:</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Mode</th>
+<th><code>models</code></th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>primary</code></td>
+<td><code>primary</code></td>
+<td><code>${default_model}</code></td>
+<td>Runs sessions: reads, writes, fetches, uses skills and memory, and delegates to <code>explore</code> and <code>worker</code></td>
+</tr>
+<tr>
+<td><code>explore</code></td>
+<td><code>subagent</code></td>
+<td><code>${small_model}</code>, then <code>${default_model}</code></td>
+<td>Reads and searches, never writes, and reports what it found</td>
+</tr>
+<tr>
+<td><code>worker</code></td>
+<td><code>subagent</code></td>
+<td><code>${default_model}</code></td>
+<td>Carries out one delegated task with <code>primary</code>'s tools</td>
+</tr>
+</tbody>
+</table>
+<p>Their <code>permissions</code> name every action explicitly, defaults included, each
+line with a comment saying whether it is a default and what it does, so a
+document shows its whole policy. <code>bash</code> asks, except a list of read-only
+commands (<code>ls *</code>, <code>cat *</code>, <code>rg *</code>, <code>git status*</code>, <code>git diff*</code>, …); such a
+pattern also matches a longer command that starts the same way, so narrow it
+if that matters to you. An installed kit file is yours to change: installing
+the kit again never overwrites it, writing the kit's version beside it as
+<code>&lt;name&gt;.new</code>. Skills are not in the kit: the daemon keeps the
+<a href="../skills/#official-skills">official skills</a> up to date itself.</p>
 <h2 id="layering-and-replacement">Layering and replacement<a class="headerlink" href="#layering-and-replacement" title="Permanent link">&para;</a></h2>
 <p>User agent documents and the built-in documents form one registry by agent ID.
 The IDs <code>approval</code>, <code>compaction</code>, and <code>title</code> are reserved for internal agents;
@@ -4553,7 +4682,8 @@ an authored document with one of those IDs must use <code>mode: internal</code> 
 replaces the built-in document completely. The ID <code>default</code> is reserved for
 the engine-supplied fallback agent and cannot be authored at all.</p>
 <p>If no authored agent is runnable as a root, the engine synthesizes the built-in
-<code>default</code> coding agent bound to the first available model selection. Its prompt
+<code>default</code> coding agent on <code>${default_model}</code>, then the first available model
+selection. Its prompt
 and explicit permission map are fixed by the engine: read is allowed with
 additional asks and secret-file denies, while write, bash, and delegate ask by
 default. <code>webfetch</code>, every runtime's own actions, and every other
@@ -4574,15 +4704,15 @@ a root run may manage cron jobs and a delegated one may not (see
 shared document. Markdown files directly under <code>agents/</code> are shared and are
 available when no preset is selected. A directory exactly one level below
 <code>agents/</code> defines a preset:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>~/.cookie-agent/agents/
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── primary.md
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── reviewer.md
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>├── python/
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│   ├── primary.md
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>│   └── test-writer.md
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>└── rust/
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    ├── primary.md
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    └── unsafe-reviewer.md
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>~/.cookie-agent/agents/
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>├── primary.md
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├── reviewer.md
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├── python/
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│   ├── primary.md
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│   └── test-writer.md
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>└── rust/
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    ├── primary.md
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    └── unsafe-reviewer.md
 </code></pre></div>
 <p>Selecting <code>python</code> produces an effective set containing every shared agent,
 then fully replaces shared documents whose IDs also exist in <code>agents/python/</code>,
@@ -4606,8 +4736,8 @@ effective set, the TUI selects that preset's <code>primary</code> or first runna
 The choice is in memory only: it is not written to configuration and resets to
 <code>default</code> when the TUI restarts.</p>
 <p>For headless runs, pass the preset explicitly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cookie<span class="w"> </span>run<span class="w"> </span>--preset<span class="w"> </span>python<span class="w"> </span>--agent<span class="w"> </span>primary<span class="w"> </span><span class="s2">"Implement the data pipeline"</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cookie<span class="w"> </span>run<span class="w"> </span>--preset<span class="w"> </span>rust<span class="w"> </span>--agent<span class="w"> </span>unsafe-reviewer<span class="w"> </span><span class="s2">"Review the FFI boundary"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cookie<span class="w"> </span>run<span class="w"> </span>--preset<span class="w"> </span>python<span class="w"> </span>--agent<span class="w"> </span>primary<span class="w"> </span><span class="s2">"Implement the data pipeline"</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cookie<span class="w"> </span>run<span class="w"> </span>--preset<span class="w"> </span>rust<span class="w"> </span>--agent<span class="w"> </span>unsafe-reviewer<span class="w"> </span><span class="s2">"Review the FFI boundary"</span>
 </code></pre></div>
 <p>The selected preset is stored in the session's creation selection and is the
 default when the session is resumed. Root sessions may select another preset for
@@ -4642,7 +4772,7 @@ family (<code>internal_agent_started</code>, <code>internal_agent_finished</code
 <tr>
 <td><code>approval</code></td>
 <td>Stateless approval classifier for <code>auto_approve</code> mode</td>
-<td><code>${parent_model}</code></td>
+<td><code>${small_model}</code>, then <code>${parent_model}</code></td>
 <td>30 s timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
 </tr>
 <tr>
@@ -4654,15 +4784,19 @@ family (<code>internal_agent_started</code>, <code>internal_agent_finished</code
 <tr>
 <td><code>title</code></td>
 <td>Generates a concise session title from the opening user messages (the first <code>session_title.max_input_messages</code>, default 4)</td>
-<td><code>${parent_model}</code></td>
+<td><code>${small_model}</code>, then <code>${parent_model}</code></td>
 <td>30 s timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
 </tr>
 </tbody>
 </table>
-<p>All three default to <code>${parent_model}</code>, so they run on the model the parent run
-is currently using — including its position in the fallback chain: if the run
-has fallen back to its second model, internal agents resolve to that second
-model too. An internal agent's input budget is derived from each
+<p><code>approval</code> and <code>title</code> run on <code>small_model</code> when it is set and available,
+else on the parent run's model. <code>compaction</code> stays on <code>${parent_model}</code>, which
+keeps the session's prompt cache warm. <code>${parent_model}</code> is the model the
+parent run is currently using — including its position in the fallback chain:
+if the run has fallen back to its second model, internal agents resolve to
+that second model too. An ACP agent's session has no model of its own, so its
+approval reviewer runs on <code>small_model</code> alone; without it, <code>ask</code> requests go
+to the user. An internal agent's input budget is derived from each
 resolved model's input limit when it declares one, otherwise from its context
 limit after reserving its effective maximum output (at most 32,000 tokens or half
 the context), with a minimum of one token. A model with an unknown context limit uses a
@@ -4678,18 +4812,18 @@ its fallback chain yields no available model, the internal call fails safely
 input excerpt) and a failed <code>internal_agent_finished</code> event is recorded.</p>
 <p>Example replacement — run compaction on a cheaper model while the primary run
 keeps its own selection:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>---
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>description: Context compaction on a fast model
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mode: internal
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>enabled: true
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>models:
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5-mini", variant: null }
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>limits:
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  timeout_ms: 30000
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  max_output_tokens: 4096
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="gu">permissions: {}</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="gu">---</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>{{default_prompt}}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>---
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>description: Context compaction on a fast model
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>mode: internal
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>enabled: true
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>models:
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5-mini", variant: null }
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>limits:
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  timeout_ms: 30000
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  max_output_tokens: 4096
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="gu">permissions: {}</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="gu">---</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>{{default_prompt}}
 </code></pre></div>
 <h3 id="internal-agent-prompt-placeholders">Internal agent prompt placeholders<a class="headerlink" href="#internal-agent-prompt-placeholders" title="Permanent link">&para;</a></h3>
 <p>The bodies of <code>approval.md</code>, <code>compaction.md</code>, and <code>title.md</code> are templates. Each
@@ -4730,9 +4864,9 @@ It stays in the request the engine builds, so a custom body cannot break
 parsing: approval still asks for <code>{"decision":"allow"|"deny"|"ask"}</code> and title
 still asks for plain text only.</p>
 <p>To keep a default prompt and add your own rules, wrap it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>{{default_prompt}}
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Network access to github.com for this project is routine; allow read-only requests to it.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>{{default_prompt}}
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Network access to github.com for this project is routine; allow read-only requests to it.
 </code></pre></div>
 <p>A body without <code>{{default_prompt}}</code> replaces the default prompt entirely.</p>
 <h4 id="compaction-focus">Compaction focus<a class="headerlink" href="#compaction-focus" title="Permanent link">&para;</a></h4>
@@ -4752,21 +4886,21 @@ single pass: text inserted by a placeholder is never scanned for more
 placeholders. So the built-in body, and any body that uses only
 <code>{{default_prompt}}</code>, gets the focus appended at the end.</p>
 <p>For example, with this body:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>{{default_prompt}}
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Also record the exact name of every failing test and the command that ran it.
-</code></pre></div>
-<p>after <code>/compact preserve the parser decisions</code>, the summarizer receives:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>&lt;default prompt&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>{{default_prompt}}
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Also record the exact name of every failing test and the command that ran it.
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>User-requested focus: preserve the parser decisions
+</code></pre></div>
+<p>after <code>/compact preserve the parser decisions</code>, the summarizer receives:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>&lt;default prompt&gt;
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Also record the exact name of every failing test and the command that ran it.
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>User-requested focus: preserve the parser decisions
 </code></pre></div>
 <p>To choose where the focus goes, place it yourself:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>{{default_prompt}}
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Give extra detail to: {{focus}}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>{{default_prompt}}
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Give extra detail to: {{focus}}
 </code></pre></div>
 <h4 id="syntax-and-scope">Syntax and scope<a class="headerlink" href="#syntax-and-scope" title="Permanent link">&para;</a></h4>
 <p>Spaces inside the braces are allowed (<code>{{ default_prompt }}</code>). A placeholder
@@ -4795,20 +4929,20 @@ digits, or underscores. A key that
 names no tool's action is accepted and simply governs nothing, and <code>/permissions</code>
 lists it as its own row. Each action is either one bare effect or a
 resource-pattern map:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="s">".env*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nt">write</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="s">"git</span><span class="nv"> </span><span class="s">status"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">  </span><span class="nt">delegate</span><span class="p">:</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">    </span><span class="s">"reviewer"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="s">".env*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="nt">write</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="s">"git</span><span class="nv"> </span><span class="s">status"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">  </span><span class="nt">delegate</span><span class="p">:</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="s">"reviewer"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 </code></pre></div>
 <p>Effects are <code>allow</code>, <code>ask</code>, and <code>deny</code>. A bare effect is equivalent to mapping
 <code>"*"</code> to that effect. For matching patterns, more literal characters win, then
@@ -4826,12 +4960,12 @@ its action.</p>
 attachment name they have in a session. A plain action applies to every
 runtime and to the daemon's base layer, so documents without selectors keep
 working unchanged.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">bash@labpc</span><span class="p">:</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="s">"git</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="nt">read@local</span><span class="p">:</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="s">"${workspace_dir}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">bash@labpc</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="s">"git</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">read@local</span><span class="p">:</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="s">"${workspace_dir}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
 <p>Here <code>git status</code> on the <code>labpc</code> runtime is allowed while every other command
 asks, and reads inside the local runtime's workspace are allowed. A qualified
@@ -5011,11 +5145,11 @@ runtime the tool runs on, as the runtime reported it (see
 Each runtime expands it against its own home, so one rule covers the home on
 every machine, and a <a href="#runtime-selectors">runtime selector</a> still limits it
 to one runtime:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="s">"~/notes/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">read@labpc</span><span class="p">:</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="s">"~/.ssh/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="s">"~/notes/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">read@labpc</span><span class="p">:</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="s">"~/.ssh/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 </code></pre></div>
 <p>The expanded pattern is an ordinary absolute pattern: it governs paths
 outside the workspace, whose labels are absolute, and ranks by its expanded
@@ -5039,21 +5173,21 @@ individual calls once tools are visible.</p>
 and command policies while leaving delegation hidden; it names no <code>mcp</code> key,
 so it also gets the <a href="#mcp-default">MCP default</a> and asks before every MCP
 call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>---
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>description: Workspace implementation agent
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mode: primary
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>enabled: true
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>models:
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>permissions:
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>  read: allow
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>  write:
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    "src/*": ask
-<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>  bash:
-<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    "cargo test*": allow
-<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="gu">    "cargo fmt*": allow</span>
-<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="gu">---</span>
-<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>Implement and verify requested workspace changes.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>---
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>description: Workspace implementation agent
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mode: primary
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>enabled: true
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>models:
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>permissions:
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  read: allow
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>  write:
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    "src/*": ask
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>  bash:
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>    "cargo test*": allow
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="gu">    "cargo fmt*": allow</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="gu">---</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>Implement and verify requested workspace changes.
 </code></pre></div>
 <p>MCP tools follow the same rule per tool: an MCP tool is offered only when
 the merged rules do not deny <code>mcp</code> for its name, which the
@@ -5119,12 +5253,12 @@ action: <code>memory: deny</code> in <code>/permissions</code> turns memory off 
 <p><strong>Root runs.</strong> A root run of an agent that is not internal, the built-in
 <code>default</code> included, gets these rules for each of <code>memory</code> and
 <code>memory_write</code> its document names no key for:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nt">memory_write</span><span class="p">:</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">memory_write</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="s">"user://*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="s">"agent://${agent_id}"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="s">"machine://${session_machine}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">  </span><span class="s">"project://${session_project}/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
 <p>It reads every memory, with the memory related to the session in its
 snapshot, and writes that related memory: the user's, its own agent file,
@@ -5190,23 +5324,23 @@ reviewer or you in front of the rest.</p>
 <p>A worked agent document: a reviewer that keeps its own file, reads the
 memory of its session's project and machines, and writes to those two only
 after asking, and that never sees the user's memory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>---
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>description: Reviews a diff for bugs and missing tests
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>mode: all
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>models:
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>permissions:
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>  memory:
-<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    "user://*": deny
-<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    "agent://${agent_id}": allow
-<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    "project://${session_project}/*": allow
-<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    "machine://${session_machine}/*": allow
-<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>  memory_write:
-<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    "agent://${agent_id}": allow
-<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>    "project://${session_project}/*": ask
-<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="gu">    "machine://${session_machine}/*": ask</span>
-<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="gu">---</span>
-<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>You review a diff for bugs and missing tests.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>---
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>description: Reviews a diff for bugs and missing tests
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>mode: all
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>models:
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>{ model: "openai/gpt-5", variant: null }
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>permissions:
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>  memory:
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    "user://*": deny
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    "agent://${agent_id}": allow
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    "project://${session_project}/*": allow
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    "machine://${session_machine}/*": allow
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>  memory_write:
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>    "agent://${agent_id}": allow
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>    "project://${session_project}/*": ask
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="gu">    "machine://${session_machine}/*": ask</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="gu">---</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>You review a diff for bugs and missing tests.
 </code></pre></div>
 <p>Run as a root, this agent's snapshot shows its own file and the session's
 project and machine memories, it can write its own file freely, and the
@@ -5284,9 +5418,9 @@ manages every job its rules allow, whoever created it.</p>
 agent's mode. A declared key replaces the default, so <code>cron: deny</code> hides the
 tools from a root and this grants a subagent jobs into its own session and
 the sessions below it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">cron</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">subagent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">cron</span><span class="p">:</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nt">subagent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
 <p>A session overlay can grant or deny <code>cron</code> for one session tree, as for any
 action: <code>cron: deny</code> in <code>/permissions</code> hides the cron tools for that session.</p>
@@ -5331,9 +5465,9 @@ form, <code>mcp@&lt;runtime&gt;</code> included), the daemon supplies <code>mcp:
 <code>primary</code>, <code>all</code>, and <code>subagent</code> agents, so the connected servers' tools are
 offered and every call asks; <code>internal</code> agents get none. A declared <code>mcp</code>
 key replaces the default entirely:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="s">"my_chrome_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>offers only the <code>my_chrome</code> server's tools, <code>mcp: allow</code> runs every MCP tool
 without asking, and <code>mcp: deny</code> hides them all. A key with only a runtime
@@ -5344,10 +5478,10 @@ the source <code>default</code>. Session overlays apply on top as for any action
 <h3 id="web-fetching">Web fetching<a class="headerlink" href="#web-fetching" title="Permanent link">&para;</a></h3>
 <p>Web access uses the <code>webfetch</code> action, matched against the exact initial URL as
 requested, including its query string:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">webfetch</span><span class="p">:</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="s">"*https://*.quantumcookie.xyz/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="s">"https://review.example.org/*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span>
 </code></pre></div>
 <p>Paging a long response back with <code>read_artifact</code> needs no rule.
 Permission is checked once, against the initial URL; redirect destinations are

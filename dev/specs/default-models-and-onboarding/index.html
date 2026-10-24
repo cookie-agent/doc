@@ -3624,6 +3624,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#14-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      14. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3948,6 +3957,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#14-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      14. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3968,7 +3986,7 @@
 
 
 <h1 id="default-models-the-starter-kit-and-onboarding">Default models, the starter kit, and onboarding<a class="headerlink" href="#default-models-the-starter-kit-and-onboarding" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-23), being implemented.</p>
+<p>Status: <strong>implemented</strong> (2026-10-23); see <a href="#14-implementation-notes">implementation notes</a>.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Default models.</strong> Two configuration fields, <code>default_model</code> and
@@ -4098,15 +4116,33 @@ models, fetching the kit without being asked.</p>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  agents/primary.md  # mode primary, models: [${default_model}]
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  agents/explore.md  # mode subagent, read-only exploring, models: [${small_model}, ${default_model}]
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  agents/worker.md   # mode subagent, does a delegated task, models: [${default_model}]
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  manifest.json      # skills are not in the kit (section 13)      # kit version, the cookie version it was built for, each file's sha256
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  manifest.json      # kit version, the cookie version it was built for, each file's sha256
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                     # skills are not in the kit (section 13)
 </code></pre></div>
 <ul>
 <li><strong>Agents:</strong> <code>primary</code> is the root agent (the daemon already falls back to an
   agent named <code>primary</code>); it may delegate to <code>explore</code> and <code>worker</code>.
   <code>explore</code> reads and searches and never writes; <code>worker</code> carries out a task
-  with the same tools as <code>primary</code>. Their permission rules are conservative:
-  writes inside the workspace allowed, elsewhere asked; <code>bash</code> asked except
-  read-only commands.</li>
+  with the same tools as <code>primary</code>. <strong>Permissions (decided 2026-10-23):</strong>
+  <code>primary</code> allows <code>read</code>, <code>write</code>, <code>webfetch</code>, <code>skill</code>, <code>memory</code> with the
+  related <code>memory_write</code> rules (<code>user://*</code>, <code>agent://${agent_id}</code>,
+  <code>machine://${session_machine}/*</code>, <code>project://${session_project}/*</code>), and
+  <code>delegate</code> to <code>explore</code> and <code>worker</code>; <code>bash</code> asks except read-only
+  commands (<code>ls *</code>, <code>cat *</code>, <code>rg *</code>, <code>git status*</code>, <code>git diff*</code>, <code>git log*</code>,
+  …); <code>mcp</code> asks, <code>cron</code> and <code>list_runtimes</code> as their defaults. <code>worker</code>
+  has <code>primary</code>'s <code>read</code>, <code>write</code>, and <code>bash</code> rules; <code>explore</code> stays
+  read-only. Every permission is written explicitly, the defaults included,
+  each line with a YAML comment saying whether it equals the daemon's
+  default and what the default would be without the key, and why a
+  non-default line is there.</li>
+<li><strong>Skills (decided 2026-10-23, then moved by section 13):</strong> the kit first
+  carried two skills, <code>customize-cookie-agent</code> (pointers for an agent
+  asked to change cookie itself: where things live, the <code>cookie</code> commands
+  to prefer over editing files, and the docs of each topic) and
+  <code>add-cookie-runtime</code> (adding a machine as a runtime over ssh or by
+  dialing in, short and pointing at the docs, with what to ask the user
+  first). Both are now official skills (section 13), kept honest by
+  <code>cookie skills check</code>.</li>
 <li><strong>Release asset:</strong> the release workflow packs <code>defaults/</code> as
   <code>cookie-agent-defaults.tar.gz</code> and uploads it with the binaries, as it does
   <code>cookie-agent-web.tar.gz</code>. Prereleases carry it too.</li>
@@ -4249,7 +4285,7 @@ offers a first session on <code>primary</code>.</p>
 <h2 id="12-open-questions">12. Open questions<a class="headerlink" href="#12-open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
 <h2 id="13-addendum-2026-10-23-official-skills-kept-up-to-date">13. Addendum 2026-10-23: official skills kept up to date<a class="headerlink" href="#13-addendum-2026-10-23-official-skills-kept-up-to-date" title="Permanent link">&para;</a></h2>
-<p>Status: <strong>approved</strong> (2026-10-23), being implemented.</p>
+<p>Status: <strong>implemented</strong> (2026-10-23); see the implementation notes.</p>
 <p>The starter kit is installed once, so skills added in later releases would
 never reach a daemon that already onboarded. Skills are cookie's own
 instructions about cookie; agent documents and <code>config.toml</code> are the user's.
@@ -4312,6 +4348,154 @@ that every daemon keeps current.</p>
 mismatch refused, a <code>requires_cookie</code> range not met, offline with a cache),
 precedence against a user skill of the same name, <code>official = false</code>,
 <code>cookie skills check</code> passing and failing cases.</p>
+<h2 id="14-implementation-notes">14. Implementation notes<a class="headerlink" href="#14-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Implemented 2026-10-23 in four phases on one branch.</p>
+<p><strong>Versions.</strong> Client protocol 1.22.0, plugin protocol 1.10.0 (the events
+carry the <code>${parent_model}</code> variant), runtime protocol 1.8.0 (the skill
+source <code>official</code>), history
+format unchanged: the frozen <code>ParentModel</code> fallback gained an optional
+<code>variant</code> that is omitted when absent, so earlier logs read as before.</p>
+<p><strong>Engine and configuration.</strong></p>
+<ul>
+<li><code>default_model</code> and <code>small_model</code> are <code>ConfiguredModel { model, variant }</code>
+  on <code>EngineConfig</code>, decoded from a key string or a strict table; the
+  top-level key allowlist names both.</li>
+<li><code>AgentModelRef</code> has <code>DefaultModel</code> and <code>SmallModel</code>; a <code>models</code> entry
+  deserializes from a string or a strict mapping. <code>${parent_model}</code> takes a
+  variant override (still internal-only); the override is frozen into
+  <code>run_started</code> and applied by binding the parent's model in that variant,
+  skipping the entry when the variant is not available.</li>
+<li>An entry naming an unset field is skipped; the agent lists the field in
+  <code>AgentDescriptor.unset_models</code>, and an authored agent reports it in
+  <code>ConfigStatus.diagnostics</code> (which landed meanwhile for ACP agents):
+  "agent <code>x</code> skips a <code>models</code> entry: <code>small_model</code> is not set", or "has no
+  model" when nothing is left. Built-in agents report no diagnostic, since
+  their fallback to <code>${parent_model}</code> is by design.</li>
+<li><strong>Deviation:</strong> a resolved chain keeps the first entry per model. The
+  protocol refuses a chain naming one model twice, so <code>${default_model}</code>
+  followed by the key it names resolves to one entry rather than two.</li>
+<li>The built-in <code>default</code> agent resolves <code>${default_model}</code> (when set and
+  available), then the first available model when that is another model.
+  Its permissions are unchanged and differ from the kit's <code>primary</code>: it
+  asks before writes, commands, and delegation and has no <code>webfetch</code>.</li>
+</ul>
+<p><strong>The kit and the release.</strong></p>
+<ul>
+<li><code>defaults/</code> holds <code>config.toml</code>, the three agents, and <code>manifest.json</code>
+  (<code>kit_version</code> and
+  each file's SHA-256; <code>scripts/pack-defaults.sh --update-manifest</code>
+  refreshes the hashes). The release workflow's <code>build-web</code> job packs it
+  with <code>scripts/pack-defaults.sh &lt;tag&gt;</code>, which checks the hashes and writes
+  <code>cookie_version</code> into the archive's manifest, and uploads
+  <code>cookie-agent-defaults.tar.gz</code> with the other artifacts, prereleases
+  included.</li>
+<li>Kit files are configuration documents only (<code>config.toml</code>,
+  <code>agents/…</code>); a skill path in a kit is refused. The engine reads the
+  archive in memory (gzip plus a small ustar/pax reader, no new
+  dependency), refuses unlisted, missing, unsafe, or mismatched files, and
+  loads the kit alone with this build's configuration and agent parsers
+  before comparing it with the user root.</li>
+<li>Tests load <code>defaults/</code> with those parsers, check its manifest, load
+  <code>config.toml</code> with every commented example uncommented, read a GNU tar
+  archive packed by the script.</li>
+</ul>
+<p><strong>Onboarding.</strong></p>
+<ul>
+<li>The release source tries <code>&lt;releases&gt;/download/v&lt;version&gt;/…</code> then
+  <code>&lt;releases&gt;/latest/download/…</code>; the base URL is injectable
+  (<code>Engine::set_releases_url</code>) and tests serve kits from a local HTTP
+  server. A downloaded kit is kept ten minutes for the run after a preview.</li>
+<li><strong>Deviation:</strong> an uploaded archive travels inline, base64 in the
+  <code>source</code> (<code>{"type": "archive", "data": …}</code>, at most 1 MiB), not through
+  an upload lease: upload leases belong to a session's tree and accept only
+  attachment media, while onboarding runs before any session exists.</li>
+<li><code>onboarding.run</code> edits the configuration under the configuration lock:
+  new kit documents and the model fields go into one candidate tree, which
+  is validated, checked for readiness against the current models, and only
+  then written; <code>.new</code> files and skills follow. A refusal is
+  <code>onboarding_incomplete</code> with <code>missing</code>; a kit that cannot be used is
+  <code>onboarding_kit_unavailable</code>; a model value the configuration refuses is
+  <code>config_apply_refused</code>, as for <code>config.apply</code>.</li>
+<li><code>onboarding.changed</code> is sent per connection after any runtime
+  publication that changes the answer (configuration applies and reloads,
+  provider changes, and catalog refreshes all publish one).</li>
+<li>"Connected providers" are those offering at least one available model.</li>
+<li>Readiness before a run is checked against the models compiled now; a run
+  whose candidate configuration changes providers is not recompiled first,
+  and its result reports the state after it applied.</li>
+<li><code>cookie onboard</code> reuses <code>cookie connect</code>'s provider flow and the shared
+  rules in <code>client_state::onboarding</code>; without <code>--yes</code> or <code>--diff</code> it needs
+  a terminal.</li>
+<li><strong>TUI:</strong> while the daemon is not ready, a notice in the background bar's
+  row (background calls take precedence) says what is missing, with Set up
+  and Not now. Not now is kept in <code>~/.cookie-agent/tui-state.json</code> until
+  the missing set changes. <code>/onboard</code> opens a panel of four clickable step
+  tabs with checks; step 1 opens the connect panel, steps 2 and 3 the model
+  picker in an onboarding mode, step 4 the kit preview (<code>d</code> diff, <code>i</code>
+  install, <code>o</code> a local archive path); <code>f</code> finishes. Four new pointer
+  targets hover visibly. The kit preview is fetched on reaching its step.</li>
+<li><strong>Web:</strong> a first-run sheet (full screen with 44px targets on a phone, a
+  dialog on wider windows) opens on connecting to a daemon that is not
+  ready, unless Not now is stored (<code>cookie.onboarding_not_now</code> in
+  localStorage; the page's origin is the daemon's, so it is per daemon). It
+  reuses Settings' connect forms, closes in every tab when the daemon
+  becomes ready, and Settings has "Set up Cookie". The browser suite's main
+  daemon now sets both model fields so the sheet stays out of the other
+  scenarios; a new scenario covers the sheet on an empty daemon. The kit
+  step is not browser-tested, since previewing the release kit would reach
+  GitHub. <strong>Deviation:</strong> the model lists show context size but no price:
+  the catalog view's model descriptors carry none.</li>
+<li><strong>Deviation:</strong> <code>/config</code>, the web configuration view, and
+  <code>cookie config</code> edit <code>default_model</code> and <code>small_model</code> as <code>config.toml</code>
+  text (<code>cookie config set default_model …</code>); the model pickers are the
+  onboarding panels', which run again on a set-up daemon.</li>
+</ul>
+<p><strong>Official skills (section 13).</strong></p>
+<ul>
+<li>The skills live in <code>cookie-agent/skills</code> (<code>index.json</code>, one
+  <code>&lt;name&gt;/SKILL.md</code> each, <code>scripts/update-index.py</code> for the hashes, and a
+  CI workflow that installs the latest release and runs
+  <code>cookie skills check .</code> on every push and nightly, with the newest
+  release, prereleases included). Both start at version 1.0.0 with
+  <code>requires_cookie = "&gt;=0.4.0-alpha.0"</code>: the 0.3.0 nightlies have no
+  fetcher.</li>
+<li>The engine keeps them in <code>&lt;data_root&gt;/official_skills/</code> with its record
+  of what it keeps in <code>.index.json</code> there; entries starting with <code>.</code> are
+  skipped by discovery. A refresh downloads a skill's changed files, checks
+  every hash and that <code>SKILL.md</code> loads, and only then writes them (each
+  through a temporary file and a rename), so a refused skill keeps its
+  cached copy whole. <code>requires_cookie</code> takes comparators (<code>&gt;=</code>, <code>&gt;</code>, <code>&lt;=</code>,
+  <code>&lt;</code>, <code>=</code>, a bare version, <code>*</code>) separated by commas or spaces, compared by
+  plain semver precedence, pre-releases included (not Cargo's rule that a
+  pre-release only matches a comparator with a pre-release on the same
+  version): nightlies are tagged <code>0.4.0-alpha.&lt;n&gt;</code>, below <code>0.4.0</code>, so the
+  skills ask for <code>&gt;=0.4.0-alpha.0</code>. The daemon compares its own crate
+  version, which is a plain <code>0.4.0</code> for nightlies and stable builds alike
+  (the tag's pre-release is not in it). A range that does not read refuses
+  the skill.</li>
+<li>The refresh loop runs in the daemon binary beside the catalog's (at start,
+  then every 24 hours, stopped with it). The source URL is fixed in release
+  builds; tests call <code>Engine::set_official_skills_url</code>, and debug builds
+  under the binary's test switch (<code>COOKIE_AGENT_TEST_BUNDLED_CATALOG</code>) stay
+  off the network unless <code>COOKIE_AGENT_TEST_OFFICIAL_SKILLS_URL</code> names a
+  source.</li>
+<li><strong>Beyond the spec:</strong> a refresh that changes the official skills reloads
+  the global runtime's skills (user skills included) for new sessions, so
+  a freshly started daemon offers them without a restart. <code>official =
+  false</code> stops refreshing at once; whether the folder is offered follows at
+  the next start, when skills load.</li>
+<li><strong>Protocol:</strong> the skill source <code>official</code> (client 1.22.0, runtime 1.8.0),
+  an official skill's <code>version</code> on <code>SkillDescriptor</code>, <code>skills.update</code>, and
+  <code>skills.list</code> without a session for the daemon's own skills (which
+  <code>cookie skills list</code> uses; <code>permission_effect</code> is then <code>ask</code> and
+  <code>visible</code> says whether the skill wins its name).</li>
+<li><strong><code>cookie skills check</code> (decision):</strong> links are fetched from the published
+  site by default, which the skills repository's CI uses; <code>--docs &lt;dir&gt;</code>
+  checks them against a <code>docs/site</code> checkout instead, as the tests do. It
+  also checks an <code>index.json</code> against the files beside it.</li>
+<li>The TUI's skill picker labels official skills and its detail line shows
+  <code>official &lt;version&gt;</code>; the web page's skill list shows the same badge.</li>
+</ul>
 
 
 

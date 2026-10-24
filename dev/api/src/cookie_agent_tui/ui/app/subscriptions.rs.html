@@ -235,66 +235,67 @@
 <a href=#235 id=235 data-nosnippet>235</a>        <span class="self">self</span>.reset_restart_after_reconnect();
 <a href=#236 id=236 data-nosnippet>236</a>        <span class="self">self</span>.reset_subscriptions();
 <a href=#237 id=237 data-nosnippet>237</a>        <span class="self">self</span>.status = <span class="string">"reconnected to the daemon"</span>.into();
-<a href=#238 id=238 data-nosnippet>238</a>        <span class="self">self</span>.request_runtime_resync();
-<a href=#239 id=239 data-nosnippet>239</a>        <span class="self">self</span>.refresh_lists().<span class="kw">await</span>;
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(selected) = <span class="self">self</span>.selected {
-<a href=#241 id=241 data-nosnippet>241</a>            <span class="self">self</span>.resubscribe_from_scratch(selected);
-<a href=#242 id=242 data-nosnippet>242</a>            <span class="self">self</span>.refresh_approvals(selected);
-<a href=#243 id=243 data-nosnippet>243</a>            <span class="self">self</span>.refresh_permission_mode_for_session(selected);
-<a href=#244 id=244 data-nosnippet>244</a>        }
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="self">self</span>.refresh_tree_background();
-<a href=#246 id=246 data-nosnippet>246</a>    }
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="doccomment">/// After the client gave up recovering a session, tries the viewed one
-<a href=#249 id=249 data-nosnippet>249</a>    /// again with a fresh subscription once the connection had time to
-<a href=#250 id=250 data-nosnippet>250</a>    /// settle. Other sessions resubscribe when next opened.
-<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>schedule_subscription_retry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: <span class="prelude-ty">Option</span>&lt;SessionId&gt;) {
-<a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(selected) = <span class="self">self</span>.selected <span class="kw">else </span>{
-<a href=#253 id=253 data-nosnippet>253</a>            <span class="kw">return</span>;
-<a href=#254 id=254 data-nosnippet>254</a>        };
-<a href=#255 id=255 data-nosnippet>255</a>        <span class="kw">if </span>session_id.is_some_and(|session_id| session_id != selected) {
-<a href=#256 id=256 data-nosnippet>256</a>            <span class="kw">return</span>;
-<a href=#257 id=257 data-nosnippet>257</a>        }
-<a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
-<a href=#259 id=259 data-nosnippet>259</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
-<a href=#260 id=260 data-nosnippet>260</a>            tokio::time::sleep(SUBSCRIPTION_RETRY_DELAY).<span class="kw">await</span>;
-<a href=#261 id=261 data-nosnippet>261</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::RetrySubscription {
-<a href=#262 id=262 data-nosnippet>262</a>                session_id: selected,
-<a href=#263 id=263 data-nosnippet>263</a>            });
-<a href=#264 id=264 data-nosnippet>264</a>        });
-<a href=#265 id=265 data-nosnippet>265</a>    }
-<a href=#266 id=266 data-nosnippet>266</a>
-<a href=#267 id=267 data-nosnippet>267</a>    <span class="doccomment">/// Wait (bounded) for an in-flight subscribe of `session_id` to deliver
-<a href=#268 id=268 data-nosnippet>268</a>    /// its replay. The replay itself is never cancelled.
-<a href=#269 id=269 data-nosnippet>269</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>wait_for_subscription(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) {
-<a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(
-<a href=#271 id=271 data-nosnippet>271</a>            <span class="self">self</span>.subscriptions.state(session_id),
-<a href=#272 id=272 data-nosnippet>272</a>            <span class="prelude-val">Some</span>(SubscriptionState::Subscribing { .. })
-<a href=#273 id=273 data-nosnippet>273</a>        ) {
-<a href=#274 id=274 data-nosnippet>274</a>            <span class="kw">return</span>;
-<a href=#275 id=275 data-nosnippet>275</a>        }
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>done) = <span class="self">self</span>.subscription_done.get(<span class="kw-2">&amp;</span>session_id).cloned() <span class="kw">else </span>{
-<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">return</span>;
-<a href=#278 id=278 data-nosnippet>278</a>        };
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">if </span>tokio::time::timeout(SELECT_SUBSCRIPTION_WAIT, done.wait_for(|done| <span class="kw-2">*</span>done))
-<a href=#280 id=280 data-nosnippet>280</a>            .<span class="kw">await
-<a href=#281 id=281 data-nosnippet>281</a>            </span>.is_err()
-<a href=#282 id=282 data-nosnippet>282</a>        {
-<a href=#283 id=283 data-nosnippet>283</a>            <span class="comment">// The replay keeps going without us and lands through the
-<a href=#284 id=284 data-nosnippet>284</a>            // delivery stream; only the wait is bounded.
-<a href=#285 id=285 data-nosnippet>285</a>            </span><span class="self">self</span>.status = <span class="string">"still loading session history"</span>.into();
-<a href=#286 id=286 data-nosnippet>286</a>        }
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="attr">#[cfg(test)]
-<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>subscription_state_for_test(<span class="kw-2">&amp;</span><span class="self">self</span>, session_id: SessionId) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">match </span><span class="self">self</span>.subscriptions.state(session_id) {
-<a href=#292 id=292 data-nosnippet>292</a>            <span class="prelude-val">None </span>=&gt; <span class="string">"idle"</span>,
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="prelude-val">Some</span>(SubscriptionState::Subscribing { .. }) =&gt; <span class="string">"subscribing"</span>,
-<a href=#294 id=294 data-nosnippet>294</a>            <span class="prelude-val">Some</span>(SubscriptionState::Live { owned: <span class="bool-val">true </span>}) =&gt; <span class="string">"live"</span>,
-<a href=#295 id=295 data-nosnippet>295</a>            <span class="prelude-val">Some</span>(SubscriptionState::Live { owned: <span class="bool-val">false </span>}) =&gt; <span class="string">"snapshot"</span>,
-<a href=#296 id=296 data-nosnippet>296</a>            <span class="prelude-val">Some</span>(SubscriptionState::Recovering { .. }) =&gt; <span class="string">"recovering"</span>,
-<a href=#297 id=297 data-nosnippet>297</a>        }
-<a href=#298 id=298 data-nosnippet>298</a>    }
-<a href=#299 id=299 data-nosnippet>299</a>}
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="self">self</span>.poll_onboarding();
+<a href=#239 id=239 data-nosnippet>239</a>        <span class="self">self</span>.request_runtime_resync();
+<a href=#240 id=240 data-nosnippet>240</a>        <span class="self">self</span>.refresh_lists().<span class="kw">await</span>;
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(selected) = <span class="self">self</span>.selected {
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="self">self</span>.resubscribe_from_scratch(selected);
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="self">self</span>.refresh_approvals(selected);
+<a href=#244 id=244 data-nosnippet>244</a>            <span class="self">self</span>.refresh_permission_mode_for_session(selected);
+<a href=#245 id=245 data-nosnippet>245</a>        }
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.refresh_tree_background();
+<a href=#247 id=247 data-nosnippet>247</a>    }
+<a href=#248 id=248 data-nosnippet>248</a>
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// After the client gave up recovering a session, tries the viewed one
+<a href=#250 id=250 data-nosnippet>250</a>    /// again with a fresh subscription once the connection had time to
+<a href=#251 id=251 data-nosnippet>251</a>    /// settle. Other sessions resubscribe when next opened.
+<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>schedule_subscription_retry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: <span class="prelude-ty">Option</span>&lt;SessionId&gt;) {
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(selected) = <span class="self">self</span>.selected <span class="kw">else </span>{
+<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">return</span>;
+<a href=#255 id=255 data-nosnippet>255</a>        };
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">if </span>session_id.is_some_and(|session_id| session_id != selected) {
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">return</span>;
+<a href=#258 id=258 data-nosnippet>258</a>        }
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#261 id=261 data-nosnippet>261</a>            tokio::time::sleep(SUBSCRIPTION_RETRY_DELAY).<span class="kw">await</span>;
+<a href=#262 id=262 data-nosnippet>262</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::RetrySubscription {
+<a href=#263 id=263 data-nosnippet>263</a>                session_id: selected,
+<a href=#264 id=264 data-nosnippet>264</a>            });
+<a href=#265 id=265 data-nosnippet>265</a>        });
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="doccomment">/// Wait (bounded) for an in-flight subscribe of `session_id` to deliver
+<a href=#269 id=269 data-nosnippet>269</a>    /// its replay. The replay itself is never cancelled.
+<a href=#270 id=270 data-nosnippet>270</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>wait_for_subscription(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) {
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(
+<a href=#272 id=272 data-nosnippet>272</a>            <span class="self">self</span>.subscriptions.state(session_id),
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="prelude-val">Some</span>(SubscriptionState::Subscribing { .. })
+<a href=#274 id=274 data-nosnippet>274</a>        ) {
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">return</span>;
+<a href=#276 id=276 data-nosnippet>276</a>        }
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>done) = <span class="self">self</span>.subscription_done.get(<span class="kw-2">&amp;</span>session_id).cloned() <span class="kw">else </span>{
+<a href=#278 id=278 data-nosnippet>278</a>            <span class="kw">return</span>;
+<a href=#279 id=279 data-nosnippet>279</a>        };
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">if </span>tokio::time::timeout(SELECT_SUBSCRIPTION_WAIT, done.wait_for(|done| <span class="kw-2">*</span>done))
+<a href=#281 id=281 data-nosnippet>281</a>            .<span class="kw">await
+<a href=#282 id=282 data-nosnippet>282</a>            </span>.is_err()
+<a href=#283 id=283 data-nosnippet>283</a>        {
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="comment">// The replay keeps going without us and lands through the
+<a href=#285 id=285 data-nosnippet>285</a>            // delivery stream; only the wait is bounded.
+<a href=#286 id=286 data-nosnippet>286</a>            </span><span class="self">self</span>.status = <span class="string">"still loading session history"</span>.into();
+<a href=#287 id=287 data-nosnippet>287</a>        }
+<a href=#288 id=288 data-nosnippet>288</a>    }
+<a href=#289 id=289 data-nosnippet>289</a>
+<a href=#290 id=290 data-nosnippet>290</a>    <span class="attr">#[cfg(test)]
+<a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>subscription_state_for_test(<span class="kw-2">&amp;</span><span class="self">self</span>, session_id: SessionId) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">match </span><span class="self">self</span>.subscriptions.state(session_id) {
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="prelude-val">None </span>=&gt; <span class="string">"idle"</span>,
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="prelude-val">Some</span>(SubscriptionState::Subscribing { .. }) =&gt; <span class="string">"subscribing"</span>,
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="prelude-val">Some</span>(SubscriptionState::Live { owned: <span class="bool-val">true </span>}) =&gt; <span class="string">"live"</span>,
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="prelude-val">Some</span>(SubscriptionState::Live { owned: <span class="bool-val">false </span>}) =&gt; <span class="string">"snapshot"</span>,
+<a href=#297 id=297 data-nosnippet>297</a>            <span class="prelude-val">Some</span>(SubscriptionState::Recovering { .. }) =&gt; <span class="string">"recovering"</span>,
+<a href=#298 id=298 data-nosnippet>298</a>        }
+<a href=#299 id=299 data-nosnippet>299</a>    }
+<a href=#300 id=300 data-nosnippet>300</a>}
 </code></pre></div></section></main></body></html>
