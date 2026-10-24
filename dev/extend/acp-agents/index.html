@@ -1765,6 +1765,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#forking-reverting-and-deleting-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forking, reverting, and deleting a session
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#permissions" class="md-nav__link">
     <span class="md-ellipsis">
       Permissions
@@ -3824,6 +3833,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#forking-reverting-and-deleting-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forking, reverting, and deleting a session
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#permissions" class="md-nav__link">
     <span class="md-ellipsis">
       Permissions
@@ -4138,8 +4156,35 @@ message and in this order, each part left out when it is empty:</p>
 </ol>
 <p><code>AGENTS.md</code> is not sent: the agents read it themselves. The prompt carries
 these again when cookie has to start a new ACP session because the agent
-lost the one it had, and not when it resumes or loads one, since the agent
+lost the one it had (or a fork or revert before its first reply starts
+over), and not when it resumes, loads, or forks one, since the agent
 remembers them there. Later prompts carry only the input.</p>
+<h2 id="forking-reverting-and-deleting-a-session">Forking, reverting, and deleting a session<a class="headerlink" href="#forking-reverting-and-deleting-a-session" title="Permanent link">&para;</a></h2>
+<p>The agent keeps its own conversation, so cookie keeps it in step when you
+change the session's:</p>
+<ul>
+<li><strong>Fork.</strong> A fork of the session gets its own agent conversation: at its
+  first turn cookie asks the agent to fork the source's (<code>session/fork</code>),
+  and the source keeps its own. An agent without <code>session/fork</code> (Gemini
+  CLI) cannot be forked after its first reply; the fork is refused with
+  <code>`gemini` on `local` can't fork its own conversation</code>. A fork at an
+  earlier point than the end of the agent's conversation also needs its
+  fork to start at a given message (below).</li>
+<li><strong>Revert.</strong> After a revert the agent's next turn forks its conversation
+  at its last reply the session keeps, then deletes the old conversation,
+  and the transcript says <em>the agent continues from the revert point</em>. The
+  agent must fork at a given message: cookie names it with JetBrains AIR's
+  fork point, which Claude Code's and Codex's adapters read. Cookie checks
+  whether the agent does once per agent process, after its first reply in
+  a run; until then, and for an agent that does not (Gemini CLI, or one
+  whose fork ignores the fork point), a revert past the agent's first reply
+  is refused with <code>`claude` on `local` can't rewind its own conversation</code>
+  (or that cookie has not checked yet). A revert to before the agent's
+  first reply always works: the next turn starts a new agent conversation.</li>
+<li><strong>Delete.</strong> Deleting a session also deletes the agent's own transcripts
+  of it (<code>session/delete</code>, when the agent offers it), but never those of
+  the session it was forked from.</li>
+</ul>
 <h2 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h2>
 <p>The agent runs its own file and shell tools, and asks cookie before the
 calls its own policy asks about. Cookie decides each request with the
@@ -4268,6 +4313,20 @@ each call decided by the rules as a model's would be.</p>
   web client's Steer button then reads "Queue (this agent can't be
   steered)", and the TUI's pending strip says the agent can't be steered.</li>
 <li><strong>Interrupting</strong> a turn cancels it on the agent.</li>
+<li><strong>Compaction.</strong> <code>/compact</code> (in the TUI, the web's compaction action)
+  runs the agent's own <code>compact</code> command when it offers one (Claude Code
+  does), with the focus you give; otherwise it is refused with
+  <code>`gemini` does not offer compaction</code>. Cookie never compacts an ACP
+  agent's conversation on its own; the agent does, and its compaction
+  shows as a notice.</li>
+<li><strong>Titles.</strong> The agent's own title names the session, and each new one
+  replaces the last until you rename the session. An agent that names
+  nothing gets cookie's generated title after its first reply, on your
+  <code>small_model</code>; with no <code>small_model</code> the session stays untitled.</li>
+<li><strong>A run that fails because the agent stopped</strong> says why: "the agent
+  refused", "the agent hit its output token limit", or "the agent hit its
+  turn request limit". What the agent used up to then still counts in the
+  session's usage.</li>
 </ul>
 <h2 id="delegating-to-an-acp-agent">Delegating to an ACP agent<a class="headerlink" href="#delegating-to-an-acp-agent" title="Permanent link">&para;</a></h2>
 <p>An ACP agent of mode <code>all</code> or <code>subagent</code> is a delegation target like any
@@ -4314,6 +4373,13 @@ note.</p>
 <li><strong>A steered message arrives after the turn.</strong> The agent took it with its
   next turn: either it cannot be steered, or its turn had already ended
   when the message reached it.</li>
+<li><strong>"can't rewind its own conversation" or "can't fork its own
+  conversation".</strong> The agent cannot fork its conversation where the
+  revert or the fork would cut it (see
+  <a href="#forking-reverting-and-deleting-a-session">Forking, reverting, and deleting a session</a>).
+  Revert or fork to before the agent's first reply, or go on from where
+  the session is. "cookie has not yet checked" clears after the agent's
+  next reply.</li>
 <li><strong>The agent does not see cookie's tools.</strong> <code>cookie runtime mcp-bridge</code>
   must run on the runtime's machine; the session says when the bridge could
   not be opened.</li>

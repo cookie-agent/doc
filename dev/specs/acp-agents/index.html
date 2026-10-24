@@ -4344,7 +4344,8 @@ types).</p>
   since its last committed model turn.</li>
 <li><strong>Processes.</strong> Started in the runtime's home directory; idle means no run
   in progress for <code>[acp] idle_shutdown_ms</code>. <code>session/close</code> is sent when a
-  session is deleted (not when it unloads). The engine stops every process
+  session is deleted or unloads; a deleted session's ACP sessions are also
+  deleted (<code>session/delete</code>) since the lifecycle round below. The engine stops every process
   as it shuts down.</li>
 <li><strong>Permissions.</strong> Requests go through the tool permission pipeline (grants
   included) with the agent's runtime as the scope and the session's cwd as
@@ -4362,10 +4363,13 @@ types).</p>
   escalate to the user.</li>
 <li><strong>Usage.</strong> The prompt answer's <code>usage</code> when the agent sends one, else the
   last <code>usage_update</code>'s <code>used</code> as input tokens; a cost only from a
-  <code>usage_update</code> cost in USD. Recorded once per round, on its last turn.</li>
+  <code>usage_update</code> cost in USD. Recorded once per round, on its last turn,
+  whether the round completed, failed, or was cancelled <em>(since the
+  lifecycle round of 2026-10-24; before, only a completed round's)</em>.</li>
 <li><strong>Titles.</strong> <code>session_info_update</code> sets a fallback title while the user has
-  set none; ACP runs generate no title of their own (the title agent needs
-  a model).</li>
+  set none. <em>(Revised 2026-10-24: each new agent title applies until the
+  user names the session, and an untitled session gets cookie's generated
+  title after a round; see the lifecycle round below.)</em></li>
 <li><strong>Not run for ACP agents:</strong> <code>AGENTS.md</code> loading, the skill listing and tool
   prompt sections, the <code>agent_before_start</code> hook, and input media admission
   (images go to an agent whose <code>promptCapabilities.image</code> is set; other
@@ -4743,6 +4747,123 @@ result); a boolean option recorded with its values and set with a JSON
 boolean, and the TUI toggling it; an image in a reply as a file part whose
 artifact holds its bytes; the <code>acp_agents</code> browser scenario (context chip,
 command output, the reply's image, the boolean switch).</p>
+<p><strong>Session lifecycle</strong> (2026-10-24; user decisions of the same day; client
+protocol 1.24.0, plugin protocol 1.12.0; history format unchanged):</p>
+<ul>
+<li><strong>Fork points.</strong> Each committed ACP turn records the ACP <code>messageId</code>s of
+  the agent messages it holds (<code>response_metadata.acp_message_ids</code>), so a
+  fork or a revert can name the agent's last message it keeps.</li>
+<li><strong>Detached sessions.</strong> A fork of a cookie session, and a revert that cuts
+  turns of the agent's conversation, record the ACP session the cookie
+  session talked in as left behind: <code>acp_session_updated.detached</code>
+  (<code>acp_session_id</code>, <code>reason</code> <code>forked</code> or <code>reverted</code>, and the agent's last
+  kept <code>message_id</code>). The fork's log keeps the source's
+  <code>acp_session_started</code> (so the fork knows what to fork); a record
+  followed by <code>detached</code> is never resumed. A revert keeps no marker of its
+  own, so this event is how the log says the agent's session no longer
+  matches.</li>
+<li><strong>Branching.</strong> The agent's next turn in such a session calls
+  <code>session/fork</code> on the detached session with the fork point as
+  <code>_meta.jetbrains.air.fork = {version: 1, messageId}</code> and records the new
+  session (<code>how: forked</code>, <code>forked_from</code>). After a revert the old session is
+  then closed when live and deleted (<code>session/delete</code>), and the session is
+  told the agent continues from the revert point; after a fork the source
+  keeps its session. With no agent message kept (a fork or a revert before
+  the agent's first reply) the turn starts a new session instead, and a
+  revert's old session is deleted. A session whose every record a revert
+  cuts is deleted at once. A fork the agent refuses at that turn fails the
+  run with what it said.</li>
+<li><strong>The AIR extension is a vendor extension.</strong> Standard ACP
+  <code>session/fork</code> (unstable, gated by <code>sessionCapabilities.fork</code>) forks a
+  whole session; the fork point is JetBrains AIR's <code>_meta</code>, which Claude
+  Code's adapter (<code>src/fork-session.ts</code>) and Codex's (<code>src/SessionFork.ts</code>)
+  read and nothing advertises. An agent that does not know it ignores it
+  and forks the whole session. The engine therefore asks once per agent
+  process, after the agent's first completed round (Claude Code's adapter
+  cannot fork a session it has not written to disk yet, and answers
+  <code>-32603</code> "Session ... not found" before), off the turn's path:
+  <code>session/fork</code> of that session at a <code>messageId</code> that cannot exist
+  (<code>cookie-fork-probe-&lt;uuid&gt;</code>), without <code>messageFingerprint</code> (Codex
+  validates its format). Invalid params (<code>-32602</code>, "Fork point message ...
+  was not found") means the fork takes a fork point; a fork that succeeds
+  means it does not, and that fork is deleted (closed when the agent
+  offers no <code>session/delete</code>); any other answer counts as no. The answer stays with
+  the process and is recorded on every session it serves
+  (<code>acp_session_updated.fork_point</code>) and on later records
+  (<code>acp_session_started.fork_point</code>, next to <code>fork</code>, whether the agent
+  offers <code>session/fork</code>), so a revert can be judged while the process is
+  down. A record without them is unknown until the next probe.</li>
+<li><strong>Refusals</strong> (error <code>acp_agent_unsupported</code>, its <code>reason</code> the message,
+  checked before anything changes and before plugin hooks):</li>
+<li>a revert past the agent's first reply when its fork takes no fork
+    point (<code>`claude` on `local` can't rewind its own conversation, so the
+    session can't be reverted past the agent's first reply</code>) or nothing
+    was learned yet (<code>cookie has not yet checked whether ... (it checks
+    after the agent's next reply) ...</code>);</li>
+<li>a fork after the agent's first reply when it offers no <code>session/fork</code>
+    (<code>... can't fork its own conversation, so the session can't be forked
+    after the agent's first reply</code>), and a fork whose point cuts into the
+    agent's conversation when its fork takes no fork point (<code>... can't fork
+    its own conversation at an earlier point, ...</code>). A fork at the end of
+    the conversation is a plain whole-session fork. Revert or fork before
+    the agent's first reply always works. Gemini CLI (no <code>session/fork</code>)
+    therefore refuses both past its first reply.</li>
+<li><em>Superseded the same day:</em> a first version started a new session given
+    a condensed cookie transcript when the agent could not fork; dropped
+    for the refusals above.</li>
+<li>Not covered: a fork of a cookie session whose agent's fork takes no
+    fork point, made at the end of the conversation, whose source runs
+    more turns before the fork's first turn: the fork's <code>session/fork</code>
+    then copies those turns too.</li>
+<li><strong>Deleting a session</strong> closes its live ACP session and deletes every ACP
+  session it owns with <code>session/delete</code> when the agent offers it, starting
+  the agent's process for it when needed (one a fork left behind stays its
+  source's). Paging a session out only closes.</li>
+<li><strong>Usage</strong> is recorded for failed and cancelled rounds too, from the
+  answer's <code>usage</code>, else the last <code>usage_update</code>.</li>
+<li><strong>Stop reasons.</strong> <code>refusal</code>, <code>max_tokens</code>, and <code>max_turn_requests</code> fail
+  the run with "the agent refused", "the agent hit its output token
+  limit", and "the agent hit its turn request limit" (each naming the stop
+  reason), and the turn so far commits as finished <code>refused</code>, <code>length</code>, or
+  <code>max_turn_requests</code>. <code>RunOutcome</code> has no kind that fits; the failure
+  stays <code>failed</code>.</li>
+<li><strong>Compaction.</strong> <code>session.compact</code> on an ACP session used to fail reading
+  the synthetic <code>acp/&lt;agent&gt;</code> binding as a model ("the stored binding of
+  model <code>acp/&lt;agent&gt;</code> cannot be read by this build"). It now runs the
+  agent's <code>compact</code> command, when its <code>available_commands_update</code> lists
+  one, as a run of <code>/compact &lt;focus&gt;</code> and waits for it; otherwise it is
+  refused with <code>acp_agent_unsupported</code> (<code>`claude` does not offer
+  compaction</code>). Automatic compaction belongs to the model loop and never
+  runs for an ACP run.</li>
+<li><strong>Titles.</strong> After a completed round, an ACP session with no title runs
+  cookie's title generation on the title agent's models minus the
+  synthetic <code>acp/&lt;agent&gt;</code> it would inherit as <code>${parent_model}</code>; with
+  <code>small_model</code> unset none remain and nothing runs. A later
+  <code>session_info_update</code> title still replaces it, and each new agent title
+  applies, until the user names the session.</li>
+<li><strong>Checked by hand against Claude Code</strong> (adapter 0.95, outside the
+  daemon, over the adapter's stdio): its initialize advertises <code>fork</code>,
+  <code>delete</code>, <code>close</code>, <code>resume</code>, <code>list</code>; the probe on a fresh session answers
+  <code>-32603</code>, and after one turn <code>-32602</code>; a fork at the first of two
+  replies' <code>messageId</code> (<code>msg_...</code>) remembered only the first turn's word;
+  <code>session/delete</code> of the fork succeeded.</li>
+</ul>
+<p><strong>Tests</strong> (lifecycle; <code>crates/engine/src/runtime/tests/acp/</code> against the
+scripted agent in its three fork modes: at a fork point, whole sessions
+only (<code>ACP_FIXTURE_FORK_WHOLE</code>), and no fork): the probe's answer in each
+mode, recorded once per process and on later records, and the deleted
+probe fork; a fork at its fork point remembering only the turns before
+it, the source keeping its own; a whole fork allowed at the end and
+refused earlier; a fork refused without <code>session/fork</code> and a fork before
+the first reply starting fresh; a revert forking at the revert point and
+deleting the old session, refused for whole and no-fork agents and while
+not asked yet; a revert before the first reply deleting the session and
+starting fresh; a revert of a fork into its source's turns leaving the
+source alone; deletion closing and deleting, not a source's; paging out
+only closing; usage on failed and cancelled rounds; the stop reasons'
+messages and finish reasons; <code>/compact</code> forwarded and refused; the
+generated title, the agent's later one, and no title without
+<code>small_model</code>.</p>
 
 
 
