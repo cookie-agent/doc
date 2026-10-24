@@ -4457,40 +4457,54 @@
 <a href=#4457 id=4457 data-nosnippet>4457</a>            .sum()
 <a href=#4458 id=4458 data-nosnippet>4458</a>    }
 <a href=#4459 id=4459 data-nosnippet>4459</a>
-<a href=#4460 id=4460 data-nosnippet>4460</a>    <span class="doccomment">/// Prevents late producer clones from publishing after the owning call has
-<a href=#4461 id=4461 data-nosnippet>4461</a>    /// been committed as complete and closes every live subscription.
-<a href=#4462 id=4462 data-nosnippet>4462</a>    </span><span class="kw">pub fn </span>finalize(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#4463 id=4463 data-nosnippet>4463</a>        <span class="kw">let </span><span class="kw-2">mut </span>state = <span class="self">self
+<a href=#4460 id=4460 data-nosnippet>4460</a>    <span class="doccomment">/// [`Self::finalize`], answering whether this call finalized the hub
+<a href=#4461 id=4461 data-nosnippet>4461</a>    /// rather than an earlier one.
+<a href=#4462 id=4462 data-nosnippet>4462</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>finalize_once(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#4463 id=4463 data-nosnippet>4463</a>        <span class="kw">let </span>finalized = <span class="self">self
 <a href=#4464 id=4464 data-nosnippet>4464</a>            </span>.state
 <a href=#4465 id=4465 data-nosnippet>4465</a>            .lock()
-<a href=#4466 id=4466 data-nosnippet>4466</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#4467 id=4467 data-nosnippet>4467</a>        state.finalized = <span class="bool-val">true</span>;
-<a href=#4468 id=4468 data-nosnippet>4468</a>        state.subscribers.clear();
-<a href=#4469 id=4469 data-nosnippet>4469</a>    }
-<a href=#4470 id=4470 data-nosnippet>4470</a>}
-<a href=#4471 id=4471 data-nosnippet>4471</a>
-<a href=#4472 id=4472 data-nosnippet>4472</a><span class="doccomment">/// The serialized size past which a limited replay page ends.
-<a href=#4473 id=4473 data-nosnippet>4473</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>REPLAY_PAGE_MAX_BYTES: usize = <span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
-<a href=#4474 id=4474 data-nosnippet>4474</a>
-<a href=#4475 id=4475 data-nosnippet>4475</a><span class="doccomment">/// An event's serialized size, counted without building its JSON.
-<a href=#4476 id=4476 data-nosnippet>4476</a></span><span class="kw">fn </span>serialized_len(event: <span class="kw-2">&amp;</span>StoredEvent) -&gt; usize {
-<a href=#4477 id=4477 data-nosnippet>4477</a>    <span class="kw">struct </span>Counter(usize);
-<a href=#4478 id=4478 data-nosnippet>4478</a>    <span class="kw">impl </span>std::io::Write <span class="kw">for </span>Counter {
-<a href=#4479 id=4479 data-nosnippet>4479</a>        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
-<a href=#4480 id=4480 data-nosnippet>4480</a>            <span class="self">self</span>.<span class="number">0 </span>+= bytes.len();
-<a href=#4481 id=4481 data-nosnippet>4481</a>            <span class="prelude-val">Ok</span>(bytes.len())
-<a href=#4482 id=4482 data-nosnippet>4482</a>        }
-<a href=#4483 id=4483 data-nosnippet>4483</a>        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
-<a href=#4484 id=4484 data-nosnippet>4484</a>            <span class="prelude-val">Ok</span>(())
-<a href=#4485 id=4485 data-nosnippet>4485</a>        }
-<a href=#4486 id=4486 data-nosnippet>4486</a>    }
-<a href=#4487 id=4487 data-nosnippet>4487</a>    <span class="kw">let </span><span class="kw-2">mut </span>counter = Counter(<span class="number">0</span>);
-<a href=#4488 id=4488 data-nosnippet>4488</a>    serde_json::to_writer(<span class="kw-2">&amp;mut </span>counter, event).expect(<span class="string">"a stored event serializes"</span>);
-<a href=#4489 id=4489 data-nosnippet>4489</a>    counter.<span class="number">0
-<a href=#4490 id=4490 data-nosnippet>4490</a></span>}
-<a href=#4491 id=4491 data-nosnippet>4491</a>
-<a href=#4492 id=4492 data-nosnippet>4492</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>convert;
-<a href=#4493 id=4493 data-nosnippet>4493</a>
-<a href=#4494 id=4494 data-nosnippet>4494</a><span class="attr">#[cfg(test)]
-<a href=#4495 id=4495 data-nosnippet>4495</a></span><span class="kw">mod </span>tests;
+<a href=#4466 id=4466 data-nosnippet>4466</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#4467 id=4467 data-nosnippet>4467</a>            .finalized;
+<a href=#4468 id=4468 data-nosnippet>4468</a>        !finalized &amp;&amp; {
+<a href=#4469 id=4469 data-nosnippet>4469</a>            <span class="self">self</span>.finalize();
+<a href=#4470 id=4470 data-nosnippet>4470</a>            <span class="bool-val">true
+<a href=#4471 id=4471 data-nosnippet>4471</a>        </span>}
+<a href=#4472 id=4472 data-nosnippet>4472</a>    }
+<a href=#4473 id=4473 data-nosnippet>4473</a>
+<a href=#4474 id=4474 data-nosnippet>4474</a>    <span class="doccomment">/// Prevents late producer clones from publishing after the owning call has
+<a href=#4475 id=4475 data-nosnippet>4475</a>    /// been committed as complete and closes every live subscription.
+<a href=#4476 id=4476 data-nosnippet>4476</a>    </span><span class="kw">pub fn </span>finalize(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#4477 id=4477 data-nosnippet>4477</a>        <span class="kw">let </span><span class="kw-2">mut </span>state = <span class="self">self
+<a href=#4478 id=4478 data-nosnippet>4478</a>            </span>.state
+<a href=#4479 id=4479 data-nosnippet>4479</a>            .lock()
+<a href=#4480 id=4480 data-nosnippet>4480</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#4481 id=4481 data-nosnippet>4481</a>        state.finalized = <span class="bool-val">true</span>;
+<a href=#4482 id=4482 data-nosnippet>4482</a>        state.subscribers.clear();
+<a href=#4483 id=4483 data-nosnippet>4483</a>    }
+<a href=#4484 id=4484 data-nosnippet>4484</a>}
+<a href=#4485 id=4485 data-nosnippet>4485</a>
+<a href=#4486 id=4486 data-nosnippet>4486</a><span class="doccomment">/// The serialized size past which a limited replay page ends.
+<a href=#4487 id=4487 data-nosnippet>4487</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>REPLAY_PAGE_MAX_BYTES: usize = <span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
+<a href=#4488 id=4488 data-nosnippet>4488</a>
+<a href=#4489 id=4489 data-nosnippet>4489</a><span class="doccomment">/// An event's serialized size, counted without building its JSON.
+<a href=#4490 id=4490 data-nosnippet>4490</a></span><span class="kw">fn </span>serialized_len(event: <span class="kw-2">&amp;</span>StoredEvent) -&gt; usize {
+<a href=#4491 id=4491 data-nosnippet>4491</a>    <span class="kw">struct </span>Counter(usize);
+<a href=#4492 id=4492 data-nosnippet>4492</a>    <span class="kw">impl </span>std::io::Write <span class="kw">for </span>Counter {
+<a href=#4493 id=4493 data-nosnippet>4493</a>        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+<a href=#4494 id=4494 data-nosnippet>4494</a>            <span class="self">self</span>.<span class="number">0 </span>+= bytes.len();
+<a href=#4495 id=4495 data-nosnippet>4495</a>            <span class="prelude-val">Ok</span>(bytes.len())
+<a href=#4496 id=4496 data-nosnippet>4496</a>        }
+<a href=#4497 id=4497 data-nosnippet>4497</a>        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+<a href=#4498 id=4498 data-nosnippet>4498</a>            <span class="prelude-val">Ok</span>(())
+<a href=#4499 id=4499 data-nosnippet>4499</a>        }
+<a href=#4500 id=4500 data-nosnippet>4500</a>    }
+<a href=#4501 id=4501 data-nosnippet>4501</a>    <span class="kw">let </span><span class="kw-2">mut </span>counter = Counter(<span class="number">0</span>);
+<a href=#4502 id=4502 data-nosnippet>4502</a>    serde_json::to_writer(<span class="kw-2">&amp;mut </span>counter, event).expect(<span class="string">"a stored event serializes"</span>);
+<a href=#4503 id=4503 data-nosnippet>4503</a>    counter.<span class="number">0
+<a href=#4504 id=4504 data-nosnippet>4504</a></span>}
+<a href=#4505 id=4505 data-nosnippet>4505</a>
+<a href=#4506 id=4506 data-nosnippet>4506</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>convert;
+<a href=#4507 id=4507 data-nosnippet>4507</a>
+<a href=#4508 id=4508 data-nosnippet>4508</a><span class="attr">#[cfg(test)]
+<a href=#4509 id=4509 data-nosnippet>4509</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
