@@ -4635,6 +4635,14 @@ setup fields and allowed methods; <code>/connect</code> presents that exact form
 Vertex, Bedrock, and Azure compute routes from setup and reject arbitrary
 managed <code>base_url</code> overrides. Custom endpoints must satisfy the selected
 adaptor's route constraints too.</p>
+<p>The <code>anthropic</code> adaptor and the managed <code>anthropic</code> provider send
+<code>anthropic-version: 2026-10-21</code>. That version rejects <code>temperature</code>, <code>top_p</code>,
+and <code>top_k</code>, so their models have no sampling capabilities: declaring
+<code>temperature</code> or <code>top_p</code> as true, or setting either in <code>generation_options</code>, is
+a load error. The <code>anthropic-compatible</code> adaptor and the other managed
+Anthropic-protocol providers send <code>2023-06-01</code> and keep sampling; a custom
+provider that needs sampling on Anthropic's own API uses
+<code>anthropic-compatible</code>.</p>
 <h3 id="model-fields">Model fields<a class="headerlink" href="#model-fields" title="Permanent link">&para;</a></h3>
 <p>Custom model definition under <code>[providers."custom.x".models."&lt;model-id&gt;"]</code>:</p>
 <table>
@@ -5206,10 +5214,12 @@ parent's cached prefix instead of creating an isolated cache namespace.</p>
 <p>OpenAI and Azure OpenAI always send the session's bare UUIDv7 as
 <code>prompt_cache_key</code>; this has no configuration field or opt-out. Their cache table
 accepts <code>prompt_cache_retention</code>, <code>mode</code>, <code>ttl</code>, <code>system</code>, and <code>rolling</code>.
-<code>prompt_cache_retention</code> is <code>"in_memory"</code> or <code>"24h"</code>. Setting <code>mode</code> or <code>ttl</code>, or
-setting <code>system</code> or <code>rolling</code> to true, enables GPT-5.6 controls. Both placements
-default to false; omitted <code>mode</code> and <code>ttl</code> then default to <code>"auto"</code> and <code>"30m"</code>.
-The only accepted <code>ttl</code> is <code>"30m"</code>. <code>mode = "explicit"</code> disables the
+<code>prompt_cache_retention</code> is <code>"in_memory"</code> or <code>"24h"</code>, for models before GPT-5.6.
+Setting <code>mode</code> or <code>ttl</code>, or setting <code>system</code> or <code>rolling</code> to true, enables
+GPT-5.6 controls, which cannot be combined with <code>prompt_cache_retention</code>. Both
+placements default to false; omitted <code>mode</code> and <code>ttl</code> then default to <code>"auto"</code>
+and <code>"30m"</code>. <code>ttl</code> is <code>"30m"</code> or <code>"12h"</code>; <code>"12h"</code> requires the OpenAI Responses
+API, and Chat Completions and Azure OpenAI reject it. <code>mode = "explicit"</code> disables the
 provider-managed breakpoint, so <code>system = false</code> and <code>rolling = false</code> produce
 zero cache writes. There is no tools placement.</p>
 <p>Custom <code>openai-compatible</code> providers accept only <code>prompt_cache_key</code>. Omission
