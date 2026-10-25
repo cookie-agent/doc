@@ -5111,14 +5111,15 @@ variant <code>defaults</code> becomes <code>generation_options</code>, and <code
 Replace variant <code>operation</code> directives with sparse entries or <code>enabled = false</code>.
 Move top-level pricing to the model's <a href="#model-pricing">pricing table</a>.</p>
 <h2 id="prompt-caching">Prompt caching<a class="headerlink" href="#prompt-caching" title="Permanent link">&para;</a></h2>
-<p>Prompt-cache policy belongs to the provider definition. Omit <code>cache</code> to use the
-family defaults. A cache table is validated against the provider's resolved
-adaptor; wrong-family fields and unknown keys are load errors.</p>
+<p>Prompt-cache policy belongs to the provider definition. Omit <code>cache</code>, or a
+field of it, to use the family defaults. A cache table is validated against
+the provider's resolved adaptor; wrong-family fields and unknown keys are load
+errors.</p>
 <p>The following are fragments for already-defined providers, not a complete file:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[providers.anthropic.cache]</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">[providers.</span><span class="s2">"custom.bedrock"</span><span class="k">.cache]</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
@@ -5140,19 +5141,64 @@ a shared cache table must validate for its resolved models. In particular, do
 not apply a Converse-only cache policy to a mixed Bedrock catalog provider that
 also routes models through Responses. Use a custom provider for explicit
 family-specific policy when the managed definition cannot share it.</p>
-<p>Anthropic defaults to <code>system = "1h"</code>, <code>tools = "1h"</code>, and <code>rolling = "5m"</code>.
-<code>system</code> and <code>tools</code> accept <code>"1h"</code>, <code>"5m"</code>, or <code>"off"</code>; <code>rolling</code> accepts
-<code>"5m"</code> or <code>"off"</code>. Marker order is tools, system, then rolling history, and a
-one-hour marker cannot follow a five-minute marker. Explicit <code>"1h"</code> placement
-requires the model's authored Anthropic <code>beta</code> options to contain
-<code>extended-cache-ttl-2025-04-11</code>; Cookie agent never inserts an
-<code>anthropic-beta</code> value on the user's behalf.</p>
-<p>Bedrock has the same three fields and ordering rule. All three default to
-<code>"5m"</code>; setting all three to <code>"off"</code> emits no cache points. Rolling always marks
-the last non-system message. There is no <code>enabled</code> switch and no indexed
-<code>messages</code> list. System and tool points are omitted from requests without
-eligible system text or tools. The three structural placements stay below
-Bedrock's four-point request limit.</p>
+<p>Anthropic and Bedrock share three fields, <code>system</code>, <code>tools</code>, and <code>rolling</code>,
+each <code>"1h"</code>, <code>"5m"</code>, or <code>"off"</code>. Their defaults depend on the layer of the
+session the run belongs to:</p>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th><code>system</code></th>
+<th><code>tools</code></th>
+<th><code>rolling</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Root (no delegation parent)</td>
+<td><code>"1h"</code></td>
+<td><code>"1h"</code></td>
+<td><code>"1h"</code></td>
+</tr>
+<tr>
+<td>Subagent (a delegated child)</td>
+<td><code>"1h"</code></td>
+<td><code>"1h"</code></td>
+<td><code>"5m"</code></td>
+</tr>
+</tbody>
+</table>
+<p>An authored
+value applies to both layers: only the defaults differ. An agent's
+<a href="../agents/#models">entry-level <code>cache</code></a> fills its unset fields from the same
+layer defaults, and a subagent that inherits its parent's models inherits the
+parent's entry-level <code>cache</code> with them. Internal agents (compaction, titles,
+the approval reviewer) use the defaults of the layer of the run they serve;
+compaction reuses that run's markers so it reads the cached prefix.</p>
+<p>Marker order is tools, system, then rolling history, and a one-hour marker
+cannot follow a five-minute marker. Authored values that break the order are a
+load error. A default never does: an unset field after a five-minute marker
+defaults to five minutes, so <code>tools = "5m"</code> alone gives five-minute system and
+rolling markers too.</p>
+<p>The one-hour TTL is generally available on the Anthropic API and needs no
+<code>anthropic-beta</code> header, so <code>"1h"</code> placement, authored or default, sends only
+the marker's <code>ttl</code>. Cookie agent never inserts an <code>anthropic-beta</code> value on the
+user's behalf.</p>
+<p>On Bedrock, only some models take a one-hour TTL: Claude Sonnet 4.5, Haiku
+4.5, Opus 4.5, and later Claude models; older Claude models and other families
+take five minutes only and may reject a <code>ttl</code>. Bedrock publishes no capability
+for it, so Cookie agent reads it from the model ID: an
+<code>anthropic.claude-&lt;family&gt;-&lt;major&gt;-&lt;minor&gt;</code> ID of version 4.5 or later, in any
+region or profile prefix. On any other model, an application inference profile
+ARN included, every default is <code>"5m"</code>. An authored <code>"1h"</code> is sent as written,
+and an authored <code>"1h"</code> that would follow those five-minute defaults fails the
+run's policy freeze with a cache-strategy error; author the earlier markers
+too, or leave the field unset.</p>
+<p>Setting all three Bedrock fields to <code>"off"</code> emits no cache points. Rolling
+always marks the last non-system message. There is no <code>enabled</code> switch and no
+indexed <code>messages</code> list. System and tool points are omitted from requests
+without eligible system text or tools. The three structural placements stay
+below Bedrock's four-point request limit.</p>
 <p>Anthropic and Bedrock use structural markers. The selected policy is frozen for
 the run, prior markers are cleared, and ordinary and compaction requests resolve
 the same system, tools, and last-non-system placements. Compaction shares the

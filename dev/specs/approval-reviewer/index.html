@@ -4191,7 +4191,7 @@ deltas, and restart instead of summarising.</p>
 <li>A scheduled prompt carries user authority (section 4.2).</li>
 <li>The reviewer's cache TTL gets its own setting (section 5). It applies to
    the reviewer model's own provider, which may differ from the session's.
-   Its values are <code>1h</code>, <code>30m</code>, <code>5m</code>, <code>provider</code> (the reviewer model's
+   Its values are <code>1h</code>, <code>30m</code>, <code>12h</code>, <code>5m</code>, <code>provider</code> (the reviewer model's
    provider's own cache configuration) and <code>off</code>. The per-provider mapping is
    the table in section 5.</li>
 <li>No reviewer variant is set in the starter kit:</li>
@@ -4393,21 +4393,30 @@ strings. The current flow does not escape the user message (section 10, d).</p>
 <li><strong>The knob.</strong> The reviewer's own setting:</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[approval]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">    </span><span class="c1"># "1h" (the default), "30m", "5m", "provider", or "off"</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">    </span><span class="c1"># "1h" (the default), "30m", "12h", "5m", "provider", or "off"</span>
 </code></pre></div>
 <p><code>provider</code> means the reviewer model's own provider's cache configuration:
   its authored <code>cache</code> table, or that provider's defaults. It never means the
-  session's.</p>
+  session's. Where those defaults depend on the session layer (Anthropic and
+  Bedrock: root sessions default to system 1h, tools 1h, rolling 1h;
+  subagents to system 1h, tools 1h, rolling 5m), the reviewer uses the
+  defaults of the layer of the session it reviews.</p>
 <p>When a provider does not offer the TTL asked for, the reviewer uses the
-  nearest offered TTL that is at least as long. If none is longer, it uses
-  the longest offered. Config status notes every substitution, and every
-  "no effect" cell when the reviewer runs on that provider.</p>
+  nearest offered TTL by ratio (on a log scale), with ties going to the
+  longer TTL:
+  - on OpenAI GPT-5.6 controls (<code>30m</code>, <code>12h</code>), <code>1h</code> maps to <code>30m</code>, and so
+    does <code>5m</code>;
+  - on Anthropic and Bedrock (<code>5m</code>, <code>1h</code>), <code>30m</code> maps to <code>1h</code>, and so does
+    <code>12h</code>.</p>
+<p>Config status notes every substitution, and every "no effect" cell when
+  the reviewer runs on that provider.</p>
 <table>
 <thead>
 <tr>
 <th>Reviewer's provider</th>
 <th><code>1h</code></th>
 <th><code>30m</code></th>
+<th><code>12h</code></th>
 <th><code>5m</code></th>
 <th><code>provider</code></th>
 <th><code>off</code></th>
@@ -4416,31 +4425,35 @@ strings. The current flow does not escape the user message (section 10, d).</p>
 <tbody>
 <tr>
 <td>Anthropic</td>
-<td>rolling 1h; system and tools raised to 1h (a one-hour marker cannot follow a five-minute one); 5m when the model's <code>beta</code> options lack <code>extended-cache-ttl-2025-04-11</code></td>
-<td>1h under the same rule, else 5m</td>
+<td>rolling 1h; system and tools raised to 1h (a one-hour marker cannot follow a five-minute one)</td>
+<td>1h under the same rule</td>
+<td>1h under the same rule</td>
 <td>rolling 5m; system and tools as configured</td>
-<td>the provider's <code>cache</code> table (default system 1h, tools 1h, rolling 5m)</td>
+<td>the provider's <code>cache</code> table, unset fields from the reviewed session's layer (root: system 1h, tools 1h, rolling 1h; subagent: system 1h, tools 1h, rolling 5m)</td>
 <td>no markers</td>
 </tr>
 <tr>
 <td>Bedrock</td>
 <td>rolling 1h on models that support it, system and tools raised to 1h; else 5m</td>
 <td>1h where supported, else 5m</td>
+<td>1h where supported, else 5m</td>
 <td>rolling 5m</td>
-<td>the provider's <code>cache</code> table (default all 5m)</td>
+<td>the provider's <code>cache</code> table, unset fields from the reviewed session's layer (root: system 1h, tools 1h, rolling 1h; subagent: system 1h, tools 1h, rolling 5m), each 1h only on models that support it, else 5m</td>
 <td>no cache points</td>
 </tr>
 <tr>
 <td>OpenAI, Azure (GPT-5.6 controls)</td>
-<td>rolling placement at 30m, the longest offered</td>
 <td>rolling placement at 30m</td>
-<td>30m, the only TTL offered</td>
+<td>rolling placement at 30m</td>
+<td>rolling placement at 12h (writes cost 2.5× input, reads 0.1×)</td>
+<td>rolling placement at 30m</td>
 <td>the provider's <code>cache</code> table (controls off by default: automatic caching)</td>
 <td><code>mode = "explicit"</code> with no placements: no cache writes</td>
 </tr>
 <tr>
 <td>OpenAI, Azure (other models)</td>
 <td>automatic caching; no effect</td>
+<td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
@@ -4453,10 +4466,12 @@ strings. The current flow does not escape the user message (section 10, d).</p>
 <td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
+<td>no effect</td>
 </tr>
 <tr>
 <td>Gemini, Vertex</td>
 <td>implicit caching; no effect</td>
+<td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
@@ -4469,19 +4484,21 @@ strings. The current flow does not escape the user message (section 10, d).</p>
 <td>no effect</td>
 <td>no effect</td>
 <td>no effect</td>
+<td>no effect</td>
 </tr>
 </tbody>
 </table>
 <p>Further rules:
-  - <strong>Rolling 1h:</strong> the Anthropic and Bedrock strategy type gains a one-hour
-    rolling marker for internal agents. Authored provider configuration keeps
-    <code>rolling = "5m" | "off"</code>. Cookie never adds the Anthropic beta flag
-    itself.
+  - <strong>Rolling 1h:</strong> the Anthropic and Bedrock strategy type already takes a
+    one-hour rolling marker, and authored provider configuration accepts
+    <code>rolling = "1h" | "5m" | "off"</code>. The one-hour TTL needs no Anthropic
+    beta header, and Cookie never adds one itself.
   - <strong>Fallback model:</strong> a reviewer that falls back from <code>${small_model}</code> to
     <code>${parent_model}</code> on another provider follows that model's row.
-  - <strong>Verify the OpenAI row:</strong> check it against OpenAI's official
-    prompt-caching documentation before relying on it, since it comes from
-    oven-sdk.</p>
+  - <strong>The OpenAI row</strong> was checked against OpenAI's documentation on
+    2026-10-24: on GPT-5.6 and later, <code>prompt_cache_options.ttl</code> is <code>"30m"</code>
+    or <code>"12h"</code>, and a breakpoint can carry its own <code>ttl</code>. oven-sdk support
+    for <code>12h</code> and per-breakpoint TTLs is a separate change.</p>
 <p>The knob is read at each review, so a config apply takes effect at the
   next one. The title agent keeps <code>rolling = None</code>.
 - <strong>Cost per review on Anthropic:</strong></p>
@@ -4648,10 +4665,12 @@ always escalates, is corrected: it uses <code>${small_model}</code>.</p>
   readers skip it.</li>
 <li><strong>Tool-denial <code>source: "approval_reviewer"</code>:</strong> this is model-facing text,
   not a wire schema.</li>
-<li><strong><code>[approval] cache_ttl</code>:</strong> <code>"1h"</code> (the default), <code>"30m"</code>, <code>"5m"</code>, <code>"provider"</code>, or <code>"off"</code>.
+<li><strong><code>[approval] cache_ttl</code>:</strong> <code>"1h"</code> (the default), <code>"30m"</code>, <code>"12h"</code>, <code>"5m"</code>, <code>"provider"</code>, or <code>"off"</code>.
   It maps onto the reviewer model's own provider by the table in section 5.
   Unknown values fail, as for every config key.</li>
-<li><strong>Internal agents' cache strategy:</strong> gains a one-hour rolling marker.</li>
+<li><strong>Internal agents' cache strategy:</strong> already takes a one-hour rolling
+  marker; internal agents resolve their cache defaults by the layer of the
+  run they serve.</li>
 <li><strong>The starter kit's <code>explore</code></strong> uses <code>${default_model}</code> (already done,
   with this spec).</li>
 <li><strong>No change to <code>ApprovalRequest</code>.</strong> Moving <code>expires_at</code> (section 10, b)
