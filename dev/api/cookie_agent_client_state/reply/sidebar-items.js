@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["assistant_footer","thought_label"]};

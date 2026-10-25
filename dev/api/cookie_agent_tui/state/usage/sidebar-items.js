@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["NO_HIT_RATE"],"fn":["format_count"],"struct":["CacheHit"]};
+window.SIDEBAR_ITEMS = {"constant":["NO_HIT_RATE"],"fn":["format_cost_usd","format_count","format_token_count"],"struct":["CacheHit"]};
