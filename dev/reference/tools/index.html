@@ -5012,14 +5012,33 @@ reads are the same with or without it.</p>
 <p>The per-tool <strong>Display</strong> sections below list each tool's hint, arguments,
 preview, and result blocks.</p>
 <h2 id="filesystem-tools">Filesystem tools<a class="headerlink" href="#filesystem-tools" title="Permanent link">&para;</a></h2>
-<p><code>read</code>'s <code>limit</code> must be positive. The path is resolved when the call is prepared; the content is read when it executes.
-A text line longer than 4 KiB is cut and ends with a
-<code>[line truncated: N more bytes]</code> marker, and a page that would exceed the result
-size limit stops early with a <code>continue with offset=N</code> note (also reported as
-<code>next_offset</code> in the metadata). Media files are checked against the size limits
-before they are read in full.</p>
-<p><code>write</code> takes the file's complete <code>content</code>. <code>edit</code> requires <code>oldString</code> to
-identify one unambiguous replacement. Preparation checks the replacement against the current
+<p><code>read</code> numbers lines from 1, and its <code>offset</code> is the 1-based line (or
+directory entry) to start at: <code>offset=1</code>, the default, is the first line, and
+an <code>offset</code> of 0 is refused. <code>limit</code>, 2000 lines or entries when left out,
+must be positive. An <code>offset</code> past the last line or entry is an error, except
+that line 1 of an empty file is an empty page. The path is resolved when the
+call is prepared; the content is read when it executes. A text line longer
+than 4 KiB is cut and ends with a <code>... [line truncated: N more bytes]</code> marker.
+A page that leaves lines or entries out ends with a continuation marker that
+names the 1-based <code>offset</code> to read next: <code>[N more lines; continue with
+offset=M]</code> (or <code>entries</code> for a directory) when the <code>limit</code> stopped it, and
+<code>[page cut at the result size limit; continue with offset=M]</code> when it would
+have exceeded the result size limit. The metadata reports the same <code>offset</code>
+as <code>next_offset</code>. Media files are checked against the size limits before they
+are read in full.</p>
+<p><code>memory_read</code> and <code>read_artifact</code> page the same way: the same 1-based
+<code>offset</code>, the same <code>limit</code> and its default, the same numbering, line cut, page
+cap, and continuation marker (<a href="#memory-tools">Memory tools</a>,
+<a href="#read_artifact">read_artifact</a>).</p>
+<p><code>write</code> takes the file's complete <code>content</code> and says whether it
+<code>Created &lt;path&gt; (N bytes).</code> or <code>Replaced &lt;path&gt; (N bytes).</code>. <code>edit</code> requires
+<code>oldString</code> to occur exactly once, or at least once with <code>replaceAll</code>, and
+reports <code>Edited &lt;path&gt;: N replacement(s).</code>. When it occurs some other number
+of times, the call fails with <code>`&lt;oldString&gt;` occurs N times in &lt;path&gt;;
+include more context so it occurs once or set replaceAll</code>, the echoed text
+cut to 200 characters. A path that is not there fails <code>read</code> and <code>edit</code> with
+<code>&lt;path&gt; does not exist</code>. All three refuse arguments they do not define.
+Preparation checks the replacement against the current
 content so a mismatch fails before approval, but the edit itself is applied to
 the file's content at execution: changes made while an approval was pending are
 kept, and an <code>oldString</code> that no longer matches fails the call. Both tools
@@ -5035,7 +5054,7 @@ than embedded in text output.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>read(filePath: string, limit?: integer, offset?: integer)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Read a text/image/video file or a directory snapshot using a zero-based offset.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Read a file or a directory. A text file comes back as numbered lines, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error. A directory lists its entries, one per line with `/` after a folder's name, paged by the same 1-based `offset` and `limit`. An image, video, or other media file the model accepts is attached instead.
 </code></pre></div>
 <table>
 <thead>
@@ -5057,13 +5076,13 @@ than embedded in text output.</p>
 <td><code>limit</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Maximum number of entries or lines to return. Defaults to 2000.</td>
+<td>The most lines, or directory entries, to return. Defaults to 2000.</td>
 </tr>
 <tr>
 <td><code>offset</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Zero-based entry or line offset. Defaults to 0.</td>
+<td>The 1-based line, or directory entry, to start at. Defaults to 1.</td>
 </tr>
 </tbody>
 </table>
@@ -5078,7 +5097,7 @@ than embedded in text output.</p>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Maximum number of entries or lines to return. Defaults to 2000."</span><span class="p">,</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The most lines, or directory entries, to return. Defaults to 2000."</span><span class="p">,</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -5087,7 +5106,7 @@ than embedded in text output.</p>
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">      </span><span class="p">]</span>
 <a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Zero-based entry or line offset. Defaults to 0."</span><span class="p">,</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The 1-based line, or directory entry, to start at. Defaults to 1."</span><span class="p">,</span>
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -5112,7 +5131,7 @@ than embedded in text output.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>write(content: string, filePath: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Write content to a file atomically, creating missing parent directories.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Write a whole file: create it, or replace everything it holds with `content`, overwriting it without a check. Missing parent folders are created. The write is atomic: the file holds either its old content or all of the new. The result says whether the file was created or replaced. To change part of a file, use `edit`.
 </code></pre></div>
 <table>
 <thead>
@@ -5128,7 +5147,7 @@ than embedded in text output.</p>
 <td><code>content</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td></td>
+<td>Everything the file will hold.</td>
 </tr>
 <tr>
 <td><code>filePath</code></td>
@@ -5142,22 +5161,24 @@ than embedded in text output.</p>
 <summary>Parameters JSON Schema</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">"content"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nt">"filePath"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Path to the file. Relative paths resolve against the session working directory."</span><span class="p">,</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="s2">"filePath"</span><span class="p">,</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="s2">"content"</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"WriteArgs"</span><span class="p">,</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">}</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nt">"content"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Everything the file will hold."</span><span class="p">,</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="nt">"filePath"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Path to the file. Relative paths resolve against the session working directory."</span><span class="p">,</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="s2">"filePath"</span><span class="p">,</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="s2">"content"</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"WriteArgs"</span><span class="p">,</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="p">}</span>
 </code></pre></div>
 </details>
 <!-- /generated -->
@@ -5168,7 +5189,7 @@ than embedded in text output.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>edit(filePath: string, newString: string, oldString: string, replaceAll?: boolean)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Replace oldString with newString in a file, atomically.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Replace exact text in a UTF-8 text file, atomically. `oldString` is matched exactly, whitespace and indentation included, and must occur exactly once in the file: when it occurs zero or several times the edit fails before it is approved and changes nothing, so include more surrounding text to make it unique, or set `replaceAll` to replace every occurrence. The line numbers `read` shows are not part of the file. Text files only; use `write` to create a file or replace all of it.
 </code></pre></div>
 <table>
 <thead>
@@ -5190,19 +5211,19 @@ than embedded in text output.</p>
 <td><code>newString</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td></td>
+<td>The text that replaces it.</td>
 </tr>
 <tr>
 <td><code>oldString</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td></td>
+<td>The exact text to replace, whitespace and indentation included; not empty. It must occur exactly once in the file unless <code>replaceAll</code> is set.</td>
 </tr>
 <tr>
 <td><code>replaceAll</code></td>
 <td><code>boolean</code></td>
 <td>no</td>
-<td>Default: <code>false</code>.</td>
+<td>Replace every occurrence of <code>oldString</code> instead of exactly one. Defaults to false. Default: <code>false</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -5210,30 +5231,34 @@ than embedded in text output.</p>
 <summary>Parameters JSON Schema</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">"filePath"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Path to the file. Relative paths resolve against the session working directory."</span><span class="p">,</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="nt">"newString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">"oldString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">    </span><span class="nt">"replaceAll"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"boolean"</span>
-<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">    </span><span class="s2">"filePath"</span><span class="p">,</span>
-<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="w">    </span><span class="s2">"oldString"</span><span class="p">,</span>
-<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="w">    </span><span class="s2">"newString"</span>
-<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EditArgs"</span><span class="p">,</span>
-<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
-<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a><span class="p">}</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">"filePath"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Path to the file. Relative paths resolve against the session working directory."</span><span class="p">,</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">"newString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The text that replaces it."</span><span class="p">,</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="nt">"oldString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The exact text to replace, whitespace and indentation included; not\nempty. It must occur exactly once in the file unless `replaceAll` is\nset."</span><span class="p">,</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">    </span><span class="nt">"replaceAll"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Replace every occurrence of `oldString` instead of exactly one.\nDefaults to false."</span><span class="p">,</span>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"boolean"</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="w">    </span><span class="s2">"filePath"</span><span class="p">,</span>
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a><span class="w">    </span><span class="s2">"oldString"</span><span class="p">,</span>
+<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a><span class="w">    </span><span class="s2">"newString"</span>
+<a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EditArgs"</span><span class="p">,</span>
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a><span class="p">}</span>
 </code></pre></div>
 </details>
 <!-- /generated -->
@@ -5287,7 +5312,7 @@ the table does not know is passed on lowercased).</p>
 </tr>
 <tr>
 <td>Result</td>
-<td><code>file_excerpt</code> of the page (<code>start_line</code> is <code>offset + 1</code>, <code>total_lines</code> the file's), <code>table</code> (<code>name</code>, <code>type</code>) of a directory page, or <code>media</code> of the retained attachment</td>
+<td><code>file_excerpt</code> of the page (<code>start_line</code> is the 1-based <code>offset</code>, <code>total_lines</code> the file's), <code>table</code> (<code>name</code>, <code>type</code>) of a directory page, or <code>media</code> of the retained attachment</td>
 <td><code>diff</code> against the text the write replaced</td>
 <td><code>diff</code> built from the ranges the edit replaced</td>
 </tr>
@@ -5645,8 +5670,8 @@ converted to text. Over-cap responses return the fetched prefix with
 parameter. Full results use the standard event log and result
 store. The standard Bounded policy retains oversized output and sends a preview
 to the model. <code>read_artifact</code> pages the retained header and body by physical
-line; its zero-based offset 5 starts at the body. Follow <code>next_offset</code> for
-successive pages. Metadata is separate and is not paged.</p>
+line, numbered from 1; its 1-based offset 6 starts at the body. Follow the
+continuation marker, or <code>next_offset</code>, for successive pages. Metadata is separate and is not paged.</p>
 <p>Errors distinguish <code>invalid_url</code>, <code>redirect_error</code>, <code>timeout</code>,
 <code>transport_error</code>, and <code>unsupported_content_type</code> (which names the content type).
 <code>permission_denied</code> uses the standard policy-denial path and its structured
@@ -5824,9 +5849,12 @@ order determines model rendering. Bash uses the same named-output interface as
 other tools; it does not build its own retained-output manifest.</p>
 <p>Each stream receives its own configured <code>[tool_output]</code> line/byte preview limits.
 Only truncated streams receive a <code>read_artifact(artifact="&lt;digest&gt;",
-stream="&lt;stream&gt;", offset=...)</code> hint, where the digest identifies the manifest.
-Single-output hints omit <code>stream</code> and the heading. A partial-line byte cut points back to that
-line, so readback does not skip unseen text. Aggregate preview construction also
+stream="&lt;stream&gt;", offset=...)</code> hint, where the digest identifies the manifest
+and <code>offset</code> is the 1-based line of the first line the preview left out, as
+<code>read_artifact</code> takes it. (The stream's <code>next_offset</code> in <code>retained_output</code>
+stays the zero-based index of that line.) Single-output hints omit <code>stream</code>
+and the heading. A partial-line byte cut points back to that line, so readback
+does not skip unseen text. Aggregate preview construction also
 reserves 16 KiB for headings/hints inside the existing 2 MiB output bound; when
 necessary, previews are reduced with truthful read hints.</p>
 <p><code>ToolProgress.output</code> carries at most 8 typed chunks and 64 KiB of authoritative
@@ -5859,8 +5887,10 @@ error alongside output previews to the model. Terminal events carry
 declare an absolute truncation opt-out. Their requested page is returned in full
 without artifact retention or truncation metadata, regardless of
 <code>[tool_output]</code>. Callers bound these results with each tool's offset/limit
-arguments. A requested page above the event schema's 2 MiB output limit fails
-with a resource-limit tool error; it is never silently truncated. The
+arguments. <code>read</code> and <code>read_artifact</code> cut each line after 4 KiB and stop a page
+before it passes the 2 MiB output limit, ending it with the <code>offset</code> to read
+next; a <code>get_subagent_result</code> page above that limit fails with a
+resource-limit tool error. No page is silently truncated. The
 <code>delegate_subagent</code> terminal result also opts out, because its teaser preview is
 bounded by <code>[subagent_output]</code> instead; the owner of the delegation flow is the
 only place it is bounded. MCP and plugin tools remain subject to normal truncation. External
@@ -5887,7 +5917,7 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>read_artifact(artifact: string, limit?: integer, offset?: integer, stream?: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Read retained tool output by line, using a zero-based offset. Truncated results and elided history name the artifact (and stream) to read in a read_artifact hint; continue from the offset it gives.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Read retained tool output by line, as `read` reads a file. A truncated result or elided history names the artifact (and stream) to read in a read_artifact hint, with the 1-based `offset` of the first line it left out: read from there. Lines come back numbered, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error.
 </code></pre></div>
 <p>Always, whatever the agent's permission rules: it reads only output retained by the session's own tree.</p>
 <table>
@@ -5910,13 +5940,13 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 <td><code>limit</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Maximum number of lines to return, at most 2000. Defaults to 2000.</td>
+<td>The most lines to return. Defaults to 2000.</td>
 </tr>
 <tr>
 <td><code>offset</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Zero-based line offset. Defaults to 0.</td>
+<td>The 1-based line to start at. Defaults to 1.</td>
 </tr>
 <tr>
 <td><code>stream</code></td>
@@ -5937,7 +5967,7 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 <a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">    </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Maximum number of lines to return, at most 2000. Defaults to 2000."</span><span class="p">,</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The most lines to return. Defaults to 2000."</span><span class="p">,</span>
 <a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
 <a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -5946,7 +5976,7 @@ capture, stay in the tree's <code>artifacts/</code> directory until the tree is 
 <a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="w">      </span><span class="p">]</span>
 <a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="w">    </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Zero-based line offset. Defaults to 0."</span><span class="p">,</span>
+<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The 1-based line to start at. Defaults to 1."</span><span class="p">,</span>
 <a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
 <a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -5979,20 +6009,32 @@ digests) and invalid stream names are rejected. <code>read</code> reads only the
 filesystem.</p>
 <p>Artifact reads return the stored content without unwrapping JSON. Normal
 single-output artifacts contain the original full text. Named-stream artifacts
-contain their complete individual text. Compaction retry artifacts may contain serialized
-tool-content JSON, including output text and metadata. Their markers identify
-this format and expose usable IDs without requiring durable elision events.</p>
+contain their complete individual text. A compaction retry artifact holds the
+elided result's text as it was, or, for content that is not plain text, a
+line-structured form: a <code>[tool content: &lt;kind&gt;]</code> header line, then each part
+under its own <code>[part N: text|json|file ...]</code> line, text keeping its own line
+breaks, JSON pretty-printed over several lines, and a file named by its media
+type and filename without its bytes. Its marker says so and exposes a usable
+ID without requiring durable elision events. Artifacts earlier builds stored
+are read as they are: their non-text content is one line of serialized
+tool-content JSON, of which a page shows the first 4 KiB.</p>
 <p>Without <code>stream</code>, <code>read_artifact</code> reads stored text as-is, including manifest
 JSON; it does not merge streams. <code>stream</code> selects a declared name from the generic
 manifest. This is content-based and works for <code>results</code>, <code>diagnostics</code>, or any
 other valid declared name, not just Bash streams. Unknown names and selection on
 non-manifests are errors. Stored <code>ArtifactReference</code> values keep the internal
 <code>artifact://sha256/&lt;digest&gt;</code> form, which is not a <code>read_artifact</code> argument.</p>
-<p>Returned pages include <code>next_offset</code> metadata when more lines remain. A zero
-limit fails; larger limits are capped at 2000 lines. Pages over the 2 MiB
-terminal-result limit fail and must be requested with a smaller limit. Missing
-and corrupt artifacts produce tool errors.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span><span class="nt">"artifact"</span><span class="p">:</span><span class="s2">"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"</span><span class="p">,</span><span class="nt">"stream"</span><span class="p">:</span><span class="s2">"results"</span><span class="p">,</span><span class="nt">"offset"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span><span class="nt">"limit"</span><span class="p">:</span><span class="mi">200</span><span class="p">}</span>
+<p>A page reads as a <code>read</code> page of a file does, without the <code>&lt;path&gt;</code> wrapper:
+lines numbered from 1 (<code>N: text</code>), a 1-based <code>offset</code> (default 1, and 0 is
+refused), a positive <code>limit</code> (default 2000, with no maximum), each line cut
+after 4 KiB with a <code>... [line truncated: N more bytes]</code> marker, the page
+stopped before it passes the result size limit, and a continuation marker
+(<code>[N more lines; continue with offset=M]</code>, or <code>[page cut at the result size
+limit; continue with offset=M]</code>) when lines follow it, reported again as the
+1-based <code>next_offset</code> in the metadata. An <code>offset</code> past the last line is an
+error. Bytes that are not UTF-8 show as replacement characters. Missing and
+corrupt artifacts produce tool errors.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span><span class="nt">"artifact"</span><span class="p">:</span><span class="s2">"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"</span><span class="p">,</span><span class="nt">"stream"</span><span class="p">:</span><span class="s2">"results"</span><span class="p">,</span><span class="nt">"offset"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"limit"</span><span class="p">:</span><span class="mi">200</span><span class="p">}</span>
 </code></pre></div>
 <h3 id="display_4">Display<a class="headerlink" href="#display_4" title="Permanent link">&para;</a></h3>
 <table>
@@ -6021,7 +6063,7 @@ and corrupt artifacts produce tool errors.</p>
 </tr>
 <tr>
 <td>Result</td>
-<td>the page as <code>text</code></td>
+<td><code>file_excerpt</code> of the page: <code>path</code> the title's <code>&lt;12 hex&gt;[/&lt;stream&gt;]</code>, no <code>language</code>, <code>start_line</code> the 1-based <code>offset</code>, <code>total_lines</code> the artifact's</td>
 </tr>
 </tbody>
 </table>
@@ -6204,7 +6246,7 @@ The report previews the turn's final message per
 <a href="../../engine/subagent_output/"><code>[subagent_output]</code></a>, with its line breaks and
 tabs kept and other control characters folded to spaces. A report over the limit
 shows its first and last lines around a marker such as
-<code>[… 200 lines omitted. Read more: get_subagent_result(session_id="explore_1a2b3c4d", offset=20)]</code>;
+<code>[… 200 lines omitted. Read more: get_subagent_result(session_id="explore_1a2b3c4d", offset=21)]</code>;
 a complete one ends in <code>full output shown</code>.
 Terminal and lifecycle results keep the UUID under the unified <code>session_id</code>
 metadata key and add <code>handle</code>. <code>resume_session_id</code> accepts the same two forms,
@@ -6402,7 +6444,7 @@ workspace.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>get_subagent_result(limit?: integer, offset?: integer, session_id: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>Read the current status and latest result of a subagent you delegated, such as the full output a &lt;subagent_report&gt; cut short. This call returns immediately; it never waits. Use the subagent's handle, e.g. "explore_1a2b3c4d". Only your own subagents are visible.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>Read the current status and latest result of a subagent you delegated, such as the full output a &lt;subagent_report&gt; cut short. This call returns immediately; it never waits. Use the subagent's handle, e.g. "explore_1a2b3c4d". Only your own subagents are visible. The result comes back as numbered lines, `N: text`, counting from 1, as `read` returns a file: `offset` is the 1-based line to start at (default 1) and `limit` the most lines to return (default 2000); a line longer than 4 KiB is cut, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`. A &lt;subagent_report&gt; cut short names the offset to continue from.
 </code></pre></div>
 <p>Only when the agent can delegate to at least one subagent at this depth.</p>
 <table>
@@ -6419,13 +6461,13 @@ workspace.</p>
 <td><code>limit</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Default: <code>2000</code>.</td>
+<td>The most lines to return. Defaults to 2000. Default: <code>2000</code>.</td>
 </tr>
 <tr>
 <td><code>offset</code></td>
 <td><code>integer</code></td>
 <td>no</td>
-<td>Default: <code>0</code>.</td>
+<td>The 1-based line of the result to start at. Defaults to 1. Default: <code>1</code>.</td>
 </tr>
 <tr>
 <td><code>session_id</code></td>
@@ -6442,25 +6484,28 @@ workspace.</p>
 <a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="w">    </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="mi">2000</span><span class="p">,</span>
-<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a><span class="w">      </span><span class="nt">"maximum"</span><span class="p">:</span><span class="w"> </span><span class="mi">4294967295</span><span class="p">,</span>
-<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"integer"</span>
-<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a><span class="w">    </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-37-13" name="__codelineno-37-13" href="#__codelineno-37-13"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"integer"</span>
-<a id="__codelineno-37-14" name="__codelineno-37-14" href="#__codelineno-37-14"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-37-15" name="__codelineno-37-15" href="#__codelineno-37-15"></a><span class="w">    </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-37-16" name="__codelineno-37-16" href="#__codelineno-37-16"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Handle (agent_type + 8 hex, e.g. \"coder_9f8e7d6b\") or full UUID of one of your subagents."</span><span class="p">,</span>
-<a id="__codelineno-37-17" name="__codelineno-37-17" href="#__codelineno-37-17"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-37-18" name="__codelineno-37-18" href="#__codelineno-37-18"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-37-19" name="__codelineno-37-19" href="#__codelineno-37-19"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-37-20" name="__codelineno-37-20" href="#__codelineno-37-20"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-37-21" name="__codelineno-37-21" href="#__codelineno-37-21"></a><span class="w">    </span><span class="s2">"session_id"</span>
-<a id="__codelineno-37-22" name="__codelineno-37-22" href="#__codelineno-37-22"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-37-23" name="__codelineno-37-23" href="#__codelineno-37-23"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
-<a id="__codelineno-37-24" name="__codelineno-37-24" href="#__codelineno-37-24"></a><span class="p">}</span>
+<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The most lines to return. Defaults to 2000."</span><span class="p">,</span>
+<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="w">      </span><span class="nt">"maximum"</span><span class="p">:</span><span class="w"> </span><span class="mi">4294967295</span><span class="p">,</span>
+<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"integer"</span>
+<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a><span class="w">    </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a><span class="w">      </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-37-13" name="__codelineno-37-13" href="#__codelineno-37-13"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The 1-based line of the result to start at. Defaults to 1."</span><span class="p">,</span>
+<a id="__codelineno-37-14" name="__codelineno-37-14" href="#__codelineno-37-14"></a><span class="w">      </span><span class="nt">"maximum"</span><span class="p">:</span><span class="w"> </span><span class="mi">4294967295</span><span class="p">,</span>
+<a id="__codelineno-37-15" name="__codelineno-37-15" href="#__codelineno-37-15"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-37-16" name="__codelineno-37-16" href="#__codelineno-37-16"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"integer"</span>
+<a id="__codelineno-37-17" name="__codelineno-37-17" href="#__codelineno-37-17"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-37-18" name="__codelineno-37-18" href="#__codelineno-37-18"></a><span class="w">    </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-37-19" name="__codelineno-37-19" href="#__codelineno-37-19"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Handle (agent_type + 8 hex, e.g. \"coder_9f8e7d6b\") or full UUID of one of your subagents."</span><span class="p">,</span>
+<a id="__codelineno-37-20" name="__codelineno-37-20" href="#__codelineno-37-20"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-37-21" name="__codelineno-37-21" href="#__codelineno-37-21"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-37-22" name="__codelineno-37-22" href="#__codelineno-37-22"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-37-23" name="__codelineno-37-23" href="#__codelineno-37-23"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-37-24" name="__codelineno-37-24" href="#__codelineno-37-24"></a><span class="w">    </span><span class="s2">"session_id"</span>
+<a id="__codelineno-37-25" name="__codelineno-37-25" href="#__codelineno-37-25"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-37-26" name="__codelineno-37-26" href="#__codelineno-37-26"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-37-27" name="__codelineno-37-27" href="#__codelineno-37-27"></a><span class="p">}</span>
 </code></pre></div>
 </details>
 <!-- /generated -->
@@ -6491,7 +6536,7 @@ workspace.</p>
 <tr>
 <td>Arguments</td>
 <td><code>key_value</code> of <code>agent</code>, <code>description</code>, <code>resume</code> and <code>inherit context</code> when set, and <code>prompt</code></td>
-<td><code>key_value</code> of <code>session</code>, and <code>offset</code> (when not 0) and <code>limit</code> when given</td>
+<td><code>key_value</code> of <code>session</code>, and <code>offset</code> (when not 1) and <code>limit</code> when given</td>
 <td><code>key_value</code> of <code>name</code>, and <code>arguments</code> when not empty</td>
 </tr>
 <tr>
@@ -6704,6 +6749,24 @@ the <a href="../../specs/agent-messaging/">agent messaging spec</a> for the full
 <h2 id="memory-tools">Memory tools<a class="headerlink" href="#memory-tools" title="Permanent link">&para;</a></h2>
 <p>The memory tools search, read, and change the memories the <code>global</code> runtime
 keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
+<p>They follow the <a href="#filesystem-tools">filesystem tools</a> where they can.
+<code>memory_read</code> pages a memory's body as <code>read</code> pages a file: under the
+metadata header, the body's lines numbered from 1, a 1-based <code>offset</code>
+(default 1), a <code>limit</code> (default 2000), the same 4 KiB line cut, page cap,
+continuation marker, and error for an <code>offset</code> past the last body line.
+<code>memory_write</code> reports <code>Created &lt;url&gt; (N bytes).</code> or <code>Replaced &lt;url&gt; (N
+bytes).</code>, <code>memory_edit</code> <code>Edited &lt;url&gt;: 1 replacement.</code>, and a memory that is
+not there is <code>&lt;url&gt; does not exist</code>. <code>memory_edit</code> takes <code>oldString</code> and
+<code>newString</code>, as <code>edit</code> does, and preparation checks that <code>oldString</code> occurs
+exactly once in the body, so an edit that cannot apply fails before anyone is
+asked to approve it, with <code>`&lt;oldString&gt;` occurs N times in the body of
+&lt;url&gt;; include more context so it occurs once</code> (the echoed text cut to 200
+characters). What stays different on purpose: an edit matches the body only
+and has no <code>replaceAll</code>; a replacing write needs the session to have read the
+memory as it is now, and is refused otherwise with an <code>operation_changed</code>
+error; a bad memory URL is an <code>invalid_url</code> error; a delete is final; the
+permission actions are <code>memory</code> and <code>memory_write</code> by URL; and the write
+tools run one at a time.</p>
 <h3 id="memory_search"><code>memory_search</code><a class="headerlink" href="#memory_search" title="Permanent link">&para;</a></h3>
 <!-- generated: tool memory_search -->
 
@@ -6802,10 +6865,10 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 <h3 id="memory_read"><code>memory_read</code><a class="headerlink" href="#memory_read" title="Permanent link">&para;</a></h3>
 <!-- generated: tool memory_read -->
 
-<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>memory_read(url: string)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>memory_read(limit?: integer, offset?: integer, url: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>Read one memory whole by its URL (user://&lt;category&gt;, agent://&lt;agent&gt;, machine://&lt;machine&gt;/&lt;name&gt;, or project://&lt;project&gt;/&lt;name&gt;). Returns whether it is related to this session and whether you may change it, when it was created and modified, its size and its size limit, its description and keywords, and its body.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>Read one memory by its URL (user://&lt;category&gt;, agent://&lt;agent&gt;, machine://&lt;machine&gt;/&lt;name&gt;, or project://&lt;project&gt;/&lt;name&gt;). Returns whether it is related to this session and whether you may change it, when it was created and modified, its size and its size limit, its description and keywords, and then its body as numbered lines, `N: text`, counting from 1. `offset` is the 1-based body line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last body line is an error. The line numbers are not part of the memory.
 </code></pre></div>
 <p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>memory</code>. <code>memory_search</code> needs no rule of its own: each result is checked against the <code>memory</code> rules for its URL instead.</p>
 <table>
@@ -6818,6 +6881,18 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>limit</code></td>
+<td><code>integer</code></td>
+<td>no</td>
+<td>The most body lines to return. Defaults to 2000.</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td><code>integer</code></td>
+<td>no</td>
+<td>The 1-based body line to start at. Defaults to 1.</td>
+</tr>
 <tr>
 <td><code>url</code></td>
 <td><code>string</code></td>
@@ -6832,17 +6907,35 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 <a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
 <a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="w">  </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
 <a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="w">    </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The memory URL."</span><span class="p">,</span>
-<a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
-<a id="__codelineno-46-8" name="__codelineno-46-8" href="#__codelineno-46-8"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-46-9" name="__codelineno-46-9" href="#__codelineno-46-9"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-46-10" name="__codelineno-46-10" href="#__codelineno-46-10"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-46-11" name="__codelineno-46-11" href="#__codelineno-46-11"></a><span class="w">    </span><span class="s2">"url"</span>
-<a id="__codelineno-46-12" name="__codelineno-46-12" href="#__codelineno-46-12"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-46-13" name="__codelineno-46-13" href="#__codelineno-46-13"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ReadArgs"</span><span class="p">,</span>
-<a id="__codelineno-46-14" name="__codelineno-46-14" href="#__codelineno-46-14"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
-<a id="__codelineno-46-15" name="__codelineno-46-15" href="#__codelineno-46-15"></a><span class="p">}</span>
+<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="w">    </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The most body lines to return. Defaults to 2000."</span><span class="p">,</span>
+<a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
+<a id="__codelineno-46-8" name="__codelineno-46-8" href="#__codelineno-46-8"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-46-9" name="__codelineno-46-9" href="#__codelineno-46-9"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-46-10" name="__codelineno-46-10" href="#__codelineno-46-10"></a><span class="w">        </span><span class="s2">"integer"</span><span class="p">,</span>
+<a id="__codelineno-46-11" name="__codelineno-46-11" href="#__codelineno-46-11"></a><span class="w">        </span><span class="s2">"null"</span>
+<a id="__codelineno-46-12" name="__codelineno-46-12" href="#__codelineno-46-12"></a><span class="w">      </span><span class="p">]</span>
+<a id="__codelineno-46-13" name="__codelineno-46-13" href="#__codelineno-46-13"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-46-14" name="__codelineno-46-14" href="#__codelineno-46-14"></a><span class="w">    </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-46-15" name="__codelineno-46-15" href="#__codelineno-46-15"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The 1-based body line to start at. Defaults to 1."</span><span class="p">,</span>
+<a id="__codelineno-46-16" name="__codelineno-46-16" href="#__codelineno-46-16"></a><span class="w">      </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"uint"</span><span class="p">,</span>
+<a id="__codelineno-46-17" name="__codelineno-46-17" href="#__codelineno-46-17"></a><span class="w">      </span><span class="nt">"minimum"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-46-18" name="__codelineno-46-18" href="#__codelineno-46-18"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-46-19" name="__codelineno-46-19" href="#__codelineno-46-19"></a><span class="w">        </span><span class="s2">"integer"</span><span class="p">,</span>
+<a id="__codelineno-46-20" name="__codelineno-46-20" href="#__codelineno-46-20"></a><span class="w">        </span><span class="s2">"null"</span>
+<a id="__codelineno-46-21" name="__codelineno-46-21" href="#__codelineno-46-21"></a><span class="w">      </span><span class="p">]</span>
+<a id="__codelineno-46-22" name="__codelineno-46-22" href="#__codelineno-46-22"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-46-23" name="__codelineno-46-23" href="#__codelineno-46-23"></a><span class="w">    </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-46-24" name="__codelineno-46-24" href="#__codelineno-46-24"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The memory URL."</span><span class="p">,</span>
+<a id="__codelineno-46-25" name="__codelineno-46-25" href="#__codelineno-46-25"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+<a id="__codelineno-46-26" name="__codelineno-46-26" href="#__codelineno-46-26"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-46-27" name="__codelineno-46-27" href="#__codelineno-46-27"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-46-28" name="__codelineno-46-28" href="#__codelineno-46-28"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-46-29" name="__codelineno-46-29" href="#__codelineno-46-29"></a><span class="w">    </span><span class="s2">"url"</span>
+<a id="__codelineno-46-30" name="__codelineno-46-30" href="#__codelineno-46-30"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-46-31" name="__codelineno-46-31" href="#__codelineno-46-31"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ReadArgs"</span><span class="p">,</span>
+<a id="__codelineno-46-32" name="__codelineno-46-32" href="#__codelineno-46-32"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
+<a id="__codelineno-46-33" name="__codelineno-46-33" href="#__codelineno-46-33"></a><span class="p">}</span>
 </code></pre></div>
 </details>
 <!-- /generated -->
@@ -6958,10 +7051,10 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 <h3 id="memory_edit"><code>memory_edit</code><a class="headerlink" href="#memory_edit" title="Permanent link">&para;</a></h3>
 <!-- generated: tool memory_edit -->
 
-<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>memory_edit(new: string, old: string, url: string)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>memory_edit(newString: string, oldString: string, url: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>Replace the one occurrence of `old` in a memory's body with `new`, following the memory instructions in the system prompt. Fails when `old` occurs zero or several times; include more context to make it unique.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>Replace the one occurrence of `oldString` in a memory's body with `newString`, following the memory instructions in the system prompt. `oldString` is matched exactly against the body only, never the description or keywords, and must occur exactly once: when it occurs zero or several times the edit fails before it is approved and changes nothing, so include more surrounding text to make it unique. There is no replace-all. The line numbers memory_read shows are not part of the body.
 </code></pre></div>
 <p>Only when <code>memory_read</code> is sent too and some memory URL is both readable (an <code>allow</code> or <code>ask</code> <code>memory</code> rule matches it) and writable (an <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, by default.</p>
 <table>
@@ -6975,16 +7068,16 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>new</code></td>
+<td><code>newString</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td>Its replacement.</td>
+<td>The text that replaces it.</td>
 </tr>
 <tr>
-<td><code>old</code></td>
+<td><code>oldString</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td>Text that occurs exactly once in the body.</td>
+<td>The exact text to replace; it must occur exactly once in the body.</td>
 </tr>
 <tr>
 <td><code>url</code></td>
@@ -7000,12 +7093,12 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 <a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
 <a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a><span class="w">  </span><span class="nt">"additionalProperties"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
 <a id="__codelineno-52-4" name="__codelineno-52-4" href="#__codelineno-52-4"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-52-5" name="__codelineno-52-5" href="#__codelineno-52-5"></a><span class="w">    </span><span class="nt">"new"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-52-6" name="__codelineno-52-6" href="#__codelineno-52-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Its replacement."</span><span class="p">,</span>
+<a id="__codelineno-52-5" name="__codelineno-52-5" href="#__codelineno-52-5"></a><span class="w">    </span><span class="nt">"newString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-52-6" name="__codelineno-52-6" href="#__codelineno-52-6"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The text that replaces it."</span><span class="p">,</span>
 <a id="__codelineno-52-7" name="__codelineno-52-7" href="#__codelineno-52-7"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-52-8" name="__codelineno-52-8" href="#__codelineno-52-8"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-52-9" name="__codelineno-52-9" href="#__codelineno-52-9"></a><span class="w">    </span><span class="nt">"old"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-52-10" name="__codelineno-52-10" href="#__codelineno-52-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Text that occurs exactly once in the body."</span><span class="p">,</span>
+<a id="__codelineno-52-9" name="__codelineno-52-9" href="#__codelineno-52-9"></a><span class="w">    </span><span class="nt">"oldString"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-52-10" name="__codelineno-52-10" href="#__codelineno-52-10"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The exact text to replace; it must occur exactly once in the body."</span><span class="p">,</span>
 <a id="__codelineno-52-11" name="__codelineno-52-11" href="#__codelineno-52-11"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-52-12" name="__codelineno-52-12" href="#__codelineno-52-12"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-52-13" name="__codelineno-52-13" href="#__codelineno-52-13"></a><span class="w">    </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -7015,8 +7108,8 @@ keeps; see <a href="../../sessions/memory/">Memory</a>.</p>
 <a id="__codelineno-52-17" name="__codelineno-52-17" href="#__codelineno-52-17"></a><span class="w">  </span><span class="p">},</span>
 <a id="__codelineno-52-18" name="__codelineno-52-18" href="#__codelineno-52-18"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <a id="__codelineno-52-19" name="__codelineno-52-19" href="#__codelineno-52-19"></a><span class="w">    </span><span class="s2">"url"</span><span class="p">,</span>
-<a id="__codelineno-52-20" name="__codelineno-52-20" href="#__codelineno-52-20"></a><span class="w">    </span><span class="s2">"old"</span><span class="p">,</span>
-<a id="__codelineno-52-21" name="__codelineno-52-21" href="#__codelineno-52-21"></a><span class="w">    </span><span class="s2">"new"</span>
+<a id="__codelineno-52-20" name="__codelineno-52-20" href="#__codelineno-52-20"></a><span class="w">    </span><span class="s2">"oldString"</span><span class="p">,</span>
+<a id="__codelineno-52-21" name="__codelineno-52-21" href="#__codelineno-52-21"></a><span class="w">    </span><span class="s2">"newString"</span>
 <a id="__codelineno-52-22" name="__codelineno-52-22" href="#__codelineno-52-22"></a><span class="w">  </span><span class="p">],</span>
 <a id="__codelineno-52-23" name="__codelineno-52-23" href="#__codelineno-52-23"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EditArgs"</span><span class="p">,</span>
 <a id="__codelineno-52-24" name="__codelineno-52-24" href="#__codelineno-52-24"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span>
@@ -7113,9 +7206,9 @@ on every save, as the memory editors show it.</p>
 <tr>
 <td>Arguments</td>
 <td><code>key_value</code> of <code>query</code>, <code>layer</code>, and <code>limit</code></td>
-<td>–</td>
+<td><code>key_value</code> of <code>offset</code> and <code>limit</code> when the call gives them</td>
 <td><code>key_value</code> of <code>reason</code> when given; without a preview, also <code>description</code>, <code>keywords</code>, and <code>body</code></td>
-<td>– ; without a preview, <code>key_value</code> of <code>old</code> and <code>new</code></td>
+<td>– ; without a preview, <code>key_value</code> of <code>oldString</code> and <code>newString</code></td>
 <td>–</td>
 </tr>
 <tr>
@@ -7123,13 +7216,13 @@ on every save, as the memory editors show it.</p>
 <td>–</td>
 <td>–</td>
 <td><code>diff</code> against the memory preparation finds (<code>created</code> when there is none)</td>
-<td><code>diff</code> of the replacement applied to the memory preparation read, when <code>old</code> occurs once</td>
+<td><code>diff</code> of the replacement applied to the memory preparation read</td>
 <td><code>diff</code> of the memory's removed text (<code>deleted</code>), when it exists</td>
 </tr>
 <tr>
 <td>Result</td>
 <td>a <code>link</code> per memory found, its URL with its description as the label, or <code>No memories match.</code></td>
-<td>the body as <code>markdown</code></td>
+<td><code>file_excerpt</code> of the body's page, as <code>read</code> shows a file's: <code>path</code> the URL, <code>language</code> <code>markdown</code>, <code>start_line</code> the 1-based <code>offset</code>, <code>total_lines</code> the body's</td>
 <td><code>diff</code> against the memory the write replaced (<code>created</code> for a new one)</td>
 <td><code>diff</code> built from the range the edit replaced, or a line diff of the whole file when the daemon also rewrote its frontmatter (an <code>agent://</code> file, a project's overview)</td>
 <td><code>diff</code> of the text the memory held (<code>deleted</code>)</td>

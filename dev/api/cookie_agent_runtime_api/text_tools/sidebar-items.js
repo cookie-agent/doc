@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_LIMIT","MAX_ECHO_CHARS","MAX_LINE_BYTES","MAX_PAGE_BYTES"],"enum":["PageError"],"fn":["counted","echo","edited","not_found","occurrence_error","page_reader","page_text","wrote"],"struct":["LinePager","LineWindow","NumberedPage"]};

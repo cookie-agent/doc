@@ -4139,6 +4139,13 @@ the rubric, which says:</p>
 <li>when a memory is near its size limit, merge or drop what it holds before
   adding to it.</li>
 </ul>
+<p>The memory tools read and change memories the way the file tools read and
+change files (<a href="../../reference/tools/#memory-tools">Memory tools</a>).
+<code>memory_read</code> returns the memory's metadata, then its body as lines numbered
+from 1, a page at a time: <code>offset</code> is the 1-based body line to start at and
+<code>limit</code> the most lines (2000 by default), and a page that leaves lines out
+ends with the <code>offset</code> to read next. <code>memory_edit</code> takes <code>oldString</code> and
+<code>newString</code>, like <code>edit</code>, but matches the body only and has no <code>replaceAll</code>.</p>
 <p>The daemon backs the rubric with a few checks that need no model:</p>
 <ul>
 <li><strong>Similar memories.</strong> A <code>memory_write</code> that creates a memory is compared
@@ -4154,8 +4161,11 @@ the rubric, which says:</p>
 <li><strong>Size limits</strong> (above): a write over the limit is refused with the
   current content to condense.</li>
 <li><strong>No revisions.</strong> The tools carry no revision. <code>memory_edit</code> applies when
-  its <code>old</code> text occurs exactly once in the current body, so an edit on top of
-  someone else's change that does not touch that text still works.
+  its <code>oldString</code> occurs exactly once in the current body, so an edit on top of
+  someone else's change that does not touch that text still works. The daemon
+  checks that before it asks you to approve the edit: one whose <code>oldString</code>
+  occurs zero or several times, or whose memory does not exist, fails at once
+  and is never shown to you for approval. It checks again when the edit runs.
   <code>memory_write</code> replaces an existing memory only when the session saw its
   current content, through <code>memory_read</code>, the snapshot, or one of its own
   writes; otherwise it is refused with the current content, so a whole-memory
@@ -4163,9 +4173,10 @@ the rubric, which says:</p>
   daemon restart a session reads a memory again before replacing it.)</li>
 <li><strong>Deletes delete.</strong> <code>memory_delete</code> removes the file, <code>user://</code> categories
   and <code>agent://</code> files included; nothing is kept, and there is no undo.</li>
-<li><strong>Every change is visible.</strong> Each write, edit, and delete a model makes is
-  a one-line event in the transcript, such as <code>Saved
-  project://cookie-agent/release</code>. A change you make from a client records
+<li><strong>Every change is visible.</strong> The tool row of each write, edit, and delete a
+  model makes is the record of its change: its header links to the memory,
+  and expanding it shows the change as a diff, as an <code>edit</code> row does. No
+  separate transcript line is added. A change you make from a client records
   none.</li>
 </ul>
 <p>When an agent's <code>memory_write</code> rule is <code>ask</code>, the approval reviewer is given
