@@ -1701,6 +1701,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#the-approval-reviewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      The approval reviewer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#internal-agent-prompt-placeholders" class="md-nav__link">
     <span class="md-ellipsis">
       Internal agent prompt placeholders
@@ -3137,6 +3146,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/web-client/" class="md-nav__link">
         
   
@@ -3579,52 +3634,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specs/approval-reviewer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Approval reviewer
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/native-compaction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Native compaction
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../specs/projects/" class="md-nav__link">
         
   
@@ -4040,6 +4049,15 @@
   
     <nav class="md-nav" aria-label="Internal agents">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-approval-reviewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      The approval reviewer
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#internal-agent-prompt-placeholders" class="md-nav__link">
@@ -4836,9 +4854,11 @@ including when the parent switched presets after session creation, and later
 runs stay on that preset. Each later run looks the delegated agent up by ID in
 the live configuration, falling back to the default agent when it is gone.</p>
 <h2 id="internal-agents">Internal agents<a class="headerlink" href="#internal-agents" title="Permanent link">&para;</a></h2>
-<p>The harness runs three internal agents. They are stateless, tool-less model
-calls with a strict text-only output contract, and they emit their own event
-family (<code>internal_agent_started</code>, <code>internal_agent_finished</code>, ...).</p>
+<p>The harness runs three internal agents. They are tool-less model calls with a
+strict text-only output contract, and they emit their own event family
+(<code>internal_agent_started</code>, <code>internal_agent_finished</code>, ...). Compaction and
+title are stateless; the approval reviewer keeps one conversation per
+session.</p>
 <table>
 <thead>
 <tr>
@@ -4851,9 +4871,9 @@ family (<code>internal_agent_started</code>, <code>internal_agent_finished</code
 <tbody>
 <tr>
 <td><code>approval</code></td>
-<td>Stateless approval classifier for <code>auto_approve</code> mode</td>
+<td>The approval reviewer of the <code>auto_approve</code> modes, with one cached conversation per session (<a href="#the-approval-reviewer">The approval reviewer</a>)</td>
 <td><code>${small_model}</code>, then <code>${parent_model}</code></td>
-<td>30 s timeout; model-derived input budget; max output tokens inherit the parent run's cap</td>
+<td>30 s timeout; window of the model's context; max output tokens inherit the parent run's cap</td>
 </tr>
 <tr>
 <td><code>compaction</code></td>
@@ -4875,8 +4895,8 @@ keeps the session's prompt cache warm. <code>${parent_model}</code> is the model
 parent run is currently using — including its position in the fallback chain:
 if the run has fallen back to its second model, internal agents resolve to
 that second model too. An ACP agent's session has no model of its own, so its
-approval reviewer runs on <code>small_model</code> alone; without it, <code>ask</code> requests go
-to the user. An internal agent's input budget is derived from each
+approval reviewer runs on <code>small_model</code> alone; without it the review fails
+and <code>ask</code> requests go to the user. An internal agent's input budget is derived from each
 resolved model's input limit when it declares one, otherwise from its context
 limit after reserving its effective maximum output (at most 32,000 tokens or half
 the context), with a minimum of one token. A model with an unknown context limit uses a
@@ -4888,8 +4908,9 @@ title, so they never invoke the title agent.</p>
 <code>mode: internal</code>, and an explicit <code>models</code> list. <code>${parent_model}</code> is
 allowed only in internal agents. When an internal agent document is disabled, or
 its fallback chain yields no available model, the internal call fails safely
-(approval degrades to asking, compaction is skipped, and title falls back to an
-input excerpt) and a failed <code>internal_agent_finished</code> event is recorded.</p>
+(approval escalates to the user with the reason <code>internal_agent_failed</code>,
+compaction is skipped, and title falls back to an input excerpt) and a failed
+<code>internal_agent_finished</code> event is recorded.</p>
 <p>Example replacement — run compaction on a cheaper model while the primary run
 keeps its own selection:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>---
@@ -4905,6 +4926,94 @@ keeps its own selection:</p>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="gu">---</span>
 <a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>{{default_prompt}}
 </code></pre></div>
+<h3 id="the-approval-reviewer">The approval reviewer<a class="headerlink" href="#the-approval-reviewer" title="Permanent link">&para;</a></h3>
+<p>The <code>approval</code> agent decides the <code>ask</code> calls of the <code>auto_approve</code>,
+<code>auto_approve_n</code>, and <code>auto_approve_y</code> modes. Each session has one reviewer
+conversation, rendered from the session's event log alone, so a daemon
+restart renders the same bytes and the provider's prompt cache keeps
+hitting. Each review adds one <code>user</code> turn and the reviewer's answer:</p>
+<ul>
+<li><strong>The first turn</strong> opens with the project's instructions (the root
+  session's <code>AGENTS.md</code>, at most 4,000 tokens) and everything so far;</li>
+<li><strong>each later turn</strong> holds what happened since the previous review;</li>
+<li><strong>every turn</strong> ends with the call to decide in <code>&lt;approval_request&gt;</code>: its
+  name, where it runs, what the permission rules saw, and its arguments.</li>
+</ul>
+<p>What the reviewer sees, in log order:</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>Label</th>
+<th>The user's authority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A message from a person in a client</td>
+<td><code>[user]</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>A cron job's prompt</td>
+<td><code>[scheduled prompt &lt;job&gt;]</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>The project's <code>AGENTS.md</code></td>
+<td><code>[project instructions]</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>A parent agent's instructions to a subagent</td>
+<td><code>[instructions from the parent agent]</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td>Another agent's <code>send_message</code>, a subagent's report</td>
+<td><code>[message from agent &lt;session&gt;]</code>, <code>[report from subagent &lt;session&gt;]</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td>A tool call that finished, with its outcome (<code>completed</code>, <code>failed</code>, <code>denied</code>, <code>cancelled</code>) and summarised arguments</td>
+<td><code>[tool call]</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td>Your answer to a call the reviewer passed to you</td>
+<td><code>[user decision]</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>It never sees tool output or the agent's own text, and read-only calls
+(<code>read</code>, <code>grep</code>, <code>memory_read</code>, and the like) are left out. A message keeps
+at most 2,000 tokens and a tool call 300, around a <code>[… N tokens omitted …]</code>
+marker. A subagent's conversation opens with its root's user messages up to
+the delegation and each ancestor's instructions, since only the root's
+user messages authorise its calls. Text inside any entry cannot open or
+close a block: every <code>&lt;</code> in it becomes <code>&amp;lt;</code>.</p>
+<p>The reviewer answers <code>{"decision":"allow"|"deny"|"ask","reason":"…"}</code>. The
+one-sentence reason is recorded on the evaluation as <code>rationale</code>, shown to
+you ("The reviewer asks: …" on an escalated call, and in the info row of a
+call resolved without you), and given to the agent on a denial as
+<code>{"kind":"tool_denied","source":"approval_reviewer","reason":…}</code>. A missing
+reason is allowed; any other member, or a reply that is not this JSON,
+fails the review.</p>
+<p>A review that fails (an error, a timeout, an unparseable reply, or no
+model) records <code>internal_agent_failed</code>: <code>auto_approve</code> and <code>auto_approve_y</code>
+pass the call to you and <code>auto_approve_n</code> rejects it. No mode approves a
+call whose review failed.</p>
+<p>The conversation's window is the reviewer model's context window (128,000
+tokens when the catalog gives none), net of its output reserve (the agent's
+<code>max_output_tokens</code>, else 4,000) and a 2,000-token margin. When the next
+turn would not fit, the conversation starts over from a fresh render of the
+log, in which user messages keep to 30% of the window (the first three with
+your authority, a subagent's first instructions, and the newest, with a
+block from the middle dropped), the tool calls keep to 50% (the oldest half
+dropped as often as it takes), and the last five verdicts come along as
+entries. Nothing is summarised, and the boundary is the same after a
+restart. Its cache lifetime is <a href="../../engine/approval/#the-reviewers-cache"><code>[approval] cache_ttl</code></a>.</p>
 <h3 id="internal-agent-prompt-placeholders">Internal agent prompt placeholders<a class="headerlink" href="#internal-agent-prompt-placeholders" title="Permanent link">&para;</a></h3>
 <p>The bodies of <code>approval.md</code>, <code>compaction.md</code>, and <code>title.md</code> are templates. Each
 built-in body is exactly <code>{{default_prompt}}</code>, which expands to that agent's
@@ -4921,7 +5030,7 @@ built-in prompt:</p>
 <tbody>
 <tr>
 <td><code>approval</code></td>
-<td>The approval reviewer prompt: when to choose <code>allow</code>, <code>ask</code>, or <code>deny</code>, which kinds of calls need the user, and how to weigh prior decisions.</td>
+<td>The approval reviewer prompt: how its conversation is labelled and which entries carry the user's authority, when to choose <code>allow</code>, <code>ask</code>, or <code>deny</code>, which kinds of calls need the user, and the rules of judging a call against the whole task.</td>
 <td>System prompt</td>
 <td>none</td>
 </tr>
@@ -4941,8 +5050,8 @@ built-in prompt:</p>
 </table>
 <p>The output format each agent must follow is not part of <code>{{default_prompt}}</code>.
 It stays in the request the engine builds, so a custom body cannot break
-parsing: approval still asks for <code>{"decision":"allow"|"deny"|"ask"}</code> and title
-still asks for plain text only.</p>
+parsing: approval still asks for <code>{"decision":"allow"|"deny"|"ask","reason":"…"}</code>
+in each request block and title still asks for plain text only.</p>
 <p>To keep a default prompt and add your own rules, wrap it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>{{default_prompt}}
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
@@ -5571,19 +5680,22 @@ services. Requests inherit the cookie-agent process's proxy environment and
 have a 30-second timeout. See the <a href="../../reference/tools/#webfetch">tool reference</a>
 for the output format, HTML rendering, the download cap, and result paging.</p>
 <h3 id="live-permission-modes">Live permission modes<a class="headerlink" href="#live-permission-modes" title="Permanent link">&para;</a></h3>
-<p>Each session tree starts in <code>auto_approve</code> unless changed. The mode is runtime
-only, is keyed by the tree root, and can be changed through any session in the
-tree. Every client connected to the daemon is told when it changes; the TUI
-updates its bottom bar and names a change made by another client:</p>
+<p>Each session tree starts in <code>auto_approve</code> unless changed. The mode is keyed
+by the tree root and can be changed through any session in the tree; each
+change appends <code>permission_mode_set</code> to the root's log, so the mode survives
+a daemon restart and follows revert and fork. Every client connected to the
+daemon is told when it changes; the TUI updates its bottom bar and names a
+change made by another client:</p>
 <ul>
-<li><code>auto_approve</code> runs the stateless approval classifier and asks the user when
-  it escalates or fails safely.</li>
-<li><code>auto_approve_n</code> runs the same classifier but rejects an escalation on the
-  user's behalf without showing a prompt.</li>
-<li><code>auto_approve_y</code> runs the same classifier but approves an escalation on the
+<li><code>auto_approve</code> runs the <a href="#the-approval-reviewer">approval reviewer</a> and asks
+  the user when it escalates or its review fails.</li>
+<li><code>auto_approve_n</code> runs the same reviewer but rejects an escalation, and a
+  failed review, on the user's behalf without showing a prompt.</li>
+<li><code>auto_approve_y</code> runs the same reviewer but approves an escalation on the
   user's behalf without showing a prompt. This is an approve-once decision and
-  does not create a lasting session-tree grant.</li>
-<li><code>ask</code> skips the classifier and routes policy asks and model-requested
+  does not create a lasting session-tree grant. A failed review is passed to
+  the user instead.</li>
+<li><code>ask</code> skips the reviewer and routes policy asks and model-requested
   approvals to the user.</li>
 <li><code>yolo</code> approves asks immediately.</li>
 </ul>
@@ -5600,8 +5712,10 @@ sibling approval is pending. Denied or rejected calls fail independently; after
 the approval pass, surviving parallel-eligible calls are dispatched together.</p>
 <p>Mode-decided escalations use the <code>permission_mode</code> decision source in the audit
 trail. Their final reason codes are <code>auto_approve_n_rejected</code> and
-<code>auto_approve_y_approved</code>; the classifier's preceding evaluation remains an
-internal-agent escalation.</p>
+<code>auto_approve_y_approved</code>; the reviewer's preceding evaluation remains an
+internal-agent escalation (<code>escalated</code>, or <code>internal_agent_failed</code> for a
+failed review). The user's window, <code>[approval] timeout_ms</code>, starts when the
+call escalates, so the reviewer's time never comes out of it.</p>
 <h3 id="session-permission-overlays">Session permission overlays<a class="headerlink" href="#session-permission-overlays" title="Permanent link">&para;</a></h3>
 <p>Run <code>/permissions</code> to edit the selected session's permission overlay. The
 panel lists every action with its effective <code>allow</code>, <code>ask</code>, or <code>deny</code> effect,

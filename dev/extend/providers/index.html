@@ -3098,6 +3098,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/web-client/" class="md-nav__link">
         
   
@@ -3532,52 +3578,6 @@
             Drafts and records
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/approval-reviewer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Approval reviewer
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/native-compaction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Native compaction
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -4274,7 +4274,7 @@ stored); unconfigured providers report counts alone.</p>
 <td><code>setup</code></td>
 <td>map of string values</td>
 <td>empty</td>
-<td>Setup fields the provider recipe requires (for example <code>project</code>, <code>location</code>, <code>region</code>, <code>resource_name</code>). Native Azure Responses compaction also requires <code>model</code>, <code>version</code>, and <code>deployment_type</code>. Interpolates <code>${env:NAME}</code>.</td>
+<td>Setup fields the provider recipe requires (for example <code>project</code>, <code>location</code>, <code>region</code>, <code>resource_name</code>). Azure Responses compacts natively only with <code>model</code>, <code>version</code>, and <code>deployment_type</code>. Interpolates <code>${env:NAME}</code>.</td>
 </tr>
 <tr>
 <td><code>api_key</code></td>
@@ -4308,14 +4308,16 @@ stored); unconfigured providers report counts alone.</p>
 </tr>
 </tbody>
 </table>
-<p>Within a model override, <code>compaction</code> defaults to <code>"unsupported"</code>. Set it to
-<code>"openai-responses-compact"</code> for the OpenAI Responses recipe or
-<code>"azure-responses-compact"</code> for the Azure Responses recipe. The compiler derives
-the native capability from this setting and rejects it for other recipes. The
-Azure provider identity must be <code>azure.openai</code> to match Oven's native scope.
+<p>Every model on a Responses adaptor compacts natively by default (see
+<a href="../../sessions/compaction/#native-provider-compaction">native compaction</a>):
+OpenAI Responses, official, compatible, or credential-less, and Azure OpenAI
+Responses when <code>setup</code> has <code>model</code>, <code>version</code>, and <code>deployment_type</code>. Within a
+model override, <code>compaction = "unsupported"</code> turns native compaction off for that
+model. <code>"openai-responses-compact"</code> and <code>"azure-responses-compact"</code> are still
+accepted and redundant: they mean the default, on any recipe. A variant that
+switches <code>request_endpoint</code> compacts natively when its own adaptor does.
 Frozen manifests store the compiled native/unsupported capability, not this
-setting string, so they never contain the retired <code>"v1"</code> value. Authored <code>"v1"</code>
-fails with a migration error naming the adapter-specific replacement.</p>
+setting string. The removed <code>"v1"</code> fails with an error.</p>
 <p><code>auth_override</code>:</p>
 <table>
 <thead>
@@ -4359,8 +4361,7 @@ model. Confirm availability in your runtime before making requests:</p>
 </code></pre></div>
 <p>Model overrides accept <code>enabled</code>, <code>display_name</code>, <code>model_id</code>, <code>generation_options</code>,
 <code>adaptor_options</code>, <code>pricing</code>, <code>variants</code>, <code>default_variant</code>, <code>compaction</code>, and
-<code>headers</code>. Except for the explicit compaction policy described above, omitted
-fields retain catalog/base values. Display names and generation settings have
+<code>headers</code>. Omitted fields retain catalog/base values. Display names and generation settings have
 the same constraints as custom definitions. Variant and pricing rules are below.</p>
 <h3 id="catalog-reasoning-variants">Catalog reasoning variants<a class="headerlink" href="#catalog-reasoning-variants" title="Permanent link">&para;</a></h3>
 <p>Managed models get variants from the catalog's <code>reasoning_options</code>:</p>
@@ -4837,7 +4838,7 @@ the current configuration or catalog changes.</p>
 <tr>
 <td><code>compaction</code></td>
 <td>string</td>
-<td>Defaults to <code>"unsupported"</code>, the only accepted custom capability value. Native opt-in is managed-model configuration.</td>
+<td>Optional; <code>"unsupported"</code> is the only accepted value and turns native compaction off. Omitted, a model on a Responses adaptor (or an <code>openai-compatible</code> adaptor with <code>request_endpoint = "responses"</code>) compacts natively, and Azure Responses does so with <code>model</code>, <code>version</code>, and <code>deployment_type</code> in <code>setup</code>.</td>
 </tr>
 <tr>
 <td><code>native_replay</code></td>
@@ -4877,7 +4878,8 @@ or billing stops, and <code>capabilities.cancellation</code> is rejected.</p>
 <p>All integrated SDK codecs support replay. Automatic replay is optional except
 Anthropic reasoning, which requires native state. Azure ordinary replay does
 not require deployment revision metadata; <code>model</code>, <code>version</code>, and
-<code>deployment_type</code> remain required for native compaction. Azure Chat supports
+<code>deployment_type</code> remain required for native compaction, which Azure Responses
+skips without them. Azure Chat supports
 native text/tool replay, not provider-authoritative reasoning replay.
 Explicit replay declarations remain authoritative and fail when incompatible;
 <code>native_replay = "unsupported"</code> disables replay. Automatic replay is recomputed
@@ -4928,7 +4930,8 @@ is not automatically recovered by stripping reasoning and resending. Errors
 follow the normal <a href="../../engine/model_retry/">retry and fallback policy</a>.
 Replay neither enables prompt caching nor guarantees cache hits or live backend
 acceptance. Cache policy and <a href="../../sessions/compaction/#native-provider-compaction">native compaction</a>
-retain their separate scope and validation rules.</p>
+retain their separate scope and validation rules: a compacted window serves
+only its own provider and model, and other requests use the summary.</p>
 <h2 id="generation-options">Generation options<a class="headerlink" href="#generation-options" title="Permanent link">&para;</a></h2>
 <p>Model and variant <code>generation_options</code> supply shared generation settings. On a
 custom base model, omission leaves optional values unset and <code>stop</code> empty; on

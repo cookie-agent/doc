@@ -2436,6 +2436,24 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1290" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.29.0
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1280" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.28.0
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1270" class="md-nav__link">
     <span class="md-ellipsis">
       1.27.0
@@ -3149,6 +3167,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/web-client/" class="md-nav__link">
         
   
@@ -3591,52 +3655,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specs/approval-reviewer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Approval reviewer
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/native-compaction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Native compaction
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../specs/projects/" class="md-nav__link">
         
   
@@ -3948,6 +3966,24 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1290" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.29.0
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1280" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.28.0
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1270" class="md-nav__link">
     <span class="md-ellipsis">
       1.27.0
@@ -4250,6 +4286,45 @@
 (<code>cookie_agent_protocol::CLIENT_PROTOCOL_VERSION</code>). From 1.0.0 a minor only
 adds and a major breaks; before it, every minor could break the wire (see the
 <a href="../../specs/compatibility-v1/">compatibility spec</a> section 3).</p>
+<h2 id="1290">1.29.0<a class="headerlink" href="#1290" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Native compaction beside the summary (<a href="../../specs/native-compaction/">native compaction spec</a>),
+  all additions an older peer ignores:</li>
+<li>The <code>internal_summary</code> checkpoint of <code>context_checkpoint_committed</code> has
+    an optional <code>native</code> (<code>CheckpointNativeWindow</code>: <code>window</code>,
+    <code>source_through_seq</code>), the provider window compacted from the same
+    events. An older reader uses the summary. Plugin protocol 1.17.0
+    carries it too.</li>
+<li>The <code>native_window</code> checkpoint is no longer written; earlier logs keep
+    reading.</li>
+<li><code>ConfigStatus</code> has an optional <code>native_compaction</code>, a list of
+    <code>NativeCompactionMark</code> (<code>provider_id</code>, <code>state</code>, <code>reason</code>,
+    <code>age_seconds</code>): the providers the daemon stopped attempting native
+    compaction for (<code>unsupported</code>) or whose windows it ignores
+    (<code>rejects_windows</code>). <code>NativeCompactionState</code> is open; an unknown value
+    reads as <code>unknown</code>.</li>
+</ul>
+<h2 id="1280">1.28.0<a class="headerlink" href="#1280" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The approval reviewer (<a href="../../specs/approval-reviewer/">approval reviewer spec</a>
+  sections 7, 10, and 11), all additions an older peer ignores:</li>
+<li><code>ApprovalInternalDecision</code> has an optional <code>rationale</code>, the reviewer's
+    one-sentence reason for its verdict, at most 300 characters.</li>
+<li><code>ApprovalReasonCode</code> has the value <code>internal_agent_failed</code>: the reviewer
+    failed (an error, a timeout, an unparseable reply, or no model), so the
+    evaluated step escalates and no permission mode approves it for the
+    user. An older reader reads it as <code>system_error</code>; a reader before
+    1.28.0 also checked an evaluated step's decision with that fallback and
+    refuses the step as contradictory, which 1.28.0 readers no longer do.
+    The <code>escalated</code> step that follows keeps the reason <code>escalated</code>.</li>
+<li>The <code>escalated</code> approval step has an optional <code>expires_at</code>, when the
+    user's window to answer ends: it now starts at the escalation, so the
+    request a 1.28.0 daemon writes carries no <code>expires_at</code> of its own, and
+    the approval's record (<code>approval.list</code>) carries the step's.</li>
+<li>New event <code>permission_mode_set</code> (<code>mode</code>), which a root session records
+    outside its runs when its tree's permission mode changes. Plugin
+    protocol 1.16.0 carries these too; an older reader skips the event.</li>
+</ul>
 <h2 id="1270">1.27.0<a class="headerlink" href="#1270" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>FrozenOpenAiPromptCacheTtl</code> (the <code>ttl</code> of an <code>openai</code> frozen cache

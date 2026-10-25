@@ -1436,6 +1436,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Native provider compaction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-provider-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      The provider record
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1478,6 +1493,15 @@
   <a href="#manual-compaction" class="md-nav__link">
     <span class="md-ellipsis">
       Manual compaction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
     </span>
   </a>
   
@@ -2933,6 +2957,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/web-client/" class="md-nav__link">
         
   
@@ -3375,52 +3445,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specs/approval-reviewer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Approval reviewer
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/native-compaction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Native compaction
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../specs/projects/" class="md-nav__link">
         
   
@@ -3738,6 +3762,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Native provider compaction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-provider-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      The provider record
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3786,6 +3825,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#events" class="md-nav__link">
     <span class="md-ellipsis">
       Events
@@ -3817,35 +3865,79 @@
 <p>Compaction reduces a long session history to a checkpoint. Internal compaction
 keeps a budgeted tail of recent messages unchanged and summarizes everything
 before it; the summary replaces those older messages in model context, and the
-original saved log is preserved. Provider-native compaction instead stores an
-opaque provider window.</p>
+original saved log is preserved. On a Responses provider, provider-native
+compaction runs beside it and the checkpoint also stores the opaque window the
+provider returned.</p>
 <p>Active history means the currently assembled context before compaction, including
 any existing summary and the messages after it. It does not reload historical
 events already replaced by earlier checkpoints.</p>
 <h2 id="native-provider-compaction">Native provider compaction<a class="headerlink" href="#native-provider-compaction" title="Permanent link">&para;</a></h2>
-<p>OpenAI Responses and Azure OpenAI Responses models can opt into provider-native
-compaction. The native operation runs first. If the adapter rejects the
-assembled request, the provider call fails, or the returned opaque window is
-invalid, Cookie Agent automatically runs the existing internal compaction agent.</p>
-<p>Enable it on a managed provider model override with
-<code>compaction = "openai-responses-compact"</code> or
-<code>compaction = "azure-responses-compact"</code>. Cookie Agent derives the native model
-capability from that setting. Other adaptors reject the setting. Azure also
-requires the managed provider identity <code>azure.openai</code> plus <code>model</code>, <code>version</code>,
-and <code>deployment_type</code> in the provider <code>setup</code> table so the window is scoped to
-an explicit deployment.</p>
-<p>This deployment-metadata requirement is specific to native compaction, not
-ordinary Azure replay. Native windows retain their exact scope checks; the
-<a href="../../extend/providers/#replay-and-cancellation">portable-block replay rules</a> do not permit
-moving a compaction window to an incompatible provider or deployment.</p>
-<p>A native checkpoint stores a bounded opaque provider window rather than summary
-text. Events through the checkpoint boundary are omitted from normal history,
-no framed summary message is inserted, and the window is attached to the next
-request. Later native compactions are seeded with the previous window. The
-window has a 32 MiB cap; <code>max_summary_bytes</code> applies only to text summaries.
-Native windows remain unchanged by recent-history retention: the engine does not
-append an independent recent-message tail to them. Neither native nor internal
+<p>Every model on a Responses adaptor compacts natively by default: OpenAI
+Responses, whether the managed <code>openai</code> provider, an OpenAI-compatible gateway,
+or a credential-less endpoint, and Azure OpenAI Responses when the provider's
+<code>setup</code> table has <code>model</code>, <code>version</code>, and <code>deployment_type</code>, which scope the
+window to an explicit deployment. Azure without them, and every other adaptor,
+compacts with the summary alone. Set <code>compaction = "unsupported"</code> on a
+<a href="../../extend/providers/#provider-fields">model override</a>, or on a custom model's
+capabilities, to turn native compaction off for that model.</p>
+<p><strong>Native compaction runs beside the summary.</strong> When a checkpoint is due, the
+engine calls the provider's compact endpoint and the internal compaction agent
+at the same time:</p>
+<ul>
+<li>both succeed: the checkpoint holds the summary and the window;</li>
+<li>native fails: the checkpoint holds the summary alone, and the failure may mark
+  the provider (below);</li>
+<li>the summary fails: nothing is committed, even when native succeeded. Every
+  checkpoint carries a summary.</li>
+</ul>
+<p>A failed native call costs only its own time, which overlaps the summary.
+Cancelling compaction cancels both calls, and compaction hooks see one
+compaction.</p>
+<p><strong>The window serves only its own model.</strong> A request whose model has the same
+provider ID and model ID as the window, on the same adaptor, sends the window
+with the messages after it. A variant change keeps the window. Every other
+request, on another model, another provider, or a provider marked as rejecting
+windows, uses the summary and its recent messages instead. Switching models in
+the picker, or a fallback chain moving to its next model, therefore continues
+on the summary. The window also keeps its exact scope (its endpoint and
+account): a window whose scope the adaptor no longer accepts, after an endpoint
+change for example, is passed over for the summary too.</p>
+<p>A window has a 32 MiB cap; <code>max_summary_bytes</code> applies only to the summary. A
+window keeps no independent recent-message tail. The next native compaction is
+seeded with the window when the model can use it. Neither native nor internal
 compaction rereads files.</p>
+<p><strong>Older sessions.</strong> Builds before client protocol 1.29.0 stored a window without
+a summary. Such a checkpoint still serves its own model. On any other model the
+engine first summarizes the events it covers from the saved log, once, and
+commits that as a new checkpoint; the request then proceeds on it.</p>
+<h3 id="the-provider-record">The provider record<a class="headerlink" href="#the-provider-record" title="Permanent link">&para;</a></h3>
+<p>The daemon remembers, per provider ID, what native compaction answered, in
+<code>native-compaction.json</code> in its data folder (<code>~/.cookie-agent</code> by default):</p>
+<ul>
+<li><strong><code>unsupported</code></strong>: the compact endpoint answered definitively that the
+  provider has no native compaction: HTTP 404, 405, or 501, or a refusal naming
+  the compaction item (an adaptor that cannot build the compact request counts
+  too). Native compaction is not attempted; stored windows still serve.</li>
+<li><strong><code>rejects_windows</code></strong>: the provider refused a request that carried a window
+  (below). Native compaction is not attempted, and requests use the summary
+  instead of stored windows.</li>
+</ul>
+<p>Transient failures (timeouts, rate limits, 5xx other than 501, network errors)
+and authentication errors mark nothing. An entry expires after 7 days, and is
+dropped when the provider's configuration (its source, endpoint, recipe, setup,
+or authentication method) changes. There is no option to force native
+compaction past an entry: delete the file, or change the provider's
+configuration. The configuration status (<code>/config</code> in the TUI, <code>cookie config</code>,
+and the web client's configuration view) lists each entry with its reason and
+age.</p>
+<p><strong>A window refused at request time.</strong> When the provider answers a request that
+carried a window with a 400 or 422 naming the compaction item or its encrypted
+content (OpenAI answers an unusable compaction item with
+<code>invalid_encrypted_content</code>; a gateway without compaction support typically
+names the <code>compaction</code> item type or the <code>encrypted_content</code> field), that request
+fails with the provider's error, as any refusal does, and the provider is
+marked <code>rejects_windows</code>. The next request, in that session or any other, uses
+the summary. A refusal that names neither marks nothing.</p>
 <h2 id="the-trigger-threshold">The trigger threshold<a class="headerlink" href="#the-trigger-threshold" title="Permanent link">&para;</a></h2>
 <p>Triggers are measured against the model's <strong>input budget</strong>, the number of
 tokens a request may occupy:</p>
@@ -3885,12 +3977,13 @@ context length, the engine compacts once regardless of the threshold and
 retries.</p>
 <h2 id="what-happens-when-it-triggers">What happens when it triggers<a class="headerlink" href="#what-happens-when-it-triggers" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Native attempt.</strong> An opted-in Responses model first attempts native
-   compaction. A successful native window goes directly to checkpoint commit,
-   without selecting independent recent messages. Otherwise, or after any native
-   failure, the engine uses internal summarization. Native compaction uses the
-   bound model's context limit minus the effective compaction output allowance.
-   If that allowance is unknown, the engine reserves 20,000 tokens as conservative
+<li><strong>Native call.</strong> On a model that compacts natively and a provider the
+   record does not mark, the native call starts beside the summary below and
+   compacts the whole active history, without selecting recent messages.
+   Native compaction uses the bound model's context limit minus the effective
+   compaction output allowance; when the history exceeds it, bulky tool outputs
+   are elided in the saved log first (<code>tool_output_elided</code>). If that allowance
+   is unknown, the engine reserves 20,000 tokens as conservative
    summary-output headroom.</li>
 <li><strong>Recent-history selection.</strong> For internal summarization, the engine first
    selects a contiguous suffix of original messages to keep unchanged. Its
@@ -3951,9 +4044,10 @@ retries.</p>
    honored exactly, while zero or omission uses the 30-second internal-agent
    default.</li>
 <li><strong>Checkpoint commit.</strong> A <code>context_checkpoint_committed</code> event records the
-   text summary or opaque native window, source and recent-suffix boundaries,
-   and the budget math, including the effective recent-history token budget.
-   Retained messages come from saved history, not new file reads.</li>
+   text summary, the native window beside it when the native call succeeded,
+   source and recent-suffix boundaries, and the budget math, including the
+   effective recent-history token budget. Retained messages come from saved
+   history, not new file reads.</li>
 </ol>
 <h2 id="context-after-an-internal-checkpoint">Context after an internal checkpoint<a class="headerlink" href="#context-after-an-internal-checkpoint" title="Permanent link">&para;</a></h2>
 <p>The next request assembles context in this order:</p>
@@ -3967,9 +4061,8 @@ retries.</p>
 <p>Pinned context is preserved separately from the suffix. With retention disabled,
 or when the newest complete group cannot fit, the recent suffix is absent and
 only the summary remains alongside pinned context. The summary and the retained
-suffix do not overlap. Native
-checkpoints continue to use their opaque provider windows rather than this
-summary-and-tail layout.</p>
+suffix do not overlap. A request on the window's own model uses the window
+and the messages after it instead of this summary-and-tail layout.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../engine/context_compaction/">Context Compaction</a> for settings, defaults,
 trigger forms, and inheritance.</p>
@@ -3993,6 +4086,23 @@ same over the protocol. A cancelled compaction commits no checkpoint.</p>
 <p><code>session.compact</code> returns whether a checkpoint was actually committed. Manual
 compaction follows the same recent-history selection, replaced-span trial, and
 context-fit retry rules.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Native compaction stopped being used for a provider.</strong> The provider record
+  marked it. The configuration status (<code>/config</code> in the TUI, <code>cookie config</code>,
+  or the web client's configuration view) names the provider, its state, the
+  answer that marked it, and when. <code>unsupported</code> means the compact endpoint
+  answered that it has none (for example HTTP 404 from a gateway that does not
+  implement <code>/responses/compact</code>); <code>rejects_windows</code> means the provider refused
+  a request that carried a compacted window, and requests now use the summary.
+  The mark lifts after 7 days, when the provider's configuration changes, or
+  when you delete <code>native-compaction.json</code> from the data folder (or its entry);
+  compaction keeps working on the summary meanwhile.</li>
+<li><strong>A request failed with an encrypted-content error.</strong>
+  That request carried a window its provider refused; the provider is now
+  marked <code>rejects_windows</code>, so send the message again and it goes out on the
+  summary.</li>
+</ul>
 <h2 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h2>
 <p>Compaction produces these event payloads:</p>
 <ul>
@@ -4004,10 +4114,9 @@ context-fit retry rules.</p>
 </ul>
 <p>While compaction runs, the TUI shows a <code>🧹 compacting context…</code> row and the
 bottom bar reads <code>compacting</code>. Expanded, the row streams the summary, or reads
-<code>calling native compaction endpoint (model)</code> during a native call. When
-compaction finishes, the row is replaced by the <code>context compacted</code> checkpoint
-row, or removed if compaction failed. A failed native call hands the row to the
-summarizer fallback.
+<code>calling native compaction endpoint (model)</code> while the native call runs beside
+it. When compaction finishes, the row is replaced by the <code>context compacted</code>
+checkpoint row, or removed if compaction failed.
 - <code>context_checkpoint_committed</code> — the checkpoint with boundaries and budgets</p>
 <p>The internal summarizer's in-memory pruning retry does not produce
 <code>tool_output_elided</code> events.</p>

@@ -3053,6 +3053,52 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/web-client/" class="md-nav__link">
         
   
@@ -3487,52 +3533,6 @@
             Drafts and records
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/approval-reviewer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Approval reviewer
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../specs/native-compaction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Native compaction
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -4277,6 +4277,12 @@ never stored.</p>
 <td>The root session's <a href="#projects">project</a></td>
 </tr>
 <tr>
+<td><code>permission_mode_set</code></td>
+<td>state</td>
+<td>runless</td>
+<td>The root session tree's <a href="../../concepts/permissions/#modes-and-approvals">permission mode</a>, restored when the tree loads</td>
+</tr>
+<tr>
 <td><code>acp_session_started</code></td>
 <td>state</td>
 <td>either</td>
@@ -4921,8 +4927,12 @@ and readers trust as written.
 An approval's lifecycle after its <code>approval_requested</code> is a series of
 <code>approval_step { approval_id, step }</code> records and one
 <code>approval_finalized { approval_id, outcome }</code>. <code>step</code> is
-<code>evaluated { decision }</code> (the internal decision pipeline decided),
-<code>escalated { reason_code }</code> (it waits for the user),
+<code>evaluated { decision }</code> (the internal decision pipeline decided; a decision
+of the approval reviewer carries its one-sentence <code>rationale</code> when it gave
+one, and a failed review the reason <code>internal_agent_failed</code>),
+<code>escalated { reason_code, expires_at? }</code> (it waits for the user until
+<code>expires_at</code>, the window opening at this step; an earlier writer's request
+carries the window instead),
 <code>user_decision { client_response_id, decision, feedback? }</code> (a client answered;
 <code>feedback</code> only with <code>reject</code>), or <code>doom_loop { operation_fingerprint,
 repetitions }</code> (the same operation was requested at least four times in a row);
@@ -4933,6 +4943,12 @@ the user, or <code>cancelled { reason_code }</code>, the engine withdrawing the 
 <code>prepared_capability_lost</code>), which reads as a system decision that expired or
 cancelled the request. An outcome this build does not know reads as cancelled,
 so the operation is not approved.</p>
+<p>The approval reviewer's conversation is rendered from these records and the
+session's messages and tool calls, never stored separately
+(<a href="../../extend/agents/#the-approval-reviewer">The approval reviewer</a>).</p>
+<p><code>permission_mode_set { mode }</code> is a runless state event of a root session:
+its tree's permission mode changed to <code>mode</code>. Loading the tree restores the
+newest one; a session without one is in <code>auto_approve</code>.</p>
 <h3 id="runtime-attachments">Runtime attachments<a class="headerlink" href="#runtime-attachments" title="Permanent link">&para;</a></h3>
 <p>The runless <code>runtime_attached</code> and <code>runtime_detached</code> events record the
 session's <a href="../../specs/runtimes/#5-session-attachments">runtime attachments</a>.
@@ -5138,6 +5154,11 @@ and fit rules.</p>
 <td><code>u64</code></td>
 <td>Effective recent-history token budget for this checkpoint, not the raw configured request or a count of retained tokens.</td>
 </tr>
+<tr>
+<td><code>checkpoint.native</code></td>
+<td>object, optional</td>
+<td>On an <code>internal_summary</code> checkpoint, the provider window compacted from the same events (<code>window</code>) and the last event it covers (<code>source_through_seq</code>). Absent when native compaction was not attempted or failed.</td>
+</tr>
 </tbody>
 </table>
 <p>The effective budget is at most <code>min(configured keep_recent_tokens,
@@ -5146,9 +5167,11 @@ space. Complete tool-call/result groups can leave the retained suffix smaller
 than that budget; an oversized newest indivisible group yields no tail rather
 than exceeding the budget. A reader never infers a suffix from current
 configuration.</p>
-<p>Native compacted windows retain their existing replay behavior, with no
-independently appended recent-message suffix. Neither checkpoint path rereads
-files.</p>
+<p>A request on the window's provider and model uses the window, with no
+independently appended recent-message suffix; every other request uses the
+summary and its recent messages. The <code>native_window</code> checkpoint, a window
+without a summary, is read but no longer written. Neither checkpoint path
+rereads files.</p>
 <h2 id="subscriptions">Subscriptions<a class="headerlink" href="#subscriptions" title="Permanent link">&para;</a></h2>
 <p><code>events.subscribe</code> returns retained events after the optional cursor and
 starts <code>events.subscription</code> notifications. With <code>limit</code>, it returns at most
