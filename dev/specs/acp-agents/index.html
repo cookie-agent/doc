@@ -4015,7 +4015,9 @@ which stays the name of cookie's own protocol.</p>
 <li><strong>The agent document's body</strong> is sent with the session's first prompt; an
   empty body sends nothing. <em>(Extended 2026-10-23: the first prompt also
   carries the tool instructions and the memory snapshot; section 15,
-  round 3.)</em></li>
+  round 3.)</em> <em>(Extended 2026-10-25: and the session's attachments, with
+  where the harness's built-in tools run; section 15, <strong>Attachments in the
+  first prompt</strong>.)</em></li>
 <li><strong>Slash commands</strong> the agent offers appear in the TUI and web composers.</li>
 <li><strong><code>deny</code></strong> stays the spelling for turning a permission off.</li>
 </ul>
@@ -4417,9 +4419,10 @@ types).</p>
   set none. <em>(Revised 2026-10-24: each new agent title applies until the
   user names the session, and an untitled session gets cookie's generated
   title after a round; see the lifecycle round below.)</em></li>
-<li><strong>Not run for ACP agents:</strong> <code>AGENTS.md</code> loading, the skill listing and tool
-  prompt sections in a system prompt (round 3 and <strong>Input and pickers</strong>
-  put them in the first prompt), the <code>agent_before_start</code> hook, and input
+<li><strong>Not run for ACP agents:</strong> <code>AGENTS.md</code> loading, the skill listing, tool
+  prompt sections, and attachments block in a system prompt (round 3,
+  <strong>Input and pickers</strong>, and <strong>Attachments in the first prompt</strong> put them
+  in the first prompt), the <code>agent_before_start</code> hook, and input
   media admission
   (files go to the agent as its prompt capabilities allow, others become a
   note; see <strong>Input and pickers</strong> below).</li>
@@ -4545,7 +4548,10 @@ the spec did not anticipate:</p>
   the agent document, and the <a href="../../extend/acp-agents/#a-reference-document-for-claude-code">guide</a>
   has a reference document for Claude Code. <code>AGENTS.md</code> is not sent. The
   context goes with the first prompt of every new ACP session, so a lost
-  session's replacement gets it again; a resumed or loaded one does not.</li>
+  session's replacement gets it again; a resumed or loaded one does not.
+  <em>(Extended 2026-10-25: the session's attachments come after the skills
+  listing and before the memory snapshot; <strong>Attachments in the first
+  prompt</strong> below.)</em></li>
 <li><strong>Prompt boundary.</strong> A round's prompt is now the input after the
   <code>input_through_seq</code> of the session's last committed turn (was: after that
   turn's own sequence number). The two agree for every round so far; the
@@ -5160,6 +5166,47 @@ unchanged):</p>
   beside the name, each <code>data-doc-id</code>, truncated so a phone's sheet does
   not scroll sideways.</li>
 </ul>
+<p><strong>Attachments in the first prompt</strong> (2026-10-25; user decisions of the same
+day; no wire change, history format unchanged):</p>
+<ul>
+<li><strong>The block.</strong> The first prompt's context carries, after the skills
+  listing and before the memory snapshot, the block on the session's
+  attachments that a model run's system prompt carries
+  (<code>runtime_notes::runtimes_prompt</code>, through <code>Engine::runtimes_block</code>,
+  which <code>compose_runtimes_prompt</code> now uses too, so the wording is one):
+  with at most one attachment besides <code>global</code>, its working directory and
+  machine; with several, the several-attachments text and the
+  <code>&lt;machines&gt;</code> listing that explains <code>&lt;attachment&gt;_&lt;tool&gt;</code> names; the
+  <code>Project:</code> line or the <code>project</code> attribute of a session in a project.
+  Every attachment is listed, including one whose tools <code>hide_tools</code>
+  hides. Before, an agent with several attachments saw bridge tools such
+  as <code>labpc_read</code> with nothing explaining them, and never learned its
+  project.</li>
+<li><strong>Where the built-in tools run.</strong> The harness's own file and shell tools
+  run on the runtime that hosts the agent's process, on its machine, in
+  the cwd of <code>session/new</code> (<code>acp_cwd</code>: the first workspace attachment on
+  that runtime, else the runtime's home). With several attachments, the
+  attachment that serves that cwd (the one whose workspace it is, else the
+  runtime's first) is marked <code>builtin_tools="true"</code> in the listing, and a
+  sentence after it names it, its runtime, its machine when known, and the
+  working directory, says the built-in tools act on that machine and
+  workspace only, and that cookie's tools from the <code>cookie</code> MCP server act
+  on the attachment their description or <code>&lt;attachment&gt;_</code> prefix names.
+  With one attachment there is only one place the tools can run, so the
+  block is exactly a model run's, with no sentence and no marker <em>(user
+  decision of 2026-10-25)</em>.</li>
+<li><strong>When.</strong> With the rest of the context: the first prompt of every new
+  ACP session, a lost session's replacement included, and not a resumed,
+  loaded, or forked one.</li>
+</ul>
+<p><strong>Tests</strong> (attachments): the exact block for one attachment (a model
+run's, with and without a project) and for several (the marker on the
+attachment whose workspace is the agent's cwd, not its runtime's first;
+the sentence; a runtime home's attachment marked; a runtime no attachment
+belongs to named alone); the parts in order (tool instructions, skills,
+attachments, memory, body); several attachments of one runtime listed
+with every tool hidden, and not sent again on resume; a lost session's
+replacement getting them again; the project line.</p>
 
 
 
