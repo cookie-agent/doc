@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["IDLE_AFTER","PUSH_SINCE"],"fn":["daemon_has_push","shown"]};

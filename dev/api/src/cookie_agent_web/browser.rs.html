@@ -1,602 +1,890 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/web/src/browser.rs`."><title>browser.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cookie_agent_web" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_web/</div>browser.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The few browser services the page uses: its address, storage, history,
-<a href=#2 id=2 data-nosnippet>2</a>//! the colour scheme, visibility, and installing the page as an app. Everything here is a thin call into
-<a href=#3 id=3 data-nosnippet>3</a>//! `web_sys`; it compiles on every target but only works in a browser.
-<a href=#4 id=4 data-nosnippet>4</a>
-<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>wasm_bindgen::{JsCast <span class="kw">as _</span>, closure::Closure};
-<a href=#6 id=6 data-nosnippet>6</a>
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">fn </span>window() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Window&gt; {
-<a href=#8 id=8 data-nosnippet>8</a>    web_sys::window()
-<a href=#9 id=9 data-nosnippet>9</a>}
-<a href=#10 id=10 data-nosnippet>10</a>
-<a href=#11 id=11 data-nosnippet>11</a><span class="doccomment">/// The page's `location.href`.
-<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">pub fn </span>page_href() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#13 id=13 data-nosnippet>13</a>    window()<span class="question-mark">?</span>.location().href().ok()
-<a href=#14 id=14 data-nosnippet>14</a>}
-<a href=#15 id=15 data-nosnippet>15</a>
-<a href=#16 id=16 data-nosnippet>16</a><span class="doccomment">/// The page's `location.origin`.
-<a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">pub fn </span>page_origin() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#18 id=18 data-nosnippet>18</a>    window()<span class="question-mark">?</span>.location().origin().ok()
-<a href=#19 id=19 data-nosnippet>19</a>}
-<a href=#20 id=20 data-nosnippet>20</a>
-<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// The page's `location.hash`, `#` included.
-<a href=#22 id=22 data-nosnippet>22</a></span><span class="kw">pub fn </span>page_fragment() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#23 id=23 data-nosnippet>23</a>    window()<span class="question-mark">?</span>.location().hash().ok()
-<a href=#24 id=24 data-nosnippet>24</a>}
-<a href=#25 id=25 data-nosnippet>25</a>
-<a href=#26 id=26 data-nosnippet>26</a><span class="doccomment">/// Replaces the page's fragment in the address bar and history without
-<a href=#27 id=27 data-nosnippet>27</a>/// reloading; an empty `fragment` removes it.
-<a href=#28 id=28 data-nosnippet>28</a></span><span class="kw">pub fn </span>replace_fragment(fragment: <span class="kw-2">&amp;</span>str) {
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
-<a href=#30 id=30 data-nosnippet>30</a>        <span class="kw">return</span>;
-<a href=#31 id=31 data-nosnippet>31</a>    };
-<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">let </span>location = window.location();
-<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">let </span>(<span class="prelude-val">Ok</span>(path), <span class="prelude-val">Ok</span>(search)) = (location.pathname(), location.search()) <span class="kw">else </span>{
-<a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">return</span>;
-<a href=#35 id=35 data-nosnippet>35</a>    };
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(history) = window.history() {
-<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">let _ </span>= history.replace_state_with_url(
-<a href=#38 id=38 data-nosnippet>38</a>            <span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL,
-<a href=#39 id=39 data-nosnippet>39</a>            <span class="string">""</span>,
-<a href=#40 id=40 data-nosnippet>40</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{path}{search}{fragment}"</span>)),
-<a href=#41 id=41 data-nosnippet>41</a>        );
-<a href=#42 id=42 data-nosnippet>42</a>    }
-<a href=#43 id=43 data-nosnippet>43</a>}
-<a href=#44 id=44 data-nosnippet>44</a>
-<a href=#45 id=45 data-nosnippet>45</a><span class="doccomment">/// Replaces the page's address in the address bar and history without
-<a href=#46 id=46 data-nosnippet>46</a>/// reloading: `address` is its path, query, and fragment.
-<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">pub fn </span>replace_address(address: <span class="kw-2">&amp;</span>str) {
-<a href=#48 id=48 data-nosnippet>48</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
-<a href=#49 id=49 data-nosnippet>49</a>        <span class="kw">let _ </span>= history.replace_state_with_url(<span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL, <span class="string">""</span>, <span class="prelude-val">Some</span>(address));
-<a href=#50 id=50 data-nosnippet>50</a>    }
-<a href=#51 id=51 data-nosnippet>51</a>}
-<a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a><span class="kw">fn </span>local_storage() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Storage&gt; {
-<a href=#54 id=54 data-nosnippet>54</a>    window()<span class="question-mark">?</span>.local_storage().ok().flatten()
-<a href=#55 id=55 data-nosnippet>55</a>}
-<a href=#56 id=56 data-nosnippet>56</a>
-<a href=#57 id=57 data-nosnippet>57</a><span class="kw">fn </span>session_storage() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Storage&gt; {
-<a href=#58 id=58 data-nosnippet>58</a>    window()<span class="question-mark">?</span>.session_storage().ok().flatten()
-<a href=#59 id=59 data-nosnippet>59</a>}
-<a href=#60 id=60 data-nosnippet>60</a>
-<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// A value from `localStorage`.
-<a href=#62 id=62 data-nosnippet>62</a></span><span class="kw">pub fn </span>load(key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#63 id=63 data-nosnippet>63</a>    local_storage()<span class="question-mark">?</span>.get_item(key).ok().flatten()
-<a href=#64 id=64 data-nosnippet>64</a>}
-<a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a><span class="doccomment">/// Keeps a value in `localStorage`; a page without storage keeps nothing.
-<a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub fn </span>store(key: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span>str) {
-<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = local_storage() {
-<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">let _ </span>= storage.set_item(key, value);
-<a href=#70 id=70 data-nosnippet>70</a>    }
-<a href=#71 id=71 data-nosnippet>71</a>}
-<a href=#72 id=72 data-nosnippet>72</a>
-<a href=#73 id=73 data-nosnippet>73</a><span class="doccomment">/// Removes a value from `localStorage`.
-<a href=#74 id=74 data-nosnippet>74</a></span><span class="kw">pub fn </span>forget(key: <span class="kw-2">&amp;</span>str) {
-<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = local_storage() {
-<a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">let _ </span>= storage.remove_item(key);
-<a href=#77 id=77 data-nosnippet>77</a>    }
-<a href=#78 id=78 data-nosnippet>78</a>}
-<a href=#79 id=79 data-nosnippet>79</a>
-<a href=#80 id=80 data-nosnippet>80</a><span class="doccomment">/// A value from this tab's `sessionStorage`.
-<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub fn </span>load_tab(key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#82 id=82 data-nosnippet>82</a>    session_storage()<span class="question-mark">?</span>.get_item(key).ok().flatten()
-<a href=#83 id=83 data-nosnippet>83</a>}
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a><span class="doccomment">/// Keeps a value in this tab's `sessionStorage`.
-<a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">pub fn </span>store_tab(key: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span>str) {
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = session_storage() {
-<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let _ </span>= storage.set_item(key, value);
-<a href=#89 id=89 data-nosnippet>89</a>    }
-<a href=#90 id=90 data-nosnippet>90</a>}
-<a href=#91 id=91 data-nosnippet>91</a>
-<a href=#92 id=92 data-nosnippet>92</a><span class="doccomment">/// An event listener added by this module; [`Listener::remove`] takes it
-<a href=#93 id=93 data-nosnippet>93</a>/// away, and [`Listener::keep`] leaves it for the life of the page.
-<a href=#94 id=94 data-nosnippet>94</a></span><span class="kw">pub struct </span>Listener {
-<a href=#95 id=95 data-nosnippet>95</a>    target: web_sys::EventTarget,
-<a href=#96 id=96 data-nosnippet>96</a>    event: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#97 id=97 data-nosnippet>97</a>    callback: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
-<a href=#98 id=98 data-nosnippet>98</a>}
-<a href=#99 id=99 data-nosnippet>99</a>
-<a href=#100 id=100 data-nosnippet>100</a><span class="kw">impl </span>Listener {
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">fn </span>add(
-<a href=#102 id=102 data-nosnippet>102</a>        target: web_sys::EventTarget,
-<a href=#103 id=103 data-nosnippet>103</a>        event: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#104 id=104 data-nosnippet>104</a>        callback: <span class="kw">impl </span>Fn(web_sys::Event) + <span class="lifetime">'static</span>,
-<a href=#105 id=105 data-nosnippet>105</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span>callback = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(callback);
-<a href=#107 id=107 data-nosnippet>107</a>        target
-<a href=#108 id=108 data-nosnippet>108</a>            .add_event_listener_with_callback(event, callback.as_ref().unchecked_ref())
-<a href=#109 id=109 data-nosnippet>109</a>            .ok()<span class="question-mark">?</span>;
-<a href=#110 id=110 data-nosnippet>110</a>        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
-<a href=#111 id=111 data-nosnippet>111</a>            target,
-<a href=#112 id=112 data-nosnippet>112</a>            event,
-<a href=#113 id=113 data-nosnippet>113</a>            callback,
-<a href=#114 id=114 data-nosnippet>114</a>        })
-<a href=#115 id=115 data-nosnippet>115</a>    }
-<a href=#116 id=116 data-nosnippet>116</a>
-<a href=#117 id=117 data-nosnippet>117</a>    <span class="doccomment">/// Removes the listener.
-<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">pub fn </span>remove(<span class="self">self</span>) {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let _ </span>= <span class="self">self</span>.target.remove_event_listener_with_callback(
-<a href=#120 id=120 data-nosnippet>120</a>            <span class="self">self</span>.event,
-<a href=#121 id=121 data-nosnippet>121</a>            <span class="self">self</span>.callback.as_ref().unchecked_ref(),
-<a href=#122 id=122 data-nosnippet>122</a>        );
-<a href=#123 id=123 data-nosnippet>123</a>    }
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Leaves the listener on for as long as the page lives. Only for
-<a href=#126 id=126 data-nosnippet>126</a>    /// listeners the app registers once at startup.
-<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">pub fn </span>keep(<span class="self">self</span>) {
-<a href=#128 id=128 data-nosnippet>128</a>        <span class="self">self</span>.callback.forget();
-<a href=#129 id=129 data-nosnippet>129</a>    }
-<a href=#130 id=130 data-nosnippet>130</a>}
-<a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a><span class="kw">fn </span>dark_query() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::MediaQueryList&gt; {
-<a href=#133 id=133 data-nosnippet>133</a>    window()<span class="question-mark">?
-<a href=#134 id=134 data-nosnippet>134</a>        </span>.match_media(<span class="string">"(prefers-color-scheme: dark)"</span>)
-<a href=#135 id=135 data-nosnippet>135</a>        .ok()
-<a href=#136 id=136 data-nosnippet>136</a>        .flatten()
-<a href=#137 id=137 data-nosnippet>137</a>}
-<a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a><span class="doccomment">/// Whether the system prefers a dark colour scheme.
-<a href=#140 id=140 data-nosnippet>140</a></span><span class="kw">pub fn </span>system_prefers_dark() -&gt; bool {
-<a href=#141 id=141 data-nosnippet>141</a>    dark_query().is_some_and(|query| query.matches())
-<a href=#142 id=142 data-nosnippet>142</a>}
-<a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a><span class="doccomment">/// Calls `changed` whenever the system's colour scheme changes, for as long
-<a href=#145 id=145 data-nosnippet>145</a>/// as the page lives. Called once, at startup.
-<a href=#146 id=146 data-nosnippet>146</a></span><span class="kw">pub fn </span>on_system_scheme_change(changed: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
-<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(query) = dark_query() <span class="kw">else </span>{
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">return</span>;
-<a href=#149 id=149 data-nosnippet>149</a>    };
-<a href=#150 id=150 data-nosnippet>150</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(query.into(), <span class="string">"change"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed()) {
-<a href=#151 id=151 data-nosnippet>151</a>        listener.keep();
-<a href=#152 id=152 data-nosnippet>152</a>    }
-<a href=#153 id=153 data-nosnippet>153</a>}
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a><span class="doccomment">/// Turns the dark palette on or off: the `dark` class on `&lt;html&gt;`, which
-<a href=#156 id=156 data-nosnippet>156</a>/// Tailwind's `dark:` variant follows.
-<a href=#157 id=157 data-nosnippet>157</a></span><span class="kw">pub fn </span>set_dark(dark: bool) {
-<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window()
-<a href=#159 id=159 data-nosnippet>159</a>        .and_then(|window| window.document())
-<a href=#160 id=160 data-nosnippet>160</a>        .and_then(|document| document.document_element())
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">else </span>{
-<a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">return</span>;
-<a href=#163 id=163 data-nosnippet>163</a>    };
-<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">let </span>classes = root.class_list();
-<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">let _ </span>= <span class="kw">if </span>dark {
-<a href=#166 id=166 data-nosnippet>166</a>        classes.add_1(<span class="string">"dark"</span>)
-<a href=#167 id=167 data-nosnippet>167</a>    } <span class="kw">else </span>{
-<a href=#168 id=168 data-nosnippet>168</a>        classes.remove_1(<span class="string">"dark"</span>)
-<a href=#169 id=169 data-nosnippet>169</a>    };
-<a href=#170 id=170 data-nosnippet>170</a>    set_theme_color(<span class="kw">if </span>dark { THEME_DARK } <span class="kw">else </span>{ THEME_LIGHT });
-<a href=#171 id=171 data-nosnippet>171</a>}
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a><span class="doccomment">/// The browser's colour around the page (`theme-color`) in the light and
-<a href=#174 id=174 data-nosnippet>174</a>/// the dark theme: the palette's cream and night, as in `index.html` and
-<a href=#175 id=175 data-nosnippet>175</a>/// the manifest.
-<a href=#176 id=176 data-nosnippet>176</a></span><span class="kw">const </span>THEME_LIGHT: <span class="kw-2">&amp;</span>str = <span class="string">"#fbf4e6"</span>;
-<a href=#177 id=177 data-nosnippet>177</a><span class="kw">const </span>THEME_DARK: <span class="kw-2">&amp;</span>str = <span class="string">"#201c16"</span>;
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a><span class="doccomment">/// Sets every `theme-color` of the page to `colour`, so the browser's bar,
-<a href=#180 id=180 data-nosnippet>180</a>/// or an installed app's title bar, follows the user's theme rather than
-<a href=#181 id=181 data-nosnippet>181</a>/// only the system's.
-<a href=#182 id=182 data-nosnippet>182</a></span><span class="kw">fn </span>set_theme_color(colour: <span class="kw-2">&amp;</span>str) {
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(metas) = window()
-<a href=#184 id=184 data-nosnippet>184</a>        .and_then(|window| window.document())
-<a href=#185 id=185 data-nosnippet>185</a>        .and_then(|document| document.query_selector_all(<span class="string">"meta[name=theme-color]"</span>).ok())
-<a href=#186 id=186 data-nosnippet>186</a>    <span class="kw">else </span>{
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">return</span>;
-<a href=#188 id=188 data-nosnippet>188</a>    };
-<a href=#189 id=189 data-nosnippet>189</a>    <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..metas.length() {
-<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(meta) = metas
-<a href=#191 id=191 data-nosnippet>191</a>            .item(index)
-<a href=#192 id=192 data-nosnippet>192</a>            .and_then(|node| node.dyn_into::&lt;web_sys::Element&gt;().ok())
-<a href=#193 id=193 data-nosnippet>193</a>        {
-<a href=#194 id=194 data-nosnippet>194</a>            <span class="kw">let _ </span>= meta.set_attribute(<span class="string">"content"</span>, colour);
-<a href=#195 id=195 data-nosnippet>195</a>        }
-<a href=#196 id=196 data-nosnippet>196</a>    }
-<a href=#197 id=197 data-nosnippet>197</a>}
-<a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a><span class="doccomment">/// `window[name]`, `undefined` outside a browser.
-<a href=#200 id=200 data-nosnippet>200</a></span><span class="kw">fn </span>window_value(name: <span class="kw-2">&amp;</span>str) -&gt; wasm_bindgen::JsValue {
-<a href=#201 id=201 data-nosnippet>201</a>    window()
-<a href=#202 id=202 data-nosnippet>202</a>        .and_then(|window| js_sys::Reflect::get(<span class="kw-2">&amp;</span>window, <span class="kw-2">&amp;</span>name.into()).ok())
-<a href=#203 id=203 data-nosnippet>203</a>        .unwrap_or(wasm_bindgen::JsValue::UNDEFINED)
-<a href=#204 id=204 data-nosnippet>204</a>}
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a><span class="doccomment">/// Whether the page is a secure context (HTTPS, or `localhost` and
-<a href=#207 id=207 data-nosnippet>207</a>/// `127.0.0.1`), which installing it and its service worker need.
-<a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">pub fn </span>is_secure_context() -&gt; bool {
-<a href=#209 id=209 data-nosnippet>209</a>    window().is_some_and(|window| window.is_secure_context())
-<a href=#210 id=210 data-nosnippet>210</a>}
-<a href=#211 id=211 data-nosnippet>211</a>
-<a href=#212 id=212 data-nosnippet>212</a><span class="doccomment">/// Registers the page's service worker, `sw.js` beside it, which caches
-<a href=#213 id=213 data-nosnippet>213</a>/// nothing (it makes the page installable). Only a secure page can; the
-<a href=#214 id=214 data-nosnippet>214</a>/// browser checks it for a new build on every load, past its HTTP cache.
-<a href=#215 id=215 data-nosnippet>215</a></span><span class="kw">pub fn </span>register_service_worker() {
-<a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window().filter(web_sys::Window::is_secure_context) <span class="kw">else </span>{
-<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">return</span>;
-<a href=#218 id=218 data-nosnippet>218</a>    };
-<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">let </span>navigator = window.navigator();
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="comment">// A private window may have no service workers.
-<a href=#221 id=221 data-nosnippet>221</a>    </span><span class="kw">if </span>!js_sys::Reflect::has(<span class="kw-2">&amp;</span>navigator, <span class="kw-2">&amp;</span><span class="string">"serviceWorker"</span>.into()).unwrap_or(<span class="bool-val">false</span>) {
-<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">return</span>;
-<a href=#223 id=223 data-nosnippet>223</a>    }
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="kw">let </span>options = web_sys::RegistrationOptions::new();
-<a href=#225 id=225 data-nosnippet>225</a>    options.set_update_via_cache(web_sys::ServiceWorkerUpdateViaCache::None);
-<a href=#226 id=226 data-nosnippet>226</a>    <span class="kw">let </span>registered = navigator
-<a href=#227 id=227 data-nosnippet>227</a>        .service_worker()
-<a href=#228 id=228 data-nosnippet>228</a>        .register_with_options(<span class="string">"sw.js"</span>, <span class="kw-2">&amp;</span>options);
-<a href=#229 id=229 data-nosnippet>229</a>    wasm_bindgen_futures::spawn_local(<span class="kw">async move </span>{
-<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let _ </span>= wasm_bindgen_futures::JsFuture::from(registered).<span class="kw">await</span>;
-<a href=#231 id=231 data-nosnippet>231</a>    });
-<a href=#232 id=232 data-nosnippet>232</a>}
-<a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a><span class="doccomment">/// Whether the page runs as an installed app: in a standalone window, or
-<a href=#235 id=235 data-nosnippet>235</a>/// from an iOS home screen (`navigator.standalone`).
-<a href=#236 id=236 data-nosnippet>236</a></span><span class="kw">pub fn </span>is_standalone() -&gt; bool {
-<a href=#237 id=237 data-nosnippet>237</a>    matches(STANDALONE_QUERY)
-<a href=#238 id=238 data-nosnippet>238</a>        || window()
-<a href=#239 id=239 data-nosnippet>239</a>            .and_then(|window| js_sys::Reflect::get(<span class="kw-2">&amp;</span>window.navigator(), <span class="kw-2">&amp;</span><span class="string">"standalone"</span>.into()).ok())
-<a href=#240 id=240 data-nosnippet>240</a>            .is_some_and(|standalone| standalone.is_truthy())
-<a href=#241 id=241 data-nosnippet>241</a>}
-<a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a><span class="doccomment">/// The media query an installed app's window matches.
-<a href=#244 id=244 data-nosnippet>244</a></span><span class="kw">pub const </span>STANDALONE_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(display-mode: standalone)"</span>;
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a><span class="doccomment">/// The browser's `navigator.userAgent` and `navigator.maxTouchPoints`.
-<a href=#247 id=247 data-nosnippet>247</a></span><span class="kw">pub fn </span>user_agent() -&gt; (String, i32) {
-<a href=#248 id=248 data-nosnippet>248</a>    window().map_or_else(Default::default, |window| {
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">let </span>navigator = window.navigator();
-<a href=#250 id=250 data-nosnippet>250</a>        (
-<a href=#251 id=251 data-nosnippet>251</a>            navigator.user_agent().unwrap_or_default(),
-<a href=#252 id=252 data-nosnippet>252</a>            navigator.max_touch_points(),
-<a href=#253 id=253 data-nosnippet>253</a>        )
-<a href=#254 id=254 data-nosnippet>254</a>    })
-<a href=#255 id=255 data-nosnippet>255</a>}
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a><span class="doccomment">/// Whether the browser handed the page an install prompt it has not used
-<a href=#258 id=258 data-nosnippet>258</a>/// yet; `index.html` keeps it as `window.cookieInstallPrompt`.
-<a href=#259 id=259 data-nosnippet>259</a></span><span class="kw">pub fn </span>install_prompt_ready() -&gt; bool {
-<a href=#260 id=260 data-nosnippet>260</a>    window_value(<span class="string">"cookieInstallPrompt"</span>).is_object()
-<a href=#261 id=261 data-nosnippet>261</a>}
-<a href=#262 id=262 data-nosnippet>262</a>
-<a href=#263 id=263 data-nosnippet>263</a><span class="doccomment">/// Whether the browser said it installed the page during this visit.
-<a href=#264 id=264 data-nosnippet>264</a></span><span class="kw">pub fn </span>app_installed() -&gt; bool {
-<a href=#265 id=265 data-nosnippet>265</a>    window_value(<span class="string">"cookieInstalled"</span>).is_truthy()
-<a href=#266 id=266 data-nosnippet>266</a>}
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a><span class="doccomment">/// Calls `changed` whenever the browser offers to install the page or
-<a href=#269 id=269 data-nosnippet>269</a>/// installs it, for as long as the page lives. Called once, at startup.
-<a href=#270 id=270 data-nosnippet>270</a></span><span class="kw">pub fn </span>on_install_change(changed: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
-<a href=#271 id=271 data-nosnippet>271</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">return</span>;
-<a href=#273 id=273 data-nosnippet>273</a>    };
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(window.into(), <span class="string">"cookie-install"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed()) {
-<a href=#275 id=275 data-nosnippet>275</a>        listener.keep();
-<a href=#276 id=276 data-nosnippet>276</a>    }
-<a href=#277 id=277 data-nosnippet>277</a>}
-<a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a><span class="doccomment">/// Opens the browser's install prompt, which it offers once: call it from
-<a href=#280 id=280 data-nosnippet>280</a>/// the click that asks for it. Resolves to whether the user installed the
-<a href=#281 id=281 data-nosnippet>281</a>/// page; `None` without a prompt.
-<a href=#282 id=282 data-nosnippet>282</a></span><span class="kw">pub fn </span>prompt_install() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>std::future::Future&lt;Output = bool&gt;&gt; {
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="kw">let </span>window = window()<span class="question-mark">?</span>;
-<a href=#284 id=284 data-nosnippet>284</a>    <span class="kw">let </span>event = window_value(<span class="string">"cookieInstallPrompt"</span>);
-<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">if </span>!event.is_object() {
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="kw">let _ </span>= js_sys::Reflect::set(
-<a href=#289 id=289 data-nosnippet>289</a>        <span class="kw-2">&amp;</span>window,
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw-2">&amp;</span><span class="string">"cookieInstallPrompt"</span>.into(),
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL,
-<a href=#292 id=292 data-nosnippet>292</a>    );
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">let </span>prompt = js_sys::Reflect::get(<span class="kw-2">&amp;</span>event, <span class="kw-2">&amp;</span><span class="string">"prompt"</span>.into())
-<a href=#294 id=294 data-nosnippet>294</a>        .ok()<span class="question-mark">?
-<a href=#295 id=295 data-nosnippet>295</a>        </span>.dyn_into::&lt;js_sys::Function&gt;()
-<a href=#296 id=296 data-nosnippet>296</a>        .ok()<span class="question-mark">?</span>;
-<a href=#297 id=297 data-nosnippet>297</a>    prompt.call0(<span class="kw-2">&amp;</span>event).ok()<span class="question-mark">?</span>;
-<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">let </span>choice = js_sys::Reflect::get(<span class="kw-2">&amp;</span>event, <span class="kw-2">&amp;</span><span class="string">"userChoice"</span>.into())
-<a href=#299 id=299 data-nosnippet>299</a>        .ok()
-<a href=#300 id=300 data-nosnippet>300</a>        .and_then(|choice| choice.dyn_into::&lt;js_sys::Promise&gt;().ok());
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="prelude-val">Some</span>(<span class="kw">async move </span>{
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(choice) = choice <span class="kw">else </span>{
-<a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#304 id=304 data-nosnippet>304</a>        };
-<a href=#305 id=305 data-nosnippet>305</a>        wasm_bindgen_futures::JsFuture::from(choice)
-<a href=#306 id=306 data-nosnippet>306</a>            .<span class="kw">await
-<a href=#307 id=307 data-nosnippet>307</a>            </span>.ok()
-<a href=#308 id=308 data-nosnippet>308</a>            .and_then(|choice| js_sys::Reflect::get(<span class="kw-2">&amp;</span>choice, <span class="kw-2">&amp;</span><span class="string">"outcome"</span>.into()).ok())
-<a href=#309 id=309 data-nosnippet>309</a>            .and_then(|outcome| outcome.as_string())
-<a href=#310 id=310 data-nosnippet>310</a>            .is_some_and(|outcome| outcome == <span class="string">"accepted"</span>)
-<a href=#311 id=311 data-nosnippet>311</a>    })
-<a href=#312 id=312 data-nosnippet>312</a>}
-<a href=#313 id=313 data-nosnippet>313</a>
-<a href=#314 id=314 data-nosnippet>314</a><span class="doccomment">/// Calls `shown` whenever the page becomes visible again, as a phone's tab
-<a href=#315 id=315 data-nosnippet>315</a>/// does after it was suspended, for as long as the page lives. Called once,
-<a href=#316 id=316 data-nosnippet>316</a>/// at startup.
-<a href=#317 id=317 data-nosnippet>317</a></span><span class="kw">pub fn </span>on_visible(shown: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(document) = window().and_then(|window| window.document()) <span class="kw">else </span>{
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">return</span>;
-<a href=#320 id=320 data-nosnippet>320</a>    };
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">let </span>watched = document.clone();
-<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">let </span>listener = Listener::add(document.into(), <span class="string">"visibilitychange"</span>, <span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">if </span>watched.visibility_state() == web_sys::VisibilityState::Visible {
-<a href=#324 id=324 data-nosnippet>324</a>            shown();
-<a href=#325 id=325 data-nosnippet>325</a>        }
-<a href=#326 id=326 data-nosnippet>326</a>    });
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = listener {
-<a href=#328 id=328 data-nosnippet>328</a>        listener.keep();
-<a href=#329 id=329 data-nosnippet>329</a>    }
-<a href=#330 id=330 data-nosnippet>330</a>}
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a><span class="doccomment">/// Copies `text` with `navigator.clipboard`, which browsers offer only on
-<a href=#333 id=333 data-nosnippet>333</a>/// a secure page (HTTPS or localhost); `false` when it did not copy.
-<a href=#334 id=334 data-nosnippet>334</a></span><span class="kw">pub async fn </span>copy_text(text: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#335 id=335 data-nosnippet>335</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window().filter(web_sys::Window::is_secure_context) <span class="kw">else </span>{
-<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#337 id=337 data-nosnippet>337</a>    };
-<a href=#338 id=338 data-nosnippet>338</a>    <span class="kw">let </span>promise = window.navigator().clipboard().write_text(text);
-<a href=#339 id=339 data-nosnippet>339</a>    wasm_bindgen_futures::JsFuture::from(promise).<span class="kw">await</span>.is_ok()
-<a href=#340 id=340 data-nosnippet>340</a>}
-<a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a><span class="doccomment">/// Scrolls the element `selector` finds into view on the next frame, as
-<a href=#343 id=343 data-nosnippet>343</a>/// little as it takes.
-<a href=#344 id=344 data-nosnippet>344</a></span><span class="kw">pub fn </span>reveal(selector: <span class="kw-2">&amp;</span>str) {
-<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">let </span>selector = selector.to_owned();
-<a href=#346 id=346 data-nosnippet>346</a>    leptos::prelude::request_animation_frame(<span class="kw">move </span>|| {
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = window()
-<a href=#348 id=348 data-nosnippet>348</a>            .and_then(|window| window.document())
-<a href=#349 id=349 data-nosnippet>349</a>            .and_then(|document| document.query_selector(<span class="kw-2">&amp;</span>selector).ok().flatten())
-<a href=#350 id=350 data-nosnippet>350</a>        {
-<a href=#351 id=351 data-nosnippet>351</a>            <span class="kw">let </span>options = web_sys::ScrollIntoViewOptions::new();
-<a href=#352 id=352 data-nosnippet>352</a>            options.set_block(web_sys::ScrollLogicalPosition::Nearest);
-<a href=#353 id=353 data-nosnippet>353</a>            element.scroll_into_view_with_scroll_into_view_options(<span class="kw-2">&amp;</span>options);
-<a href=#354 id=354 data-nosnippet>354</a>        }
-<a href=#355 id=355 data-nosnippet>355</a>    });
-<a href=#356 id=356 data-nosnippet>356</a>}
-<a href=#357 id=357 data-nosnippet>357</a>
-<a href=#358 id=358 data-nosnippet>358</a><span class="doccomment">/// Selects the text of the text field `id`, for the user to copy.
-<a href=#359 id=359 data-nosnippet>359</a></span><span class="kw">pub fn </span>select_text(id: <span class="kw-2">&amp;</span>str) {
-<a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(field) = window()
-<a href=#361 id=361 data-nosnippet>361</a>        .and_then(|window| window.document())
-<a href=#362 id=362 data-nosnippet>362</a>        .and_then(|document| document.get_element_by_id(id))
-<a href=#363 id=363 data-nosnippet>363</a>        .and_then(|element| element.dyn_into::&lt;web_sys::HtmlTextAreaElement&gt;().ok())
-<a href=#364 id=364 data-nosnippet>364</a>    {
-<a href=#365 id=365 data-nosnippet>365</a>        <span class="kw">let _ </span>= field.focus();
-<a href=#366 id=366 data-nosnippet>366</a>        field.select();
-<a href=#367 id=367 data-nosnippet>367</a>    }
-<a href=#368 id=368 data-nosnippet>368</a>}
-<a href=#369 id=369 data-nosnippet>369</a>
-<a href=#370 id=370 data-nosnippet>370</a><span class="doccomment">/// A `touchmove` listener on the window that keeps the page from
-<a href=#371 id=371 data-nosnippet>371</a>/// scrolling under a finger while it drags something; [`TouchHold::remove`]
-<a href=#372 id=372 data-nosnippet>372</a>/// takes it away.
-<a href=#373 id=373 data-nosnippet>373</a></span><span class="kw">pub struct </span>TouchHold {
-<a href=#374 id=374 data-nosnippet>374</a>    listener: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
-<a href=#375 id=375 data-nosnippet>375</a>}
-<a href=#376 id=376 data-nosnippet>376</a>
-<a href=#377 id=377 data-nosnippet>377</a><span class="doccomment">/// Holds the page still under a moving finger whenever `holds()` says so.
-<a href=#378 id=378 data-nosnippet>378</a>/// The listener is not passive, or the browser would scroll regardless;
-<a href=#379 id=379 data-nosnippet>379</a>/// the browser decides at a move's first event, so a finger that moves
-<a href=#380 id=380 data-nosnippet>380</a>/// before `holds()` turns true scrolls as usual.
-<a href=#381 id=381 data-nosnippet>381</a></span><span class="kw">pub fn </span>hold_touch_scroll(holds: <span class="kw">impl </span>Fn() -&gt; bool + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TouchHold&gt; {
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="kw">let </span>window = window()<span class="question-mark">?</span>;
-<a href=#383 id=383 data-nosnippet>383</a>    <span class="kw">let </span>listener = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(<span class="kw">move </span>|event: web_sys::Event| {
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">if </span>holds() &amp;&amp; event.cancelable() {
-<a href=#385 id=385 data-nosnippet>385</a>            event.prevent_default();
-<a href=#386 id=386 data-nosnippet>386</a>        }
-<a href=#387 id=387 data-nosnippet>387</a>    });
-<a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">let </span>options = web_sys::AddEventListenerOptions::new();
-<a href=#389 id=389 data-nosnippet>389</a>    options.set_passive(<span class="bool-val">false</span>);
-<a href=#390 id=390 data-nosnippet>390</a>    window
-<a href=#391 id=391 data-nosnippet>391</a>        .add_event_listener_with_callback_and_add_event_listener_options(
-<a href=#392 id=392 data-nosnippet>392</a>            <span class="string">"touchmove"</span>,
-<a href=#393 id=393 data-nosnippet>393</a>            listener.as_ref().unchecked_ref(),
-<a href=#394 id=394 data-nosnippet>394</a>            <span class="kw-2">&amp;</span>options,
-<a href=#395 id=395 data-nosnippet>395</a>        )
-<a href=#396 id=396 data-nosnippet>396</a>        .ok()<span class="question-mark">?</span>;
-<a href=#397 id=397 data-nosnippet>397</a>    <span class="prelude-val">Some</span>(TouchHold { listener })
-<a href=#398 id=398 data-nosnippet>398</a>}
-<a href=#399 id=399 data-nosnippet>399</a>
-<a href=#400 id=400 data-nosnippet>400</a><span class="kw">impl </span>TouchHold {
-<a href=#401 id=401 data-nosnippet>401</a>    <span class="kw">pub fn </span>remove(<span class="self">self</span>) {
-<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(window) = window() {
-<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">let _ </span>= window.remove_event_listener_with_callback(
-<a href=#404 id=404 data-nosnippet>404</a>                <span class="string">"touchmove"</span>,
-<a href=#405 id=405 data-nosnippet>405</a>                <span class="self">self</span>.listener.as_ref().unchecked_ref(),
-<a href=#406 id=406 data-nosnippet>406</a>            );
-<a href=#407 id=407 data-nosnippet>407</a>        }
-<a href=#408 id=408 data-nosnippet>408</a>    }
-<a href=#409 id=409 data-nosnippet>409</a>}
-<a href=#410 id=410 data-nosnippet>410</a>
-<a href=#411 id=411 data-nosnippet>411</a><span class="doccomment">/// Marks the page as pressed, or not: while it is, nothing on the page can
-<a href=#412 id=412 data-nosnippet>412</a>/// be selected (`html.pressing` in the style sheet). A phone otherwise
-<a href=#413 id=413 data-nosnippet>413</a>/// selects the words under and around a finger held on a row, and extends
-<a href=#414 id=414 data-nosnippet>414</a>/// that selection as the finger drags. Pressing also clears what is
-<a href=#415 id=415 data-nosnippet>415</a>/// selected; letting go touches nothing else, since every pointer release
-<a href=#416 id=416 data-nosnippet>416</a>/// on the page lets go, and clearing the selection then would take the
-<a href=#417 id=417 data-nosnippet>417</a>/// focus from a field just clicked.
-<a href=#418 id=418 data-nosnippet>418</a></span><span class="kw">pub fn </span>set_pressing(pressing: bool) {
-<a href=#419 id=419 data-nosnippet>419</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
-<a href=#420 id=420 data-nosnippet>420</a>        <span class="kw">return</span>;
-<a href=#421 id=421 data-nosnippet>421</a>    };
-<a href=#422 id=422 data-nosnippet>422</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window
-<a href=#423 id=423 data-nosnippet>423</a>        .document()
-<a href=#424 id=424 data-nosnippet>424</a>        .and_then(|document| document.document_element())
-<a href=#425 id=425 data-nosnippet>425</a>    <span class="kw">else </span>{
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">return</span>;
-<a href=#427 id=427 data-nosnippet>427</a>    };
-<a href=#428 id=428 data-nosnippet>428</a>    <span class="kw">let </span>classes = root.class_list();
-<a href=#429 id=429 data-nosnippet>429</a>    <span class="kw">if </span>!pressing {
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="kw">if </span>classes.contains(<span class="string">"pressing"</span>) {
-<a href=#431 id=431 data-nosnippet>431</a>            <span class="kw">let _ </span>= classes.remove_1(<span class="string">"pressing"</span>);
-<a href=#432 id=432 data-nosnippet>432</a>        }
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">return</span>;
-<a href=#434 id=434 data-nosnippet>434</a>    }
-<a href=#435 id=435 data-nosnippet>435</a>    <span class="kw">let _ </span>= classes.add_1(<span class="string">"pressing"</span>);
-<a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(selection)) = window.get_selection() {
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let _ </span>= selection.remove_all_ranges();
-<a href=#438 id=438 data-nosnippet>438</a>    }
-<a href=#439 id=439 data-nosnippet>439</a>}
-<a href=#440 id=440 data-nosnippet>440</a>
-<a href=#441 id=441 data-nosnippet>441</a><span class="doccomment">/// Refuses every text selection that starts while `holds`, until removed.
-<a href=#442 id=442 data-nosnippet>442</a></span><span class="kw">pub fn </span>hold_selection(holds: <span class="kw">impl </span>Fn() -&gt; bool + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SelectionHold&gt; {
-<a href=#443 id=443 data-nosnippet>443</a>    <span class="kw">let </span>document = window()<span class="question-mark">?</span>.document()<span class="question-mark">?</span>;
-<a href=#444 id=444 data-nosnippet>444</a>    <span class="kw">let </span>listener = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(<span class="kw">move </span>|event: web_sys::Event| {
-<a href=#445 id=445 data-nosnippet>445</a>        <span class="kw">if </span>holds() {
-<a href=#446 id=446 data-nosnippet>446</a>            event.prevent_default();
-<a href=#447 id=447 data-nosnippet>447</a>        }
-<a href=#448 id=448 data-nosnippet>448</a>    });
-<a href=#449 id=449 data-nosnippet>449</a>    document
-<a href=#450 id=450 data-nosnippet>450</a>        .add_event_listener_with_callback_and_bool(
-<a href=#451 id=451 data-nosnippet>451</a>            <span class="string">"selectstart"</span>,
-<a href=#452 id=452 data-nosnippet>452</a>            listener.as_ref().unchecked_ref(),
-<a href=#453 id=453 data-nosnippet>453</a>            <span class="bool-val">true</span>,
-<a href=#454 id=454 data-nosnippet>454</a>        )
-<a href=#455 id=455 data-nosnippet>455</a>        .ok()<span class="question-mark">?</span>;
-<a href=#456 id=456 data-nosnippet>456</a>    <span class="prelude-val">Some</span>(SelectionHold { listener })
-<a href=#457 id=457 data-nosnippet>457</a>}
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a><span class="doccomment">/// A listener [`hold_selection`] added.
-<a href=#460 id=460 data-nosnippet>460</a></span><span class="kw">pub struct </span>SelectionHold {
-<a href=#461 id=461 data-nosnippet>461</a>    listener: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
-<a href=#462 id=462 data-nosnippet>462</a>}
-<a href=#463 id=463 data-nosnippet>463</a>
-<a href=#464 id=464 data-nosnippet>464</a><span class="kw">impl </span>SelectionHold {
-<a href=#465 id=465 data-nosnippet>465</a>    <span class="kw">pub fn </span>remove(<span class="self">self</span>) {
-<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(document) = window().and_then(|window| window.document()) {
-<a href=#467 id=467 data-nosnippet>467</a>            <span class="kw">let _ </span>= document.remove_event_listener_with_callback_and_bool(
-<a href=#468 id=468 data-nosnippet>468</a>                <span class="string">"selectstart"</span>,
-<a href=#469 id=469 data-nosnippet>469</a>                <span class="self">self</span>.listener.as_ref().unchecked_ref(),
-<a href=#470 id=470 data-nosnippet>470</a>                <span class="bool-val">true</span>,
-<a href=#471 id=471 data-nosnippet>471</a>            );
-<a href=#472 id=472 data-nosnippet>472</a>        }
-<a href=#473 id=473 data-nosnippet>473</a>    }
-<a href=#474 id=474 data-nosnippet>474</a>}
-<a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a><span class="doccomment">/// The `attribute` of the element `selector` matches that is at `x`, `y`
-<a href=#477 id=477 data-nosnippet>477</a>/// in the viewport or holds what is: what a drag is over.
-<a href=#478 id=478 data-nosnippet>478</a></span><span class="kw">pub fn </span>attribute_at(x: f64, y: f64, selector: <span class="kw-2">&amp;</span>str, attribute: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#479 id=479 data-nosnippet>479</a>    <span class="comment">// A viewport coordinate is far inside `f32`.
-<a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">let </span>element = window()<span class="question-mark">?
-<a href=#481 id=481 data-nosnippet>481</a>        </span>.document()<span class="question-mark">?
-<a href=#482 id=482 data-nosnippet>482</a>        </span>.element_from_point(x <span class="kw">as </span>f32, y <span class="kw">as </span>f32)<span class="question-mark">?</span>;
-<a href=#483 id=483 data-nosnippet>483</a>    element.closest(selector).ok()<span class="question-mark">??</span>.get_attribute(attribute)
-<a href=#484 id=484 data-nosnippet>484</a>}
-<a href=#485 id=485 data-nosnippet>485</a>
-<a href=#486 id=486 data-nosnippet>486</a><span class="doccomment">/// Scrolls the element `selector` matches when `y` is near its top or
-<a href=#487 id=487 data-nosnippet>487</a>/// bottom edge, so a drag reaches what is out of view.
-<a href=#488 id=488 data-nosnippet>488</a></span><span class="kw">pub fn </span>scroll_near_edge(selector: <span class="kw-2">&amp;</span>str, y: f64) {
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = window()
-<a href=#490 id=490 data-nosnippet>490</a>        .and_then(|window| window.document())
-<a href=#491 id=491 data-nosnippet>491</a>        .and_then(|document| document.query_selector(selector).ok().flatten())
-<a href=#492 id=492 data-nosnippet>492</a>    {
-<a href=#493 id=493 data-nosnippet>493</a>        scroll_element_near_edge(<span class="kw-2">&amp;</span>element, y);
-<a href=#494 id=494 data-nosnippet>494</a>    }
-<a href=#495 id=495 data-nosnippet>495</a>}
-<a href=#496 id=496 data-nosnippet>496</a>
-<a href=#497 id=497 data-nosnippet>497</a><span class="doccomment">/// Scrolls `element` when `y` is near its top or bottom edge, as
-<a href=#498 id=498 data-nosnippet>498</a>/// [`scroll_near_edge`] does.
-<a href=#499 id=499 data-nosnippet>499</a></span><span class="kw">pub fn </span>scroll_element_near_edge(element: <span class="kw-2">&amp;</span>web_sys::Element, y: f64) {
-<a href=#500 id=500 data-nosnippet>500</a>    <span class="kw">const </span>EDGE: f64 = <span class="number">48.0</span>;
-<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">const </span>STEP: f64 = <span class="number">12.0</span>;
-<a href=#502 id=502 data-nosnippet>502</a>    <span class="kw">let </span>frame = element.get_bounding_client_rect();
-<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">if </span>y &lt; frame.top() + EDGE {
-<a href=#504 id=504 data-nosnippet>504</a>        element.scroll_by_with_x_and_y(<span class="number">0.0</span>, -STEP);
-<a href=#505 id=505 data-nosnippet>505</a>    } <span class="kw">else if </span>y &gt; frame.bottom() - EDGE {
-<a href=#506 id=506 data-nosnippet>506</a>        element.scroll_by_with_x_and_y(<span class="number">0.0</span>, STEP);
-<a href=#507 id=507 data-nosnippet>507</a>    }
-<a href=#508 id=508 data-nosnippet>508</a>}
-<a href=#509 id=509 data-nosnippet>509</a>
-<a href=#510 id=510 data-nosnippet>510</a><span class="doccomment">/// Keeps `--app-height` on `&lt;html&gt;` at the visual viewport's height, which a
-<a href=#511 id=511 data-nosnippet>511</a>/// phone's on-screen keyboard shrinks while the layout viewport (and
-<a href=#512 id=512 data-nosnippet>512</a>/// `100dvh`) may not, so the composer and an open sheet stay above the
-<a href=#513 id=513 data-nosnippet>513</a>/// keyboard. The page's frame and sheets size themselves from it. Called
-<a href=#514 id=514 data-nosnippet>514</a>/// once, at startup.
-<a href=#515 id=515 data-nosnippet>515</a></span><span class="kw">pub fn </span>follow_visual_viewport() {
-<a href=#516 id=516 data-nosnippet>516</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">return</span>;
-<a href=#518 id=518 data-nosnippet>518</a>    };
-<a href=#519 id=519 data-nosnippet>519</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(viewport) = window.visual_viewport() <span class="kw">else </span>{
-<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">return</span>;
-<a href=#521 id=521 data-nosnippet>521</a>    };
-<a href=#522 id=522 data-nosnippet>522</a>    <span class="kw">let </span>update = {
-<a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">let </span>viewport = viewport.clone();
-<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">let </span>window = window.clone();
-<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">move </span>|| {
-<a href=#526 id=526 data-nosnippet>526</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window
-<a href=#527 id=527 data-nosnippet>527</a>                .document()
-<a href=#528 id=528 data-nosnippet>528</a>                .and_then(|document| document.document_element())
-<a href=#529 id=529 data-nosnippet>529</a>                .and_then(|root| root.dyn_into::&lt;web_sys::HtmlElement&gt;().ok())
-<a href=#530 id=530 data-nosnippet>530</a>            <span class="kw">else </span>{
-<a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">return</span>;
-<a href=#532 id=532 data-nosnippet>532</a>            };
-<a href=#533 id=533 data-nosnippet>533</a>            <span class="kw">let _ </span>= root
-<a href=#534 id=534 data-nosnippet>534</a>                .style()
-<a href=#535 id=535 data-nosnippet>535</a>                .set_property(<span class="string">"--app-height"</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}px"</span>, viewport.height()));
-<a href=#536 id=536 data-nosnippet>536</a>            <span class="comment">// A browser that scrolled the page to show the focused field
-<a href=#537 id=537 data-nosnippet>537</a>            // leaves the frame where it was; bring it back.
-<a href=#538 id=538 data-nosnippet>538</a>            </span><span class="kw">if </span>viewport.offset_top() &gt; <span class="number">0.0 </span>{
-<a href=#539 id=539 data-nosnippet>539</a>                window.scroll_to_with_x_and_y(<span class="number">0.0</span>, <span class="number">0.0</span>);
-<a href=#540 id=540 data-nosnippet>540</a>            }
-<a href=#541 id=541 data-nosnippet>541</a>        }
-<a href=#542 id=542 data-nosnippet>542</a>    };
-<a href=#543 id=543 data-nosnippet>543</a>    update();
-<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(viewport.into(), <span class="string">"resize"</span>, <span class="kw">move </span>|<span class="kw">_</span>| update()) {
-<a href=#545 id=545 data-nosnippet>545</a>        listener.keep();
-<a href=#546 id=546 data-nosnippet>546</a>    }
-<a href=#547 id=547 data-nosnippet>547</a>}
-<a href=#548 id=548 data-nosnippet>548</a>
-<a href=#549 id=549 data-nosnippet>549</a><span class="doccomment">/// The media query a phone matches: narrower than Tailwind's `sm`.
-<a href=#550 id=550 data-nosnippet>550</a></span><span class="kw">pub const </span>PHONE_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(max-width: 39.99rem)"</span>;
-<a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a><span class="doccomment">/// The media query a desktop matches: Tailwind's `lg` and wider, where the
-<a href=#553 id=553 data-nosnippet>553</a>/// sessions sidebar is pinned beside the transcript.
-<a href=#554 id=554 data-nosnippet>554</a></span><span class="kw">pub const </span>DESKTOP_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(min-width: 64rem)"</span>;
-<a href=#555 id=555 data-nosnippet>555</a>
-<a href=#556 id=556 data-nosnippet>556</a><span class="kw">fn </span>media_query(query: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::MediaQueryList&gt; {
-<a href=#557 id=557 data-nosnippet>557</a>    window()<span class="question-mark">?</span>.match_media(query).ok().flatten()
-<a href=#558 id=558 data-nosnippet>558</a>}
-<a href=#559 id=559 data-nosnippet>559</a>
-<a href=#560 id=560 data-nosnippet>560</a><span class="doccomment">/// Whether the page matches the media `query` now.
-<a href=#561 id=561 data-nosnippet>561</a></span><span class="kw">pub fn </span>matches(query: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#562 id=562 data-nosnippet>562</a>    media_query(query).is_some_and(|list| list.matches())
-<a href=#563 id=563 data-nosnippet>563</a>}
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a><span class="doccomment">/// Calls `changed` with whether the page matches `query` whenever that
-<a href=#566 id=566 data-nosnippet>566</a>/// changes, until the returned listener is removed.
-<a href=#567 id=567 data-nosnippet>567</a></span><span class="kw">pub fn </span>on_media_change(query: <span class="kw-2">&amp;</span>str, changed: <span class="kw">impl </span>Fn(bool) + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Listener&gt; {
-<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">let </span>list = media_query(query)<span class="question-mark">?</span>;
-<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">let </span>watched = list.clone();
-<a href=#570 id=570 data-nosnippet>570</a>    Listener::add(list.into(), <span class="string">"change"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed(watched.matches()))
-<a href=#571 id=571 data-nosnippet>571</a>}
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a><span class="doccomment">/// Adds a history entry for the page as it is, carrying `depth`: how many
-<a href=#574 id=574 data-nosnippet>574</a>/// of the page's layers are open with it. Browser Back then returns to the
-<a href=#575 id=575 data-nosnippet>575</a>/// entry below instead of leaving the page.
-<a href=#576 id=576 data-nosnippet>576</a></span><span class="kw">pub fn </span>push_history(depth: usize) {
-<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let _ </span>= history.push_state(<span class="kw-2">&amp;</span>wasm_bindgen::JsValue::from(depth <span class="kw">as </span>f64), <span class="string">""</span>);
-<a href=#579 id=579 data-nosnippet>579</a>    }
-<a href=#580 id=580 data-nosnippet>580</a>}
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a><span class="doccomment">/// Goes `steps` entries back in the history.
-<a href=#583 id=583 data-nosnippet>583</a></span><span class="kw">pub fn </span>history_back(steps: usize) {
-<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="kw">let _ </span>= history.go_with_delta(-(steps <span class="kw">as </span>i32));
-<a href=#586 id=586 data-nosnippet>586</a>    }
-<a href=#587 id=587 data-nosnippet>587</a>}
-<a href=#588 id=588 data-nosnippet>588</a>
-<a href=#589 id=589 data-nosnippet>589</a><span class="doccomment">/// Calls `arrived` with the depth of the history entry the browser moved
-<a href=#590 id=590 data-nosnippet>590</a>/// to (0 for one the page did not add), until the returned listener is
-<a href=#591 id=591 data-nosnippet>591</a>/// removed.
-<a href=#592 id=592 data-nosnippet>592</a></span><span class="kw">pub fn </span>on_history_move(arrived: <span class="kw">impl </span>Fn(usize) + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Listener&gt; {
-<a href=#593 id=593 data-nosnippet>593</a>    Listener::add(window()<span class="question-mark">?</span>.into(), <span class="string">"popstate"</span>, <span class="kw">move </span>|event| {
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">let </span>depth = event
-<a href=#595 id=595 data-nosnippet>595</a>            .unchecked_into::&lt;web_sys::PopStateEvent&gt;()
-<a href=#596 id=596 data-nosnippet>596</a>            .state()
-<a href=#597 id=597 data-nosnippet>597</a>            .as_f64()
-<a href=#598 id=598 data-nosnippet>598</a>            .map_or(<span class="number">0</span>, |depth| depth <span class="kw">as </span>usize);
-<a href=#599 id=599 data-nosnippet>599</a>        arrived(depth);
-<a href=#600 id=600 data-nosnippet>600</a>    })
-<a href=#601 id=601 data-nosnippet>601</a>}
+<a href=#2 id=2 data-nosnippet>2</a>//! the colour scheme, visibility, installing the page as an app, and push
+<a href=#3 id=3 data-nosnippet>3</a>//! notifications. Everything here is a thin call into
+<a href=#4 id=4 data-nosnippet>4</a>//! `web_sys`; it compiles on every target but only works in a browser.
+<a href=#5 id=5 data-nosnippet>5</a>
+<a href=#6 id=6 data-nosnippet>6</a></span><span class="kw">use </span>wasm_bindgen::{JsCast <span class="kw">as _</span>, closure::Closure};
+<a href=#7 id=7 data-nosnippet>7</a>
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">fn </span>window() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Window&gt; {
+<a href=#9 id=9 data-nosnippet>9</a>    web_sys::window()
+<a href=#10 id=10 data-nosnippet>10</a>}
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a><span class="doccomment">/// The page's `location.href`.
+<a href=#13 id=13 data-nosnippet>13</a></span><span class="kw">pub fn </span>page_href() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#14 id=14 data-nosnippet>14</a>    window()<span class="question-mark">?</span>.location().href().ok()
+<a href=#15 id=15 data-nosnippet>15</a>}
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="doccomment">/// The page's `location.origin`.
+<a href=#18 id=18 data-nosnippet>18</a></span><span class="kw">pub fn </span>page_origin() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#19 id=19 data-nosnippet>19</a>    window()<span class="question-mark">?</span>.location().origin().ok()
+<a href=#20 id=20 data-nosnippet>20</a>}
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// The page's `location.hash`, `#` included.
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub fn </span>page_fragment() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#24 id=24 data-nosnippet>24</a>    window()<span class="question-mark">?</span>.location().hash().ok()
+<a href=#25 id=25 data-nosnippet>25</a>}
+<a href=#26 id=26 data-nosnippet>26</a>
+<a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// Replaces the page's fragment in the address bar and history without
+<a href=#28 id=28 data-nosnippet>28</a>/// reloading; an empty `fragment` removes it.
+<a href=#29 id=29 data-nosnippet>29</a></span><span class="kw">pub fn </span>replace_fragment(fragment: <span class="kw-2">&amp;</span>str) {
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#31 id=31 data-nosnippet>31</a>        <span class="kw">return</span>;
+<a href=#32 id=32 data-nosnippet>32</a>    };
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">let </span>location = window.location();
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="kw">let </span>(<span class="prelude-val">Ok</span>(path), <span class="prelude-val">Ok</span>(search)) = (location.pathname(), location.search()) <span class="kw">else </span>{
+<a href=#35 id=35 data-nosnippet>35</a>        <span class="kw">return</span>;
+<a href=#36 id=36 data-nosnippet>36</a>    };
+<a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(history) = window.history() {
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let _ </span>= history.replace_state_with_url(
+<a href=#39 id=39 data-nosnippet>39</a>            <span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL,
+<a href=#40 id=40 data-nosnippet>40</a>            <span class="string">""</span>,
+<a href=#41 id=41 data-nosnippet>41</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{path}{search}{fragment}"</span>)),
+<a href=#42 id=42 data-nosnippet>42</a>        );
+<a href=#43 id=43 data-nosnippet>43</a>    }
+<a href=#44 id=44 data-nosnippet>44</a>}
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a><span class="doccomment">/// Replaces the page's address in the address bar and history without
+<a href=#47 id=47 data-nosnippet>47</a>/// reloading: `address` is its path, query, and fragment.
+<a href=#48 id=48 data-nosnippet>48</a></span><span class="kw">pub fn </span>replace_address(address: <span class="kw-2">&amp;</span>str) {
+<a href=#49 id=49 data-nosnippet>49</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
+<a href=#50 id=50 data-nosnippet>50</a>        <span class="kw">let _ </span>= history.replace_state_with_url(<span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL, <span class="string">""</span>, <span class="prelude-val">Some</span>(address));
+<a href=#51 id=51 data-nosnippet>51</a>    }
+<a href=#52 id=52 data-nosnippet>52</a>}
+<a href=#53 id=53 data-nosnippet>53</a>
+<a href=#54 id=54 data-nosnippet>54</a><span class="kw">fn </span>local_storage() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Storage&gt; {
+<a href=#55 id=55 data-nosnippet>55</a>    window()<span class="question-mark">?</span>.local_storage().ok().flatten()
+<a href=#56 id=56 data-nosnippet>56</a>}
+<a href=#57 id=57 data-nosnippet>57</a>
+<a href=#58 id=58 data-nosnippet>58</a><span class="kw">fn </span>session_storage() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::Storage&gt; {
+<a href=#59 id=59 data-nosnippet>59</a>    window()<span class="question-mark">?</span>.session_storage().ok().flatten()
+<a href=#60 id=60 data-nosnippet>60</a>}
+<a href=#61 id=61 data-nosnippet>61</a>
+<a href=#62 id=62 data-nosnippet>62</a><span class="doccomment">/// A value from `localStorage`.
+<a href=#63 id=63 data-nosnippet>63</a></span><span class="kw">pub fn </span>load(key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#64 id=64 data-nosnippet>64</a>    local_storage()<span class="question-mark">?</span>.get_item(key).ok().flatten()
+<a href=#65 id=65 data-nosnippet>65</a>}
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a><span class="doccomment">/// Keeps a value in `localStorage`; a page without storage keeps nothing.
+<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub fn </span>store(key: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span>str) {
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = local_storage() {
+<a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">let _ </span>= storage.set_item(key, value);
+<a href=#71 id=71 data-nosnippet>71</a>    }
+<a href=#72 id=72 data-nosnippet>72</a>}
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a><span class="doccomment">/// Removes a value from `localStorage`.
+<a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">pub fn </span>forget(key: <span class="kw-2">&amp;</span>str) {
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = local_storage() {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">let _ </span>= storage.remove_item(key);
+<a href=#78 id=78 data-nosnippet>78</a>    }
+<a href=#79 id=79 data-nosnippet>79</a>}
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a><span class="doccomment">/// A value from this tab's `sessionStorage`.
+<a href=#82 id=82 data-nosnippet>82</a></span><span class="kw">pub fn </span>load_tab(key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#83 id=83 data-nosnippet>83</a>    session_storage()<span class="question-mark">?</span>.get_item(key).ok().flatten()
+<a href=#84 id=84 data-nosnippet>84</a>}
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a><span class="doccomment">/// Keeps a value in this tab's `sessionStorage`.
+<a href=#87 id=87 data-nosnippet>87</a></span><span class="kw">pub fn </span>store_tab(key: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span>str) {
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(storage) = session_storage() {
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let _ </span>= storage.set_item(key, value);
+<a href=#90 id=90 data-nosnippet>90</a>    }
+<a href=#91 id=91 data-nosnippet>91</a>}
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a><span class="doccomment">/// An event listener added by this module; [`Listener::remove`] takes it
+<a href=#94 id=94 data-nosnippet>94</a>/// away, and [`Listener::keep`] leaves it for the life of the page.
+<a href=#95 id=95 data-nosnippet>95</a></span><span class="kw">pub struct </span>Listener {
+<a href=#96 id=96 data-nosnippet>96</a>    target: web_sys::EventTarget,
+<a href=#97 id=97 data-nosnippet>97</a>    event: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#98 id=98 data-nosnippet>98</a>    callback: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
+<a href=#99 id=99 data-nosnippet>99</a>}
+<a href=#100 id=100 data-nosnippet>100</a>
+<a href=#101 id=101 data-nosnippet>101</a><span class="kw">impl </span>Listener {
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="kw">fn </span>add(
+<a href=#103 id=103 data-nosnippet>103</a>        target: web_sys::EventTarget,
+<a href=#104 id=104 data-nosnippet>104</a>        event: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#105 id=105 data-nosnippet>105</a>        callback: <span class="kw">impl </span>Fn(web_sys::Event) + <span class="lifetime">'static</span>,
+<a href=#106 id=106 data-nosnippet>106</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>callback = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(callback);
+<a href=#108 id=108 data-nosnippet>108</a>        target
+<a href=#109 id=109 data-nosnippet>109</a>            .add_event_listener_with_callback(event, callback.as_ref().unchecked_ref())
+<a href=#110 id=110 data-nosnippet>110</a>            .ok()<span class="question-mark">?</span>;
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
+<a href=#112 id=112 data-nosnippet>112</a>            target,
+<a href=#113 id=113 data-nosnippet>113</a>            event,
+<a href=#114 id=114 data-nosnippet>114</a>            callback,
+<a href=#115 id=115 data-nosnippet>115</a>        })
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Removes the listener.
+<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">pub fn </span>remove(<span class="self">self</span>) {
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let _ </span>= <span class="self">self</span>.target.remove_event_listener_with_callback(
+<a href=#121 id=121 data-nosnippet>121</a>            <span class="self">self</span>.event,
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="self">self</span>.callback.as_ref().unchecked_ref(),
+<a href=#123 id=123 data-nosnippet>123</a>        );
+<a href=#124 id=124 data-nosnippet>124</a>    }
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Leaves the listener on for as long as the page lives. Only for
+<a href=#127 id=127 data-nosnippet>127</a>    /// listeners the app registers once at startup.
+<a href=#128 id=128 data-nosnippet>128</a>    </span><span class="kw">pub fn </span>keep(<span class="self">self</span>) {
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self</span>.callback.forget();
+<a href=#130 id=130 data-nosnippet>130</a>    }
+<a href=#131 id=131 data-nosnippet>131</a>}
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a><span class="kw">fn </span>dark_query() -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::MediaQueryList&gt; {
+<a href=#134 id=134 data-nosnippet>134</a>    window()<span class="question-mark">?
+<a href=#135 id=135 data-nosnippet>135</a>        </span>.match_media(<span class="string">"(prefers-color-scheme: dark)"</span>)
+<a href=#136 id=136 data-nosnippet>136</a>        .ok()
+<a href=#137 id=137 data-nosnippet>137</a>        .flatten()
+<a href=#138 id=138 data-nosnippet>138</a>}
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a><span class="doccomment">/// Whether the system prefers a dark colour scheme.
+<a href=#141 id=141 data-nosnippet>141</a></span><span class="kw">pub fn </span>system_prefers_dark() -&gt; bool {
+<a href=#142 id=142 data-nosnippet>142</a>    dark_query().is_some_and(|query| query.matches())
+<a href=#143 id=143 data-nosnippet>143</a>}
+<a href=#144 id=144 data-nosnippet>144</a>
+<a href=#145 id=145 data-nosnippet>145</a><span class="doccomment">/// Calls `changed` whenever the system's colour scheme changes, for as long
+<a href=#146 id=146 data-nosnippet>146</a>/// as the page lives. Called once, at startup.
+<a href=#147 id=147 data-nosnippet>147</a></span><span class="kw">pub fn </span>on_system_scheme_change(changed: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(query) = dark_query() <span class="kw">else </span>{
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">return</span>;
+<a href=#150 id=150 data-nosnippet>150</a>    };
+<a href=#151 id=151 data-nosnippet>151</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(query.into(), <span class="string">"change"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed()) {
+<a href=#152 id=152 data-nosnippet>152</a>        listener.keep();
+<a href=#153 id=153 data-nosnippet>153</a>    }
+<a href=#154 id=154 data-nosnippet>154</a>}
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a><span class="doccomment">/// Turns the dark palette on or off: the `dark` class on `&lt;html&gt;`, which
+<a href=#157 id=157 data-nosnippet>157</a>/// Tailwind's `dark:` variant follows.
+<a href=#158 id=158 data-nosnippet>158</a></span><span class="kw">pub fn </span>set_dark(dark: bool) {
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window()
+<a href=#160 id=160 data-nosnippet>160</a>        .and_then(|window| window.document())
+<a href=#161 id=161 data-nosnippet>161</a>        .and_then(|document| document.document_element())
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">else </span>{
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">return</span>;
+<a href=#164 id=164 data-nosnippet>164</a>    };
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">let </span>classes = root.class_list();
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">let _ </span>= <span class="kw">if </span>dark {
+<a href=#167 id=167 data-nosnippet>167</a>        classes.add_1(<span class="string">"dark"</span>)
+<a href=#168 id=168 data-nosnippet>168</a>    } <span class="kw">else </span>{
+<a href=#169 id=169 data-nosnippet>169</a>        classes.remove_1(<span class="string">"dark"</span>)
+<a href=#170 id=170 data-nosnippet>170</a>    };
+<a href=#171 id=171 data-nosnippet>171</a>    set_theme_color(<span class="kw">if </span>dark { THEME_DARK } <span class="kw">else </span>{ THEME_LIGHT });
+<a href=#172 id=172 data-nosnippet>172</a>}
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a><span class="doccomment">/// The browser's colour around the page (`theme-color`) in the light and
+<a href=#175 id=175 data-nosnippet>175</a>/// the dark theme: the palette's cream and night, as in `index.html` and
+<a href=#176 id=176 data-nosnippet>176</a>/// the manifest.
+<a href=#177 id=177 data-nosnippet>177</a></span><span class="kw">const </span>THEME_LIGHT: <span class="kw-2">&amp;</span>str = <span class="string">"#fbf4e6"</span>;
+<a href=#178 id=178 data-nosnippet>178</a><span class="kw">const </span>THEME_DARK: <span class="kw-2">&amp;</span>str = <span class="string">"#201c16"</span>;
+<a href=#179 id=179 data-nosnippet>179</a>
+<a href=#180 id=180 data-nosnippet>180</a><span class="doccomment">/// Sets every `theme-color` of the page to `colour`, so the browser's bar,
+<a href=#181 id=181 data-nosnippet>181</a>/// or an installed app's title bar, follows the user's theme rather than
+<a href=#182 id=182 data-nosnippet>182</a>/// only the system's.
+<a href=#183 id=183 data-nosnippet>183</a></span><span class="kw">fn </span>set_theme_color(colour: <span class="kw-2">&amp;</span>str) {
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(metas) = window()
+<a href=#185 id=185 data-nosnippet>185</a>        .and_then(|window| window.document())
+<a href=#186 id=186 data-nosnippet>186</a>        .and_then(|document| document.query_selector_all(<span class="string">"meta[name=theme-color]"</span>).ok())
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">else </span>{
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">return</span>;
+<a href=#189 id=189 data-nosnippet>189</a>    };
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..metas.length() {
+<a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(meta) = metas
+<a href=#192 id=192 data-nosnippet>192</a>            .item(index)
+<a href=#193 id=193 data-nosnippet>193</a>            .and_then(|node| node.dyn_into::&lt;web_sys::Element&gt;().ok())
+<a href=#194 id=194 data-nosnippet>194</a>        {
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">let _ </span>= meta.set_attribute(<span class="string">"content"</span>, colour);
+<a href=#196 id=196 data-nosnippet>196</a>        }
+<a href=#197 id=197 data-nosnippet>197</a>    }
+<a href=#198 id=198 data-nosnippet>198</a>}
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a><span class="doccomment">/// `window[name]`, `undefined` outside a browser.
+<a href=#201 id=201 data-nosnippet>201</a></span><span class="kw">fn </span>window_value(name: <span class="kw-2">&amp;</span>str) -&gt; wasm_bindgen::JsValue {
+<a href=#202 id=202 data-nosnippet>202</a>    window()
+<a href=#203 id=203 data-nosnippet>203</a>        .and_then(|window| js_sys::Reflect::get(<span class="kw-2">&amp;</span>window, <span class="kw-2">&amp;</span>name.into()).ok())
+<a href=#204 id=204 data-nosnippet>204</a>        .unwrap_or(wasm_bindgen::JsValue::UNDEFINED)
+<a href=#205 id=205 data-nosnippet>205</a>}
+<a href=#206 id=206 data-nosnippet>206</a>
+<a href=#207 id=207 data-nosnippet>207</a><span class="doccomment">/// Whether the page is a secure context (HTTPS, or `localhost` and
+<a href=#208 id=208 data-nosnippet>208</a>/// `127.0.0.1`), which installing it and its service worker need.
+<a href=#209 id=209 data-nosnippet>209</a></span><span class="kw">pub fn </span>is_secure_context() -&gt; bool {
+<a href=#210 id=210 data-nosnippet>210</a>    window().is_some_and(|window| window.is_secure_context())
+<a href=#211 id=211 data-nosnippet>211</a>}
+<a href=#212 id=212 data-nosnippet>212</a>
+<a href=#213 id=213 data-nosnippet>213</a><span class="doccomment">/// Registers the page's service worker, `sw.js` beside it, which caches
+<a href=#214 id=214 data-nosnippet>214</a>/// nothing (it makes the page installable). Only a secure page can; the
+<a href=#215 id=215 data-nosnippet>215</a>/// browser checks it for a new build on every load, past its HTTP cache.
+<a href=#216 id=216 data-nosnippet>216</a></span><span class="kw">pub fn </span>register_service_worker() {
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window().filter(web_sys::Window::is_secure_context) <span class="kw">else </span>{
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">return</span>;
+<a href=#219 id=219 data-nosnippet>219</a>    };
+<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">let </span>navigator = window.navigator();
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="comment">// A private window may have no service workers.
+<a href=#222 id=222 data-nosnippet>222</a>    </span><span class="kw">if </span>!js_sys::Reflect::has(<span class="kw-2">&amp;</span>navigator, <span class="kw-2">&amp;</span><span class="string">"serviceWorker"</span>.into()).unwrap_or(<span class="bool-val">false</span>) {
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">return</span>;
+<a href=#224 id=224 data-nosnippet>224</a>    }
+<a href=#225 id=225 data-nosnippet>225</a>    <span class="kw">let </span>options = web_sys::RegistrationOptions::new();
+<a href=#226 id=226 data-nosnippet>226</a>    options.set_update_via_cache(web_sys::ServiceWorkerUpdateViaCache::None);
+<a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">let </span>registered = navigator
+<a href=#228 id=228 data-nosnippet>228</a>        .service_worker()
+<a href=#229 id=229 data-nosnippet>229</a>        .register_with_options(<span class="string">"sw.js"</span>, <span class="kw-2">&amp;</span>options);
+<a href=#230 id=230 data-nosnippet>230</a>    wasm_bindgen_futures::spawn_local(<span class="kw">async move </span>{
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">let _ </span>= wasm_bindgen_futures::JsFuture::from(registered).<span class="kw">await</span>;
+<a href=#232 id=232 data-nosnippet>232</a>    });
+<a href=#233 id=233 data-nosnippet>233</a>}
+<a href=#234 id=234 data-nosnippet>234</a>
+<a href=#235 id=235 data-nosnippet>235</a><span class="doccomment">/// Whether the page runs as an installed app: in a standalone window, or
+<a href=#236 id=236 data-nosnippet>236</a>/// from an iOS home screen (`navigator.standalone`).
+<a href=#237 id=237 data-nosnippet>237</a></span><span class="kw">pub fn </span>is_standalone() -&gt; bool {
+<a href=#238 id=238 data-nosnippet>238</a>    matches(STANDALONE_QUERY)
+<a href=#239 id=239 data-nosnippet>239</a>        || window()
+<a href=#240 id=240 data-nosnippet>240</a>            .and_then(|window| js_sys::Reflect::get(<span class="kw-2">&amp;</span>window.navigator(), <span class="kw-2">&amp;</span><span class="string">"standalone"</span>.into()).ok())
+<a href=#241 id=241 data-nosnippet>241</a>            .is_some_and(|standalone| standalone.is_truthy())
+<a href=#242 id=242 data-nosnippet>242</a>}
+<a href=#243 id=243 data-nosnippet>243</a>
+<a href=#244 id=244 data-nosnippet>244</a><span class="doccomment">/// The media query an installed app's window matches.
+<a href=#245 id=245 data-nosnippet>245</a></span><span class="kw">pub const </span>STANDALONE_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(display-mode: standalone)"</span>;
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a><span class="doccomment">/// The browser's `navigator.userAgent` and `navigator.maxTouchPoints`.
+<a href=#248 id=248 data-nosnippet>248</a></span><span class="kw">pub fn </span>user_agent() -&gt; (String, i32) {
+<a href=#249 id=249 data-nosnippet>249</a>    window().map_or_else(Default::default, |window| {
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">let </span>navigator = window.navigator();
+<a href=#251 id=251 data-nosnippet>251</a>        (
+<a href=#252 id=252 data-nosnippet>252</a>            navigator.user_agent().unwrap_or_default(),
+<a href=#253 id=253 data-nosnippet>253</a>            navigator.max_touch_points(),
+<a href=#254 id=254 data-nosnippet>254</a>        )
+<a href=#255 id=255 data-nosnippet>255</a>    })
+<a href=#256 id=256 data-nosnippet>256</a>}
+<a href=#257 id=257 data-nosnippet>257</a>
+<a href=#258 id=258 data-nosnippet>258</a><span class="doccomment">/// Whether the browser handed the page an install prompt it has not used
+<a href=#259 id=259 data-nosnippet>259</a>/// yet; `index.html` keeps it as `window.cookieInstallPrompt`.
+<a href=#260 id=260 data-nosnippet>260</a></span><span class="kw">pub fn </span>install_prompt_ready() -&gt; bool {
+<a href=#261 id=261 data-nosnippet>261</a>    window_value(<span class="string">"cookieInstallPrompt"</span>).is_object()
+<a href=#262 id=262 data-nosnippet>262</a>}
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a><span class="doccomment">/// Whether the browser said it installed the page during this visit.
+<a href=#265 id=265 data-nosnippet>265</a></span><span class="kw">pub fn </span>app_installed() -&gt; bool {
+<a href=#266 id=266 data-nosnippet>266</a>    window_value(<span class="string">"cookieInstalled"</span>).is_truthy()
+<a href=#267 id=267 data-nosnippet>267</a>}
+<a href=#268 id=268 data-nosnippet>268</a>
+<a href=#269 id=269 data-nosnippet>269</a><span class="doccomment">/// Calls `changed` whenever the browser offers to install the page or
+<a href=#270 id=270 data-nosnippet>270</a>/// installs it, for as long as the page lives. Called once, at startup.
+<a href=#271 id=271 data-nosnippet>271</a></span><span class="kw">pub fn </span>on_install_change(changed: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">return</span>;
+<a href=#274 id=274 data-nosnippet>274</a>    };
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(window.into(), <span class="string">"cookie-install"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed()) {
+<a href=#276 id=276 data-nosnippet>276</a>        listener.keep();
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>}
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a><span class="doccomment">/// Opens the browser's install prompt, which it offers once: call it from
+<a href=#281 id=281 data-nosnippet>281</a>/// the click that asks for it. Resolves to whether the user installed the
+<a href=#282 id=282 data-nosnippet>282</a>/// page; `None` without a prompt.
+<a href=#283 id=283 data-nosnippet>283</a></span><span class="kw">pub fn </span>prompt_install() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>std::future::Future&lt;Output = bool&gt;&gt; {
+<a href=#284 id=284 data-nosnippet>284</a>    <span class="kw">let </span>window = window()<span class="question-mark">?</span>;
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">let </span>event = window_value(<span class="string">"cookieInstallPrompt"</span>);
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="kw">if </span>!event.is_object() {
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#288 id=288 data-nosnippet>288</a>    }
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">let _ </span>= js_sys::Reflect::set(
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw-2">&amp;</span>window,
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw-2">&amp;</span><span class="string">"cookieInstallPrompt"</span>.into(),
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw-2">&amp;</span>wasm_bindgen::JsValue::NULL,
+<a href=#293 id=293 data-nosnippet>293</a>    );
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">let </span>prompt = js_sys::Reflect::get(<span class="kw-2">&amp;</span>event, <span class="kw-2">&amp;</span><span class="string">"prompt"</span>.into())
+<a href=#295 id=295 data-nosnippet>295</a>        .ok()<span class="question-mark">?
+<a href=#296 id=296 data-nosnippet>296</a>        </span>.dyn_into::&lt;js_sys::Function&gt;()
+<a href=#297 id=297 data-nosnippet>297</a>        .ok()<span class="question-mark">?</span>;
+<a href=#298 id=298 data-nosnippet>298</a>    prompt.call0(<span class="kw-2">&amp;</span>event).ok()<span class="question-mark">?</span>;
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">let </span>choice = js_sys::Reflect::get(<span class="kw-2">&amp;</span>event, <span class="kw-2">&amp;</span><span class="string">"userChoice"</span>.into())
+<a href=#300 id=300 data-nosnippet>300</a>        .ok()
+<a href=#301 id=301 data-nosnippet>301</a>        .and_then(|choice| choice.dyn_into::&lt;js_sys::Promise&gt;().ok());
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="prelude-val">Some</span>(<span class="kw">async move </span>{
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(choice) = choice <span class="kw">else </span>{
+<a href=#304 id=304 data-nosnippet>304</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#305 id=305 data-nosnippet>305</a>        };
+<a href=#306 id=306 data-nosnippet>306</a>        wasm_bindgen_futures::JsFuture::from(choice)
+<a href=#307 id=307 data-nosnippet>307</a>            .<span class="kw">await
+<a href=#308 id=308 data-nosnippet>308</a>            </span>.ok()
+<a href=#309 id=309 data-nosnippet>309</a>            .and_then(|choice| js_sys::Reflect::get(<span class="kw-2">&amp;</span>choice, <span class="kw-2">&amp;</span><span class="string">"outcome"</span>.into()).ok())
+<a href=#310 id=310 data-nosnippet>310</a>            .and_then(|outcome| outcome.as_string())
+<a href=#311 id=311 data-nosnippet>311</a>            .is_some_and(|outcome| outcome == <span class="string">"accepted"</span>)
+<a href=#312 id=312 data-nosnippet>312</a>    })
+<a href=#313 id=313 data-nosnippet>313</a>}
+<a href=#314 id=314 data-nosnippet>314</a>
+<a href=#315 id=315 data-nosnippet>315</a><span class="doccomment">/// Calls `shown` whenever the page becomes visible again, as a phone's tab
+<a href=#316 id=316 data-nosnippet>316</a>/// does after it was suspended, for as long as the page lives. Called once,
+<a href=#317 id=317 data-nosnippet>317</a>/// at startup.
+<a href=#318 id=318 data-nosnippet>318</a></span><span class="kw">pub fn </span>on_visible(shown: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(document) = window().and_then(|window| window.document()) <span class="kw">else </span>{
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">return</span>;
+<a href=#321 id=321 data-nosnippet>321</a>    };
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">let </span>watched = document.clone();
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">let </span>listener = Listener::add(document.into(), <span class="string">"visibilitychange"</span>, <span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">if </span>watched.visibility_state() == web_sys::VisibilityState::Visible {
+<a href=#325 id=325 data-nosnippet>325</a>            shown();
+<a href=#326 id=326 data-nosnippet>326</a>        }
+<a href=#327 id=327 data-nosnippet>327</a>    });
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = listener {
+<a href=#329 id=329 data-nosnippet>329</a>        listener.keep();
+<a href=#330 id=330 data-nosnippet>330</a>    }
+<a href=#331 id=331 data-nosnippet>331</a>}
+<a href=#332 id=332 data-nosnippet>332</a>
+<a href=#333 id=333 data-nosnippet>333</a><span class="doccomment">/// Copies `text` with `navigator.clipboard`, which browsers offer only on
+<a href=#334 id=334 data-nosnippet>334</a>/// a secure page (HTTPS or localhost); `false` when it did not copy.
+<a href=#335 id=335 data-nosnippet>335</a></span><span class="kw">pub async fn </span>copy_text(text: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window().filter(web_sys::Window::is_secure_context) <span class="kw">else </span>{
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#338 id=338 data-nosnippet>338</a>    };
+<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">let </span>promise = window.navigator().clipboard().write_text(text);
+<a href=#340 id=340 data-nosnippet>340</a>    wasm_bindgen_futures::JsFuture::from(promise).<span class="kw">await</span>.is_ok()
+<a href=#341 id=341 data-nosnippet>341</a>}
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a><span class="doccomment">/// Scrolls the element `selector` finds into view on the next frame, as
+<a href=#344 id=344 data-nosnippet>344</a>/// little as it takes.
+<a href=#345 id=345 data-nosnippet>345</a></span><span class="kw">pub fn </span>reveal(selector: <span class="kw-2">&amp;</span>str) {
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">let </span>selector = selector.to_owned();
+<a href=#347 id=347 data-nosnippet>347</a>    leptos::prelude::request_animation_frame(<span class="kw">move </span>|| {
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = window()
+<a href=#349 id=349 data-nosnippet>349</a>            .and_then(|window| window.document())
+<a href=#350 id=350 data-nosnippet>350</a>            .and_then(|document| document.query_selector(<span class="kw-2">&amp;</span>selector).ok().flatten())
+<a href=#351 id=351 data-nosnippet>351</a>        {
+<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw">let </span>options = web_sys::ScrollIntoViewOptions::new();
+<a href=#353 id=353 data-nosnippet>353</a>            options.set_block(web_sys::ScrollLogicalPosition::Nearest);
+<a href=#354 id=354 data-nosnippet>354</a>            element.scroll_into_view_with_scroll_into_view_options(<span class="kw-2">&amp;</span>options);
+<a href=#355 id=355 data-nosnippet>355</a>        }
+<a href=#356 id=356 data-nosnippet>356</a>    });
+<a href=#357 id=357 data-nosnippet>357</a>}
+<a href=#358 id=358 data-nosnippet>358</a>
+<a href=#359 id=359 data-nosnippet>359</a><span class="doccomment">/// Selects the text of the text field `id`, for the user to copy.
+<a href=#360 id=360 data-nosnippet>360</a></span><span class="kw">pub fn </span>select_text(id: <span class="kw-2">&amp;</span>str) {
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(field) = window()
+<a href=#362 id=362 data-nosnippet>362</a>        .and_then(|window| window.document())
+<a href=#363 id=363 data-nosnippet>363</a>        .and_then(|document| document.get_element_by_id(id))
+<a href=#364 id=364 data-nosnippet>364</a>        .and_then(|element| element.dyn_into::&lt;web_sys::HtmlTextAreaElement&gt;().ok())
+<a href=#365 id=365 data-nosnippet>365</a>    {
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">let _ </span>= field.focus();
+<a href=#367 id=367 data-nosnippet>367</a>        field.select();
+<a href=#368 id=368 data-nosnippet>368</a>    }
+<a href=#369 id=369 data-nosnippet>369</a>}
+<a href=#370 id=370 data-nosnippet>370</a>
+<a href=#371 id=371 data-nosnippet>371</a><span class="doccomment">/// A `touchmove` listener on the window that keeps the page from
+<a href=#372 id=372 data-nosnippet>372</a>/// scrolling under a finger while it drags something; [`TouchHold::remove`]
+<a href=#373 id=373 data-nosnippet>373</a>/// takes it away.
+<a href=#374 id=374 data-nosnippet>374</a></span><span class="kw">pub struct </span>TouchHold {
+<a href=#375 id=375 data-nosnippet>375</a>    listener: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
+<a href=#376 id=376 data-nosnippet>376</a>}
+<a href=#377 id=377 data-nosnippet>377</a>
+<a href=#378 id=378 data-nosnippet>378</a><span class="doccomment">/// Holds the page still under a moving finger whenever `holds()` says so.
+<a href=#379 id=379 data-nosnippet>379</a>/// The listener is not passive, or the browser would scroll regardless;
+<a href=#380 id=380 data-nosnippet>380</a>/// the browser decides at a move's first event, so a finger that moves
+<a href=#381 id=381 data-nosnippet>381</a>/// before `holds()` turns true scrolls as usual.
+<a href=#382 id=382 data-nosnippet>382</a></span><span class="kw">pub fn </span>hold_touch_scroll(holds: <span class="kw">impl </span>Fn() -&gt; bool + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TouchHold&gt; {
+<a href=#383 id=383 data-nosnippet>383</a>    <span class="kw">let </span>window = window()<span class="question-mark">?</span>;
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="kw">let </span>listener = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(<span class="kw">move </span>|event: web_sys::Event| {
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">if </span>holds() &amp;&amp; event.cancelable() {
+<a href=#386 id=386 data-nosnippet>386</a>            event.prevent_default();
+<a href=#387 id=387 data-nosnippet>387</a>        }
+<a href=#388 id=388 data-nosnippet>388</a>    });
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">let </span>options = web_sys::AddEventListenerOptions::new();
+<a href=#390 id=390 data-nosnippet>390</a>    options.set_passive(<span class="bool-val">false</span>);
+<a href=#391 id=391 data-nosnippet>391</a>    window
+<a href=#392 id=392 data-nosnippet>392</a>        .add_event_listener_with_callback_and_add_event_listener_options(
+<a href=#393 id=393 data-nosnippet>393</a>            <span class="string">"touchmove"</span>,
+<a href=#394 id=394 data-nosnippet>394</a>            listener.as_ref().unchecked_ref(),
+<a href=#395 id=395 data-nosnippet>395</a>            <span class="kw-2">&amp;</span>options,
+<a href=#396 id=396 data-nosnippet>396</a>        )
+<a href=#397 id=397 data-nosnippet>397</a>        .ok()<span class="question-mark">?</span>;
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="prelude-val">Some</span>(TouchHold { listener })
+<a href=#399 id=399 data-nosnippet>399</a>}
+<a href=#400 id=400 data-nosnippet>400</a>
+<a href=#401 id=401 data-nosnippet>401</a><span class="kw">impl </span>TouchHold {
+<a href=#402 id=402 data-nosnippet>402</a>    <span class="kw">pub fn </span>remove(<span class="self">self</span>) {
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(window) = window() {
+<a href=#404 id=404 data-nosnippet>404</a>            <span class="kw">let _ </span>= window.remove_event_listener_with_callback(
+<a href=#405 id=405 data-nosnippet>405</a>                <span class="string">"touchmove"</span>,
+<a href=#406 id=406 data-nosnippet>406</a>                <span class="self">self</span>.listener.as_ref().unchecked_ref(),
+<a href=#407 id=407 data-nosnippet>407</a>            );
+<a href=#408 id=408 data-nosnippet>408</a>        }
+<a href=#409 id=409 data-nosnippet>409</a>    }
+<a href=#410 id=410 data-nosnippet>410</a>}
+<a href=#411 id=411 data-nosnippet>411</a>
+<a href=#412 id=412 data-nosnippet>412</a><span class="doccomment">/// Marks the page as pressed, or not: while it is, nothing on the page can
+<a href=#413 id=413 data-nosnippet>413</a>/// be selected (`html.pressing` in the style sheet). A phone otherwise
+<a href=#414 id=414 data-nosnippet>414</a>/// selects the words under and around a finger held on a row, and extends
+<a href=#415 id=415 data-nosnippet>415</a>/// that selection as the finger drags. Pressing also clears what is
+<a href=#416 id=416 data-nosnippet>416</a>/// selected; letting go touches nothing else, since every pointer release
+<a href=#417 id=417 data-nosnippet>417</a>/// on the page lets go, and clearing the selection then would take the
+<a href=#418 id=418 data-nosnippet>418</a>/// focus from a field just clicked.
+<a href=#419 id=419 data-nosnippet>419</a></span><span class="kw">pub fn </span>set_pressing(pressing: bool) {
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">return</span>;
+<a href=#422 id=422 data-nosnippet>422</a>    };
+<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window
+<a href=#424 id=424 data-nosnippet>424</a>        .document()
+<a href=#425 id=425 data-nosnippet>425</a>        .and_then(|document| document.document_element())
+<a href=#426 id=426 data-nosnippet>426</a>    <span class="kw">else </span>{
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">return</span>;
+<a href=#428 id=428 data-nosnippet>428</a>    };
+<a href=#429 id=429 data-nosnippet>429</a>    <span class="kw">let </span>classes = root.class_list();
+<a href=#430 id=430 data-nosnippet>430</a>    <span class="kw">if </span>!pressing {
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">if </span>classes.contains(<span class="string">"pressing"</span>) {
+<a href=#432 id=432 data-nosnippet>432</a>            <span class="kw">let _ </span>= classes.remove_1(<span class="string">"pressing"</span>);
+<a href=#433 id=433 data-nosnippet>433</a>        }
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">return</span>;
+<a href=#435 id=435 data-nosnippet>435</a>    }
+<a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">let _ </span>= classes.add_1(<span class="string">"pressing"</span>);
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(selection)) = window.get_selection() {
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">let _ </span>= selection.remove_all_ranges();
+<a href=#439 id=439 data-nosnippet>439</a>    }
+<a href=#440 id=440 data-nosnippet>440</a>}
+<a href=#441 id=441 data-nosnippet>441</a>
+<a href=#442 id=442 data-nosnippet>442</a><span class="doccomment">/// Refuses every text selection that starts while `holds`, until removed.
+<a href=#443 id=443 data-nosnippet>443</a></span><span class="kw">pub fn </span>hold_selection(holds: <span class="kw">impl </span>Fn() -&gt; bool + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SelectionHold&gt; {
+<a href=#444 id=444 data-nosnippet>444</a>    <span class="kw">let </span>document = window()<span class="question-mark">?</span>.document()<span class="question-mark">?</span>;
+<a href=#445 id=445 data-nosnippet>445</a>    <span class="kw">let </span>listener = Closure::&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;::new(<span class="kw">move </span>|event: web_sys::Event| {
+<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">if </span>holds() {
+<a href=#447 id=447 data-nosnippet>447</a>            event.prevent_default();
+<a href=#448 id=448 data-nosnippet>448</a>        }
+<a href=#449 id=449 data-nosnippet>449</a>    });
+<a href=#450 id=450 data-nosnippet>450</a>    document
+<a href=#451 id=451 data-nosnippet>451</a>        .add_event_listener_with_callback_and_bool(
+<a href=#452 id=452 data-nosnippet>452</a>            <span class="string">"selectstart"</span>,
+<a href=#453 id=453 data-nosnippet>453</a>            listener.as_ref().unchecked_ref(),
+<a href=#454 id=454 data-nosnippet>454</a>            <span class="bool-val">true</span>,
+<a href=#455 id=455 data-nosnippet>455</a>        )
+<a href=#456 id=456 data-nosnippet>456</a>        .ok()<span class="question-mark">?</span>;
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="prelude-val">Some</span>(SelectionHold { listener })
+<a href=#458 id=458 data-nosnippet>458</a>}
+<a href=#459 id=459 data-nosnippet>459</a>
+<a href=#460 id=460 data-nosnippet>460</a><span class="doccomment">/// A listener [`hold_selection`] added.
+<a href=#461 id=461 data-nosnippet>461</a></span><span class="kw">pub struct </span>SelectionHold {
+<a href=#462 id=462 data-nosnippet>462</a>    listener: Closure&lt;<span class="kw">dyn </span>Fn(web_sys::Event)&gt;,
+<a href=#463 id=463 data-nosnippet>463</a>}
+<a href=#464 id=464 data-nosnippet>464</a>
+<a href=#465 id=465 data-nosnippet>465</a><span class="kw">impl </span>SelectionHold {
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="kw">pub fn </span>remove(<span class="self">self</span>) {
+<a href=#467 id=467 data-nosnippet>467</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(document) = window().and_then(|window| window.document()) {
+<a href=#468 id=468 data-nosnippet>468</a>            <span class="kw">let _ </span>= document.remove_event_listener_with_callback_and_bool(
+<a href=#469 id=469 data-nosnippet>469</a>                <span class="string">"selectstart"</span>,
+<a href=#470 id=470 data-nosnippet>470</a>                <span class="self">self</span>.listener.as_ref().unchecked_ref(),
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="bool-val">true</span>,
+<a href=#472 id=472 data-nosnippet>472</a>            );
+<a href=#473 id=473 data-nosnippet>473</a>        }
+<a href=#474 id=474 data-nosnippet>474</a>    }
+<a href=#475 id=475 data-nosnippet>475</a>}
+<a href=#476 id=476 data-nosnippet>476</a>
+<a href=#477 id=477 data-nosnippet>477</a><span class="doccomment">/// The `attribute` of the element `selector` matches that is at `x`, `y`
+<a href=#478 id=478 data-nosnippet>478</a>/// in the viewport or holds what is: what a drag is over.
+<a href=#479 id=479 data-nosnippet>479</a></span><span class="kw">pub fn </span>attribute_at(x: f64, y: f64, selector: <span class="kw-2">&amp;</span>str, attribute: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#480 id=480 data-nosnippet>480</a>    <span class="comment">// A viewport coordinate is far inside `f32`.
+<a href=#481 id=481 data-nosnippet>481</a>    </span><span class="kw">let </span>element = window()<span class="question-mark">?
+<a href=#482 id=482 data-nosnippet>482</a>        </span>.document()<span class="question-mark">?
+<a href=#483 id=483 data-nosnippet>483</a>        </span>.element_from_point(x <span class="kw">as </span>f32, y <span class="kw">as </span>f32)<span class="question-mark">?</span>;
+<a href=#484 id=484 data-nosnippet>484</a>    element.closest(selector).ok()<span class="question-mark">??</span>.get_attribute(attribute)
+<a href=#485 id=485 data-nosnippet>485</a>}
+<a href=#486 id=486 data-nosnippet>486</a>
+<a href=#487 id=487 data-nosnippet>487</a><span class="doccomment">/// Scrolls the element `selector` matches when `y` is near its top or
+<a href=#488 id=488 data-nosnippet>488</a>/// bottom edge, so a drag reaches what is out of view.
+<a href=#489 id=489 data-nosnippet>489</a></span><span class="kw">pub fn </span>scroll_near_edge(selector: <span class="kw-2">&amp;</span>str, y: f64) {
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = window()
+<a href=#491 id=491 data-nosnippet>491</a>        .and_then(|window| window.document())
+<a href=#492 id=492 data-nosnippet>492</a>        .and_then(|document| document.query_selector(selector).ok().flatten())
+<a href=#493 id=493 data-nosnippet>493</a>    {
+<a href=#494 id=494 data-nosnippet>494</a>        scroll_element_near_edge(<span class="kw-2">&amp;</span>element, y);
+<a href=#495 id=495 data-nosnippet>495</a>    }
+<a href=#496 id=496 data-nosnippet>496</a>}
+<a href=#497 id=497 data-nosnippet>497</a>
+<a href=#498 id=498 data-nosnippet>498</a><span class="doccomment">/// Scrolls `element` when `y` is near its top or bottom edge, as
+<a href=#499 id=499 data-nosnippet>499</a>/// [`scroll_near_edge`] does.
+<a href=#500 id=500 data-nosnippet>500</a></span><span class="kw">pub fn </span>scroll_element_near_edge(element: <span class="kw-2">&amp;</span>web_sys::Element, y: f64) {
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">const </span>EDGE: f64 = <span class="number">48.0</span>;
+<a href=#502 id=502 data-nosnippet>502</a>    <span class="kw">const </span>STEP: f64 = <span class="number">12.0</span>;
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">let </span>frame = element.get_bounding_client_rect();
+<a href=#504 id=504 data-nosnippet>504</a>    <span class="kw">if </span>y &lt; frame.top() + EDGE {
+<a href=#505 id=505 data-nosnippet>505</a>        element.scroll_by_with_x_and_y(<span class="number">0.0</span>, -STEP);
+<a href=#506 id=506 data-nosnippet>506</a>    } <span class="kw">else if </span>y &gt; frame.bottom() - EDGE {
+<a href=#507 id=507 data-nosnippet>507</a>        element.scroll_by_with_x_and_y(<span class="number">0.0</span>, STEP);
+<a href=#508 id=508 data-nosnippet>508</a>    }
+<a href=#509 id=509 data-nosnippet>509</a>}
+<a href=#510 id=510 data-nosnippet>510</a>
+<a href=#511 id=511 data-nosnippet>511</a><span class="doccomment">/// Keeps `--app-height` on `&lt;html&gt;` at the visual viewport's height, which a
+<a href=#512 id=512 data-nosnippet>512</a>/// phone's on-screen keyboard shrinks while the layout viewport (and
+<a href=#513 id=513 data-nosnippet>513</a>/// `100dvh`) may not, so the composer and an open sheet stay above the
+<a href=#514 id=514 data-nosnippet>514</a>/// keyboard. The page's frame and sheets size themselves from it. Called
+<a href=#515 id=515 data-nosnippet>515</a>/// once, at startup.
+<a href=#516 id=516 data-nosnippet>516</a></span><span class="kw">pub fn </span>follow_visual_viewport() {
+<a href=#517 id=517 data-nosnippet>517</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#518 id=518 data-nosnippet>518</a>        <span class="kw">return</span>;
+<a href=#519 id=519 data-nosnippet>519</a>    };
+<a href=#520 id=520 data-nosnippet>520</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(viewport) = window.visual_viewport() <span class="kw">else </span>{
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">return</span>;
+<a href=#522 id=522 data-nosnippet>522</a>    };
+<a href=#523 id=523 data-nosnippet>523</a>    <span class="kw">let </span>update = {
+<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">let </span>viewport = viewport.clone();
+<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span>window = window.clone();
+<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">move </span>|| {
+<a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(root) = window
+<a href=#528 id=528 data-nosnippet>528</a>                .document()
+<a href=#529 id=529 data-nosnippet>529</a>                .and_then(|document| document.document_element())
+<a href=#530 id=530 data-nosnippet>530</a>                .and_then(|root| root.dyn_into::&lt;web_sys::HtmlElement&gt;().ok())
+<a href=#531 id=531 data-nosnippet>531</a>            <span class="kw">else </span>{
+<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">return</span>;
+<a href=#533 id=533 data-nosnippet>533</a>            };
+<a href=#534 id=534 data-nosnippet>534</a>            <span class="kw">let _ </span>= root
+<a href=#535 id=535 data-nosnippet>535</a>                .style()
+<a href=#536 id=536 data-nosnippet>536</a>                .set_property(<span class="string">"--app-height"</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}px"</span>, viewport.height()));
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="comment">// A browser that scrolled the page to show the focused field
+<a href=#538 id=538 data-nosnippet>538</a>            // leaves the frame where it was; bring it back.
+<a href=#539 id=539 data-nosnippet>539</a>            </span><span class="kw">if </span>viewport.offset_top() &gt; <span class="number">0.0 </span>{
+<a href=#540 id=540 data-nosnippet>540</a>                window.scroll_to_with_x_and_y(<span class="number">0.0</span>, <span class="number">0.0</span>);
+<a href=#541 id=541 data-nosnippet>541</a>            }
+<a href=#542 id=542 data-nosnippet>542</a>        }
+<a href=#543 id=543 data-nosnippet>543</a>    };
+<a href=#544 id=544 data-nosnippet>544</a>    update();
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(viewport.into(), <span class="string">"resize"</span>, <span class="kw">move </span>|<span class="kw">_</span>| update()) {
+<a href=#546 id=546 data-nosnippet>546</a>        listener.keep();
+<a href=#547 id=547 data-nosnippet>547</a>    }
+<a href=#548 id=548 data-nosnippet>548</a>}
+<a href=#549 id=549 data-nosnippet>549</a>
+<a href=#550 id=550 data-nosnippet>550</a><span class="doccomment">/// The media query a phone matches: narrower than Tailwind's `sm`.
+<a href=#551 id=551 data-nosnippet>551</a></span><span class="kw">pub const </span>PHONE_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(max-width: 39.99rem)"</span>;
+<a href=#552 id=552 data-nosnippet>552</a>
+<a href=#553 id=553 data-nosnippet>553</a><span class="doccomment">/// The media query a desktop matches: Tailwind's `lg` and wider, where the
+<a href=#554 id=554 data-nosnippet>554</a>/// sessions sidebar is pinned beside the transcript.
+<a href=#555 id=555 data-nosnippet>555</a></span><span class="kw">pub const </span>DESKTOP_QUERY: <span class="kw-2">&amp;</span>str = <span class="string">"(min-width: 64rem)"</span>;
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a><span class="kw">fn </span>media_query(query: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;web_sys::MediaQueryList&gt; {
+<a href=#558 id=558 data-nosnippet>558</a>    window()<span class="question-mark">?</span>.match_media(query).ok().flatten()
+<a href=#559 id=559 data-nosnippet>559</a>}
+<a href=#560 id=560 data-nosnippet>560</a>
+<a href=#561 id=561 data-nosnippet>561</a><span class="doccomment">/// Whether the page matches the media `query` now.
+<a href=#562 id=562 data-nosnippet>562</a></span><span class="kw">pub fn </span>matches(query: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#563 id=563 data-nosnippet>563</a>    media_query(query).is_some_and(|list| list.matches())
+<a href=#564 id=564 data-nosnippet>564</a>}
+<a href=#565 id=565 data-nosnippet>565</a>
+<a href=#566 id=566 data-nosnippet>566</a><span class="doccomment">/// Calls `changed` with whether the page matches `query` whenever that
+<a href=#567 id=567 data-nosnippet>567</a>/// changes, until the returned listener is removed.
+<a href=#568 id=568 data-nosnippet>568</a></span><span class="kw">pub fn </span>on_media_change(query: <span class="kw-2">&amp;</span>str, changed: <span class="kw">impl </span>Fn(bool) + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Listener&gt; {
+<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">let </span>list = media_query(query)<span class="question-mark">?</span>;
+<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">let </span>watched = list.clone();
+<a href=#571 id=571 data-nosnippet>571</a>    Listener::add(list.into(), <span class="string">"change"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed(watched.matches()))
+<a href=#572 id=572 data-nosnippet>572</a>}
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a><span class="doccomment">/// Adds a history entry for the page as it is, carrying `depth`: how many
+<a href=#575 id=575 data-nosnippet>575</a>/// of the page's layers are open with it. Browser Back then returns to the
+<a href=#576 id=576 data-nosnippet>576</a>/// entry below instead of leaving the page.
+<a href=#577 id=577 data-nosnippet>577</a></span><span class="kw">pub fn </span>push_history(depth: usize) {
+<a href=#578 id=578 data-nosnippet>578</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="kw">let _ </span>= history.push_state(<span class="kw-2">&amp;</span>wasm_bindgen::JsValue::from(depth <span class="kw">as </span>f64), <span class="string">""</span>);
+<a href=#580 id=580 data-nosnippet>580</a>    }
+<a href=#581 id=581 data-nosnippet>581</a>}
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a><span class="doccomment">/// Goes `steps` entries back in the history.
+<a href=#584 id=584 data-nosnippet>584</a></span><span class="kw">pub fn </span>history_back(steps: usize) {
+<a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(history) = window().and_then(|window| window.history().ok()) {
+<a href=#586 id=586 data-nosnippet>586</a>        <span class="kw">let _ </span>= history.go_with_delta(-(steps <span class="kw">as </span>i32));
+<a href=#587 id=587 data-nosnippet>587</a>    }
+<a href=#588 id=588 data-nosnippet>588</a>}
+<a href=#589 id=589 data-nosnippet>589</a>
+<a href=#590 id=590 data-nosnippet>590</a><span class="doccomment">/// Calls `arrived` with the depth of the history entry the browser moved
+<a href=#591 id=591 data-nosnippet>591</a>/// to (0 for one the page did not add), until the returned listener is
+<a href=#592 id=592 data-nosnippet>592</a>/// removed.
+<a href=#593 id=593 data-nosnippet>593</a></span><span class="kw">pub fn </span>on_history_move(arrived: <span class="kw">impl </span>Fn(usize) + <span class="lifetime">'static</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Listener&gt; {
+<a href=#594 id=594 data-nosnippet>594</a>    Listener::add(window()<span class="question-mark">?</span>.into(), <span class="string">"popstate"</span>, <span class="kw">move </span>|event| {
+<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">let </span>depth = event
+<a href=#596 id=596 data-nosnippet>596</a>            .unchecked_into::&lt;web_sys::PopStateEvent&gt;()
+<a href=#597 id=597 data-nosnippet>597</a>            .state()
+<a href=#598 id=598 data-nosnippet>598</a>            .as_f64()
+<a href=#599 id=599 data-nosnippet>599</a>            .map_or(<span class="number">0</span>, |depth| depth <span class="kw">as </span>usize);
+<a href=#600 id=600 data-nosnippet>600</a>        arrived(depth);
+<a href=#601 id=601 data-nosnippet>601</a>    })
+<a href=#602 id=602 data-nosnippet>602</a>}
+<a href=#603 id=603 data-nosnippet>603</a>
+<a href=#604 id=604 data-nosnippet>604</a><span class="doccomment">/// `target[name]`, `None` when it is undefined or null.
+<a href=#605 id=605 data-nosnippet>605</a></span><span class="kw">fn </span>property(target: <span class="kw-2">&amp;</span>wasm_bindgen::JsValue, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;wasm_bindgen::JsValue&gt; {
+<a href=#606 id=606 data-nosnippet>606</a>    js_sys::Reflect::get(target, <span class="kw-2">&amp;</span>name.into())
+<a href=#607 id=607 data-nosnippet>607</a>        .ok()
+<a href=#608 id=608 data-nosnippet>608</a>        .filter(|value| !value.is_undefined() &amp;&amp; !value.is_null())
+<a href=#609 id=609 data-nosnippet>609</a>}
+<a href=#610 id=610 data-nosnippet>610</a>
+<a href=#611 id=611 data-nosnippet>611</a><span class="doccomment">/// Calls `target[name](...arguments)`.
+<a href=#612 id=612 data-nosnippet>612</a></span><span class="kw">fn </span>call_method(
+<a href=#613 id=613 data-nosnippet>613</a>    target: <span class="kw-2">&amp;</span>wasm_bindgen::JsValue,
+<a href=#614 id=614 data-nosnippet>614</a>    name: <span class="kw-2">&amp;</span>str,
+<a href=#615 id=615 data-nosnippet>615</a>    arguments: <span class="kw-2">&amp;</span>[wasm_bindgen::JsValue],
+<a href=#616 id=616 data-nosnippet>616</a>) -&gt; <span class="prelude-ty">Result</span>&lt;wasm_bindgen::JsValue, wasm_bindgen::JsValue&gt; {
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">let </span>function = property(target, name)
+<a href=#618 id=618 data-nosnippet>618</a>        .ok_or_else(|| wasm_bindgen::JsValue::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"no {name}"</span>)))<span class="question-mark">?
+<a href=#619 id=619 data-nosnippet>619</a>        </span>.dyn_into::&lt;js_sys::Function&gt;()<span class="question-mark">?</span>;
+<a href=#620 id=620 data-nosnippet>620</a>    <span class="kw">let </span>list = js_sys::Array::new();
+<a href=#621 id=621 data-nosnippet>621</a>    <span class="kw">for </span>argument <span class="kw">in </span>arguments {
+<a href=#622 id=622 data-nosnippet>622</a>        list.push(argument);
+<a href=#623 id=623 data-nosnippet>623</a>    }
+<a href=#624 id=624 data-nosnippet>624</a>    function.apply(target, <span class="kw-2">&amp;</span>list)
+<a href=#625 id=625 data-nosnippet>625</a>}
+<a href=#626 id=626 data-nosnippet>626</a>
+<a href=#627 id=627 data-nosnippet>627</a><span class="doccomment">/// Awaits `value` as a promise (a plain value resolves at once).
+<a href=#628 id=628 data-nosnippet>628</a></span><span class="kw">async fn </span>settle(
+<a href=#629 id=629 data-nosnippet>629</a>    value: wasm_bindgen::JsValue,
+<a href=#630 id=630 data-nosnippet>630</a>) -&gt; <span class="prelude-ty">Result</span>&lt;wasm_bindgen::JsValue, wasm_bindgen::JsValue&gt; {
+<a href=#631 id=631 data-nosnippet>631</a>    wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(<span class="kw-2">&amp;</span>value)).<span class="kw">await
+<a href=#632 id=632 data-nosnippet>632</a></span>}
+<a href=#633 id=633 data-nosnippet>633</a>
+<a href=#634 id=634 data-nosnippet>634</a><span class="doccomment">/// Whether the browser can push to the page: a secure page with a service
+<a href=#635 id=635 data-nosnippet>635</a>/// worker, `PushManager`, and `Notification`.
+<a href=#636 id=636 data-nosnippet>636</a></span><span class="kw">pub fn </span>push_supported() -&gt; bool {
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window().filter(web_sys::Window::is_secure_context) <span class="kw">else </span>{
+<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#639 id=639 data-nosnippet>639</a>    };
+<a href=#640 id=640 data-nosnippet>640</a>    <span class="kw">let </span>navigator: wasm_bindgen::JsValue = window.navigator().into();
+<a href=#641 id=641 data-nosnippet>641</a>    <span class="kw">let </span>window: wasm_bindgen::JsValue = window.into();
+<a href=#642 id=642 data-nosnippet>642</a>    property(<span class="kw-2">&amp;</span>navigator, <span class="string">"serviceWorker"</span>).is_some()
+<a href=#643 id=643 data-nosnippet>643</a>        &amp;&amp; property(<span class="kw-2">&amp;</span>window, <span class="string">"PushManager"</span>).is_some()
+<a href=#644 id=644 data-nosnippet>644</a>        &amp;&amp; property(<span class="kw-2">&amp;</span>window, <span class="string">"Notification"</span>).is_some()
+<a href=#645 id=645 data-nosnippet>645</a>}
+<a href=#646 id=646 data-nosnippet>646</a>
+<a href=#647 id=647 data-nosnippet>647</a><span class="doccomment">/// `Notification.permission`: `default`, `granted`, or `denied`.
+<a href=#648 id=648 data-nosnippet>648</a></span><span class="kw">pub fn </span>notification_permission() -&gt; String {
+<a href=#649 id=649 data-nosnippet>649</a>    window()
+<a href=#650 id=650 data-nosnippet>650</a>        .and_then(|window| property(<span class="kw-2">&amp;</span>window.into(), <span class="string">"Notification"</span>))
+<a href=#651 id=651 data-nosnippet>651</a>        .and_then(|notification| property(<span class="kw-2">&amp;</span>notification, <span class="string">"permission"</span>))
+<a href=#652 id=652 data-nosnippet>652</a>        .and_then(|permission| permission.as_string())
+<a href=#653 id=653 data-nosnippet>653</a>        .unwrap_or_else(|| <span class="string">"default"</span>.to_owned())
+<a href=#654 id=654 data-nosnippet>654</a>}
+<a href=#655 id=655 data-nosnippet>655</a>
+<a href=#656 id=656 data-nosnippet>656</a><span class="doccomment">/// Asks for notification permission; call it from a click. The answer is
+<a href=#657 id=657 data-nosnippet>657</a>/// what [`notification_permission`] then says.
+<a href=#658 id=658 data-nosnippet>658</a></span><span class="kw">pub async fn </span>request_notification_permission() -&gt; String {
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(notification) = window().and_then(|window| property(<span class="kw-2">&amp;</span>window.into(), <span class="string">"Notification"</span>))
+<a href=#660 id=660 data-nosnippet>660</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(asked) = call_method(<span class="kw-2">&amp;</span>notification, <span class="string">"requestPermission"</span>, <span class="kw-2">&amp;</span>[])
+<a href=#661 id=661 data-nosnippet>661</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(answer) = settle(asked).<span class="kw">await
+<a href=#662 id=662 data-nosnippet>662</a>        </span>&amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(answer) = answer.as_string()
+<a href=#663 id=663 data-nosnippet>663</a>    {
+<a href=#664 id=664 data-nosnippet>664</a>        <span class="kw">return </span>answer;
+<a href=#665 id=665 data-nosnippet>665</a>    }
+<a href=#666 id=666 data-nosnippet>666</a>    notification_permission()
+<a href=#667 id=667 data-nosnippet>667</a>}
+<a href=#668 id=668 data-nosnippet>668</a>
+<a href=#669 id=669 data-nosnippet>669</a><span class="doccomment">/// The page's service worker registration, once it is active.
+<a href=#670 id=670 data-nosnippet>670</a></span><span class="kw">async fn </span>worker_registration() -&gt; <span class="prelude-ty">Option</span>&lt;wasm_bindgen::JsValue&gt; {
+<a href=#671 id=671 data-nosnippet>671</a>    <span class="kw">let </span>window = window().filter(web_sys::Window::is_secure_context)<span class="question-mark">?</span>;
+<a href=#672 id=672 data-nosnippet>672</a>    <span class="kw">let </span>container = property(<span class="kw-2">&amp;</span>window.navigator().into(), <span class="string">"serviceWorker"</span>)<span class="question-mark">?</span>;
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="kw">let </span>ready = property(<span class="kw-2">&amp;</span>container, <span class="string">"ready"</span>)<span class="question-mark">?</span>;
+<a href=#674 id=674 data-nosnippet>674</a>    <span class="kw">let </span>ready = <span class="macro">std::pin::pin!</span>(settle(ready));
+<a href=#675 id=675 data-nosnippet>675</a>    <span class="kw">let </span>timeout = <span class="macro">std::pin::pin!</span>(gloo_timers::future::sleep(std::time::Duration::from_secs(
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="number">10
+<a href=#677 id=677 data-nosnippet>677</a>    </span>)));
+<a href=#678 id=678 data-nosnippet>678</a>    <span class="kw">match </span>futures_util::future::select(ready, timeout).<span class="kw">await </span>{
+<a href=#679 id=679 data-nosnippet>679</a>        futures_util::future::Either::Left((<span class="prelude-val">Ok</span>(registration), <span class="kw">_</span>)) =&gt; <span class="prelude-val">Some</span>(registration),
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#681 id=681 data-nosnippet>681</a>    }
+<a href=#682 id=682 data-nosnippet>682</a>}
+<a href=#683 id=683 data-nosnippet>683</a>
+<a href=#684 id=684 data-nosnippet>684</a><span class="doccomment">/// This browser's push subscription for the page.
+<a href=#685 id=685 data-nosnippet>685</a></span><span class="attr">#[derive(Clone, Debug, Default, Eq, PartialEq)]
+<a href=#686 id=686 data-nosnippet>686</a></span><span class="kw">pub struct </span>BrowserPushSubscription {
+<a href=#687 id=687 data-nosnippet>687</a>    <span class="kw">pub </span>endpoint: String,
+<a href=#688 id=688 data-nosnippet>688</a>    <span class="kw">pub </span>p256dh: String,
+<a href=#689 id=689 data-nosnippet>689</a>    <span class="kw">pub </span>auth: String,
+<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// The application server key it was made with, base64url.
+<a href=#691 id=691 data-nosnippet>691</a>    </span><span class="kw">pub </span>key: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#692 id=692 data-nosnippet>692</a>}
+<a href=#693 id=693 data-nosnippet>693</a>
+<a href=#694 id=694 data-nosnippet>694</a><span class="kw">fn </span>read_subscription(subscription: <span class="kw-2">&amp;</span>wasm_bindgen::JsValue) -&gt; <span class="prelude-ty">Option</span>&lt;BrowserPushSubscription&gt; {
+<a href=#695 id=695 data-nosnippet>695</a>    <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="kw">let </span>json = js_sys::JSON::stringify(subscription).ok()<span class="question-mark">?</span>.as_string()<span class="question-mark">?</span>;
+<a href=#697 id=697 data-nosnippet>697</a>    <span class="kw">let </span>json: serde_json::Value = serde_json::from_str(<span class="kw-2">&amp;</span>json).ok()<span class="question-mark">?</span>;
+<a href=#698 id=698 data-nosnippet>698</a>    <span class="kw">let </span>key = property(subscription, <span class="string">"options"</span>)
+<a href=#699 id=699 data-nosnippet>699</a>        .and_then(|options| property(<span class="kw-2">&amp;</span>options, <span class="string">"applicationServerKey"</span>))
+<a href=#700 id=700 data-nosnippet>700</a>        .map(|key| js_sys::Uint8Array::new(<span class="kw-2">&amp;</span>key).to_vec())
+<a href=#701 id=701 data-nosnippet>701</a>        .map(|bytes| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes));
+<a href=#702 id=702 data-nosnippet>702</a>    <span class="prelude-val">Some</span>(BrowserPushSubscription {
+<a href=#703 id=703 data-nosnippet>703</a>        endpoint: json[<span class="string">"endpoint"</span>].as_str()<span class="question-mark">?</span>.to_owned(),
+<a href=#704 id=704 data-nosnippet>704</a>        p256dh: json[<span class="string">"keys"</span>][<span class="string">"p256dh"</span>].as_str()<span class="question-mark">?</span>.to_owned(),
+<a href=#705 id=705 data-nosnippet>705</a>        auth: json[<span class="string">"keys"</span>][<span class="string">"auth"</span>].as_str()<span class="question-mark">?</span>.to_owned(),
+<a href=#706 id=706 data-nosnippet>706</a>        key,
+<a href=#707 id=707 data-nosnippet>707</a>    })
+<a href=#708 id=708 data-nosnippet>708</a>}
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a><span class="doccomment">/// This browser's push subscription, if it has one.
+<a href=#711 id=711 data-nosnippet>711</a></span><span class="kw">pub async fn </span>push_subscription() -&gt; <span class="prelude-ty">Option</span>&lt;BrowserPushSubscription&gt; {
+<a href=#712 id=712 data-nosnippet>712</a>    <span class="kw">let </span>registration = worker_registration().<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#713 id=713 data-nosnippet>713</a>    <span class="kw">let </span>manager = property(<span class="kw-2">&amp;</span>registration, <span class="string">"pushManager"</span>)<span class="question-mark">?</span>;
+<a href=#714 id=714 data-nosnippet>714</a>    <span class="kw">let </span>subscription = settle(call_method(<span class="kw-2">&amp;</span>manager, <span class="string">"getSubscription"</span>, <span class="kw-2">&amp;</span>[]).ok()<span class="question-mark">?</span>)
+<a href=#715 id=715 data-nosnippet>715</a>        .<span class="kw">await
+<a href=#716 id=716 data-nosnippet>716</a>        </span>.ok()<span class="question-mark">?</span>;
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">if </span>subscription.is_null() || subscription.is_undefined() {
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#719 id=719 data-nosnippet>719</a>    }
+<a href=#720 id=720 data-nosnippet>720</a>    read_subscription(<span class="kw-2">&amp;</span>subscription)
+<a href=#721 id=721 data-nosnippet>721</a>}
+<a href=#722 id=722 data-nosnippet>722</a>
+<a href=#723 id=723 data-nosnippet>723</a><span class="doccomment">/// Subscribes this browser with the daemon's `key` (base64url), replacing a
+<a href=#724 id=724 data-nosnippet>724</a>/// subscription made with another key.
+<a href=#725 id=725 data-nosnippet>725</a></span><span class="kw">pub async fn </span>push_subscribe(key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;BrowserPushSubscription, String&gt; {
+<a href=#726 id=726 data-nosnippet>726</a>    <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="kw">let </span>describe = |error: wasm_bindgen::JsValue| {
+<a href=#728 id=728 data-nosnippet>728</a>        js_sys::Reflect::get(<span class="kw-2">&amp;</span>error, <span class="kw-2">&amp;</span><span class="string">"message"</span>.into())
+<a href=#729 id=729 data-nosnippet>729</a>            .ok()
+<a href=#730 id=730 data-nosnippet>730</a>            .and_then(|message| message.as_string())
+<a href=#731 id=731 data-nosnippet>731</a>            .or_else(|| error.as_string())
+<a href=#732 id=732 data-nosnippet>732</a>            .unwrap_or_else(|| <span class="string">"the browser refused"</span>.to_owned())
+<a href=#733 id=733 data-nosnippet>733</a>    };
+<a href=#734 id=734 data-nosnippet>734</a>    <span class="kw">let </span>registration = worker_registration()
+<a href=#735 id=735 data-nosnippet>735</a>        .<span class="kw">await
+<a href=#736 id=736 data-nosnippet>736</a>        </span>.ok_or_else(|| <span class="string">"the page's service worker is not running"</span>.to_owned())<span class="question-mark">?</span>;
+<a href=#737 id=737 data-nosnippet>737</a>    <span class="kw">let </span>manager = property(<span class="kw-2">&amp;</span>registration, <span class="string">"pushManager"</span>)
+<a href=#738 id=738 data-nosnippet>738</a>        .ok_or_else(|| <span class="string">"this browser has no push"</span>.to_owned())<span class="question-mark">?</span>;
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="kw">let </span>existing = settle(call_method(<span class="kw-2">&amp;</span>manager, <span class="string">"getSubscription"</span>, <span class="kw-2">&amp;</span>[]).map_err(describe)<span class="question-mark">?</span>)
+<a href=#740 id=740 data-nosnippet>740</a>        .<span class="kw">await
+<a href=#741 id=741 data-nosnippet>741</a>        </span>.map_err(describe)<span class="question-mark">?</span>;
+<a href=#742 id=742 data-nosnippet>742</a>    <span class="kw">if </span>!existing.is_null() &amp;&amp; !existing.is_undefined() {
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">let </span>same = read_subscription(<span class="kw-2">&amp;</span>existing)
+<a href=#744 id=744 data-nosnippet>744</a>            .and_then(|subscription| subscription.key)
+<a href=#745 id=745 data-nosnippet>745</a>            .is_some_and(|existing| <span class="kw">crate</span>::push::same_key(<span class="kw-2">&amp;</span>existing, key));
+<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">if </span>!same {
+<a href=#747 id=747 data-nosnippet>747</a>            <span class="kw">let _ </span>= settle(call_method(<span class="kw-2">&amp;</span>existing, <span class="string">"unsubscribe"</span>, <span class="kw-2">&amp;</span>[]).map_err(describe)<span class="question-mark">?</span>).<span class="kw">await</span>;
+<a href=#748 id=748 data-nosnippet>748</a>        }
+<a href=#749 id=749 data-nosnippet>749</a>    }
+<a href=#750 id=750 data-nosnippet>750</a>    <span class="kw">let </span>bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+<a href=#751 id=751 data-nosnippet>751</a>        .decode(key.trim_end_matches(<span class="string">'='</span>))
+<a href=#752 id=752 data-nosnippet>752</a>        .map_err(|<span class="kw">_</span>| <span class="string">"the daemon's key is not base64url"</span>.to_owned())<span class="question-mark">?</span>;
+<a href=#753 id=753 data-nosnippet>753</a>    <span class="kw">let </span>options = js_sys::Object::new();
+<a href=#754 id=754 data-nosnippet>754</a>    <span class="kw">let _ </span>= js_sys::Reflect::set(<span class="kw-2">&amp;</span>options, <span class="kw-2">&amp;</span><span class="string">"userVisibleOnly"</span>.into(), <span class="kw-2">&amp;</span><span class="bool-val">true</span>.into());
+<a href=#755 id=755 data-nosnippet>755</a>    <span class="kw">let _ </span>= js_sys::Reflect::set(
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="kw-2">&amp;</span>options,
+<a href=#757 id=757 data-nosnippet>757</a>        <span class="kw-2">&amp;</span><span class="string">"applicationServerKey"</span>.into(),
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw-2">&amp;</span>js_sys::Uint8Array::from(bytes.as_slice()).into(),
+<a href=#759 id=759 data-nosnippet>759</a>    );
+<a href=#760 id=760 data-nosnippet>760</a>    <span class="kw">let </span>subscription =
+<a href=#761 id=761 data-nosnippet>761</a>        settle(call_method(<span class="kw-2">&amp;</span>manager, <span class="string">"subscribe"</span>, <span class="kw-2">&amp;</span>[options.into()]).map_err(describe)<span class="question-mark">?</span>)
+<a href=#762 id=762 data-nosnippet>762</a>            .<span class="kw">await
+<a href=#763 id=763 data-nosnippet>763</a>            </span>.map_err(describe)<span class="question-mark">?</span>;
+<a href=#764 id=764 data-nosnippet>764</a>    read_subscription(<span class="kw-2">&amp;</span>subscription)
+<a href=#765 id=765 data-nosnippet>765</a>        .ok_or_else(|| <span class="string">"the browser's subscription has no keys"</span>.to_owned())
+<a href=#766 id=766 data-nosnippet>766</a>}
+<a href=#767 id=767 data-nosnippet>767</a>
+<a href=#768 id=768 data-nosnippet>768</a><span class="doccomment">/// Removes this browser's push subscription; `true` when there was one.
+<a href=#769 id=769 data-nosnippet>769</a></span><span class="kw">pub async fn </span>push_unsubscribe() -&gt; bool {
+<a href=#770 id=770 data-nosnippet>770</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(registration) = worker_registration().<span class="kw">await else </span>{
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#772 id=772 data-nosnippet>772</a>    };
+<a href=#773 id=773 data-nosnippet>773</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(manager) = property(<span class="kw-2">&amp;</span>registration, <span class="string">"pushManager"</span>) <span class="kw">else </span>{
+<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#775 id=775 data-nosnippet>775</a>    };
+<a href=#776 id=776 data-nosnippet>776</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(asked) = call_method(<span class="kw-2">&amp;</span>manager, <span class="string">"getSubscription"</span>, <span class="kw-2">&amp;</span>[]) <span class="kw">else </span>{
+<a href=#777 id=777 data-nosnippet>777</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#778 id=778 data-nosnippet>778</a>    };
+<a href=#779 id=779 data-nosnippet>779</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(existing) = settle(asked).<span class="kw">await else </span>{
+<a href=#780 id=780 data-nosnippet>780</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#781 id=781 data-nosnippet>781</a>    };
+<a href=#782 id=782 data-nosnippet>782</a>    <span class="kw">if </span>existing.is_null() || existing.is_undefined() {
+<a href=#783 id=783 data-nosnippet>783</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#784 id=784 data-nosnippet>784</a>    }
+<a href=#785 id=785 data-nosnippet>785</a>    <span class="kw">match </span>call_method(<span class="kw-2">&amp;</span>existing, <span class="string">"unsubscribe"</span>, <span class="kw-2">&amp;</span>[]) {
+<a href=#786 id=786 data-nosnippet>786</a>        <span class="prelude-val">Ok</span>(done) =&gt; settle(done).<span class="kw">await</span>.is_ok_and(|done| done.is_truthy()),
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+<a href=#788 id=788 data-nosnippet>788</a>    }
+<a href=#789 id=789 data-nosnippet>789</a>}
+<a href=#790 id=790 data-nosnippet>790</a>
+<a href=#791 id=791 data-nosnippet>791</a><span class="doccomment">/// Closes the notifications shown with `tag`.
+<a href=#792 id=792 data-nosnippet>792</a></span><span class="kw">pub async fn </span>close_notifications(tag: <span class="kw-2">&amp;</span>str) {
+<a href=#793 id=793 data-nosnippet>793</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(registration) = worker_registration().<span class="kw">await else </span>{
+<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">return</span>;
+<a href=#795 id=795 data-nosnippet>795</a>    };
+<a href=#796 id=796 data-nosnippet>796</a>    <span class="kw">let </span>filter = js_sys::Object::new();
+<a href=#797 id=797 data-nosnippet>797</a>    <span class="kw">let _ </span>= js_sys::Reflect::set(<span class="kw-2">&amp;</span>filter, <span class="kw-2">&amp;</span><span class="string">"tag"</span>.into(), <span class="kw-2">&amp;</span>tag.into());
+<a href=#798 id=798 data-nosnippet>798</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(shown) = call_method(<span class="kw-2">&amp;</span>registration, <span class="string">"getNotifications"</span>, <span class="kw-2">&amp;</span>[filter.into()]) <span class="kw">else </span>{
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">return</span>;
+<a href=#800 id=800 data-nosnippet>800</a>    };
+<a href=#801 id=801 data-nosnippet>801</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(shown) = settle(shown).<span class="kw">await else </span>{
+<a href=#802 id=802 data-nosnippet>802</a>        <span class="kw">return</span>;
+<a href=#803 id=803 data-nosnippet>803</a>    };
+<a href=#804 id=804 data-nosnippet>804</a>    <span class="kw">for </span>notification <span class="kw">in </span>js_sys::Array::from(<span class="kw-2">&amp;</span>shown).iter() {
+<a href=#805 id=805 data-nosnippet>805</a>        <span class="kw">let _ </span>= call_method(<span class="kw-2">&amp;</span>notification, <span class="string">"close"</span>, <span class="kw-2">&amp;</span>[]);
+<a href=#806 id=806 data-nosnippet>806</a>    }
+<a href=#807 id=807 data-nosnippet>807</a>}
+<a href=#808 id=808 data-nosnippet>808</a>
+<a href=#809 id=809 data-nosnippet>809</a><span class="doccomment">/// Calls `open` with the session of each `open-session` message the
+<a href=#810 id=810 data-nosnippet>810</a>/// service worker posts (a notification was clicked).
+<a href=#811 id=811 data-nosnippet>811</a></span><span class="kw">pub fn </span>on_open_session_message(open: <span class="kw">impl </span>Fn(String) + <span class="lifetime">'static</span>) {
+<a href=#812 id=812 data-nosnippet>812</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">return</span>;
+<a href=#814 id=814 data-nosnippet>814</a>    };
+<a href=#815 id=815 data-nosnippet>815</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(container) = property(<span class="kw-2">&amp;</span>window.navigator().into(), <span class="string">"serviceWorker"</span>) <span class="kw">else </span>{
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="kw">return</span>;
+<a href=#817 id=817 data-nosnippet>817</a>    };
+<a href=#818 id=818 data-nosnippet>818</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(target) = container.dyn_into::&lt;web_sys::EventTarget&gt;() <span class="kw">else </span>{
+<a href=#819 id=819 data-nosnippet>819</a>        <span class="kw">return</span>;
+<a href=#820 id=820 data-nosnippet>820</a>    };
+<a href=#821 id=821 data-nosnippet>821</a>    <span class="kw">let </span>listener = Listener::add(target, <span class="string">"message"</span>, <span class="kw">move </span>|event| {
+<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(event) = event.dyn_ref::&lt;web_sys::MessageEvent&gt;() <span class="kw">else </span>{
+<a href=#823 id=823 data-nosnippet>823</a>            <span class="kw">return</span>;
+<a href=#824 id=824 data-nosnippet>824</a>        };
+<a href=#825 id=825 data-nosnippet>825</a>        <span class="kw">let </span>data = event.data();
+<a href=#826 id=826 data-nosnippet>826</a>        <span class="kw">if </span>property(<span class="kw-2">&amp;</span>data, <span class="string">"type"</span>)
+<a href=#827 id=827 data-nosnippet>827</a>            .and_then(|kind| kind.as_string())
+<a href=#828 id=828 data-nosnippet>828</a>            .as_deref()
+<a href=#829 id=829 data-nosnippet>829</a>            == <span class="prelude-val">Some</span>(<span class="string">"open-session"</span>)
+<a href=#830 id=830 data-nosnippet>830</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(session) =
+<a href=#831 id=831 data-nosnippet>831</a>                property(<span class="kw-2">&amp;</span>data, <span class="string">"session"</span>).and_then(|session| session.as_string())
+<a href=#832 id=832 data-nosnippet>832</a>        {
+<a href=#833 id=833 data-nosnippet>833</a>            open(session);
+<a href=#834 id=834 data-nosnippet>834</a>        }
+<a href=#835 id=835 data-nosnippet>835</a>    });
+<a href=#836 id=836 data-nosnippet>836</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = listener {
+<a href=#837 id=837 data-nosnippet>837</a>        listener.keep();
+<a href=#838 id=838 data-nosnippet>838</a>    }
+<a href=#839 id=839 data-nosnippet>839</a>}
+<a href=#840 id=840 data-nosnippet>840</a>
+<a href=#841 id=841 data-nosnippet>841</a><span class="doccomment">/// Whether the page is visible and its window has focus.
+<a href=#842 id=842 data-nosnippet>842</a></span><span class="kw">pub fn </span>page_attended() -&gt; bool {
+<a href=#843 id=843 data-nosnippet>843</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(document) = window().and_then(|window| window.document()) <span class="kw">else </span>{
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#845 id=845 data-nosnippet>845</a>    };
+<a href=#846 id=846 data-nosnippet>846</a>    document.visibility_state() == web_sys::VisibilityState::Visible
+<a href=#847 id=847 data-nosnippet>847</a>        &amp;&amp; document.has_focus().unwrap_or(<span class="bool-val">false</span>)
+<a href=#848 id=848 data-nosnippet>848</a>}
+<a href=#849 id=849 data-nosnippet>849</a>
+<a href=#850 id=850 data-nosnippet>850</a><span class="doccomment">/// Calls `changed` when the page is shown, hidden, focused, or blurred.
+<a href=#851 id=851 data-nosnippet>851</a></span><span class="kw">pub fn </span>on_attention_change(changed: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
+<a href=#852 id=852 data-nosnippet>852</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">return</span>;
+<a href=#854 id=854 data-nosnippet>854</a>    };
+<a href=#855 id=855 data-nosnippet>855</a>    <span class="kw">let </span>changed = std::rc::Rc::new(changed);
+<a href=#856 id=856 data-nosnippet>856</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(document) = window.document() {
+<a href=#857 id=857 data-nosnippet>857</a>        <span class="kw">let </span>changed = std::rc::Rc::clone(<span class="kw-2">&amp;</span>changed);
+<a href=#858 id=858 data-nosnippet>858</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) =
+<a href=#859 id=859 data-nosnippet>859</a>            Listener::add(document.into(), <span class="string">"visibilitychange"</span>, <span class="kw">move </span>|<span class="kw">_</span>| changed())
+<a href=#860 id=860 data-nosnippet>860</a>        {
+<a href=#861 id=861 data-nosnippet>861</a>            listener.keep();
+<a href=#862 id=862 data-nosnippet>862</a>        }
+<a href=#863 id=863 data-nosnippet>863</a>    }
+<a href=#864 id=864 data-nosnippet>864</a>    <span class="kw">for </span>event <span class="kw">in </span>[<span class="string">"focus"</span>, <span class="string">"blur"</span>] {
+<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">let </span>changed = std::rc::Rc::clone(<span class="kw-2">&amp;</span>changed);
+<a href=#866 id=866 data-nosnippet>866</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(window.clone().into(), event, <span class="kw">move </span>|<span class="kw">_</span>| changed()) {
+<a href=#867 id=867 data-nosnippet>867</a>            listener.keep();
+<a href=#868 id=868 data-nosnippet>868</a>        }
+<a href=#869 id=869 data-nosnippet>869</a>    }
+<a href=#870 id=870 data-nosnippet>870</a>}
+<a href=#871 id=871 data-nosnippet>871</a>
+<a href=#872 id=872 data-nosnippet>872</a><span class="doccomment">/// Calls `used` on each pointer, key, touch, or wheel input in the page.
+<a href=#873 id=873 data-nosnippet>873</a></span><span class="kw">pub fn </span>on_user_input(used: <span class="kw">impl </span>Fn() + <span class="lifetime">'static</span>) {
+<a href=#874 id=874 data-nosnippet>874</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(window) = window() <span class="kw">else </span>{
+<a href=#875 id=875 data-nosnippet>875</a>        <span class="kw">return</span>;
+<a href=#876 id=876 data-nosnippet>876</a>    };
+<a href=#877 id=877 data-nosnippet>877</a>    <span class="kw">let </span>used = std::rc::Rc::new(used);
+<a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">for </span>event <span class="kw">in </span>[<span class="string">"pointerdown"</span>, <span class="string">"keydown"</span>, <span class="string">"touchstart"</span>, <span class="string">"wheel"</span>] {
+<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">let </span>used = std::rc::Rc::clone(<span class="kw-2">&amp;</span>used);
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(listener) = Listener::add(window.clone().into(), event, <span class="kw">move </span>|<span class="kw">_</span>| used()) {
+<a href=#881 id=881 data-nosnippet>881</a>            listener.keep();
+<a href=#882 id=882 data-nosnippet>882</a>        }
+<a href=#883 id=883 data-nosnippet>883</a>    }
+<a href=#884 id=884 data-nosnippet>884</a>}
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a><span class="doccomment">/// Milliseconds since the Unix epoch.
+<a href=#887 id=887 data-nosnippet>887</a></span><span class="kw">pub fn </span>now_ms() -&gt; f64 {
+<a href=#888 id=888 data-nosnippet>888</a>    js_sys::Date::now()
+<a href=#889 id=889 data-nosnippet>889</a>}
 </code></pre></div></section></main></body></html>
