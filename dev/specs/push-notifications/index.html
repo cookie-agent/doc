@@ -3275,6 +3275,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#164-addendum-2026-10-25-its-own-section-and-forgetting-a-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4 Addendum (2026-10-25): its own section, and forgetting a daemon
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#165-addendum-2026-10-25-the-daemons-restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5 Addendum (2026-10-25): the daemon's restarts
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4467,6 +4485,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#164-addendum-2026-10-25-its-own-section-and-forgetting-a-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.4 Addendum (2026-10-25): its own section, and forgetting a daemon
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#165-addendum-2026-10-25-the-daemons-restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      16.5 Addendum (2026-10-25): the daemon's restarts
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5005,7 +5041,8 @@ may be in a different session on the desktop and still want the phone to
 buzz.</p>
 <h2 id="9-the-web-client">9. The web client<a class="headerlink" href="#9-the-web-client" title="Permanent link">&para;</a></h2>
 <h3 id="91-turning-notifications-on">9.1 Turning notifications on<a class="headerlink" href="#91-turning-notifications-on" title="Permanent link">&para;</a></h3>
-<p><strong>Settings › This browser › Notifications</strong>, decided by pure logic beside
+<p><strong>Settings › Notifications</strong> (its own section since 2026-10-25, section
+16.4), decided by pure logic beside
 <code>crates/web/src/install.rs</code>, in these states:</p>
 <table>
 <thead>
@@ -5295,6 +5332,56 @@ the RPCs (<code>notifications_are_reachable_through_rpc</code>), and the web cli
 pure logic. A headless browser cannot receive pushes, so the service worker's
 handlers are checked only by the asset test; the manual check on a phone is
 the user's.</p>
+<h3 id="164-addendum-2026-10-25-its-own-section-and-forgetting-a-daemon">16.4 Addendum (2026-10-25): its own section, and forgetting a daemon<a class="headerlink" href="#164-addendum-2026-10-25-its-own-section-and-forgetting-a-daemon" title="Permanent link">&para;</a></h3>
+<p>User decisions after the first use:</p>
+<ul>
+<li><strong>Settings › Notifications</strong> is its own section of Settings, between
+  Plugins and This browser, rather than part of This browser. It shows
+  this browser's state, then <strong>Devices</strong>, which is always listed once
+  <code>notifications.get</code> answered (<em>No devices yet.</em> when empty).</li>
+<li><strong>Forget this daemon stops its notifications here.</strong> While the page is
+  still connected, it calls <code>notifications.unsubscribe</code> for this browser's
+  subscription (waiting at most 5 seconds) before it closes the connection;
+  when this browser's notifications come from that daemon, the browser
+  unsubscribes too and forgets which daemon they came from. Forgotten
+  while not connected, only the browser unsubscribes, and the daemon drops
+  the subscription when its next push finds it gone.</li>
+<li><strong>Turn off and forgetting share one path.</strong> The daemon's id for this
+  browser's subscription is the one <code>notifications.subscribe</code> answers for
+  the browser's current subscription, registered again when its key is the
+  daemon's (the same endpoint keeps its id), so it is found even when the
+  page kept no id or kept it under another URL for the daemon; the kept id
+  is the fallback.</li>
+<li><strong>An uninstalled app</strong> is noticed at the next push: the push service
+  answers <code>404</code> or <code>410</code> for a subscription the browser dropped, and the
+  daemon removes it (section 6.3). A platform that keeps the browser's
+  subscription after the app is removed keeps delivering to the browser;
+  <strong>Remove</strong> in Devices stops it.</li>
+</ul>
+<h3 id="165-addendum-2026-10-25-the-daemons-restarts">16.5 Addendum (2026-10-25): the daemon's restarts<a class="headerlink" href="#165-addendum-2026-10-25-the-daemons-restarts" title="Permanent link">&para;</a></h3>
+<p>User decision: the daemon notifies when it is restarting, unless the device
+asked for the restart, and when it restarted, to every device.</p>
+<ul>
+<li><strong>Restarting.</strong> When <code>daemon.restart</code> is due, the persistent daemon
+  pushes <em>Restarting…</em> before anything stops, waiting at most 5 seconds for
+  the sends, and leaves a mark, <code>&lt;data_root&gt;/push/restarting</code>. The device
+  that asked is left out: each connection's device is the subscription its
+  last <code>notifications.subscribe</code> registered (the web client registers on
+  every connection), and <code>daemon.restart</code> records the asking connection's.
+  A restart asked by a client with no device (the TUI, <code>cookie daemon
+  restart</code>) tells every device. <code>client.presence</code> does not apply.</li>
+<li><strong>Restarted or started.</strong> Once the persistent daemon listens, it pushes
+  <em>Restarted</em> when it finds the mark (taking it), else <em>Started</em>: it cannot
+  tell a service manager's restart from a boot. A daemon a TUI runs
+  in-process announces nothing.</li>
+<li><strong>Payload.</strong> <code>kind: "daemon"</code> with no session, <code>tag: "daemon"</code> and
+  <code>Topic: daemon</code>, so each replaces the last; every payload now carries its
+  <code>tag</code> (<code>session:&lt;root&gt;</code> for the others), which the service worker uses. A
+  click opens the app.</li>
+<li><code>ServerProtocol::subscribe_notifications</code> and <code>restart_daemon</code> take the
+  connection's context; no wire change.</li>
+<li><code>[notifications] enabled = false</code> sends none of them.</li>
+</ul>
 
 
 

@@ -2483,73 +2483,78 @@
 <a href=#2483 id=2483 data-nosnippet>2483</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(line) = web_page_line(<span class="kw-2">&amp;</span>url) {
 <a href=#2484 id=2484 data-nosnippet>2484</a>        <span class="macro">println!</span>(<span class="string">"{line}"</span>);
 <a href=#2485 id=2485 data-nosnippet>2485</a>    }
-<a href=#2486 id=2486 data-nosnippet>2486</a>    <span class="kw">let </span>exit = <span class="macro">tokio::select!</span> {
-<a href=#2487 id=2487 data-nosnippet>2487</a>        () = signals.recv() =&gt; DaemonExit::Stopped,
-<a href=#2488 id=2488 data-nosnippet>2488</a>        () = restart.cancelled() =&gt; DaemonExit::Restart,
-<a href=#2489 id=2489 data-nosnippet>2489</a>    };
-<a href=#2490 id=2490 data-nosnippet>2490</a>    exit_on_next_stop(signals);
-<a href=#2491 id=2491 data-nosnippet>2491</a>    <span class="kw">match </span>exit {
-<a href=#2492 id=2492 data-nosnippet>2492</a>        DaemonExit::Stopped =&gt; {
-<a href=#2493 id=2493 data-nosnippet>2493</a>            runtime.server.shutdown();
-<a href=#2494 id=2494 data-nosnippet>2494</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#2495 id=2495 data-nosnippet>2495</a>            listener.wait().<span class="kw">await</span>;
-<a href=#2496 id=2496 data-nosnippet>2496</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#2497 id=2497 data-nosnippet>2497</a>        }
-<a href=#2498 id=2498 data-nosnippet>2498</a>        DaemonExit::Restart =&gt; {
-<a href=#2499 id=2499 data-nosnippet>2499</a>            <span class="macro">println!</span>(<span class="string">"cookie daemon restarting"</span>);
-<a href=#2500 id=2500 data-nosnippet>2500</a>            <span class="comment">// The engine stops first, while clients are still connected:
-<a href=#2501 id=2501 data-nosnippet>2501</a>            // they see the interrupted turns end, then the connection close
-<a href=#2502 id=2502 data-nosnippet>2502</a>            // saying the daemon is restarting.
-<a href=#2503 id=2503 data-nosnippet>2503</a>            </span>runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#2504 id=2504 data-nosnippet>2504</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#2505 id=2505 data-nosnippet>2505</a>            runtime.server.shutdown_for_restart();
-<a href=#2506 id=2506 data-nosnippet>2506</a>            <span class="comment">// Returns once every client connection sent that close frame
-<a href=#2507 id=2507 data-nosnippet>2507</a>            // (bounded), so the relaunch does not cut it off.
-<a href=#2508 id=2508 data-nosnippet>2508</a>            </span>listener.wait().<span class="kw">await</span>;
-<a href=#2509 id=2509 data-nosnippet>2509</a>        }
-<a href=#2510 id=2510 data-nosnippet>2510</a>    }
-<a href=#2511 id=2511 data-nosnippet>2511</a>    <span class="prelude-val">Ok</span>(exit)
-<a href=#2512 id=2512 data-nosnippet>2512</a>}
-<a href=#2513 id=2513 data-nosnippet>2513</a>
-<a href=#2514 id=2514 data-nosnippet>2514</a><span class="doccomment">/// Exits at once on the next stop signal, for a graceful stop that hangs.
-<a href=#2515 id=2515 data-nosnippet>2515</a></span><span class="kw">fn </span>exit_on_next_stop(<span class="kw-2">mut </span>signals: cookie_agent_protocol::StopSignals) {
-<a href=#2516 id=2516 data-nosnippet>2516</a>    tokio::spawn(<span class="kw">async move </span>{
-<a href=#2517 id=2517 data-nosnippet>2517</a>        signals.recv().<span class="kw">await</span>;
-<a href=#2518 id=2518 data-nosnippet>2518</a>        <span class="macro">eprintln!</span>(<span class="string">"cookie: stopping at once"</span>);
-<a href=#2519 id=2519 data-nosnippet>2519</a>        std::process::exit(<span class="number">1</span>);
-<a href=#2520 id=2520 data-nosnippet>2520</a>    });
-<a href=#2521 id=2521 data-nosnippet>2521</a>}
-<a href=#2522 id=2522 data-nosnippet>2522</a>
-<a href=#2523 id=2523 data-nosnippet>2523</a><span class="doccomment">/// Cancels `stop` on the first stop signal; see [`exit_on_next_stop`] for
-<a href=#2524 id=2524 data-nosnippet>2524</a>/// the second.
-<a href=#2525 id=2525 data-nosnippet>2525</a></span><span class="kw">fn </span>stop_on_signal(stop: CancellationToken) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#2526 id=2526 data-nosnippet>2526</a>    <span class="kw">let </span><span class="kw-2">mut </span>signals =
-<a href=#2527 id=2527 data-nosnippet>2527</a>        cookie_agent_protocol::StopSignals::new().context(<span class="string">"listen for stop signals"</span>)<span class="question-mark">?</span>;
-<a href=#2528 id=2528 data-nosnippet>2528</a>    tokio::spawn(<span class="kw">async move </span>{
-<a href=#2529 id=2529 data-nosnippet>2529</a>        signals.recv().<span class="kw">await</span>;
-<a href=#2530 id=2530 data-nosnippet>2530</a>        stop.cancel();
-<a href=#2531 id=2531 data-nosnippet>2531</a>        exit_on_next_stop(signals);
-<a href=#2532 id=2532 data-nosnippet>2532</a>    });
-<a href=#2533 id=2533 data-nosnippet>2533</a>    <span class="prelude-val">Ok</span>(())
-<a href=#2534 id=2534 data-nosnippet>2534</a>}
-<a href=#2535 id=2535 data-nosnippet>2535</a>
-<a href=#2536 id=2536 data-nosnippet>2536</a><span class="kw">mod </span>config_command;
-<a href=#2537 id=2537 data-nosnippet>2537</a><span class="kw">mod </span>cron_command;
-<a href=#2538 id=2538 data-nosnippet>2538</a><span class="kw">mod </span>daemon_restart;
-<a href=#2539 id=2539 data-nosnippet>2539</a><span class="kw">mod </span>local_daemon;
-<a href=#2540 id=2540 data-nosnippet>2540</a><span class="kw">mod </span>machine_command;
-<a href=#2541 id=2541 data-nosnippet>2541</a><span class="kw">mod </span>memory_command;
-<a href=#2542 id=2542 data-nosnippet>2542</a><span class="kw">mod </span>onboard_command;
-<a href=#2543 id=2543 data-nosnippet>2543</a><span class="kw">mod </span>project_command;
-<a href=#2544 id=2544 data-nosnippet>2544</a><span class="kw">mod </span>skills_command;
-<a href=#2545 id=2545 data-nosnippet>2545</a>
-<a href=#2546 id=2546 data-nosnippet>2546</a><span class="attr">#[cfg(test)]
-<a href=#2547 id=2547 data-nosnippet>2547</a></span><span class="kw">mod </span>cli_reference;
-<a href=#2548 id=2548 data-nosnippet>2548</a>
-<a href=#2549 id=2549 data-nosnippet>2549</a><span class="attr">#[cfg(test)]
-<a href=#2550 id=2550 data-nosnippet>2550</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
-<a href=#2551 id=2551 data-nosnippet>2551</a></span><span class="kw">mod </span>config_harness;
-<a href=#2552 id=2552 data-nosnippet>2552</a>
-<a href=#2553 id=2553 data-nosnippet>2553</a><span class="attr">#[cfg(all(test, unix))]
-<a href=#2554 id=2554 data-nosnippet>2554</a></span><span class="kw">mod </span>tests;
+<a href=#2486 id=2486 data-nosnippet>2486</a>    <span class="comment">// Phones with push notifications hear the daemon is up again.
+<a href=#2487 id=2487 data-nosnippet>2487</a>    </span>runtime.server.announce_started();
+<a href=#2488 id=2488 data-nosnippet>2488</a>    <span class="kw">let </span>exit = <span class="macro">tokio::select!</span> {
+<a href=#2489 id=2489 data-nosnippet>2489</a>        () = signals.recv() =&gt; DaemonExit::Stopped,
+<a href=#2490 id=2490 data-nosnippet>2490</a>        () = restart.cancelled() =&gt; DaemonExit::Restart,
+<a href=#2491 id=2491 data-nosnippet>2491</a>    };
+<a href=#2492 id=2492 data-nosnippet>2492</a>    exit_on_next_stop(signals);
+<a href=#2493 id=2493 data-nosnippet>2493</a>    <span class="kw">match </span>exit {
+<a href=#2494 id=2494 data-nosnippet>2494</a>        DaemonExit::Stopped =&gt; {
+<a href=#2495 id=2495 data-nosnippet>2495</a>            runtime.server.shutdown();
+<a href=#2496 id=2496 data-nosnippet>2496</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#2497 id=2497 data-nosnippet>2497</a>            listener.wait().<span class="kw">await</span>;
+<a href=#2498 id=2498 data-nosnippet>2498</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#2499 id=2499 data-nosnippet>2499</a>        }
+<a href=#2500 id=2500 data-nosnippet>2500</a>        DaemonExit::Restart =&gt; {
+<a href=#2501 id=2501 data-nosnippet>2501</a>            <span class="macro">println!</span>(<span class="string">"cookie daemon restarting"</span>);
+<a href=#2502 id=2502 data-nosnippet>2502</a>            <span class="comment">// Before anything stops: phones with push notifications hear it,
+<a href=#2503 id=2503 data-nosnippet>2503</a>            // but the one whose page asked.
+<a href=#2504 id=2504 data-nosnippet>2504</a>            </span>runtime.server.announce_restarting().<span class="kw">await</span>;
+<a href=#2505 id=2505 data-nosnippet>2505</a>            <span class="comment">// The engine stops first, while clients are still connected:
+<a href=#2506 id=2506 data-nosnippet>2506</a>            // they see the interrupted turns end, then the connection close
+<a href=#2507 id=2507 data-nosnippet>2507</a>            // saying the daemon is restarting.
+<a href=#2508 id=2508 data-nosnippet>2508</a>            </span>runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#2509 id=2509 data-nosnippet>2509</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#2510 id=2510 data-nosnippet>2510</a>            runtime.server.shutdown_for_restart();
+<a href=#2511 id=2511 data-nosnippet>2511</a>            <span class="comment">// Returns once every client connection sent that close frame
+<a href=#2512 id=2512 data-nosnippet>2512</a>            // (bounded), so the relaunch does not cut it off.
+<a href=#2513 id=2513 data-nosnippet>2513</a>            </span>listener.wait().<span class="kw">await</span>;
+<a href=#2514 id=2514 data-nosnippet>2514</a>        }
+<a href=#2515 id=2515 data-nosnippet>2515</a>    }
+<a href=#2516 id=2516 data-nosnippet>2516</a>    <span class="prelude-val">Ok</span>(exit)
+<a href=#2517 id=2517 data-nosnippet>2517</a>}
+<a href=#2518 id=2518 data-nosnippet>2518</a>
+<a href=#2519 id=2519 data-nosnippet>2519</a><span class="doccomment">/// Exits at once on the next stop signal, for a graceful stop that hangs.
+<a href=#2520 id=2520 data-nosnippet>2520</a></span><span class="kw">fn </span>exit_on_next_stop(<span class="kw-2">mut </span>signals: cookie_agent_protocol::StopSignals) {
+<a href=#2521 id=2521 data-nosnippet>2521</a>    tokio::spawn(<span class="kw">async move </span>{
+<a href=#2522 id=2522 data-nosnippet>2522</a>        signals.recv().<span class="kw">await</span>;
+<a href=#2523 id=2523 data-nosnippet>2523</a>        <span class="macro">eprintln!</span>(<span class="string">"cookie: stopping at once"</span>);
+<a href=#2524 id=2524 data-nosnippet>2524</a>        std::process::exit(<span class="number">1</span>);
+<a href=#2525 id=2525 data-nosnippet>2525</a>    });
+<a href=#2526 id=2526 data-nosnippet>2526</a>}
+<a href=#2527 id=2527 data-nosnippet>2527</a>
+<a href=#2528 id=2528 data-nosnippet>2528</a><span class="doccomment">/// Cancels `stop` on the first stop signal; see [`exit_on_next_stop`] for
+<a href=#2529 id=2529 data-nosnippet>2529</a>/// the second.
+<a href=#2530 id=2530 data-nosnippet>2530</a></span><span class="kw">fn </span>stop_on_signal(stop: CancellationToken) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#2531 id=2531 data-nosnippet>2531</a>    <span class="kw">let </span><span class="kw-2">mut </span>signals =
+<a href=#2532 id=2532 data-nosnippet>2532</a>        cookie_agent_protocol::StopSignals::new().context(<span class="string">"listen for stop signals"</span>)<span class="question-mark">?</span>;
+<a href=#2533 id=2533 data-nosnippet>2533</a>    tokio::spawn(<span class="kw">async move </span>{
+<a href=#2534 id=2534 data-nosnippet>2534</a>        signals.recv().<span class="kw">await</span>;
+<a href=#2535 id=2535 data-nosnippet>2535</a>        stop.cancel();
+<a href=#2536 id=2536 data-nosnippet>2536</a>        exit_on_next_stop(signals);
+<a href=#2537 id=2537 data-nosnippet>2537</a>    });
+<a href=#2538 id=2538 data-nosnippet>2538</a>    <span class="prelude-val">Ok</span>(())
+<a href=#2539 id=2539 data-nosnippet>2539</a>}
+<a href=#2540 id=2540 data-nosnippet>2540</a>
+<a href=#2541 id=2541 data-nosnippet>2541</a><span class="kw">mod </span>config_command;
+<a href=#2542 id=2542 data-nosnippet>2542</a><span class="kw">mod </span>cron_command;
+<a href=#2543 id=2543 data-nosnippet>2543</a><span class="kw">mod </span>daemon_restart;
+<a href=#2544 id=2544 data-nosnippet>2544</a><span class="kw">mod </span>local_daemon;
+<a href=#2545 id=2545 data-nosnippet>2545</a><span class="kw">mod </span>machine_command;
+<a href=#2546 id=2546 data-nosnippet>2546</a><span class="kw">mod </span>memory_command;
+<a href=#2547 id=2547 data-nosnippet>2547</a><span class="kw">mod </span>onboard_command;
+<a href=#2548 id=2548 data-nosnippet>2548</a><span class="kw">mod </span>project_command;
+<a href=#2549 id=2549 data-nosnippet>2549</a><span class="kw">mod </span>skills_command;
+<a href=#2550 id=2550 data-nosnippet>2550</a>
+<a href=#2551 id=2551 data-nosnippet>2551</a><span class="attr">#[cfg(test)]
+<a href=#2552 id=2552 data-nosnippet>2552</a></span><span class="kw">mod </span>cli_reference;
+<a href=#2553 id=2553 data-nosnippet>2553</a>
+<a href=#2554 id=2554 data-nosnippet>2554</a><span class="attr">#[cfg(test)]
+<a href=#2555 id=2555 data-nosnippet>2555</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
+<a href=#2556 id=2556 data-nosnippet>2556</a></span><span class="kw">mod </span>config_harness;
+<a href=#2557 id=2557 data-nosnippet>2557</a>
+<a href=#2558 id=2558 data-nosnippet>2558</a><span class="attr">#[cfg(all(test, unix))]
+<a href=#2559 id=2559 data-nosnippet>2559</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
