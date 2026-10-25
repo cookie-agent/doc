@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CONTEXT_LINES"],"enum":["TextChange"],"fn":["diff_block","fit_block","fit_executed_block","hunks","language_for_path","line_diff_changes","raw_lines","replacement_changes","text_diff"],"struct":["LineChange","Retain"]};

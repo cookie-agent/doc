@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["flatten_header_argument","hint_icon","shown_arguments"]};
+window.SIDEBAR_ITEMS = {"fn":["flatten_header_argument","hint_icon","is_memory_url","memory_url_span","shown_arguments"]};
