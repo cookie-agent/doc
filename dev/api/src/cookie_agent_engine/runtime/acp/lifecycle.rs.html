@@ -611,199 +611,205 @@
 <a href=#611 id=611 data-nosnippet>611</a>            </span>.map_err(<span class="kw">super</span>::<span class="kw">super</span>::EngineError::Acp)<span class="question-mark">?</span>;
 <a href=#612 id=612 data-nosnippet>612</a>        <span class="self">self</span>.acp_session(forked, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>agent, <span class="kw-2">&amp;</span>resolved.document, <span class="kw-2">&amp;</span>process)
 <a href=#613 id=613 data-nosnippet>613</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="comment">// A session on another runtime than the one that runs it now
-<a href=#615 id=615 data-nosnippet>615</a>        // starts anew there, which forks nothing.
+<a href=#614 id=614 data-nosnippet>614</a>        <span class="comment">// A session on another runtime than the one that runs it now, or
+<a href=#615 id=615 data-nosnippet>615</a>        // of another declaration, starts anew there, which forks nothing.
 <a href=#616 id=616 data-nosnippet>616</a>        </span><span class="kw">match </span>plan(
 <a href=#617 id=617 data-nosnippet>617</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.inner.store.get(forked)<span class="question-mark">?</span>.log.event_snapshot(),
 <a href=#618 id=618 data-nosnippet>618</a>            <span class="kw-2">&amp;</span>record.agent,
 <a href=#619 id=619 data-nosnippet>619</a>        ) {
 <a href=#620 id=620 data-nosnippet>620</a>            Plan::Resume(started) <span class="kw">if </span>started.how == AcpSessionStart::Forked =&gt; <span class="prelude-val">Ok</span>(()),
-<a href=#621 id=621 data-nosnippet>621</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="kw">super</span>::<span class="kw">super</span>::EngineError::Acp(<span class="macro">format!</span>(
-<a href=#622 id=622 data-nosnippet>622</a>                <span class="string">"its session is on runtime `{}`, which does not run it for the new session"</span>,
-<a href=#623 id=623 data-nosnippet>623</a>                record.runtime_id
-<a href=#624 id=624 data-nosnippet>624</a>            ))),
-<a href=#625 id=625 data-nosnippet>625</a>        }
-<a href=#626 id=626 data-nosnippet>626</a>    }
-<a href=#627 id=627 data-nosnippet>627</a>
-<a href=#628 id=628 data-nosnippet>628</a>    <span class="doccomment">/// How the agent of `record` forks: by the log of `events`, and where
-<a href=#629 id=629 data-nosnippet>629</a>    /// that does not say, by the agent's running process.
-<a href=#630 id=630 data-nosnippet>630</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fork_knowledge(
-<a href=#631 id=631 data-nosnippet>631</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#632 id=632 data-nosnippet>632</a>        events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;],
-<a href=#633 id=633 data-nosnippet>633</a>        record: <span class="kw-2">&amp;</span>AcpSessionRecord,
-<a href=#634 id=634 data-nosnippet>634</a>    ) -&gt; (<span class="prelude-ty">Option</span>&lt;bool&gt;, <span class="prelude-ty">Option</span>&lt;bool&gt;) {
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>(fork, fork_point) = fork_support(events, record);
-<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let </span>process = <span class="self">self
-<a href=#637 id=637 data-nosnippet>637</a>            </span>.inner
-<a href=#638 id=638 data-nosnippet>638</a>            .acp
-<a href=#639 id=639 data-nosnippet>639</a>            .processes
-<a href=#640 id=640 data-nosnippet>640</a>            .running(<span class="kw-2">&amp;</span><span class="kw">super</span>::process::ProcessKey {
-<a href=#641 id=641 data-nosnippet>641</a>                runtime: record.runtime_id.to_string(),
-<a href=#642 id=642 data-nosnippet>642</a>                agent: record.runtime_agent.to_string(),
-<a href=#643 id=643 data-nosnippet>643</a>            });
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>live_fork = process
-<a href=#645 id=645 data-nosnippet>645</a>            .as_ref()
-<a href=#646 id=646 data-nosnippet>646</a>            .map(|process| process.init().agent_capabilities.session(<span class="string">"fork"</span>));
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>live_point = process
-<a href=#648 id=648 data-nosnippet>648</a>            .as_ref()
-<a href=#649 id=649 data-nosnippet>649</a>            .and_then(|process| process.fork_point.get().copied());
-<a href=#650 id=650 data-nosnippet>650</a>        (live_fork.or(fork), live_point.or(fork_point))
-<a href=#651 id=651 data-nosnippet>651</a>    }
-<a href=#652 id=652 data-nosnippet>652</a>
-<a href=#653 id=653 data-nosnippet>653</a>    <span class="doccomment">/// `session/fork` of `from` at the agent message `message_id`, as the
-<a href=#654 id=654 data-nosnippet>654</a>    /// next turn branches off a session a fork or a revert left behind:
-<a href=#655 id=655 data-nosnippet>655</a>    /// the new session's ID and the agent's answer, or why it could not.
-<a href=#656 id=656 data-nosnippet>656</a>    </span><span class="kw">async fn </span>fork_acp_session(
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#658 id=658 data-nosnippet>658</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
-<a href=#659 id=659 data-nosnippet>659</a>        from: <span class="kw-2">&amp;</span>AcpSessionRecord,
-<a href=#660 id=660 data-nosnippet>660</a>        message_id: <span class="kw-2">&amp;</span>str,
-<a href=#661 id=661 data-nosnippet>661</a>        cwd: <span class="kw-2">&amp;</span>str,
-<a href=#662 id=662 data-nosnippet>662</a>        additional_directories: <span class="kw-2">&amp;</span>[String],
-<a href=#663 id=663 data-nosnippet>663</a>        mcp_servers: <span class="kw-2">&amp;</span>[wire::McpServer],
-<a href=#664 id=664 data-nosnippet>664</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(String, wire::SessionResponse), String&gt; {
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="kw">if </span>!process.init().agent_capabilities.session(<span class="string">"fork"</span>) {
-<a href=#666 id=666 data-nosnippet>666</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"it does not offer `session/fork`"</span>.to_owned());
-<a href=#667 id=667 data-nosnippet>667</a>        }
-<a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">let </span>response = tokio::time::timeout(
-<a href=#669 id=669 data-nosnippet>669</a>            SESSION_TIMEOUT,
-<a href=#670 id=670 data-nosnippet>670</a>            process.peer.request::&lt;<span class="kw">_</span>, wire::SessionResponse&gt;(
-<a href=#671 id=671 data-nosnippet>671</a>                wire::method::SESSION_FORK,
-<a href=#672 id=672 data-nosnippet>672</a>                <span class="kw-2">&amp;</span>wire::ForkSessionRequest {
-<a href=#673 id=673 data-nosnippet>673</a>                    session_id: <span class="kw-2">&amp;</span>from.acp_session_id,
-<a href=#674 id=674 data-nosnippet>674</a>                    cwd,
-<a href=#675 id=675 data-nosnippet>675</a>                    additional_directories,
-<a href=#676 id=676 data-nosnippet>676</a>                    mcp_servers,
-<a href=#677 id=677 data-nosnippet>677</a>                    meta: <span class="prelude-val">Some</span>(wire::air_fork_point(message_id)),
-<a href=#678 id=678 data-nosnippet>678</a>                },
-<a href=#679 id=679 data-nosnippet>679</a>            ),
-<a href=#680 id=680 data-nosnippet>680</a>        )
-<a href=#681 id=681 data-nosnippet>681</a>        .<span class="kw">await
-<a href=#682 id=682 data-nosnippet>682</a>        </span>.map_err(|<span class="kw">_</span>| {
-<a href=#683 id=683 data-nosnippet>683</a>            <span class="macro">format!</span>(
-<a href=#684 id=684 data-nosnippet>684</a>                <span class="string">"it did not answer `session/fork` within {} s"</span>,
-<a href=#685 id=685 data-nosnippet>685</a>                SESSION_TIMEOUT.as_secs()
-<a href=#686 id=686 data-nosnippet>686</a>            )
-<a href=#687 id=687 data-nosnippet>687</a>        })<span class="question-mark">?
-<a href=#688 id=688 data-nosnippet>688</a>        </span>.map_err(|error| {
+<a href=#621 id=621 data-nosnippet>621</a>            <span class="kw">_ if </span>record.runtime_id == agent.runtime =&gt; {
+<a href=#622 id=622 data-nosnippet>622</a>                <span class="prelude-val">Err</span>(<span class="kw">super</span>::<span class="kw">super</span>::EngineError::Acp(<span class="macro">format!</span>(
+<a href=#623 id=623 data-nosnippet>623</a>                    <span class="string">"its session is of ACP agent `{}`, and its document now runs `{}`"</span>,
+<a href=#624 id=624 data-nosnippet>624</a>                    record.runtime_agent, agent.agent
+<a href=#625 id=625 data-nosnippet>625</a>                )))
+<a href=#626 id=626 data-nosnippet>626</a>            }
+<a href=#627 id=627 data-nosnippet>627</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="kw">super</span>::<span class="kw">super</span>::EngineError::Acp(<span class="macro">format!</span>(
+<a href=#628 id=628 data-nosnippet>628</a>                <span class="string">"its session is on runtime `{}`, which does not run it for the new session"</span>,
+<a href=#629 id=629 data-nosnippet>629</a>                record.runtime_id
+<a href=#630 id=630 data-nosnippet>630</a>            ))),
+<a href=#631 id=631 data-nosnippet>631</a>        }
+<a href=#632 id=632 data-nosnippet>632</a>    }
+<a href=#633 id=633 data-nosnippet>633</a>
+<a href=#634 id=634 data-nosnippet>634</a>    <span class="doccomment">/// How the agent of `record` forks: by the log of `events`, and where
+<a href=#635 id=635 data-nosnippet>635</a>    /// that does not say, by the agent's running process.
+<a href=#636 id=636 data-nosnippet>636</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fork_knowledge(
+<a href=#637 id=637 data-nosnippet>637</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#638 id=638 data-nosnippet>638</a>        events: <span class="kw-2">&amp;</span>[Arc&lt;StoredEvent&gt;],
+<a href=#639 id=639 data-nosnippet>639</a>        record: <span class="kw-2">&amp;</span>AcpSessionRecord,
+<a href=#640 id=640 data-nosnippet>640</a>    ) -&gt; (<span class="prelude-ty">Option</span>&lt;bool&gt;, <span class="prelude-ty">Option</span>&lt;bool&gt;) {
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>(fork, fork_point) = fork_support(events, record);
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>process = <span class="self">self
+<a href=#643 id=643 data-nosnippet>643</a>            </span>.inner
+<a href=#644 id=644 data-nosnippet>644</a>            .acp
+<a href=#645 id=645 data-nosnippet>645</a>            .processes
+<a href=#646 id=646 data-nosnippet>646</a>            .running(<span class="kw-2">&amp;</span><span class="kw">super</span>::process::ProcessKey {
+<a href=#647 id=647 data-nosnippet>647</a>                runtime: record.runtime_id.to_string(),
+<a href=#648 id=648 data-nosnippet>648</a>                agent: record.runtime_agent.to_string(),
+<a href=#649 id=649 data-nosnippet>649</a>            });
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">let </span>live_fork = process
+<a href=#651 id=651 data-nosnippet>651</a>            .as_ref()
+<a href=#652 id=652 data-nosnippet>652</a>            .map(|process| process.init().agent_capabilities.session(<span class="string">"fork"</span>));
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>live_point = process
+<a href=#654 id=654 data-nosnippet>654</a>            .as_ref()
+<a href=#655 id=655 data-nosnippet>655</a>            .and_then(|process| process.fork_point.get().copied());
+<a href=#656 id=656 data-nosnippet>656</a>        (live_fork.or(fork), live_point.or(fork_point))
+<a href=#657 id=657 data-nosnippet>657</a>    }
+<a href=#658 id=658 data-nosnippet>658</a>
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="doccomment">/// `session/fork` of `from` at the agent message `message_id`, as the
+<a href=#660 id=660 data-nosnippet>660</a>    /// next turn branches off a session a fork or a revert left behind:
+<a href=#661 id=661 data-nosnippet>661</a>    /// the new session's ID and the agent's answer, or why it could not.
+<a href=#662 id=662 data-nosnippet>662</a>    </span><span class="kw">async fn </span>fork_acp_session(
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#664 id=664 data-nosnippet>664</a>        process: <span class="kw-2">&amp;</span>AgentProcess,
+<a href=#665 id=665 data-nosnippet>665</a>        from: <span class="kw-2">&amp;</span>AcpSessionRecord,
+<a href=#666 id=666 data-nosnippet>666</a>        message_id: <span class="kw-2">&amp;</span>str,
+<a href=#667 id=667 data-nosnippet>667</a>        cwd: <span class="kw-2">&amp;</span>str,
+<a href=#668 id=668 data-nosnippet>668</a>        additional_directories: <span class="kw-2">&amp;</span>[String],
+<a href=#669 id=669 data-nosnippet>669</a>        mcp_servers: <span class="kw-2">&amp;</span>[wire::McpServer],
+<a href=#670 id=670 data-nosnippet>670</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(String, wire::SessionResponse), String&gt; {
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">if </span>!process.init().agent_capabilities.session(<span class="string">"fork"</span>) {
+<a href=#672 id=672 data-nosnippet>672</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"it does not offer `session/fork`"</span>.to_owned());
+<a href=#673 id=673 data-nosnippet>673</a>        }
+<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span>response = tokio::time::timeout(
+<a href=#675 id=675 data-nosnippet>675</a>            SESSION_TIMEOUT,
+<a href=#676 id=676 data-nosnippet>676</a>            process.peer.request::&lt;<span class="kw">_</span>, wire::SessionResponse&gt;(
+<a href=#677 id=677 data-nosnippet>677</a>                wire::method::SESSION_FORK,
+<a href=#678 id=678 data-nosnippet>678</a>                <span class="kw-2">&amp;</span>wire::ForkSessionRequest {
+<a href=#679 id=679 data-nosnippet>679</a>                    session_id: <span class="kw-2">&amp;</span>from.acp_session_id,
+<a href=#680 id=680 data-nosnippet>680</a>                    cwd,
+<a href=#681 id=681 data-nosnippet>681</a>                    additional_directories,
+<a href=#682 id=682 data-nosnippet>682</a>                    mcp_servers,
+<a href=#683 id=683 data-nosnippet>683</a>                    meta: <span class="prelude-val">Some</span>(wire::air_fork_point(message_id)),
+<a href=#684 id=684 data-nosnippet>684</a>                },
+<a href=#685 id=685 data-nosnippet>685</a>            ),
+<a href=#686 id=686 data-nosnippet>686</a>        )
+<a href=#687 id=687 data-nosnippet>687</a>        .<span class="kw">await
+<a href=#688 id=688 data-nosnippet>688</a>        </span>.map_err(|<span class="kw">_</span>| {
 <a href=#689 id=689 data-nosnippet>689</a>            <span class="macro">format!</span>(
-<a href=#690 id=690 data-nosnippet>690</a>                <span class="string">"`session/fork` failed: {}"</span>,
-<a href=#691 id=691 data-nosnippet>691</a>                process
-<a href=#692 id=692 data-nosnippet>692</a>                    .exit_reason()
-<a href=#693 id=693 data-nosnippet>693</a>                    .unwrap_or_else(|| agent_error_message(<span class="kw-2">&amp;</span>error))
-<a href=#694 id=694 data-nosnippet>694</a>            )
-<a href=#695 id=695 data-nosnippet>695</a>        })<span class="question-mark">?</span>;
-<a href=#696 id=696 data-nosnippet>696</a>        <span class="kw">let </span>id = response
-<a href=#697 id=697 data-nosnippet>697</a>            .session_id
-<a href=#698 id=698 data-nosnippet>698</a>            .clone()
-<a href=#699 id=699 data-nosnippet>699</a>            .filter(|id| !id.is_empty())
-<a href=#700 id=700 data-nosnippet>700</a>            .ok_or_else(|| <span class="string">"it answered `session/fork` without a session ID"</span>.to_owned())<span class="question-mark">?</span>;
-<a href=#701 id=701 data-nosnippet>701</a>        <span class="prelude-val">Ok</span>((id, response))
-<a href=#702 id=702 data-nosnippet>702</a>    }
-<a href=#703 id=703 data-nosnippet>703</a>
-<a href=#704 id=704 data-nosnippet>704</a>    <span class="doccomment">/// Ends the agent's session `acp_session_id`, which a revert left
-<a href=#705 id=705 data-nosnippet>705</a>    /// behind and the turn replaced: the live one of `session` closes
-<a href=#706 id=706 data-nosnippet>706</a>    /// (`session/close`) as a deleted session's does, and the agent deletes
-<a href=#707 id=707 data-nosnippet>707</a>    /// it when it offers `session/delete`.
-<a href=#708 id=708 data-nosnippet>708</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>retire_acp_session(
-<a href=#709 id=709 data-nosnippet>709</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#710 id=710 data-nosnippet>710</a>        session: SessionId,
-<a href=#711 id=711 data-nosnippet>711</a>        process: <span class="kw-2">&amp;</span>Arc&lt;AgentProcess&gt;,
-<a href=#712 id=712 data-nosnippet>712</a>        acp_session_id: <span class="kw-2">&amp;</span>str,
-<a href=#713 id=713 data-nosnippet>713</a>    ) {
-<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">let </span>live = {
-<a href=#715 id=715 data-nosnippet>715</a>            <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
-<a href=#716 id=716 data-nosnippet>716</a>                </span>.inner
-<a href=#717 id=717 data-nosnippet>717</a>                .acp
-<a href=#718 id=718 data-nosnippet>718</a>                .processes
-<a href=#719 id=719 data-nosnippet>719</a>                .sessions
-<a href=#720 id=720 data-nosnippet>720</a>                .lock()
-<a href=#721 id=721 data-nosnippet>721</a>                .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#722 id=722 data-nosnippet>722</a>            <span class="kw">match </span>sessions.get(<span class="kw-2">&amp;</span>session) {
-<a href=#723 id=723 data-nosnippet>723</a>                <span class="prelude-val">Some</span>(live) <span class="kw">if </span>live.acp_session_id == acp_session_id =&gt; sessions.remove(<span class="kw-2">&amp;</span>session),
-<a href=#724 id=724 data-nosnippet>724</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#725 id=725 data-nosnippet>725</a>            }
-<a href=#726 id=726 data-nosnippet>726</a>        };
-<a href=#727 id=727 data-nosnippet>727</a>        <span class="kw">match </span>live {
-<a href=#728 id=728 data-nosnippet>728</a>            <span class="prelude-val">Some</span>(live) =&gt; <span class="self">self</span>.end_live_session(live, <span class="bool-val">true</span>).<span class="kw">await</span>,
-<a href=#729 id=729 data-nosnippet>729</a>            <span class="prelude-val">None </span>=&gt; end_agent_session(process, acp_session_id, <span class="bool-val">false</span>, <span class="bool-val">true</span>).<span class="kw">await</span>,
-<a href=#730 id=730 data-nosnippet>730</a>        }
-<a href=#731 id=731 data-nosnippet>731</a>    }
-<a href=#732 id=732 data-nosnippet>732</a>
-<a href=#733 id=733 data-nosnippet>733</a>    <span class="doccomment">/// Deletes the agent's sessions `records`, which were `session`'s own
-<a href=#734 id=734 data-nosnippet>734</a>    /// and no longer are: its live one closes first, and the others go to
-<a href=#735 id=735 data-nosnippet>735</a>    /// the agent's process on the runtime that holds them, started for it
-<a href=#736 id=736 data-nosnippet>736</a>    /// when it is not running. An agent its runtime no longer offers keeps
-<a href=#737 id=737 data-nosnippet>737</a>    /// them.
-<a href=#738 id=738 data-nosnippet>738</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>delete_acp_sessions(
-<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#740 id=740 data-nosnippet>740</a>        session: SessionId,
-<a href=#741 id=741 data-nosnippet>741</a>        records: Vec&lt;AcpSessionRecord&gt;,
-<a href=#742 id=742 data-nosnippet>742</a>    ) {
-<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">for </span>record <span class="kw">in </span>records {
-<a href=#744 id=744 data-nosnippet>744</a>            <span class="kw">let </span>live = {
-<a href=#745 id=745 data-nosnippet>745</a>                <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
-<a href=#746 id=746 data-nosnippet>746</a>                    </span>.inner
-<a href=#747 id=747 data-nosnippet>747</a>                    .acp
-<a href=#748 id=748 data-nosnippet>748</a>                    .processes
-<a href=#749 id=749 data-nosnippet>749</a>                    .sessions
-<a href=#750 id=750 data-nosnippet>750</a>                    .lock()
-<a href=#751 id=751 data-nosnippet>751</a>                    .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#752 id=752 data-nosnippet>752</a>                <span class="kw">match </span>sessions.get(<span class="kw-2">&amp;</span>session) {
-<a href=#753 id=753 data-nosnippet>753</a>                    <span class="prelude-val">Some</span>(live) <span class="kw">if </span>live.acp_session_id == record.acp_session_id =&gt; {
-<a href=#754 id=754 data-nosnippet>754</a>                        sessions.remove(<span class="kw-2">&amp;</span>session)
-<a href=#755 id=755 data-nosnippet>755</a>                    }
-<a href=#756 id=756 data-nosnippet>756</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#757 id=757 data-nosnippet>757</a>                }
-<a href=#758 id=758 data-nosnippet>758</a>            };
-<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(live) = live {
-<a href=#760 id=760 data-nosnippet>760</a>                <span class="self">self</span>.end_live_session(live, <span class="bool-val">true</span>).<span class="kw">await</span>;
-<a href=#761 id=761 data-nosnippet>761</a>                <span class="kw">continue</span>;
-<a href=#762 id=762 data-nosnippet>762</a>            }
-<a href=#763 id=763 data-nosnippet>763</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(agent) = <span class="self">self</span>.inner.acp.runtime_agents().into_iter().find(|agent| {
-<a href=#764 id=764 data-nosnippet>764</a>                agent.runtime == record.runtime_id
-<a href=#765 id=765 data-nosnippet>765</a>                    &amp;&amp; agent.agent == record.runtime_agent
-<a href=#766 id=766 data-nosnippet>766</a>                    &amp;&amp; agent.available()
-<a href=#767 id=767 data-nosnippet>767</a>            }) <span class="kw">else </span>{
-<a href=#768 id=768 data-nosnippet>768</a>                <span class="kw">continue</span>;
-<a href=#769 id=769 data-nosnippet>769</a>            };
-<a href=#770 id=770 data-nosnippet>770</a>            <span class="kw">if let </span><span class="prelude-val">Ok</span>((process, _use)) = <span class="self">self</span>.inner.acp.processes.acquire(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, <span class="kw-2">&amp;</span>agent).<span class="kw">await
-<a href=#771 id=771 data-nosnippet>771</a>            </span>{
-<a href=#772 id=772 data-nosnippet>772</a>                end_agent_session(<span class="kw-2">&amp;</span>process, <span class="kw-2">&amp;</span>record.acp_session_id, <span class="bool-val">false</span>, <span class="bool-val">true</span>).<span class="kw">await</span>;
-<a href=#773 id=773 data-nosnippet>773</a>            }
-<a href=#774 id=774 data-nosnippet>774</a>        }
-<a href=#775 id=775 data-nosnippet>775</a>    }
-<a href=#776 id=776 data-nosnippet>776</a>}
-<a href=#777 id=777 data-nosnippet>777</a>
-<a href=#778 id=778 data-nosnippet>778</a><span class="doccomment">/// How long the agent gets to answer `session/close` and `session/delete`.
-<a href=#779 id=779 data-nosnippet>779</a></span><span class="kw">const </span>END_TIMEOUT: Duration = Duration::from_secs(<span class="number">10</span>);
-<a href=#780 id=780 data-nosnippet>780</a>
-<a href=#781 id=781 data-nosnippet>781</a><span class="doccomment">/// Asks the agent to close its session `acp_session_id` (`close`, when it
-<a href=#782 id=782 data-nosnippet>782</a>/// offers `session/close`) and then to delete it (`delete`, when it offers
-<a href=#783 id=783 data-nosnippet>783</a>/// `session/delete`). What it answers changes nothing.
-<a href=#784 id=784 data-nosnippet>784</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>end_agent_session(
-<a href=#785 id=785 data-nosnippet>785</a>    process: <span class="kw-2">&amp;</span>AgentProcess,
-<a href=#786 id=786 data-nosnippet>786</a>    acp_session_id: <span class="kw-2">&amp;</span>str,
-<a href=#787 id=787 data-nosnippet>787</a>    close: bool,
-<a href=#788 id=788 data-nosnippet>788</a>    delete: bool,
-<a href=#789 id=789 data-nosnippet>789</a>) {
-<a href=#790 id=790 data-nosnippet>790</a>    <span class="kw">let </span>caps = <span class="kw-2">&amp;</span>process.init().agent_capabilities;
-<a href=#791 id=791 data-nosnippet>791</a>    <span class="kw">let </span>reference = wire::SessionRef {
-<a href=#792 id=792 data-nosnippet>792</a>        session_id: acp_session_id,
-<a href=#793 id=793 data-nosnippet>793</a>    };
-<a href=#794 id=794 data-nosnippet>794</a>    <span class="kw">let </span>request = |method| {
-<a href=#795 id=795 data-nosnippet>795</a>        tokio::time::timeout(
-<a href=#796 id=796 data-nosnippet>796</a>            END_TIMEOUT,
-<a href=#797 id=797 data-nosnippet>797</a>            process
-<a href=#798 id=798 data-nosnippet>798</a>                .peer
-<a href=#799 id=799 data-nosnippet>799</a>                .request::&lt;<span class="kw">_</span>, serde_json::Value&gt;(method, <span class="kw-2">&amp;</span>reference),
-<a href=#800 id=800 data-nosnippet>800</a>        )
-<a href=#801 id=801 data-nosnippet>801</a>    };
-<a href=#802 id=802 data-nosnippet>802</a>    <span class="kw">if </span>close &amp;&amp; caps.session(<span class="string">"close"</span>) {
-<a href=#803 id=803 data-nosnippet>803</a>        <span class="kw">let _ </span>= request(wire::method::SESSION_CLOSE).<span class="kw">await</span>;
-<a href=#804 id=804 data-nosnippet>804</a>    }
-<a href=#805 id=805 data-nosnippet>805</a>    <span class="kw">if </span>delete &amp;&amp; caps.session(<span class="string">"delete"</span>) {
-<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">let _ </span>= request(wire::method::SESSION_DELETE).<span class="kw">await</span>;
-<a href=#807 id=807 data-nosnippet>807</a>    }
-<a href=#808 id=808 data-nosnippet>808</a>}
+<a href=#690 id=690 data-nosnippet>690</a>                <span class="string">"it did not answer `session/fork` within {} s"</span>,
+<a href=#691 id=691 data-nosnippet>691</a>                SESSION_TIMEOUT.as_secs()
+<a href=#692 id=692 data-nosnippet>692</a>            )
+<a href=#693 id=693 data-nosnippet>693</a>        })<span class="question-mark">?
+<a href=#694 id=694 data-nosnippet>694</a>        </span>.map_err(|error| {
+<a href=#695 id=695 data-nosnippet>695</a>            <span class="macro">format!</span>(
+<a href=#696 id=696 data-nosnippet>696</a>                <span class="string">"`session/fork` failed: {}"</span>,
+<a href=#697 id=697 data-nosnippet>697</a>                process
+<a href=#698 id=698 data-nosnippet>698</a>                    .exit_reason()
+<a href=#699 id=699 data-nosnippet>699</a>                    .unwrap_or_else(|| agent_error_message(<span class="kw-2">&amp;</span>error))
+<a href=#700 id=700 data-nosnippet>700</a>            )
+<a href=#701 id=701 data-nosnippet>701</a>        })<span class="question-mark">?</span>;
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">let </span>id = response
+<a href=#703 id=703 data-nosnippet>703</a>            .session_id
+<a href=#704 id=704 data-nosnippet>704</a>            .clone()
+<a href=#705 id=705 data-nosnippet>705</a>            .filter(|id| !id.is_empty())
+<a href=#706 id=706 data-nosnippet>706</a>            .ok_or_else(|| <span class="string">"it answered `session/fork` without a session ID"</span>.to_owned())<span class="question-mark">?</span>;
+<a href=#707 id=707 data-nosnippet>707</a>        <span class="prelude-val">Ok</span>((id, response))
+<a href=#708 id=708 data-nosnippet>708</a>    }
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a>    <span class="doccomment">/// Ends the agent's session `acp_session_id`, which a revert left
+<a href=#711 id=711 data-nosnippet>711</a>    /// behind and the turn replaced: the live one of `session` closes
+<a href=#712 id=712 data-nosnippet>712</a>    /// (`session/close`) as a deleted session's does, and the agent deletes
+<a href=#713 id=713 data-nosnippet>713</a>    /// it when it offers `session/delete`.
+<a href=#714 id=714 data-nosnippet>714</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>retire_acp_session(
+<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#716 id=716 data-nosnippet>716</a>        session: SessionId,
+<a href=#717 id=717 data-nosnippet>717</a>        process: <span class="kw-2">&amp;</span>Arc&lt;AgentProcess&gt;,
+<a href=#718 id=718 data-nosnippet>718</a>        acp_session_id: <span class="kw-2">&amp;</span>str,
+<a href=#719 id=719 data-nosnippet>719</a>    ) {
+<a href=#720 id=720 data-nosnippet>720</a>        <span class="kw">let </span>live = {
+<a href=#721 id=721 data-nosnippet>721</a>            <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
+<a href=#722 id=722 data-nosnippet>722</a>                </span>.inner
+<a href=#723 id=723 data-nosnippet>723</a>                .acp
+<a href=#724 id=724 data-nosnippet>724</a>                .processes
+<a href=#725 id=725 data-nosnippet>725</a>                .sessions
+<a href=#726 id=726 data-nosnippet>726</a>                .lock()
+<a href=#727 id=727 data-nosnippet>727</a>                .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#728 id=728 data-nosnippet>728</a>            <span class="kw">match </span>sessions.get(<span class="kw-2">&amp;</span>session) {
+<a href=#729 id=729 data-nosnippet>729</a>                <span class="prelude-val">Some</span>(live) <span class="kw">if </span>live.acp_session_id == acp_session_id =&gt; sessions.remove(<span class="kw-2">&amp;</span>session),
+<a href=#730 id=730 data-nosnippet>730</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#731 id=731 data-nosnippet>731</a>            }
+<a href=#732 id=732 data-nosnippet>732</a>        };
+<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">match </span>live {
+<a href=#734 id=734 data-nosnippet>734</a>            <span class="prelude-val">Some</span>(live) =&gt; <span class="self">self</span>.end_live_session(live, <span class="bool-val">true</span>).<span class="kw">await</span>,
+<a href=#735 id=735 data-nosnippet>735</a>            <span class="prelude-val">None </span>=&gt; end_agent_session(process, acp_session_id, <span class="bool-val">false</span>, <span class="bool-val">true</span>).<span class="kw">await</span>,
+<a href=#736 id=736 data-nosnippet>736</a>        }
+<a href=#737 id=737 data-nosnippet>737</a>    }
+<a href=#738 id=738 data-nosnippet>738</a>
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="doccomment">/// Deletes the agent's sessions `records`, which were `session`'s own
+<a href=#740 id=740 data-nosnippet>740</a>    /// and no longer are: its live one closes first, and the others go to
+<a href=#741 id=741 data-nosnippet>741</a>    /// the agent's process on the runtime that holds them, started for it
+<a href=#742 id=742 data-nosnippet>742</a>    /// when it is not running. An agent its runtime no longer offers keeps
+<a href=#743 id=743 data-nosnippet>743</a>    /// them.
+<a href=#744 id=744 data-nosnippet>744</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>delete_acp_sessions(
+<a href=#745 id=745 data-nosnippet>745</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#746 id=746 data-nosnippet>746</a>        session: SessionId,
+<a href=#747 id=747 data-nosnippet>747</a>        records: Vec&lt;AcpSessionRecord&gt;,
+<a href=#748 id=748 data-nosnippet>748</a>    ) {
+<a href=#749 id=749 data-nosnippet>749</a>        <span class="kw">for </span>record <span class="kw">in </span>records {
+<a href=#750 id=750 data-nosnippet>750</a>            <span class="kw">let </span>live = {
+<a href=#751 id=751 data-nosnippet>751</a>                <span class="kw">let </span><span class="kw-2">mut </span>sessions = <span class="self">self
+<a href=#752 id=752 data-nosnippet>752</a>                    </span>.inner
+<a href=#753 id=753 data-nosnippet>753</a>                    .acp
+<a href=#754 id=754 data-nosnippet>754</a>                    .processes
+<a href=#755 id=755 data-nosnippet>755</a>                    .sessions
+<a href=#756 id=756 data-nosnippet>756</a>                    .lock()
+<a href=#757 id=757 data-nosnippet>757</a>                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">match </span>sessions.get(<span class="kw-2">&amp;</span>session) {
+<a href=#759 id=759 data-nosnippet>759</a>                    <span class="prelude-val">Some</span>(live) <span class="kw">if </span>live.acp_session_id == record.acp_session_id =&gt; {
+<a href=#760 id=760 data-nosnippet>760</a>                        sessions.remove(<span class="kw-2">&amp;</span>session)
+<a href=#761 id=761 data-nosnippet>761</a>                    }
+<a href=#762 id=762 data-nosnippet>762</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#763 id=763 data-nosnippet>763</a>                }
+<a href=#764 id=764 data-nosnippet>764</a>            };
+<a href=#765 id=765 data-nosnippet>765</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(live) = live {
+<a href=#766 id=766 data-nosnippet>766</a>                <span class="self">self</span>.end_live_session(live, <span class="bool-val">true</span>).<span class="kw">await</span>;
+<a href=#767 id=767 data-nosnippet>767</a>                <span class="kw">continue</span>;
+<a href=#768 id=768 data-nosnippet>768</a>            }
+<a href=#769 id=769 data-nosnippet>769</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(agent) = <span class="self">self</span>.inner.acp.runtime_agents().into_iter().find(|agent| {
+<a href=#770 id=770 data-nosnippet>770</a>                agent.runtime == record.runtime_id
+<a href=#771 id=771 data-nosnippet>771</a>                    &amp;&amp; agent.agent == record.runtime_agent
+<a href=#772 id=772 data-nosnippet>772</a>                    &amp;&amp; agent.available()
+<a href=#773 id=773 data-nosnippet>773</a>            }) <span class="kw">else </span>{
+<a href=#774 id=774 data-nosnippet>774</a>                <span class="kw">continue</span>;
+<a href=#775 id=775 data-nosnippet>775</a>            };
+<a href=#776 id=776 data-nosnippet>776</a>            <span class="kw">if let </span><span class="prelude-val">Ok</span>((process, _use)) = <span class="self">self</span>.inner.acp.processes.acquire(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, <span class="kw-2">&amp;</span>agent).<span class="kw">await
+<a href=#777 id=777 data-nosnippet>777</a>            </span>{
+<a href=#778 id=778 data-nosnippet>778</a>                end_agent_session(<span class="kw-2">&amp;</span>process, <span class="kw-2">&amp;</span>record.acp_session_id, <span class="bool-val">false</span>, <span class="bool-val">true</span>).<span class="kw">await</span>;
+<a href=#779 id=779 data-nosnippet>779</a>            }
+<a href=#780 id=780 data-nosnippet>780</a>        }
+<a href=#781 id=781 data-nosnippet>781</a>    }
+<a href=#782 id=782 data-nosnippet>782</a>}
+<a href=#783 id=783 data-nosnippet>783</a>
+<a href=#784 id=784 data-nosnippet>784</a><span class="doccomment">/// How long the agent gets to answer `session/close` and `session/delete`.
+<a href=#785 id=785 data-nosnippet>785</a></span><span class="kw">const </span>END_TIMEOUT: Duration = Duration::from_secs(<span class="number">10</span>);
+<a href=#786 id=786 data-nosnippet>786</a>
+<a href=#787 id=787 data-nosnippet>787</a><span class="doccomment">/// Asks the agent to close its session `acp_session_id` (`close`, when it
+<a href=#788 id=788 data-nosnippet>788</a>/// offers `session/close`) and then to delete it (`delete`, when it offers
+<a href=#789 id=789 data-nosnippet>789</a>/// `session/delete`). What it answers changes nothing.
+<a href=#790 id=790 data-nosnippet>790</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>end_agent_session(
+<a href=#791 id=791 data-nosnippet>791</a>    process: <span class="kw-2">&amp;</span>AgentProcess,
+<a href=#792 id=792 data-nosnippet>792</a>    acp_session_id: <span class="kw-2">&amp;</span>str,
+<a href=#793 id=793 data-nosnippet>793</a>    close: bool,
+<a href=#794 id=794 data-nosnippet>794</a>    delete: bool,
+<a href=#795 id=795 data-nosnippet>795</a>) {
+<a href=#796 id=796 data-nosnippet>796</a>    <span class="kw">let </span>caps = <span class="kw-2">&amp;</span>process.init().agent_capabilities;
+<a href=#797 id=797 data-nosnippet>797</a>    <span class="kw">let </span>reference = wire::SessionRef {
+<a href=#798 id=798 data-nosnippet>798</a>        session_id: acp_session_id,
+<a href=#799 id=799 data-nosnippet>799</a>    };
+<a href=#800 id=800 data-nosnippet>800</a>    <span class="kw">let </span>request = |method| {
+<a href=#801 id=801 data-nosnippet>801</a>        tokio::time::timeout(
+<a href=#802 id=802 data-nosnippet>802</a>            END_TIMEOUT,
+<a href=#803 id=803 data-nosnippet>803</a>            process
+<a href=#804 id=804 data-nosnippet>804</a>                .peer
+<a href=#805 id=805 data-nosnippet>805</a>                .request::&lt;<span class="kw">_</span>, serde_json::Value&gt;(method, <span class="kw-2">&amp;</span>reference),
+<a href=#806 id=806 data-nosnippet>806</a>        )
+<a href=#807 id=807 data-nosnippet>807</a>    };
+<a href=#808 id=808 data-nosnippet>808</a>    <span class="kw">if </span>close &amp;&amp; caps.session(<span class="string">"close"</span>) {
+<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let _ </span>= request(wire::method::SESSION_CLOSE).<span class="kw">await</span>;
+<a href=#810 id=810 data-nosnippet>810</a>    }
+<a href=#811 id=811 data-nosnippet>811</a>    <span class="kw">if </span>delete &amp;&amp; caps.session(<span class="string">"delete"</span>) {
+<a href=#812 id=812 data-nosnippet>812</a>        <span class="kw">let _ </span>= request(wire::method::SESSION_DELETE).<span class="kw">await</span>;
+<a href=#813 id=813 data-nosnippet>813</a>    }
+<a href=#814 id=814 data-nosnippet>814</a>}
 </code></pre></div></section></main></body></html>

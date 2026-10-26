@@ -3678,6 +3678,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-25-documents-as-templates-over-a-declaration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-25): documents as templates over a declaration
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4005,6 +4014,15 @@
   <a href="#addendum-2026-10-25-a-steer-waits-until-the-agent-takes-it" class="md-nav__link">
     <span class="md-ellipsis">
       Addendum (2026-10-25): a steer waits until the agent takes it
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-25-documents-as-templates-over-a-declaration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-25): documents as templates over a declaration
     </span>
   </a>
   
@@ -5291,6 +5309,133 @@ a model run's steered input does, with no mark of its own.</p>
 <li><strong>Clients</strong> no longer mark steered messages: the TUI's and the web
   client's <em>↪ steered into the agent's running turn</em> are gone. The
   <code>steered</code> record stays in the session log.</li>
+</ul>
+<h2 id="addendum-2026-10-25-documents-as-templates-over-a-declaration">Addendum (2026-10-25): documents as templates over a declaration<a class="headerlink" href="#addendum-2026-10-25-documents-as-templates-over-a-declaration" title="Permanent link">&para;</a></h2>
+<p>Status: <strong>implemented</strong> (2026-10-25; client protocol 1.32.0); see the
+implementation notes at its end.</p>
+<p>User request: one ACP agent declaration (<code>claude</code>) serves several agent
+documents, each with its own cookie permissions, mode, and body. User
+decisions of the same day: the key is <code>acp.agent</code>; a declaration with no
+document of its own ID stays an agent with the default document.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># ~/.cookie-agent/agents/claude-review.md</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nn">---</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Claude Code, read-only reviewer</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">subagent</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">acp</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">claude</span><span class="w">          </span><span class="c1"># a [runtimes.*.acp.agents.claude] declaration</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plan</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">read</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">write</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">bash</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"> </span><span class="s">"git</span><span class="nv"> </span><span class="s">diff</span><span class="nv"> </span><span class="s">*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">allow</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">ask</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="nn">---</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="l l-Scalar l-Scalar-Plain">You review the change you are given and report findings; you do not edit.</span>
+</code></pre></div>
+<ul>
+<li><strong><code>acp.agent</code></strong> names the declaration the document runs: the key of a
+  <code>[runtimes.&lt;id&gt;.acp.agents.&lt;agent&gt;]</code> table. It follows the agent ID
+  grammar; anything else fails the load (<code>acp.agent</code>, strict like the
+  block's other fields). Absent, it is the document's own ID, so
+  <code>claude.md</code> with <code>acp: {}</code> keeps meaning what it means today.</li>
+<li><strong>It names a declaration, never a document.</strong> <code>acp.agent: claude</code> runs
+  the runtimes' <code>claude</code> whether or not <code>claude.md</code> exists; settings are not
+  inherited from it, and documents cannot chain.</li>
+<li><strong>The document's ID is the agent's ID.</strong> <code>claude-review</code> is listed,
+  picked, delegated to, and scheduled by that ID; its synthetic model is
+  <code>acp/claude-review</code>, and an ACP session record's <code>agent</code> is it while
+  <code>runtime_agent</code> is the declaration (<code>claude</code>).</li>
+<li><strong>Bare declarations stay agents.</strong> A declared ID with no document of that
+  ID is the agent of that ID with the default document, as now. A
+  <code>claude.md</code> with <code>enabled: false</code> hides it, and the templates over
+  <code>claude</code> are unaffected.</li>
+<li><strong>Shadowing</strong> (user decision of the same day: a diagnostic, not a
+  failed load). A document whose ID a runtime declares wins over the
+  declaration as before. With an <code>acp</code> block naming another declaration
+  (<code>claude.md</code> with <code>acp.agent: codex</code>), the <code>claude</code> declaration is no
+  agent of its own and <code>ConfigStatus.diagnostics</code> says so, as for a
+  document without an <code>acp</code> block.</li>
+<li><strong>Offers and placement.</strong> A document's offers are the runtimes that
+  declare its <code>acp.agent</code> (the engine's <code>AcpOffers</code>, relabelled with the
+  document's ID). Placement, the refusals, availability, and the
+  one-offering-runtime rule for <code>runtime.attach</code> are unchanged, judged
+  against those runtimes.</li>
+<li><strong>One process per declaration and runtime.</strong> <code>ProcessKey</code> already names
+  the runtime and the declaration, so <code>claude</code> and <code>claude-review</code> share
+  one agent process, each cookie session with its own ACP session.
+  Everything a template sets is per ACP session already: the starting mode
+  and config options, <code>models</code>, <code>hide_tools</code> (the MCP bridge is started
+  per session), permissions, and the first prompt's body.</li>
+<li><strong>Switching agents in a session</strong> from one template to another starts a
+  new ACP session: resume and load take the latest record of the session's
+  current agent, and only when its <code>runtime_id</code> and <code>runtime_agent</code> are
+  the ones that run the agent now (a document whose <code>acp.agent</code> changed
+  starts afresh, with the diagnostic a move between runtimes gives).</li>
+<li><strong>What the agent reports is the declaration's.</strong> <code>acp-agents.json</code> (the
+  last options and input media) is keyed by declaration and runtime, not
+  by the cookie agent: <code>KnownAgents::update</code> is called with
+  <code>RuntimeAgent::agent</code> instead of <code>RuntimeAgent::id</code>. Existing entries
+  are valid as they are, since every one has the two equal. Every
+  template's <code>AgentRuntime.options</code> is that state with its own
+  <code>acp.mode</code>, <code>acp.config</code>, and <code>models</code> applied; the option IDs the
+  configuration diagnostics use are the declaration's.</li>
+<li><strong>Undeclared.</strong> A document whose <code>acp.agent</code> no runtime declares yet is
+  accepted provisionally with the diagnostic of today, which clears once a
+  runtime reports that declaration; delegation targets resolve the same
+  way.</li>
+<li><strong>Out of scope.</strong> <code>command</code> and <code>env</code> stay with the declaration, and the
+  templates share its process, so a template cannot change them (a
+  different <code>CLAUDE_CONFIG_DIR</code> is a second declaration).</li>
+</ul>
+<p><strong>Protocol.</strong> No schema change. <code>AgentRuntime.agent</code> already carries the
+declaration's key; it now differs from the agent's ID for a template, and
+its documentation says so. Client protocol minor bump, for clients that
+show it: the TUI's and the web's agent pickers and <code>list_agents</code> name the
+declaration when it differs (<code>[claude on local]</code>, <code>acp agent: claude</code>).
+Plugin and runtime protocols unchanged; the history format is unchanged
+(<code>AcpSessionRecord</code> already has <code>runtime_agent</code>).</p>
+<p><strong>Docs.</strong> The <a href="../../extend/acp-agents/">ACP agents guide</a> gets a
+<em>Several documents over one agent</em> section with the example above; the
+agent document reference in <a href="../../extend/agents/">agents</a> lists
+<code>acp.agent</code>.</p>
+<p><strong>Tests.</strong> Two documents over one declaration: both listed, each with its
+own permissions deciding the agent's requests and its own <code>hide_tools</code> in
+the bridge, one process serving both sessions; options reported in one
+session shown on the other's draft with its own <code>acp.mode</code> applied; a bare
+declaration beside its templates, and hidden by <code>enabled: false</code>; a
+document naming another declaration shadowing its own ID's (the
+diagnostic); <code>acp.agent</code> not an agent ID refused at load; an undeclared
+<code>acp.agent</code> provisional until a runtime reports it; switching a session
+between two templates starting a new ACP session, and a changed
+<code>acp.agent</code> refusing resume; an old <code>acp-agents.json</code> read unchanged.</p>
+<p><strong>Implementation notes</strong> (2026-10-25):</p>
+<ul>
+<li><code>AcpDocumentSettings::agent</code> (<code>acp.agent</code>) and <code>declaration(id)</code>. The
+  registry groups declarations by <code>RuntimeAgent::agent</code>, runs each document
+  with an <code>acp</code> block over its declaration's offers relabelled with its ID,
+  then gives every declared ID no document has the default document;
+  <code>AcpOffers::declaration</code> names the key.</li>
+<li><code>KnownAgents</code> is updated by <code>RuntimeAgent::agent</code>. The runner's resume and
+  branch check compares <code>runtime_agent</code> with the placed declaration besides
+  <code>runtime_id</code> (<em>The agent's earlier session is of ACP agent <code>fixture</code>, and
+  its document now runs <code>second</code> ...</em>); an eager fork refuses the same way.</li>
+<li><code>ConfigStatus.diagnostics</code>: <em>ACP agent <code>fixture</code> of runtime <code>local</code> is
+  ignored: the agent document <code>fixture</code> runs <code>ghost</code> (<code>acp.agent</code>) ...</em>, and
+  <em>agent <code>fixture</code> runs ACP agent <code>ghost</code> (<code>acp.agent</code>), which no runtime
+  declares yet ...</em> for a document naming an undeclared one.</li>
+<li>Clients: <code>cookie_agent_client_state::acp::declaration</code>; <code>runtime_note</code>
+  gives <code>claude on local</code> or <code>claude · needs local attached</code>.</li>
+<li><strong>Bridged tools in the transcript</strong> (same day, user report): an ACP turn
+  now records <code>model_tools_published</code> with each attempt, the names the
+  bridge's <code>tools/list</code> gives (<code>bridged_tool_definitions</code>: the run's tool
+  definitions without <code>hide_tools</code>), skipped when the latest record
+  matches, as a model run's request tools are. The tools row of the TUI and
+  the web client titles them <em>cookie tools · N offered to the agent</em> while
+  the latest run is the session's ACP agent (<code>rows::model_tools_summary</code>).
+  No wire change.</li>
+<li>Tests: <code>crates/engine/src/runtime/tests/acp_templates.rs</code>,
+  <code>a_turn_records_the_tools_the_bridge_offers_for_the_clients</code>, the config
+  test <code>an_acp_document_names_the_declaration_it_runs</code>, and the client
+  note and summary tests.</li>
 </ul>
 
 
