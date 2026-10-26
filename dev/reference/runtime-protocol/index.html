@@ -2708,6 +2708,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#settings-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Settings changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#runtimecontext" class="md-nav__link">
     <span class="md-ellipsis">
       runtime/context
@@ -4176,6 +4185,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#settings-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Settings changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#runtimecontext" class="md-nav__link">
     <span class="md-ellipsis">
       runtime/context
@@ -4483,7 +4501,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.9.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.10.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -4552,7 +4570,13 @@ runtime reports its project skills as before.
 1.9.0 added an MCP server report's optional <code>server_tools</code>: every tool the
 server lists, by the server's own name (the name its <code>include_tools</code> and
 <code>exclude_tools</code> match) and in its order, each with <code>filtered: true</code> when the
-filters left it out. Clients list them in their machines views.</p>
+filters left it out. Clients list them in their machines views.
+1.10.0 added <code>runtime/settings_changed</code>, the daemon's notification of a
+runtime's whole new settings, which a runtime applies without reconnecting
+(see <a href="#settings-changes">Settings changes</a>). A runtime that dials in now
+gets its MCP servers and ACP agents from the daemon's <code>[runtimes.&lt;id&gt;]</code> as a
+template does; a <code>cookie runtime serve</code> of this version no longer reads its
+own machine's <code>[runtimes.local]</code>.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -4710,6 +4734,12 @@ that dials in after its instances failed reopens them. Calls are never retried t
 <td>daemon → runtime</td>
 <td>request</td>
 <td>Stop gracefully</td>
+</tr>
+<tr>
+<td><code>runtime/settings_changed</code></td>
+<td>daemon → runtime</td>
+<td>notification</td>
+<td>The runtime's whole new settings, as <code>runtime/initialize</code> carries them; since 1.10.0 (see <a href="#settings-changes">Settings changes</a>)</td>
 </tr>
 <tr>
 <td><code>runtime/ping</code></td>
@@ -4918,7 +4948,7 @@ ignored.</p>
 </tr>
 <tr>
 <td><code>settings.acp_agents</code></td>
-<td>Optional, since 1.7.0: the template's ACP agents (<code>[runtimes.&lt;id&gt;.acp.agents]</code>, or <code>[runtimes.local]</code> for the daemon's own runtime): <code>id</code>, <code>command</code>, <code>env</code>, <code>description</code>, <code>enabled</code>. A runtime given none hosts its own machine's <code>[runtimes.local.acp.agents]</code>, as a runtime that dials in does (see <a href="#acp-agents">ACP agents</a>).</td>
+<td>Optional, since 1.7.0: the runtime's ACP agents (<code>[runtimes.&lt;id&gt;.acp.agents]</code>, of a template or of a runtime that dials in, or <code>[runtimes.local]</code> for the daemon's own runtime): <code>id</code>, <code>command</code>, <code>env</code>, <code>description</code>, <code>enabled</code>. A runtime given none hosts none, unless a program embedding it gave it agents of its own (see <a href="#acp-agents">ACP agents</a>).</td>
 </tr>
 <tr>
 <td><code>settings.mcp_servers</code></td>
@@ -5110,6 +5140,24 @@ sends it without a name when a session that uses any instance of the runtime
 is created or opened, and the session's next run waits for the answer.</p>
 <p>A daemon older than 1.5.0 knows no tools outside an instance, so a runtime
 that sees one in <code>runtime/initialize</code> hosts every server per workspace.</p>
+<h3 id="settings-changes">Settings changes<a class="headerlink" href="#settings-changes" title="Permanent link">&para;</a></h3>
+<p>Since 1.10.0 the daemon sends <code>runtime/settings_changed</code> (<code>settings</code>, the
+whole object <code>runtime/initialize</code> carries) to a connected runtime whenever
+the daemon's configuration of it changes: its <code>[runtimes.&lt;id&gt;]</code> MCP servers
+or ACP agents, <code>[tool_output]</code>, or <code>[agent_md]</code>. It sends it only to a
+runtime that answered <code>runtime/initialize</code> with 1.10.0 or later; an older
+one gets the change when it next connects. A runtime that connected while
+the configuration changed gets the newer settings right after its
+initialize reply.</p>
+<p>The runtime applies them as <code>runtime/initialize</code> would, by name: a server or
+agent that is new starts, one that is gone stops, one whose definition
+changed restarts, and the others keep running. Every instance takes the
+workspace-scoped servers, including one that opens meanwhile; the
+runtime-scoped ones follow <code>runtime/mcp_changed</code> and <code>runtime/tools_changed</code>
+as usual, and the instances' own <code>mcp/changed</code> and
+<code>capability/tools_changed</code>. Changed agents are reported with
+<code>runtime/agents_changed</code>. Settings it cannot apply leave the runtime as it
+was, and it says why on its standard error.</p>
 <h3 id="runtimecontext"><code>runtime/context</code><a class="headerlink" href="#runtimecontext" title="Permanent link">&para;</a></h3>
 <p>Params: <code>instance</code>, and <code>preset</code>, the run's agent preset (optional; must be a
 valid agent ID). Result: <code>agent_md</code>, the <code>AGENTS.md</code> entries in prompt order, and <code>skipped</code>,
@@ -5336,8 +5384,7 @@ them; the daemon speaks ACP to them.</p>
 <ul>
 <li><strong>Declarations.</strong> The runtime reports its agents in <code>runtime/initialize</code>'s
   <code>acp_agents</code>, and again with <code>runtime/agents_changed</code> (<code>agents</code>, the whole
-  list) when they change, such as when a runtime that dials in reads its
-  configuration again. The daemon lists each under its own ID; runtimes
+  list) when they change, such as after <code>runtime/settings_changed</code>. The daemon lists each under its own ID; runtimes
   that report the same ID offer the same agent.</li>
 <li><strong>Processes.</strong> <code>agent/start</code> (<code>agent</code>) runs the agent's <code>command</code> without a
   shell (on Windows, a bare program name also finds a <code>.cmd</code> or <code>.bat</code>

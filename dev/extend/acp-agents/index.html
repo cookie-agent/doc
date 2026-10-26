@@ -4126,8 +4126,8 @@ daemon. The <a href="../../specs/acp-agents/">ACP agents spec</a> has the design
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Gemini CLI"</span>
 </code></pre></div>
 <p>The daemon lists them as <code>claude</code>, <code>codex</code>, and <code>gemini</code>, the keys of their
-declarations, once it restarts (<code>[runtimes.local]</code> changes with the rest of
-<code>runtimes</code>, at the next start). Pick one in the agent picker of the TUI (<code>/agent</code>) or the
+declarations, as soon as the configuration is applied: a changed <code>acp</code>
+table reaches its runtime at once. Pick one in the agent picker of the TUI (<code>/agent</code>) or the
 web client (the agent chip) for a new session, and send a message: the daemon starts the
 agent's process on the first turn, opens an ACP session in the session's
 workspace, and shows the agent's reply, thoughts, tool calls, and plan as
@@ -4187,11 +4187,12 @@ run on the remote machine, with its credentials:</p>
 <code>labpc</code> workspace); the daemon starts the runtime when the session first
 uses it. See <a href="#which-runtime-runs-it">Which runtime runs it</a>.</p>
 <h2 id="on-a-machine-that-dials-in">On a machine that dials in<a class="headerlink" href="#on-a-machine-that-dials-in" title="Permanent link">&para;</a></h2>
-<p>A <a href="../../runtimes/dial-in/">runtime that dials in</a>
-declares its agents in its own machine's <code>config.toml</code>, under
-<code>[runtimes.local]</code>, exactly where its MCP servers go:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># ~/.cookie-agent/config.toml on the lab machine</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">[runtimes.local.acp.agents.claude]</span>
+<p>A <a href="../../runtimes/dial-in/">runtime that dials in</a> hosts the agents of its
+table in the daemon's <code>config.toml</code>: a <code>[runtimes.&lt;id&gt;]</code> without <code>command</code>,
+named after the ID it dials in with, exactly where its MCP servers go. The
+command runs on the lab machine:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># ~/.cookie-agent/config.toml on the daemon's machine</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">[runtimes.lab.acp.agents.claude]</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"npx"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-y"</span><span class="p">,</span><span class="w"> </span><span class="s2">"@agentclientprotocol/claude-agent-acp"</span><span class="p">]</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Claude Code on the lab machine"</span>
 </code></pre></div>
@@ -4199,14 +4200,13 @@ declares its agents in its own machine's <code>config.toml</code>, under
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cookie<span class="w"> </span>runtime<span class="w"> </span>serve<span class="w"> </span>--daemon<span class="w"> </span>ws://laptop:7419/ws<span class="w"> </span>--id<span class="w"> </span>lab<span class="w"> </span>--token<span class="w"> </span>&lt;token&gt;
 </code></pre></div>
 <p>The agent is <code>claude</code>, which a session that attaches <code>lab</code> runs on the lab
-machine while the runtime is connected. The runtime reads its configuration
-again every few seconds and reports changed agents, so adding one needs no
-restart. To keep it connected, run it as a
-<a href="../../runtimes/service/">service</a>.</p>
+machine while the runtime is connected. A change to the table reaches the
+connected runtime at once, so adding an agent needs no restart. To keep it
+connected, run it as a <a href="../../runtimes/service/">service</a>.</p>
 <h2 id="which-runtime-runs-it">Which runtime runs it<a class="headerlink" href="#which-runtime-runs-it" title="Permanent link">&para;</a></h2>
 <p>An agent's ID is the key of its declaration, whichever runtime declares it:
-<code>[runtimes.local.acp.agents.claude]</code> and a lab machine's own
-<code>[runtimes.local.acp.agents.claude]</code> both offer the one agent <code>claude</code>. A
+<code>[runtimes.local.acp.agents.claude]</code> and <code>[runtimes.lab.acp.agents.claude]</code>
+both offer the one agent <code>claude</code>. A
 session runs it on the runtime it attaches that offers it:</p>
 <ul>
 <li>A session that attaches <code>local</code> (the default for a new session) runs

@@ -3759,9 +3759,9 @@ attach it like any other runtime while it is connected.</p>
   processes it starts.</li>
 <li><strong>Identity.</strong> <code>--id</code> is the runtime ID, <code>[a-z][a-z0-9_]{0,31}</code>; without
   it, the host name, sanitized (<code>host_</code> in front when it does not start with
-  a letter). It must not be <code>global</code>, <code>local</code>, or a configured
-  <code>[runtimes.&lt;id&gt;]</code>, and only one runtime may be connected under an ID at a
-  time.</li>
+  a letter). It must not be <code>global</code>, <code>local</code>, or a <code>[runtimes.&lt;id&gt;]</code>
+  template with a <code>command</code>, and only one runtime may be connected under an
+  ID at a time.</li>
 <li><strong>Refusals.</strong> The daemon says why it refuses a runtime, and the runtime
   prints it. A refusal that retrying cannot fix, a configured or reserved
   ID or a wrong token, ends <code>cookie runtime serve --daemon</code> with an error:</li>
@@ -3816,10 +3816,25 @@ attach it like any other runtime while it is connected.</p>
   and then <code>failed</code>; a runtime that vanished without one, such as one that
   was killed or lost its network, shows the transport's error instead, for
   example <code>Connection reset without closing handshake</code>.
-- <strong>MCP servers.</strong> It hosts its own machine's
-  <a href="../tools/#mcp-servers">MCP servers</a>: those of
-  <code>[runtimes.local.mcp]</code> in that machine's <code>config.toml</code>, a
-  <code>scope = "runtime"</code> one from the moment it connects.
+- <strong>MCP servers and ACP agents.</strong> It hosts the ones the daemon's
+  configuration gives it: a <code>[runtimes.&lt;id&gt;]</code> table with no <code>command</code>, named
+  after the ID it dials in with, holds its
+  <a href="../tools/#mcp-servers">MCP servers</a> and <a href="../tools/#acp-agents">ACP agents</a>,
+  a <code>scope = "runtime"</code> server from the moment it connects. Changes to the
+  table reach the connected runtime at once: added servers and agents
+  start, removed ones stop, changed ones restart, and the rest keep running.
+  The machine itself keeps only how to reach the daemon, <code>[server] url</code> and
+  <code>token</code>; its own <code>[runtimes.local]</code> is its own daemon's, and a runtime
+  that dials in warns at startup that it does not host it:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># ~/.cookie-agent/config.toml on the daemon's machine</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">[runtimes.labpc]</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">[runtimes.labpc.mcp.servers.my_chrome]</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"npx"</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"-y"</span><span class="p">,</span><span class="w"> </span><span class="s2">"chrome-devtools-mcp@latest"</span><span class="p">]</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">scope</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"runtime"</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">[runtimes.labpc.acp.agents.claude]</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"npx"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-y"</span><span class="p">,</span><span class="w"> </span><span class="s2">"@agentclientprotocol/claude-agent-acp"</span><span class="p">]</span>
+</code></pre></div>
 - <strong>Roots.</strong> <code>--root</code> limits its workspaces, as for
   <a href="../templates/#cookie-runtime-serve"><code>--stdio</code></a>.
 - <strong>Clients on its machine.</strong> Plain <code>cookie</code> and <code>cookie attach</code> on the

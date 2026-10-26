@@ -3817,10 +3817,10 @@
 
 <h1 id="mcp-servers-and-acp-agents-on-runtimes">MCP servers and ACP agents on runtimes<a class="headerlink" href="#mcp-servers-and-acp-agents-on-runtimes" title="Permanent link">&para;</a></h1>
 <p>A runtime hosts MCP servers and ACP agents on its own machine. Declare them
-in the runtime's <code>mcp.servers</code> and <code>acp.agents</code> tables: under
-<code>[runtimes.&lt;id&gt;]</code> for a <a href="../templates/">template</a>, under <code>[runtimes.local]</code>
-for the daemon's machine, and under <code>[runtimes.local]</code> in the <code>config.toml</code>
-of a machine whose <a href="../dial-in/">runtime dials in</a>.
+in the runtime's <code>mcp.servers</code> and <code>acp.agents</code> tables, all in the daemon's
+<code>config.toml</code>: under <code>[runtimes.&lt;id&gt;]</code> for a <a href="../templates/">template</a> and
+for a <a href="../dial-in/">runtime that dials in</a> as <code>&lt;id&gt;</code> (a table without
+<code>command</code>), and under <code>[runtimes.local]</code> for the daemon's machine.
 <a href="../../extend/mcp/">MCP servers</a> and <a href="../../extend/acp-agents/">ACP agents</a>
 cover the servers and agents themselves; this page covers hosting them on a
 runtime.</p>
@@ -3884,10 +3884,9 @@ says how many copies run:</p>
   list each attachment's servers, the runtime's shared ones included, with
   their state, tool count, and failure, and the machines view lists every
   server of each connected runtime, so a runtime's servers show before any
-  session opens a workspace of it. They cannot be edited there; change the
-  template and restart the daemon. A dial-in runtime's own servers
-  (<code>[runtimes.local.mcp]</code> on its machine) are listed too, with the source
-  <code>runtime machine config</code>, since client protocol 1.12.0.</li>
+  session opens a workspace of it. Each lists its tools by the server's own
+  names, those its filters left out apart (client protocol 1.36.0). Edits
+  to a runtime's table reach it at once (see <a href="../templates/">Live changes</a>).</li>
 </ul>
 <h2 id="acp-agents">ACP agents<a class="headerlink" href="#acp-agents" title="Permanent link">&para;</a></h2>
 <p>A runtime hosts ACP agents, external coding agents that take a session's or
@@ -3895,9 +3894,9 @@ a subagent's turns over the Agent Client Protocol (see the
 <a href="../../specs/acp-agents/">ACP agents spec</a>, and the
 <a href="../../extend/acp-agents/">ACP agents guide</a> for setting up Claude Code,
 Codex, and Gemini CLI). Declare them exactly where MCP
-servers go: <code>[runtimes.local.acp.agents.&lt;agent&gt;]</code> on the daemon's machine and
-on a machine whose runtime dials in, and <code>[runtimes.&lt;id&gt;.acp.agents.&lt;agent&gt;]</code>
-for a template.</p>
+servers go: <code>[runtimes.local.acp.agents.&lt;agent&gt;]</code> for the daemon's machine,
+and <code>[runtimes.&lt;id&gt;.acp.agents.&lt;agent&gt;]</code> for a template or a runtime that
+dials in.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[runtimes.local.acp.agents.claude]</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"npx"</span><span class="p">,</span><span class="w"> </span><span class="s2">"-y"</span><span class="p">,</span><span class="w"> </span><span class="s2">"@agentclientprotocol/claude-agent-acp"</span><span class="p">]</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Claude Code"</span>
@@ -3965,10 +3964,8 @@ for a template.</p>
   <a href="../../extend/agents/#acp-agent-documents">ACP agent documents</a>). Without
   one the agent has mode <code>all</code>, the first offering runtime's description,
   and the default rules.</li>
-<li><strong>Changes.</strong> The daemon's templates and <code>[runtimes.local]</code> apply when the
-  daemon next starts, like the rest of <code>runtimes</code>. A runtime that dials in
-  reads its machine's configuration again every few seconds and reports
-  changed agents.</li>
+<li><strong>Changes.</strong> A changed <code>acp</code> table reaches a connected runtime at once: it
+  starts the new agents, stops the removed ones, and reports the change.</li>
 <li><strong>Processes.</strong> Each agent runs one process per runtime, shared by its
   sessions, started on its first turn and stopped after
   <a href="../../engine/acp/"><code>[acp] idle_shutdown_ms</code></a> with no turn in progress, with
