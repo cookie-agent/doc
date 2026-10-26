@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DAEMON_RESTART_SINCE","DAEMON_TOO_OLD_TO_RESTART","RESTART_WHEN_IDLE"],"enum":["RestartOutcome"],"fn":["daemon_can_restart","restart_banner","restart_explanation","restart_now_label","restart_parts","restarting_text","running_turns"]};
+window.SIDEBAR_ITEMS = {"constant":["DAEMON_RESTART_SINCE","DAEMON_TOO_OLD_TO_RESTART","RESTART_WHEN_IDLE"],"enum":["RestartOutcome"],"fn":["daemon_can_restart","restart_banner","restart_explanation","restart_now_label","restart_parts","restarting_text","running_turns","waiting_for"]};
