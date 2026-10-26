@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["block_full","display_full","next_permission_mode","permission_mode_label"],"struct":["FullContentRead"]};
+window.SIDEBAR_ITEMS = {"constant":["RECALL_ANY_SINCE"],"fn":["block_full","daemon_recalls_any_input","display_full","next_permission_mode","permission_mode_label"],"struct":["FullContentRead"]};
