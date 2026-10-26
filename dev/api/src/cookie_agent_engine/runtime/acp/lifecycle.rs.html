@@ -497,7 +497,7 @@
 <a href=#497 id=497 data-nosnippet>497</a>    /// session it serves.
 <a href=#498 id=498 data-nosnippet>498</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>probe_fork_point(<span class="kw-2">&amp;</span><span class="self">self</span>, live: <span class="kw-2">&amp;</span><span class="kw">super</span>::runner::LiveSession) {
 <a href=#499 id=499 data-nosnippet>499</a>        <span class="kw">let </span>process = <span class="kw-2">&amp;</span>live.process;
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">if </span>!process.init().agent_capabilities.session(<span class="string">"fork"</span>)
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">if </span>!process.init().capabilities.session(<span class="string">"fork"</span>)
 <a href=#501 id=501 data-nosnippet>501</a>            || process.fork_point.get().is_some()
 <a href=#502 id=502 data-nosnippet>502</a>            || process
 <a href=#503 id=503 data-nosnippet>503</a>                .fork_probe
@@ -524,7 +524,7 @@
 <a href=#524 id=524 data-nosnippet>524</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(cookie_agent_runtime_api::rpc::RpcError::Remote { code: -<span class="number">32602</span>, .. })) =&gt; <span class="bool-val">true</span>,
 <a href=#525 id=525 data-nosnippet>525</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(response)) =&gt; {
 <a href=#526 id=526 data-nosnippet>526</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = response.session_id.filter(|id| !id.is_empty()) {
-<a href=#527 id=527 data-nosnippet>527</a>                    <span class="kw">let </span>deletes = process.init().agent_capabilities.session(<span class="string">"delete"</span>);
+<a href=#527 id=527 data-nosnippet>527</a>                    <span class="kw">let </span>deletes = process.init().capabilities.session(<span class="string">"delete"</span>);
 <a href=#528 id=528 data-nosnippet>528</a>                    end_agent_session(process, <span class="kw-2">&amp;</span>id, !deletes, deletes).<span class="kw">await</span>;
 <a href=#529 id=529 data-nosnippet>529</a>                    process.unroute(<span class="kw-2">&amp;</span>id);
 <a href=#530 id=530 data-nosnippet>530</a>                }
@@ -649,7 +649,7 @@
 <a href=#649 id=649 data-nosnippet>649</a>            });
 <a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">let </span>live_fork = process
 <a href=#651 id=651 data-nosnippet>651</a>            .as_ref()
-<a href=#652 id=652 data-nosnippet>652</a>            .map(|process| process.init().agent_capabilities.session(<span class="string">"fork"</span>));
+<a href=#652 id=652 data-nosnippet>652</a>            .map(|process| process.init().capabilities.session(<span class="string">"fork"</span>));
 <a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>live_point = process
 <a href=#654 id=654 data-nosnippet>654</a>            .as_ref()
 <a href=#655 id=655 data-nosnippet>655</a>            .and_then(|process| process.fork_point.get().copied());
@@ -668,7 +668,7 @@
 <a href=#668 id=668 data-nosnippet>668</a>        additional_directories: <span class="kw-2">&amp;</span>[String],
 <a href=#669 id=669 data-nosnippet>669</a>        mcp_servers: <span class="kw-2">&amp;</span>[wire::McpServer],
 <a href=#670 id=670 data-nosnippet>670</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(String, wire::SessionResponse), String&gt; {
-<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">if </span>!process.init().agent_capabilities.session(<span class="string">"fork"</span>) {
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">if </span>!process.init().capabilities.session(<span class="string">"fork"</span>) {
 <a href=#672 id=672 data-nosnippet>672</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"it does not offer `session/fork`"</span>.to_owned());
 <a href=#673 id=673 data-nosnippet>673</a>        }
 <a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span>response = tokio::time::timeout(
@@ -784,16 +784,16 @@
 <a href=#784 id=784 data-nosnippet>784</a><span class="doccomment">/// How long the agent gets to answer `session/close` and `session/delete`.
 <a href=#785 id=785 data-nosnippet>785</a></span><span class="kw">const </span>END_TIMEOUT: Duration = Duration::from_secs(<span class="number">10</span>);
 <a href=#786 id=786 data-nosnippet>786</a>
-<a href=#787 id=787 data-nosnippet>787</a><span class="doccomment">/// Asks the agent to close its session `acp_session_id` (`close`, when it
-<a href=#788 id=788 data-nosnippet>788</a>/// offers `session/close`) and then to delete it (`delete`, when it offers
-<a href=#789 id=789 data-nosnippet>789</a>/// `session/delete`). What it answers changes nothing.
+<a href=#787 id=787 data-nosnippet>787</a><span class="doccomment">/// Asks the agent to close its session `acp_session_id` (`close`; every v2
+<a href=#788 id=788 data-nosnippet>788</a>/// agent offers `session/close`) and then to delete it (`delete`, when it
+<a href=#789 id=789 data-nosnippet>789</a>/// offers `session/delete`). What it answers changes nothing.
 <a href=#790 id=790 data-nosnippet>790</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>end_agent_session(
 <a href=#791 id=791 data-nosnippet>791</a>    process: <span class="kw-2">&amp;</span>AgentProcess,
 <a href=#792 id=792 data-nosnippet>792</a>    acp_session_id: <span class="kw-2">&amp;</span>str,
 <a href=#793 id=793 data-nosnippet>793</a>    close: bool,
 <a href=#794 id=794 data-nosnippet>794</a>    delete: bool,
 <a href=#795 id=795 data-nosnippet>795</a>) {
-<a href=#796 id=796 data-nosnippet>796</a>    <span class="kw">let </span>caps = <span class="kw-2">&amp;</span>process.init().agent_capabilities;
+<a href=#796 id=796 data-nosnippet>796</a>    <span class="kw">let </span>caps = <span class="kw-2">&amp;</span>process.init().capabilities;
 <a href=#797 id=797 data-nosnippet>797</a>    <span class="kw">let </span>reference = wire::SessionRef {
 <a href=#798 id=798 data-nosnippet>798</a>        session_id: acp_session_id,
 <a href=#799 id=799 data-nosnippet>799</a>    };
@@ -805,7 +805,7 @@
 <a href=#805 id=805 data-nosnippet>805</a>                .request::&lt;<span class="kw">_</span>, serde_json::Value&gt;(method, <span class="kw-2">&amp;</span>reference),
 <a href=#806 id=806 data-nosnippet>806</a>        )
 <a href=#807 id=807 data-nosnippet>807</a>    };
-<a href=#808 id=808 data-nosnippet>808</a>    <span class="kw">if </span>close &amp;&amp; caps.session(<span class="string">"close"</span>) {
+<a href=#808 id=808 data-nosnippet>808</a>    <span class="kw">if </span>close {
 <a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let _ </span>= request(wire::method::SESSION_CLOSE).<span class="kw">await</span>;
 <a href=#810 id=810 data-nosnippet>810</a>    }
 <a href=#811 id=811 data-nosnippet>811</a>    <span class="kw">if </span>delete &amp;&amp; caps.session(<span class="string">"delete"</span>) {
