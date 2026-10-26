@@ -4064,8 +4064,8 @@
 
 
 <h1 id="managing-runtimes-from-clients">Managing Runtimes from Clients<a class="headerlink" href="#managing-runtimes-from-clients" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-26). D1 and D2 decided 2026-10-26; D3 to D7 in
-<a href="#9-decisions">section 9</a> await the user. Builds on <a href="../runtimes/">runtimes</a>,
+<p>Status: <strong>draft</strong> (2026-10-26); every decision in
+<a href="#9-decisions">section 9</a> made by the user on 2026-10-26. Builds on <a href="../runtimes/">runtimes</a>,
 <a href="../runtime-capabilities/">runtime capabilities</a>, <a href="../acp-agents/">ACP agents</a>,
 <a href="../mcp-tool-filters/">MCP tool filters</a>, <a href="../web-mcp-oauth/">web MCP OAuth</a>,
 and the daemon restart of <a href="../engine-configuration/">engine configuration</a>
@@ -4203,24 +4203,38 @@ tabs, and every new target gets a <code>PointerTarget</code> and a hover.</p>
   edit live.</li>
 </ul>
 <h3 id="42-acp-agents">4.2 ACP agents<a class="headerlink" href="#42-acp-agents" title="Permanent link">&para;</a></h3>
+<p>An ACP agent's ID is its declaration's key on every runtime, as today: the
+<code>claude</code> that two runtimes declare is one agent, with one document,
+<code>agents/claude.md</code>, and a session runs it on the attached runtime that
+offers it. Templates over a declaration (<code>acp.agent</code>) resolve the same way.
+The panel follows that:</p>
 <ul>
-<li><strong>List.</strong> Each agent shows its daemon id (<code>&lt;runtime&gt;-&lt;agent&gt;</code>), whether it
-  is available (its command was found), enabled, and its description.</li>
+<li><strong>List.</strong> Under each runtime, the agents it declares: key, where the
+  declaration comes from (<code>[runtimes.&lt;id&gt;]</code> or <code>profile &lt;name&gt;</code>), whether it
+  is available (its command was found), enabled, its description, and the
+  other runtimes that declare the same key.</li>
 <li>A new <code>runtimes.agents.list { runtime_id }</code> returns
-    <code>[AcpAgentEntry { agent, daemon_id, source, declaration, available,
-    enabled, description, document }]</code>.</li>
-<li><code>document</code> is the agent document's path, when one exists.</li>
+    <code>[AcpAgentEntry { agent, source, declaration, available, enabled,
+    description, documents }]</code>.</li>
+<li><code>documents</code> are the agent documents that run the declaration: the one
+    of its own ID, and every template whose <code>acp.agent</code> names it.</li>
 <li><strong>Add, edit, remove, rename, and enable.</strong> <code>runtimes.agents.add/edit/
   remove/rename</code> edit <code>[runtimes.&lt;id&gt;.acp.agents.&lt;agent&gt;]</code> (<code>command</code>,
   <code>env</code>, <code>description</code>, <code>enabled</code>) and apply it live.</li>
-<li><strong>Rename (D6)</strong> also moves <code>agents/&lt;runtime&gt;-&lt;agent&gt;.md</code> to the new id
-    in the same <code>config.apply</code>. Existing sessions keep the old agent id.
-    They resume with the default agent, as for a removed agent today, and
-    the confirmation says so.</li>
-<li><strong>Document.</strong> <strong>Open document</strong> opens <code>agents/&lt;daemon_id&gt;.md</code> in the
-  client's existing document editor: TUI <code>/config</code>, web Settings ›
-  Configuration. <strong>Create document</strong> starts from the built-in template for
-  an ACP agent: an <code>acp:</code> block, <code>description</code>, and permissions.</li>
+<li><strong>Rename (D6)</strong> renames the declaration on that runtime. When no other
+    runtime or profile still declares the old key, the same <code>config.apply</code>
+    also moves <code>agents/&lt;old&gt;.md</code> to the new key and rewrites <code>acp.agent</code> in
+    the templates that name it. When another one still does, the documents
+    stay with the old key, which those runtimes go on offering, and the
+    confirmation says so. Existing sessions keep the agent ID they
+    recorded. Where it is gone, they resume with the default agent, as for
+    a removed agent today, and the confirmation says so.</li>
+<li><strong>Documents.</strong> <strong>Open</strong> opens one of <code>documents</code> in the client's existing
+  document editor: TUI <code>/config</code>, web Settings › Configuration. <strong>Create
+  document</strong> writes <code>agents/&lt;agent&gt;.md</code> from the built-in template for an ACP
+  agent (an <code>acp:</code> block, <code>description</code>, and permissions), and <strong>New
+  template</strong> writes <code>agents/&lt;name&gt;.md</code> with <code>acp.agent: &lt;agent&gt;</code>. Both are
+  shared by every runtime that declares the key.</li>
 </ul>
 <h3 id="43-restart">4.3 Restart<a class="headerlink" href="#43-restart" title="Permanent link">&para;</a></h3>
 <p>See <a href="#6-restarting-runtimes">section 6</a>. The row shows <strong>Restart</strong> only when
@@ -4257,10 +4271,13 @@ one more layer in that computation:</p>
 <li><strong>Secrets.</strong> <code>${NAME}</code> in <code>env</code> expands on each runtime (section 3.1), so
   no secret travels from the daemon. HTTP servers that need OAuth share one
   sign-in (section 7, D3).</li>
-<li><strong>Agent documents.</strong> An ACP agent from a profile has daemon ids
-  <code>&lt;runtime&gt;-&lt;agent&gt;</code> per runtime, so per-machine documents still work. A
-  profile may also name one shared document, <code>document = "claude"</code>, used by
-  every runtime it adds the agent to (D5).</li>
+<li><strong>Agent documents (D5).</strong> A profile's ACP agent is one agent with one
+  document, <code>agents/&lt;agent&gt;.md</code>, whichever runtimes the profile adds it to,
+  and so are the templates whose <code>acp.agent</code> names it. Which runtime a
+  session runs it on is decided by the runtime capability the session
+  attaches, as for any ACP agent.</li>
+<li><strong><code>local</code> too.</strong> A profile matches the daemon's built-in <code>local</code> runtime
+  like any other.</li>
 <li><strong>Where it does not fit.</strong> An HTTP MCP server that does not need the
   machine is better in <code>global</code>: one connection instead of one per runtime.
   The editor says so when a profile adds a URL server.</li>
@@ -4330,9 +4347,8 @@ only ever holds an access token, in memory.</p>
   <code>NeedsAuth</code> (no longer <code>Failed</code>), and the panel's <strong>Sign in</strong> button
   appears for it.
 - <strong>Credential key (D3).</strong> It stays <code>server:sha256(resource URL)</code>, plus the
-  client binding the store already checks. One sign-in then serves every
-  runtime that has the same server name and URL, which is what profiles
-  want. The alternative is a per-runtime key, <code>runtime:server:hash</code>.
+  client binding the store already checks. One sign-in serves every runtime
+  that has the same server name and URL, which is what profiles want.
 - <strong>Network reach.</strong> Discovery and the token exchange run from the daemon. A
   server whose authorization server only the runtime's network reaches is
   not supported, and the begin error says so. Relaying the daemon's OAuth
@@ -4389,23 +4405,28 @@ Tests cover:</p>
 <li>the panel targets' hover sweep.</li>
 </ul>
 <h2 id="9-decisions">9. Decisions<a class="headerlink" href="#9-decisions" title="Permanent link">&para;</a></h2>
+<p>All made by the user on 2026-10-26.</p>
 <ul>
-<li><strong>D1 (decided 2026-10-26)</strong> Per-runtime settings live in the daemon's
-  <code>config.toml</code>.</li>
-<li><strong>D2 (decided 2026-10-26)</strong> A dial-in machine drops its runtime settings
-  and keeps only the connection (<code>[server] url</code> and <code>token</code>); see
-  section 3.2.</li>
-<li><strong>D3</strong> OAuth credentials are shared by server name and URL across runtimes
-  (recommended), or kept per runtime.</li>
-<li><strong>D4</strong> Profiles (section 5): build them, and opt-out with <code>enabled = false</code>
-  or <code>profiles = []</code>.</li>
-<li><strong>D5</strong> A profile's ACP agent uses per-runtime documents by default, with an
-  optional shared <code>document</code>.</li>
-<li><strong>D6</strong> Renaming an ACP agent moves its document; old sessions fall back to
-  the default agent.</li>
+<li><strong>D1</strong> Per-runtime settings live in the daemon's <code>config.toml</code>.</li>
+<li><strong>D2</strong> A dial-in machine drops its runtime settings and keeps only the
+  connection (<code>[server] url</code> and <code>token</code>); see section 3.2.</li>
+<li><strong>D3</strong> OAuth credentials are shared by server name and URL across
+  runtimes.</li>
+<li><strong>D4</strong> Build profiles (section 5), with opt-out by <code>enabled = false</code> or
+  <code>profiles = []</code>.</li>
+<li><strong>D5</strong> A profile's ACP agent has one shared document, like every ACP agent:
+  its ID is the declaration's key on every runtime, and templates over it
+  (<code>acp.agent</code>) resolve to whichever runtime the session attaches.</li>
+<li><strong>D6</strong> Renaming an ACP agent moves its documents when nothing else
+  declares the old key (section 4.2); old sessions fall back to the default
+  agent.</li>
 <li><strong>D7</strong> Restart is offered for every <code>cookie runtime serve</code>, not only ones
   run as a service, since both can exec.</li>
 </ul>
+<p>Not yet confirmed, with the defaults this spec assumes: <code>${NAME}</code> in <code>env</code>
+expands on the runtime (section 3.1); profiles match <code>local</code> (section 5);
+labpc's own <code>[runtimes.local]</code> entries move into the daemon's
+<code>[runtimes.labpc]</code> only when the user asks.</p>
 
 
 
