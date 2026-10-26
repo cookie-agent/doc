@@ -4105,8 +4105,9 @@ snapshot, in search results, and in reads.</p>
 <code>project_max_bytes</code>, and <code>overview_max_bytes</code> under <code>[memory]</code> (16384 bytes
 each by default; see <a href="../../engine/memory/">Memory [memory]</a>). A write or edit
 by a model, or by you from a client, that would leave a memory over its limit
-is refused. The model is shown the memory's current content and told to
-condense it first. A memory already over its limit, as after you lowered the
+is refused, and the model is told to read it with <code>memory_read</code> and
+condense it first. The refusal leaves the content out: after a write, the
+model could take it for what the write left. A memory already over its limit, as after you lowered the
 limit, stays valid and is still shown, marked <code>over its limit</code>; only changes
 that make it smaller are accepted until it fits.</p>
 <h2 id="agent-memory">Agent memory<a class="headerlink" href="#agent-memory" title="Permanent link">&para;</a></h2>
@@ -4273,8 +4274,8 @@ ends with the <code>offset</code> to read next. <code>memory_edit</code> takes <
   stored) to create it anyway. A weaker match saves the memory and lists the
   near ones so the agent can merge them. A body identical to an existing one
   in the same place is always refused.</li>
-<li><strong>Size limits</strong> (above): a write over the limit is refused with the
-  current content to condense.</li>
+<li><strong>Size limits</strong> (above): a write over the limit is refused and told to
+  read the memory and condense it.</li>
 <li><strong>No revisions.</strong> The tools carry no revision. <code>memory_edit</code> applies when
   its <code>oldString</code> occurs exactly once in the current body, so an edit on top of
   someone else's change that does not touch that text still works. The daemon
@@ -4283,8 +4284,10 @@ ends with the <code>offset</code> to read next. <code>memory_edit</code> takes <
   and is never shown to you for approval. It checks again when the edit runs.
   <code>memory_write</code> replaces an existing memory only when the session saw its
   current content, through <code>memory_read</code>, the snapshot, or one of its own
-  writes; otherwise it is refused with the current content, so a whole-memory
-  write cannot silently drop what you or another session changed. (After a
+  writes; otherwise it is refused and told to read it first or edit it, so
+  a whole-memory write cannot silently drop what you or another session
+  changed. The refusal leaves the content out: after a write, the model
+  could take it for what the write left. (After a
   daemon restart a session reads a memory again before replacing it.)</li>
 <li><strong>Deletes delete.</strong> <code>memory_delete</code> removes the file, <code>user://</code> categories
   and <code>agent://</code> files included; nothing is kept, and there is no undo.</li>
