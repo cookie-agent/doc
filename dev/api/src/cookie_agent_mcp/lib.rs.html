@@ -2222,160 +2222,161 @@
 <a href=#2222 id=2222 data-nosnippet>2222</a>        metadata,
 <a href=#2223 id=2223 data-nosnippet>2223</a>        attachments,
 <a href=#2224 id=2224 data-nosnippet>2224</a>        additional_messages,
-<a href=#2225 id=2225 data-nosnippet>2225</a>    })
-<a href=#2226 id=2226 data-nosnippet>2226</a>}
-<a href=#2227 id=2227 data-nosnippet>2227</a>
-<a href=#2228 id=2228 data-nosnippet>2228</a><span class="doccomment">/// What clients see of a result's `output` parts: consecutive text as one
-<a href=#2229 id=2229 data-nosnippet>2229</a>/// `text` block, as the output joins it, and each retained attachment as the
-<a href=#2230 id=2230 data-nosnippet>2230</a>/// `media` it is instead of its placeholder.
-<a href=#2231 id=2231 data-nosnippet>2231</a></span><span class="kw">fn </span>result_display(
-<a href=#2232 id=2232 data-nosnippet>2232</a>    output: <span class="kw-2">&amp;</span>[String],
-<a href=#2233 id=2233 data-nosnippet>2233</a>    media: <span class="kw-2">&amp;mut </span>HashMap&lt;usize, cookie_agent_protocol::ArtifactRef&gt;,
-<a href=#2234 id=2234 data-nosnippet>2234</a>) -&gt; Vec&lt;Open&lt;DisplayBlock&gt;&gt; {
-<a href=#2235 id=2235 data-nosnippet>2235</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = Vec::new();
-<a href=#2236 id=2236 data-nosnippet>2236</a>    <span class="kw">for </span>(index, part) <span class="kw">in </span>output.iter().enumerate() {
-<a href=#2237 id=2237 data-nosnippet>2237</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(artifact) = media.remove(<span class="kw-2">&amp;</span>index) {
-<a href=#2238 id=2238 data-nosnippet>2238</a>            display.push(Open::Known(DisplayBlock::Media {
-<a href=#2239 id=2239 data-nosnippet>2239</a>                artifact,
-<a href=#2240 id=2240 data-nosnippet>2240</a>                alt: <span class="prelude-val">None</span>,
-<a href=#2241 id=2241 data-nosnippet>2241</a>            }));
-<a href=#2242 id=2242 data-nosnippet>2242</a>            <span class="kw">continue</span>;
-<a href=#2243 id=2243 data-nosnippet>2243</a>        }
-<a href=#2244 id=2244 data-nosnippet>2244</a>        <span class="kw">match </span>display.last_mut() {
-<a href=#2245 id=2245 data-nosnippet>2245</a>            <span class="prelude-val">Some</span>(Open::Known(DisplayBlock::Text { text, .. })) =&gt; {
-<a href=#2246 id=2246 data-nosnippet>2246</a>                text.push(<span class="string">'\n'</span>);
-<a href=#2247 id=2247 data-nosnippet>2247</a>                text.push_str(part);
-<a href=#2248 id=2248 data-nosnippet>2248</a>            }
-<a href=#2249 id=2249 data-nosnippet>2249</a>            <span class="kw">_ </span>=&gt; display.push(Open::Known(DisplayBlock::text(part.clone()))),
-<a href=#2250 id=2250 data-nosnippet>2250</a>        }
-<a href=#2251 id=2251 data-nosnippet>2251</a>    }
-<a href=#2252 id=2252 data-nosnippet>2252</a>    display
-<a href=#2253 id=2253 data-nosnippet>2253</a>}
-<a href=#2254 id=2254 data-nosnippet>2254</a>
-<a href=#2255 id=2255 data-nosnippet>2255</a><span class="attr">#[derive(Debug)]
-<a href=#2256 id=2256 data-nosnippet>2256</a></span><span class="kw">enum </span>McpAttachmentError {
-<a href=#2257 id=2257 data-nosnippet>2257</a>    <span class="doccomment">/// Malformed or undecodable content; reported inline, the call still succeeds.
-<a href=#2258 id=2258 data-nosnippet>2258</a>    </span>Invalid(String),
-<a href=#2259 id=2259 data-nosnippet>2259</a>    <span class="doccomment">/// Rejected by the media gate; fails the tool result like `read` does.
-<a href=#2260 id=2260 data-nosnippet>2260</a>    </span>Gated(String),
-<a href=#2261 id=2261 data-nosnippet>2261</a>}
-<a href=#2262 id=2262 data-nosnippet>2262</a>
-<a href=#2263 id=2263 data-nosnippet>2263</a><span class="attr">#[derive(Debug)]
-<a href=#2264 id=2264 data-nosnippet>2264</a></span><span class="kw">struct </span>RetainedMcpAttachment {
-<a href=#2265 id=2265 data-nosnippet>2265</a>    attachment: ToolAttachment,
-<a href=#2266 id=2266 data-nosnippet>2266</a>    delivery: cookie_agent_runtime_api::media::AttachmentGate,
-<a href=#2267 id=2267 data-nosnippet>2267</a>}
-<a href=#2268 id=2268 data-nosnippet>2268</a>
-<a href=#2269 id=2269 data-nosnippet>2269</a><span class="kw">fn </span>route_mcp_attachment(
-<a href=#2270 id=2270 data-nosnippet>2270</a>    retained: RetainedMcpAttachment,
-<a href=#2271 id=2271 data-nosnippet>2271</a>    attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
-<a href=#2272 id=2272 data-nosnippet>2272</a>    emitted_attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
-<a href=#2273 id=2273 data-nosnippet>2273</a>) -&gt; bool {
-<a href=#2274 id=2274 data-nosnippet>2274</a>    <span class="kw">if </span>!mcp_attachment_budget_remaining(attachments, emitted_attachments) {
-<a href=#2275 id=2275 data-nosnippet>2275</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2276 id=2276 data-nosnippet>2276</a>    }
-<a href=#2277 id=2277 data-nosnippet>2277</a>    <span class="kw">match </span>retained.delivery {
-<a href=#2278 id=2278 data-nosnippet>2278</a>        cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult =&gt; {
-<a href=#2279 id=2279 data-nosnippet>2279</a>            attachments.push(retained.attachment)
-<a href=#2280 id=2280 data-nosnippet>2280</a>        }
-<a href=#2281 id=2281 data-nosnippet>2281</a>        cookie_agent_runtime_api::media::AttachmentGate::DeliverViaUserTurn =&gt; {
-<a href=#2282 id=2282 data-nosnippet>2282</a>            emitted_attachments.push(retained.attachment);
-<a href=#2283 id=2283 data-nosnippet>2283</a>        }
-<a href=#2284 id=2284 data-nosnippet>2284</a>        cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedModel
-<a href=#2285 id=2285 data-nosnippet>2285</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedFamily
-<a href=#2286 id=2286 data-nosnippet>2286</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectTooLarge { .. } =&gt; {
-<a href=#2287 id=2287 data-nosnippet>2287</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected MCP attachment gates return an error"</span>)
-<a href=#2288 id=2288 data-nosnippet>2288</a>        }
-<a href=#2289 id=2289 data-nosnippet>2289</a>    }
-<a href=#2290 id=2290 data-nosnippet>2290</a>    <span class="bool-val">true
-<a href=#2291 id=2291 data-nosnippet>2291</a></span>}
-<a href=#2292 id=2292 data-nosnippet>2292</a>
-<a href=#2293 id=2293 data-nosnippet>2293</a><span class="kw">fn </span>mcp_attachment_budget_remaining(
-<a href=#2294 id=2294 data-nosnippet>2294</a>    attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
-<a href=#2295 id=2295 data-nosnippet>2295</a>    emitted_attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
-<a href=#2296 id=2296 data-nosnippet>2296</a>) -&gt; bool {
-<a href=#2297 id=2297 data-nosnippet>2297</a>    attachments.len().saturating_add(emitted_attachments.len()) &lt; ToolResult::MAX_ATTACHMENTS
-<a href=#2298 id=2298 data-nosnippet>2298</a>}
-<a href=#2299 id=2299 data-nosnippet>2299</a>
-<a href=#2300 id=2300 data-nosnippet>2300</a><span class="kw">fn </span>retain_base64_attachment(
-<a href=#2301 id=2301 data-nosnippet>2301</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
-<a href=#2302 id=2302 data-nosnippet>2302</a>    mime_type: String,
-<a href=#2303 id=2303 data-nosnippet>2303</a>    data: <span class="kw-2">&amp;</span>str,
-<a href=#2304 id=2304 data-nosnippet>2304</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RetainedMcpAttachment, McpAttachmentError&gt; {
-<a href=#2305 id=2305 data-nosnippet>2305</a>    <span class="kw">let </span>bytes = base64::engine::general_purpose::STANDARD
-<a href=#2306 id=2306 data-nosnippet>2306</a>        .decode(data)
-<a href=#2307 id=2307 data-nosnippet>2307</a>        .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2308 id=2308 data-nosnippet>2308</a>    <span class="kw">let </span><span class="kw-2">mut </span>delivery = cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult;
-<a href=#2309 id=2309 data-nosnippet>2309</a>    <span class="kw">let </span>sniffed =
-<a href=#2310 id=2310 data-nosnippet>2310</a>        cookie_agent_runtime_api::media::approved_media_type(std::path::Path::new(<span class="string">""</span>), <span class="kw-2">&amp;</span>bytes)
-<a href=#2311 id=2311 data-nosnippet>2311</a>            .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2312 id=2312 data-nosnippet>2312</a>    <span class="kw">let </span>retained_mime = <span class="kw">if </span>mime_type.is_empty() || mime_type == <span class="string">"application/octet-stream" </span>{
-<a href=#2313 id=2313 data-nosnippet>2313</a>        sniffed.unwrap_or(mime_type.as_str())
-<a href=#2314 id=2314 data-nosnippet>2314</a>    } <span class="kw">else </span>{
-<a href=#2315 id=2315 data-nosnippet>2315</a>        mime_type.as_str()
-<a href=#2316 id=2316 data-nosnippet>2316</a>    };
-<a href=#2317 id=2317 data-nosnippet>2317</a>    <span class="kw">let </span>attachment = <span class="kw">if let </span><span class="prelude-val">Some</span>(mime) = sniffed {
-<a href=#2318 id=2318 data-nosnippet>2318</a>        <span class="kw">if </span>cookie_agent_runtime_api::media::canonical_video_mime_type(mime)
-<a href=#2319 id=2319 data-nosnippet>2319</a>            != cookie_agent_runtime_api::media::canonical_video_mime_type(retained_mime)
-<a href=#2320 id=2320 data-nosnippet>2320</a>        {
-<a href=#2321 id=2321 data-nosnippet>2321</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Invalid(<span class="macro">format!</span>(
-<a href=#2322 id=2322 data-nosnippet>2322</a>                <span class="string">"attachment MIME mismatch: declared {retained_mime}, validated {mime}"
-<a href=#2323 id=2323 data-nosnippet>2323</a>            </span>)));
-<a href=#2324 id=2324 data-nosnippet>2324</a>        }
-<a href=#2325 id=2325 data-nosnippet>2325</a>        <span class="kw">let </span>gate = cookie_agent_runtime_api::media::gate_attachment(
-<a href=#2326 id=2326 data-nosnippet>2326</a>            <span class="kw-2">&amp;</span>context.turn_context.input_media,
-<a href=#2327 id=2327 data-nosnippet>2327</a>            mime,
-<a href=#2328 id=2328 data-nosnippet>2328</a>            bytes.len() <span class="kw">as </span>u64,
-<a href=#2329 id=2329 data-nosnippet>2329</a>        );
-<a href=#2330 id=2330 data-nosnippet>2330</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = cookie_agent_runtime_api::media::attachment_gate_error(
-<a href=#2331 id=2331 data-nosnippet>2331</a>            gate,
-<a href=#2332 id=2332 data-nosnippet>2332</a>            mime,
-<a href=#2333 id=2333 data-nosnippet>2333</a>            <span class="kw-2">&amp;</span>context.turn_context.model,
-<a href=#2334 id=2334 data-nosnippet>2334</a>            <span class="kw-2">&amp;</span>context.turn_context.adapter,
-<a href=#2335 id=2335 data-nosnippet>2335</a>        ) {
-<a href=#2336 id=2336 data-nosnippet>2336</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Gated(error));
-<a href=#2337 id=2337 data-nosnippet>2337</a>        }
-<a href=#2338 id=2338 data-nosnippet>2338</a>        delivery = gate;
-<a href=#2339 id=2339 data-nosnippet>2339</a>        context.retain_validated_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
-<a href=#2340 id=2340 data-nosnippet>2340</a>    } <span class="kw">else </span>{
-<a href=#2341 id=2341 data-nosnippet>2341</a>        context.retain_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
-<a href=#2342 id=2342 data-nosnippet>2342</a>    }
-<a href=#2343 id=2343 data-nosnippet>2343</a>    .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2344 id=2344 data-nosnippet>2344</a>    <span class="prelude-val">Ok</span>(RetainedMcpAttachment {
-<a href=#2345 id=2345 data-nosnippet>2345</a>        attachment,
-<a href=#2346 id=2346 data-nosnippet>2346</a>        delivery,
-<a href=#2347 id=2347 data-nosnippet>2347</a>    })
-<a href=#2348 id=2348 data-nosnippet>2348</a>}
-<a href=#2349 id=2349 data-nosnippet>2349</a>
-<a href=#2350 id=2350 data-nosnippet>2350</a><span class="kw">fn </span>sanitize_name(value: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#2351 id=2351 data-nosnippet>2351</a>    value
-<a href=#2352 id=2352 data-nosnippet>2352</a>        .chars()
-<a href=#2353 id=2353 data-nosnippet>2353</a>        .map(|character| {
-<a href=#2354 id=2354 data-nosnippet>2354</a>            <span class="kw">if </span>character.is_ascii_alphanumeric() || <span class="macro">matches!</span>(character, <span class="string">'_' </span>| <span class="string">'-'</span>) {
-<a href=#2355 id=2355 data-nosnippet>2355</a>                character
-<a href=#2356 id=2356 data-nosnippet>2356</a>            } <span class="kw">else </span>{
-<a href=#2357 id=2357 data-nosnippet>2357</a>                <span class="string">'_'
-<a href=#2358 id=2358 data-nosnippet>2358</a>            </span>}
-<a href=#2359 id=2359 data-nosnippet>2359</a>        })
-<a href=#2360 id=2360 data-nosnippet>2360</a>        .collect()
-<a href=#2361 id=2361 data-nosnippet>2361</a>}
-<a href=#2362 id=2362 data-nosnippet>2362</a>
-<a href=#2363 id=2363 data-nosnippet>2363</a><span class="kw">fn </span>safe_title(value: <span class="kw-2">&amp;</span>str) -&gt; SafeDisplayText {
-<a href=#2364 id=2364 data-nosnippet>2364</a>    <span class="kw">let </span><span class="kw-2">mut </span>title = String::new();
-<a href=#2365 id=2365 data-nosnippet>2365</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
-<a href=#2366 id=2366 data-nosnippet>2366</a>        <span class="kw">let </span>character = <span class="kw">if </span>character.is_control() {
-<a href=#2367 id=2367 data-nosnippet>2367</a>            <span class="string">' '
-<a href=#2368 id=2368 data-nosnippet>2368</a>        </span>} <span class="kw">else </span>{
-<a href=#2369 id=2369 data-nosnippet>2369</a>            character
-<a href=#2370 id=2370 data-nosnippet>2370</a>        };
-<a href=#2371 id=2371 data-nosnippet>2371</a>        <span class="kw">if </span>title.len() + character.len_utf8() &gt; SafeDisplayText::MAX_BYTES {
-<a href=#2372 id=2372 data-nosnippet>2372</a>            <span class="kw">break</span>;
-<a href=#2373 id=2373 data-nosnippet>2373</a>        }
-<a href=#2374 id=2374 data-nosnippet>2374</a>        title.push(character);
-<a href=#2375 id=2375 data-nosnippet>2375</a>    }
-<a href=#2376 id=2376 data-nosnippet>2376</a>    SafeDisplayText::new(title).expect(<span class="string">"sanitized MCP title"</span>)
-<a href=#2377 id=2377 data-nosnippet>2377</a>}
-<a href=#2378 id=2378 data-nosnippet>2378</a>
-<a href=#2379 id=2379 data-nosnippet>2379</a><span class="attr">#[cfg(test)]
-<a href=#2380 id=2380 data-nosnippet>2380</a></span><span class="kw">mod </span>tests;
+<a href=#2225 id=2225 data-nosnippet>2225</a>        loaded_tools: Vec::new(),
+<a href=#2226 id=2226 data-nosnippet>2226</a>    })
+<a href=#2227 id=2227 data-nosnippet>2227</a>}
+<a href=#2228 id=2228 data-nosnippet>2228</a>
+<a href=#2229 id=2229 data-nosnippet>2229</a><span class="doccomment">/// What clients see of a result's `output` parts: consecutive text as one
+<a href=#2230 id=2230 data-nosnippet>2230</a>/// `text` block, as the output joins it, and each retained attachment as the
+<a href=#2231 id=2231 data-nosnippet>2231</a>/// `media` it is instead of its placeholder.
+<a href=#2232 id=2232 data-nosnippet>2232</a></span><span class="kw">fn </span>result_display(
+<a href=#2233 id=2233 data-nosnippet>2233</a>    output: <span class="kw-2">&amp;</span>[String],
+<a href=#2234 id=2234 data-nosnippet>2234</a>    media: <span class="kw-2">&amp;mut </span>HashMap&lt;usize, cookie_agent_protocol::ArtifactRef&gt;,
+<a href=#2235 id=2235 data-nosnippet>2235</a>) -&gt; Vec&lt;Open&lt;DisplayBlock&gt;&gt; {
+<a href=#2236 id=2236 data-nosnippet>2236</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = Vec::new();
+<a href=#2237 id=2237 data-nosnippet>2237</a>    <span class="kw">for </span>(index, part) <span class="kw">in </span>output.iter().enumerate() {
+<a href=#2238 id=2238 data-nosnippet>2238</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(artifact) = media.remove(<span class="kw-2">&amp;</span>index) {
+<a href=#2239 id=2239 data-nosnippet>2239</a>            display.push(Open::Known(DisplayBlock::Media {
+<a href=#2240 id=2240 data-nosnippet>2240</a>                artifact,
+<a href=#2241 id=2241 data-nosnippet>2241</a>                alt: <span class="prelude-val">None</span>,
+<a href=#2242 id=2242 data-nosnippet>2242</a>            }));
+<a href=#2243 id=2243 data-nosnippet>2243</a>            <span class="kw">continue</span>;
+<a href=#2244 id=2244 data-nosnippet>2244</a>        }
+<a href=#2245 id=2245 data-nosnippet>2245</a>        <span class="kw">match </span>display.last_mut() {
+<a href=#2246 id=2246 data-nosnippet>2246</a>            <span class="prelude-val">Some</span>(Open::Known(DisplayBlock::Text { text, .. })) =&gt; {
+<a href=#2247 id=2247 data-nosnippet>2247</a>                text.push(<span class="string">'\n'</span>);
+<a href=#2248 id=2248 data-nosnippet>2248</a>                text.push_str(part);
+<a href=#2249 id=2249 data-nosnippet>2249</a>            }
+<a href=#2250 id=2250 data-nosnippet>2250</a>            <span class="kw">_ </span>=&gt; display.push(Open::Known(DisplayBlock::text(part.clone()))),
+<a href=#2251 id=2251 data-nosnippet>2251</a>        }
+<a href=#2252 id=2252 data-nosnippet>2252</a>    }
+<a href=#2253 id=2253 data-nosnippet>2253</a>    display
+<a href=#2254 id=2254 data-nosnippet>2254</a>}
+<a href=#2255 id=2255 data-nosnippet>2255</a>
+<a href=#2256 id=2256 data-nosnippet>2256</a><span class="attr">#[derive(Debug)]
+<a href=#2257 id=2257 data-nosnippet>2257</a></span><span class="kw">enum </span>McpAttachmentError {
+<a href=#2258 id=2258 data-nosnippet>2258</a>    <span class="doccomment">/// Malformed or undecodable content; reported inline, the call still succeeds.
+<a href=#2259 id=2259 data-nosnippet>2259</a>    </span>Invalid(String),
+<a href=#2260 id=2260 data-nosnippet>2260</a>    <span class="doccomment">/// Rejected by the media gate; fails the tool result like `read` does.
+<a href=#2261 id=2261 data-nosnippet>2261</a>    </span>Gated(String),
+<a href=#2262 id=2262 data-nosnippet>2262</a>}
+<a href=#2263 id=2263 data-nosnippet>2263</a>
+<a href=#2264 id=2264 data-nosnippet>2264</a><span class="attr">#[derive(Debug)]
+<a href=#2265 id=2265 data-nosnippet>2265</a></span><span class="kw">struct </span>RetainedMcpAttachment {
+<a href=#2266 id=2266 data-nosnippet>2266</a>    attachment: ToolAttachment,
+<a href=#2267 id=2267 data-nosnippet>2267</a>    delivery: cookie_agent_runtime_api::media::AttachmentGate,
+<a href=#2268 id=2268 data-nosnippet>2268</a>}
+<a href=#2269 id=2269 data-nosnippet>2269</a>
+<a href=#2270 id=2270 data-nosnippet>2270</a><span class="kw">fn </span>route_mcp_attachment(
+<a href=#2271 id=2271 data-nosnippet>2271</a>    retained: RetainedMcpAttachment,
+<a href=#2272 id=2272 data-nosnippet>2272</a>    attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
+<a href=#2273 id=2273 data-nosnippet>2273</a>    emitted_attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
+<a href=#2274 id=2274 data-nosnippet>2274</a>) -&gt; bool {
+<a href=#2275 id=2275 data-nosnippet>2275</a>    <span class="kw">if </span>!mcp_attachment_budget_remaining(attachments, emitted_attachments) {
+<a href=#2276 id=2276 data-nosnippet>2276</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2277 id=2277 data-nosnippet>2277</a>    }
+<a href=#2278 id=2278 data-nosnippet>2278</a>    <span class="kw">match </span>retained.delivery {
+<a href=#2279 id=2279 data-nosnippet>2279</a>        cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult =&gt; {
+<a href=#2280 id=2280 data-nosnippet>2280</a>            attachments.push(retained.attachment)
+<a href=#2281 id=2281 data-nosnippet>2281</a>        }
+<a href=#2282 id=2282 data-nosnippet>2282</a>        cookie_agent_runtime_api::media::AttachmentGate::DeliverViaUserTurn =&gt; {
+<a href=#2283 id=2283 data-nosnippet>2283</a>            emitted_attachments.push(retained.attachment);
+<a href=#2284 id=2284 data-nosnippet>2284</a>        }
+<a href=#2285 id=2285 data-nosnippet>2285</a>        cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedModel
+<a href=#2286 id=2286 data-nosnippet>2286</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedFamily
+<a href=#2287 id=2287 data-nosnippet>2287</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectTooLarge { .. } =&gt; {
+<a href=#2288 id=2288 data-nosnippet>2288</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected MCP attachment gates return an error"</span>)
+<a href=#2289 id=2289 data-nosnippet>2289</a>        }
+<a href=#2290 id=2290 data-nosnippet>2290</a>    }
+<a href=#2291 id=2291 data-nosnippet>2291</a>    <span class="bool-val">true
+<a href=#2292 id=2292 data-nosnippet>2292</a></span>}
+<a href=#2293 id=2293 data-nosnippet>2293</a>
+<a href=#2294 id=2294 data-nosnippet>2294</a><span class="kw">fn </span>mcp_attachment_budget_remaining(
+<a href=#2295 id=2295 data-nosnippet>2295</a>    attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
+<a href=#2296 id=2296 data-nosnippet>2296</a>    emitted_attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
+<a href=#2297 id=2297 data-nosnippet>2297</a>) -&gt; bool {
+<a href=#2298 id=2298 data-nosnippet>2298</a>    attachments.len().saturating_add(emitted_attachments.len()) &lt; ToolResult::MAX_ATTACHMENTS
+<a href=#2299 id=2299 data-nosnippet>2299</a>}
+<a href=#2300 id=2300 data-nosnippet>2300</a>
+<a href=#2301 id=2301 data-nosnippet>2301</a><span class="kw">fn </span>retain_base64_attachment(
+<a href=#2302 id=2302 data-nosnippet>2302</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
+<a href=#2303 id=2303 data-nosnippet>2303</a>    mime_type: String,
+<a href=#2304 id=2304 data-nosnippet>2304</a>    data: <span class="kw-2">&amp;</span>str,
+<a href=#2305 id=2305 data-nosnippet>2305</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RetainedMcpAttachment, McpAttachmentError&gt; {
+<a href=#2306 id=2306 data-nosnippet>2306</a>    <span class="kw">let </span>bytes = base64::engine::general_purpose::STANDARD
+<a href=#2307 id=2307 data-nosnippet>2307</a>        .decode(data)
+<a href=#2308 id=2308 data-nosnippet>2308</a>        .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2309 id=2309 data-nosnippet>2309</a>    <span class="kw">let </span><span class="kw-2">mut </span>delivery = cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult;
+<a href=#2310 id=2310 data-nosnippet>2310</a>    <span class="kw">let </span>sniffed =
+<a href=#2311 id=2311 data-nosnippet>2311</a>        cookie_agent_runtime_api::media::approved_media_type(std::path::Path::new(<span class="string">""</span>), <span class="kw-2">&amp;</span>bytes)
+<a href=#2312 id=2312 data-nosnippet>2312</a>            .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2313 id=2313 data-nosnippet>2313</a>    <span class="kw">let </span>retained_mime = <span class="kw">if </span>mime_type.is_empty() || mime_type == <span class="string">"application/octet-stream" </span>{
+<a href=#2314 id=2314 data-nosnippet>2314</a>        sniffed.unwrap_or(mime_type.as_str())
+<a href=#2315 id=2315 data-nosnippet>2315</a>    } <span class="kw">else </span>{
+<a href=#2316 id=2316 data-nosnippet>2316</a>        mime_type.as_str()
+<a href=#2317 id=2317 data-nosnippet>2317</a>    };
+<a href=#2318 id=2318 data-nosnippet>2318</a>    <span class="kw">let </span>attachment = <span class="kw">if let </span><span class="prelude-val">Some</span>(mime) = sniffed {
+<a href=#2319 id=2319 data-nosnippet>2319</a>        <span class="kw">if </span>cookie_agent_runtime_api::media::canonical_video_mime_type(mime)
+<a href=#2320 id=2320 data-nosnippet>2320</a>            != cookie_agent_runtime_api::media::canonical_video_mime_type(retained_mime)
+<a href=#2321 id=2321 data-nosnippet>2321</a>        {
+<a href=#2322 id=2322 data-nosnippet>2322</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Invalid(<span class="macro">format!</span>(
+<a href=#2323 id=2323 data-nosnippet>2323</a>                <span class="string">"attachment MIME mismatch: declared {retained_mime}, validated {mime}"
+<a href=#2324 id=2324 data-nosnippet>2324</a>            </span>)));
+<a href=#2325 id=2325 data-nosnippet>2325</a>        }
+<a href=#2326 id=2326 data-nosnippet>2326</a>        <span class="kw">let </span>gate = cookie_agent_runtime_api::media::gate_attachment(
+<a href=#2327 id=2327 data-nosnippet>2327</a>            <span class="kw-2">&amp;</span>context.turn_context.input_media,
+<a href=#2328 id=2328 data-nosnippet>2328</a>            mime,
+<a href=#2329 id=2329 data-nosnippet>2329</a>            bytes.len() <span class="kw">as </span>u64,
+<a href=#2330 id=2330 data-nosnippet>2330</a>        );
+<a href=#2331 id=2331 data-nosnippet>2331</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = cookie_agent_runtime_api::media::attachment_gate_error(
+<a href=#2332 id=2332 data-nosnippet>2332</a>            gate,
+<a href=#2333 id=2333 data-nosnippet>2333</a>            mime,
+<a href=#2334 id=2334 data-nosnippet>2334</a>            <span class="kw-2">&amp;</span>context.turn_context.model,
+<a href=#2335 id=2335 data-nosnippet>2335</a>            <span class="kw-2">&amp;</span>context.turn_context.adapter,
+<a href=#2336 id=2336 data-nosnippet>2336</a>        ) {
+<a href=#2337 id=2337 data-nosnippet>2337</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Gated(error));
+<a href=#2338 id=2338 data-nosnippet>2338</a>        }
+<a href=#2339 id=2339 data-nosnippet>2339</a>        delivery = gate;
+<a href=#2340 id=2340 data-nosnippet>2340</a>        context.retain_validated_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
+<a href=#2341 id=2341 data-nosnippet>2341</a>    } <span class="kw">else </span>{
+<a href=#2342 id=2342 data-nosnippet>2342</a>        context.retain_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
+<a href=#2343 id=2343 data-nosnippet>2343</a>    }
+<a href=#2344 id=2344 data-nosnippet>2344</a>    .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2345 id=2345 data-nosnippet>2345</a>    <span class="prelude-val">Ok</span>(RetainedMcpAttachment {
+<a href=#2346 id=2346 data-nosnippet>2346</a>        attachment,
+<a href=#2347 id=2347 data-nosnippet>2347</a>        delivery,
+<a href=#2348 id=2348 data-nosnippet>2348</a>    })
+<a href=#2349 id=2349 data-nosnippet>2349</a>}
+<a href=#2350 id=2350 data-nosnippet>2350</a>
+<a href=#2351 id=2351 data-nosnippet>2351</a><span class="kw">fn </span>sanitize_name(value: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#2352 id=2352 data-nosnippet>2352</a>    value
+<a href=#2353 id=2353 data-nosnippet>2353</a>        .chars()
+<a href=#2354 id=2354 data-nosnippet>2354</a>        .map(|character| {
+<a href=#2355 id=2355 data-nosnippet>2355</a>            <span class="kw">if </span>character.is_ascii_alphanumeric() || <span class="macro">matches!</span>(character, <span class="string">'_' </span>| <span class="string">'-'</span>) {
+<a href=#2356 id=2356 data-nosnippet>2356</a>                character
+<a href=#2357 id=2357 data-nosnippet>2357</a>            } <span class="kw">else </span>{
+<a href=#2358 id=2358 data-nosnippet>2358</a>                <span class="string">'_'
+<a href=#2359 id=2359 data-nosnippet>2359</a>            </span>}
+<a href=#2360 id=2360 data-nosnippet>2360</a>        })
+<a href=#2361 id=2361 data-nosnippet>2361</a>        .collect()
+<a href=#2362 id=2362 data-nosnippet>2362</a>}
+<a href=#2363 id=2363 data-nosnippet>2363</a>
+<a href=#2364 id=2364 data-nosnippet>2364</a><span class="kw">fn </span>safe_title(value: <span class="kw-2">&amp;</span>str) -&gt; SafeDisplayText {
+<a href=#2365 id=2365 data-nosnippet>2365</a>    <span class="kw">let </span><span class="kw-2">mut </span>title = String::new();
+<a href=#2366 id=2366 data-nosnippet>2366</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
+<a href=#2367 id=2367 data-nosnippet>2367</a>        <span class="kw">let </span>character = <span class="kw">if </span>character.is_control() {
+<a href=#2368 id=2368 data-nosnippet>2368</a>            <span class="string">' '
+<a href=#2369 id=2369 data-nosnippet>2369</a>        </span>} <span class="kw">else </span>{
+<a href=#2370 id=2370 data-nosnippet>2370</a>            character
+<a href=#2371 id=2371 data-nosnippet>2371</a>        };
+<a href=#2372 id=2372 data-nosnippet>2372</a>        <span class="kw">if </span>title.len() + character.len_utf8() &gt; SafeDisplayText::MAX_BYTES {
+<a href=#2373 id=2373 data-nosnippet>2373</a>            <span class="kw">break</span>;
+<a href=#2374 id=2374 data-nosnippet>2374</a>        }
+<a href=#2375 id=2375 data-nosnippet>2375</a>        title.push(character);
+<a href=#2376 id=2376 data-nosnippet>2376</a>    }
+<a href=#2377 id=2377 data-nosnippet>2377</a>    SafeDisplayText::new(title).expect(<span class="string">"sanitized MCP title"</span>)
+<a href=#2378 id=2378 data-nosnippet>2378</a>}
+<a href=#2379 id=2379 data-nosnippet>2379</a>
+<a href=#2380 id=2380 data-nosnippet>2380</a><span class="attr">#[cfg(test)]
+<a href=#2381 id=2381 data-nosnippet>2381</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
