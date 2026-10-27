@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_ZOOM","MIN_ZOOM"],"fn":["clock","show_within"],"struct":["Viewing","Zoom"]};
