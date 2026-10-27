@@ -4329,7 +4329,9 @@
 <h1 id="acp-v2-the-port-self-wakes-subagent-sessions-and-background-work">ACP v2: the port, self-wakes, subagent sessions, and background work<a class="headerlink" href="#acp-v2-the-port-self-wakes-subagent-sessions-and-background-work" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>in progress</strong> (2026-10-26). Phase 1 (v2 only) implemented
 2026-10-26 (<code>04b4b0e4d</code>); phase 2 (self-wakes) implemented 2026-10-26,
-client protocol 1.38.0 and plugin protocol 1.20.0.</p>
+client protocol 1.38.0 and plugin protocol 1.20.0 (<code>0aacfd74b</code>); phase 3
+(subagent sessions) implemented 2026-10-26, client protocol 1.39.0 and
+plugin protocol 1.21.0.</p>
 <p>The user decided on 2026-10-26:</p>
 <ul>
 <li>port cookie's ACP client to ACP v2 completely and drop v1;</li>
@@ -4941,6 +4943,28 @@ nested under its parent; a background terminal in the background bar.</p>
 <li><strong>Holds.</strong> A wake starts its run past any hold. A Stop records a hold
   only when the session could otherwise wake (held sessions, section 2),
   so a wake after a Stop is the case that needs this.</li>
+</ul>
+<p><strong>Phase 3 (2026-10-26, client protocol 1.39.0):</strong></p>
+<ul>
+<li><strong>The marker.</strong> A child is marked as the agent's own by its log, not by
+  <code>SessionMeta.acp_subagent</code>: its first <code>acp_session_started</code> has the new
+  <code>how: subagent</code>. The engine uses it to send no <code>&lt;subagent_report&gt;</code>, to
+  list the child without a delegation record (<code>session.children</code>), and to
+  refuse prompts and turns once the agent's process is gone. Clients use it
+  to refuse sending (<code>AcpSessionView::refusal</code>).</li>
+<li><strong>The title.</strong> The child's title is a runless <code>delegated_set</code> title
+  change, keyed by the child's invocation.</li>
+<li><strong>The link to the parent.</strong> The child's <code>parent_tool_call_id</code> names no
+  cookie call: the agent's own Task call is replaced by the
+  <code>session_message</code> that carries the task.</li>
+<li><strong>Requests that come early.</strong> The process marks a child announced by
+  <code>subagent_update</code> as expected. Requests for it wait for its route instead
+  of being answered <code>cancelled</code> at once.</li>
+<li><strong>The task.</strong> A <code>session_message</code> to the child before its work starts
+  becomes the wake's body ("Started with a task"). Messages during a run
+  show as notices.</li>
+<li><strong>Cookie's tools.</strong> A subagent's calls of cookie's tools go through its
+  parent's bridge and show in the parent's session.</li>
 </ul>
 
 
