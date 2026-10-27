@@ -4465,7 +4465,7 @@ stored); unconfigured providers report counts alone.</p>
 <td><code>models</code></td>
 <td>map</td>
 <td>empty</td>
-<td>Sparse per-model overrides: <code>enabled</code>, <code>display_name</code>, <code>model_id</code>, <code>generation_options</code>, <code>adaptor_options</code>, <code>variants</code>, <code>default_variant</code>, <code>compaction</code>, <code>headers</code>, <code>pricing</code>. Unmentioned catalog models remain available. Cannot invent models or directly change catalog capabilities.</td>
+<td>Sparse per-model overrides: <code>enabled</code>, <code>display_name</code>, <code>model_id</code>, <code>generation_options</code>, <code>adaptor_options</code>, <code>variants</code>, <code>default_variant</code>, <code>compaction</code>, <code>deferred_tools</code>, <code>headers</code>, <code>pricing</code>. Unmentioned catalog models remain available. Cannot invent models or directly change catalog capabilities.</td>
 </tr>
 </tbody>
 </table>
@@ -4479,6 +4479,29 @@ accepted and redundant: they mean the default, on any recipe. A variant that
 switches <code>request_endpoint</code> compacts natively when its own adaptor does.
 Frozen manifests store the compiled native/unsupported capability, not this
 setting string. The removed <code>"v1"</code> fails with an error.</p>
+<p>Whether a model loads <a href="../../specs/deferred-tools-cookie/">deferred tools</a> is
+decided per model, in this order:</p>
+<ol>
+<li><strong><code>deferred_tools</code></strong> in a model override: <code>"native"</code> declares that the
+   model loads deferred tools, <code>"unsupported"</code> that it does not. Any other
+   value is an error. <code>"native"</code> on an adaptor that cannot load deferred tools
+   (Gemini, Vertex, Bedrock, Cohere, OpenAI or Azure Chat Completions) is an
+   error.</li>
+<li><strong>models.dev's <code>dynamically_loaded_tools: true</code></strong> declares <code>native</code>. On an
+   adaptor that cannot load, it is ignored.</li>
+<li><strong>Automatic rules:</strong></li>
+<li>A Claude model that Anthropic lists for tool search (Opus, Sonnet, and
+     Haiku 4.5 and later, Fable, Mythos), on <code>api.anthropic.com</code>, is <code>native</code>.</li>
+<li>OpenAI's own Responses and Azure OpenAI Responses are <code>native</code>.</li>
+<li>Any other model on an Anthropic or Anthropic-compatible adaptor, a Claude
+     model through a gateway included, is <em>attempted</em>: deferral is tried, and
+     a rejected request falls back to sending every tool up front.</li>
+<li>Everything else, an OpenAI-compatible gateway included, is
+     <code>unsupported</code>.</li>
+</ol>
+<p>A model on an OpenAI-compatible Chat adaptor that is <code>native</code> loads tools the
+way Kimi K3 does, with a system message carrying them. A variant that switches
+<code>request_endpoint</code> decides again for its own adaptor.</p>
 <p><code>auth_override</code>:</p>
 <table>
 <thead>
@@ -5000,6 +5023,11 @@ the current configuration or catalog changes.</p>
 <td><code>compaction</code></td>
 <td>string</td>
 <td>Optional; <code>"unsupported"</code> is the only accepted value and turns native compaction off. Omitted, a model on a Responses adaptor (or an <code>openai-compatible</code> adaptor with <code>request_endpoint = "responses"</code>) compacts natively, and Azure Responses does so with <code>model</code>, <code>version</code>, and <code>deployment_type</code> in <code>setup</code>.</td>
+</tr>
+<tr>
+<td><code>deferred_tools</code></td>
+<td>string</td>
+<td>Optional <code>"native"</code> or <code>"unsupported"</code>; whether the model loads deferred tools. Omitted, the automatic rules under <a href="#provider-fields">provider fields</a> decide: on an <code>anthropic</code> or <code>anthropic-compatible</code> adaptor a model is attempted (or <code>native</code> for a Claude model on <code>api.anthropic.com</code>), and every other custom model is unsupported. <code>"native"</code> on an adaptor that cannot load deferred tools is an error.</td>
 </tr>
 <tr>
 <td><code>native_replay</code></td>
