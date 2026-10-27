@@ -242,5 +242,37 @@
 <a href=#242 id=242 data-nosnippet>242</a>        })
 <a href=#243 id=243 data-nosnippet>243</a>        .<span class="kw">await
 <a href=#244 id=244 data-nosnippet>244</a>    </span>}
-<a href=#245 id=245 data-nosnippet>245</a>}
+<a href=#245 id=245 data-nosnippet>245</a>
+<a href=#246 id=246 data-nosnippet>246</a>    <span class="doccomment">/// Drops the agent's wakes still waiting when a run of `session` is
+<a href=#247 id=247 data-nosnippet>247</a>    /// stopped: the stop ended that work, so no run starts again to show
+<a href=#248 id=248 data-nosnippet>248</a>    /// it. A wake a claim holds stays; the run releases it first.
+<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>drop_stopped_acp_wakes(
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#251 id=251 data-nosnippet>251</a>        session: SessionId,
+<a href=#252 id=252 data-nosnippet>252</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="self">self</span>.on_actor(session, <span class="kw">move </span>|engine| {
+<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">let </span>projection = engine.goal_producer_projection(session)<span class="question-mark">?</span>;
+<a href=#255 id=255 data-nosnippet>255</a>            <span class="kw">for </span>message <span class="kw">in </span>projection.messages.iter().filter(|message| {
+<a href=#256 id=256 data-nosnippet>256</a>                !message.consumed
+<a href=#257 id=257 data-nosnippet>257</a>                    &amp;&amp; !message.discarded
+<a href=#258 id=258 data-nosnippet>258</a>                    &amp;&amp; message.claims.is_empty()
+<a href=#259 id=259 data-nosnippet>259</a>                    &amp;&amp; <span class="macro">matches!</span>(message.producer_owner, ProducerOwner::AcpAgent { .. })
+<a href=#260 id=260 data-nosnippet>260</a>            }) {
+<a href=#261 id=261 data-nosnippet>261</a>                engine.append_direct(
+<a href=#262 id=262 data-nosnippet>262</a>                    session,
+<a href=#263 id=263 data-nosnippet>263</a>                    <span class="prelude-val">None</span>,
+<a href=#264 id=264 data-nosnippet>264</a>                    event_origin(<span class="string">"engine:acp"</span>),
+<a href=#265 id=265 data-nosnippet>265</a>                    Event::ProducerMessageDiscarded {
+<a href=#266 id=266 data-nosnippet>266</a>                        message_id: message.message_id,
+<a href=#267 id=267 data-nosnippet>267</a>                        reminder: <span class="prelude-val">None</span>,
+<a href=#268 id=268 data-nosnippet>268</a>                        producer_owner: message.producer_owner.clone(),
+<a href=#269 id=269 data-nosnippet>269</a>                    },
+<a href=#270 id=270 data-nosnippet>270</a>                )<span class="question-mark">?</span>;
+<a href=#271 id=271 data-nosnippet>271</a>            }
+<a href=#272 id=272 data-nosnippet>272</a>            engine.inner.store.persist_buffered_session(session)<span class="question-mark">?</span>;
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="prelude-val">Ok</span>(())
+<a href=#274 id=274 data-nosnippet>274</a>        })
+<a href=#275 id=275 data-nosnippet>275</a>        .<span class="kw">await
+<a href=#276 id=276 data-nosnippet>276</a>    </span>}
+<a href=#277 id=277 data-nosnippet>277</a>}
 </code></pre></div></section></main></body></html>
