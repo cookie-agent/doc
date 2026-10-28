@@ -2142,6 +2142,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/shell_environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shell Environment [shell_environment]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/acp/" class="md-nav__link">
         
   
@@ -2201,10 +2224,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_19" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_20" >
         
           
-          <label class="md-nav__link" for="__nav_9_19" id="__nav_9_19_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_20" id="__nav_9_20_label" tabindex="0">
             
   
   
@@ -2217,8 +2240,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_19_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_19">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_20">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -2711,6 +2734,15 @@
   <a href="#settings-changes" class="md-nav__link">
     <span class="md-ellipsis">
       Settings changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shell-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shell environment
     </span>
   </a>
   
@@ -4332,6 +4364,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#shell-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shell environment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#runtimecontext" class="md-nav__link">
     <span class="md-ellipsis">
       runtime/context
@@ -4639,7 +4680,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.11.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.12.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -4721,7 +4762,10 @@ at most 2,048 characters, absent when its configuration sets <code>instructions 
 false</code>) and a <code>server_tools</code> entry's <code>always_load: true</code> when the server's
 <code>always_load</code> or <code>always_load_tools</code> sends the tool up front. A report's
 <code>tools</code> lists the unfiltered <code>server_tools</code> entries' published names in the
-same order.</p>
+same order.
+1.12.0 added the <a href="#shell-environment">shell environment</a>: the optional
+<code>shell_environment</code> of the settings, <code>runtime/shell_environment_refresh</code>,
+and <code>runtime/shell_environment</code>.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -4891,6 +4935,18 @@ that dials in after its instances failed reopens them. Calls are never retried t
 <td>daemon → runtime</td>
 <td>request</td>
 <td>Answer <code>{}</code> at once; since 1.4.0 (see <a href="#liveness">Liveness</a>)</td>
+</tr>
+<tr>
+<td><code>runtime/shell_environment_refresh</code></td>
+<td>daemon → runtime</td>
+<td>notification</td>
+<td>Capture the user's shell environment again; since 1.12.0 (see <a href="#shell-environment">Shell environment</a>)</td>
+</tr>
+<tr>
+<td><code>runtime/shell_environment</code></td>
+<td>runtime → daemon</td>
+<td>notification</td>
+<td>How the latest capture of the user's shell environment went; since 1.12.0</td>
 </tr>
 <tr>
 <td><code>tool/prepare</code></td>
@@ -5303,6 +5359,28 @@ as usual, and the instances' own <code>mcp/changed</code> and
 <code>capability/tools_changed</code>. Changed agents are reported with
 <code>runtime/agents_changed</code>. Settings it cannot apply leave the runtime as it
 was, and it says why on its standard error.</p>
+<h3 id="shell-environment">Shell environment<a class="headerlink" href="#shell-environment" title="Permanent link">&para;</a></h3>
+<p>Since 1.12.0 the settings carry <code>shell_environment</code>: <code>capture</code>
+(<code>interactive</code>, <code>login</code>, or <code>off</code>), <code>timeout_ms</code> (0 or less waits
+indefinitely), and <code>shell</code> (absent or empty: the runtime's <code>$SHELL</code>, else
+<code>/bin/sh</code>), resolved from <code>[shell_environment]</code> and the runtime's own
+<code>[runtimes.&lt;id&gt;.shell_environment]</code>. A runtime captures the user's shell
+environment on its own machine when it initializes and when the setting
+changes, and starts the processes of its work in it: the <code>bash</code> tool's
+commands, MCP servers, and ACP agents. Settings without it, as from an older
+daemon, leave the runtime's own environment. What a capture does is
+described in <a href="../../engine/shell_environment/">Shell Environment</a>.</p>
+<p>The daemon sends <code>runtime/shell_environment_refresh</code> (params <code>{}</code>) to every
+connected runtime of 1.12.0 or later when the configuration is reloaded,
+since the user may have edited their rc files; a runtime whose capture is
+off ignores it. After each capture, and once after its initialize reply when
+a capture already finished, a runtime sends <code>runtime/shell_environment</code> to a
+daemon of 1.12.0 or later: <code>captured</code> (whether processes get the captured
+environment), <code>shell</code>, <code>variables</code> (how many), <code>snapshot</code> (whether the
+<code>bash</code> tool sources a bash snapshot), <code>duration_ms</code>, and <code>error</code> when the
+capture failed. It never carries variable names or values. The daemon lists a
+failed capture, and a runtime older than 1.12.0 whose configuration asks for
+a capture, in its configuration diagnostics.</p>
 <h3 id="runtimecontext"><code>runtime/context</code><a class="headerlink" href="#runtimecontext" title="Permanent link">&para;</a></h3>
 <p>Params: <code>instance</code>, and <code>preset</code>, the run's agent preset (optional; must be a
 valid agent ID). Result: <code>agent_md</code>, the <code>AGENTS.md</code> entries in prompt order, and <code>skipped</code>,

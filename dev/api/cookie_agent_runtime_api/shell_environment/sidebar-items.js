@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CAPTURE_VARIABLE"],"fn":["apply","configure","environment","refresh","reports"],"struct":["Reports","ShellEnvironment"]};

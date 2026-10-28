@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>//! cache does not count as a miss; a client shows that rate as it comes
 <a href=#20 id=20 data-nosnippet>20</a>//! and never recomputes it from the totals, which include such requests.
 <a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a></span><span class="kw">use </span>cookie_agent_protocol::{ModelUsageRollup, UsageRollup};
+<a href=#22 id=22 data-nosnippet>22</a></span><span class="kw">use </span>cookie_agent_protocol::{ModelKey, ModelUsageRollup, UsageRollup};
 <a href=#23 id=23 data-nosnippet>23</a>
 <a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// What a client shows for an unavailable hit rate, where it has room for
 <a href=#25 id=25 data-nosnippet>25</a>/// a dash: no input yet, or no request reported cache use.
@@ -149,90 +149,113 @@
 <a href=#149 id=149 data-nosnippet>149</a>    }
 <a href=#150 id=150 data-nosnippet>150</a>}
 <a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a><span class="attr">#[cfg(test)]
-<a href=#153 id=153 data-nosnippet>153</a></span><span class="kw">mod </span>tests {
-<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="attr">#[test]
-<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">fn </span>the_rate_is_the_daemons_share_of_inclusive_input_read_from_the_cache() {
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>hit = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8</span>), <span class="number">10_000</span>, <span class="number">8_000</span>, <span class="number">500</span>);
-<a href=#159 id=159 data-nosnippet>159</a>        <span class="macro">assert_eq!</span>(hit.percent().as_deref(), <span class="prelude-val">Some</span>(<span class="string">"80.0%"</span>));
-<a href=#160 id=160 data-nosnippet>160</a>        <span class="macro">assert_eq!</span>(hit.label(), <span class="string">"80.0%"</span>);
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="macro">assert_eq!</span>(
-<a href=#162 id=162 data-nosnippet>162</a>            hit.detail(),
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="string">"8,000 of 10,000 input tokens read from the prompt cache; 500 written to it."
-<a href=#164 id=164 data-nosnippet>164</a>        </span>);
-<a href=#165 id=165 data-nosnippet>165</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8253</span>), <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>).label(), <span class="string">"82.5%"</span>);
-<a href=#166 id=166 data-nosnippet>166</a>    }
-<a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="attr">#[test]
-<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="kw">fn </span>no_input_or_no_reported_cache_use_is_a_dash_not_zero() {
-<a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span>empty = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.0</span>), <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
-<a href=#171 id=171 data-nosnippet>171</a>        <span class="macro">assert_eq!</span>(empty.rate, <span class="prelude-val">None</span>, <span class="string">"no input: nothing to rate"</span>);
-<a href=#172 id=172 data-nosnippet>172</a>        <span class="macro">assert_eq!</span>(empty.label(), NO_HIT_RATE);
-<a href=#173 id=173 data-nosnippet>173</a>        <span class="macro">assert_eq!</span>(empty.detail(), <span class="string">"No input tokens yet."</span>);
+<a href=#152 id=152 data-nosnippet>152</a><span class="doccomment">/// A cost, or `unpriced` for a model without known prices.
+<a href=#153 id=153 data-nosnippet>153</a></span><span class="kw">pub fn </span>format_cost(cost: <span class="prelude-ty">Option</span>&lt;f64&gt;) -&gt; String {
+<a href=#154 id=154 data-nosnippet>154</a>    cost.map_or_else(|| <span class="string">"unpriced"</span>.to_owned(), format_cost_usd)
+<a href=#155 id=155 data-nosnippet>155</a>}
+<a href=#156 id=156 data-nosnippet>156</a>
+<a href=#157 id=157 data-nosnippet>157</a><span class="doccomment">/// A rollup's models in the order a breakdown lists them: the costliest
+<a href=#158 id=158 data-nosnippet>158</a>/// first, unpriced ones after the priced, then by input tokens, then by
+<a href=#159 id=159 data-nosnippet>159</a>/// name.
+<a href=#160 id=160 data-nosnippet>160</a></span><span class="kw">pub fn </span>models_by_cost(usage: <span class="kw-2">&amp;</span>UsageRollup) -&gt; Vec&lt;(<span class="kw-2">&amp;</span>ModelKey, <span class="kw-2">&amp;</span>ModelUsageRollup)&gt; {
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">let </span><span class="kw-2">mut </span>models = usage.by_model.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#162 id=162 data-nosnippet>162</a>    models.sort_by(|(name_a, usage_a), (name_b, usage_b)| {
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">match </span>(usage_a.estimated_cost_usd, usage_b.estimated_cost_usd) {
+<a href=#164 id=164 data-nosnippet>164</a>            (<span class="prelude-val">Some</span>(a), <span class="prelude-val">Some</span>(b)) =&gt; b.total_cmp(<span class="kw-2">&amp;</span>a),
+<a href=#165 id=165 data-nosnippet>165</a>            (<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="prelude-val">None</span>) =&gt; std::cmp::Ordering::Less,
+<a href=#166 id=166 data-nosnippet>166</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; std::cmp::Ordering::Greater,
+<a href=#167 id=167 data-nosnippet>167</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; std::cmp::Ordering::Equal,
+<a href=#168 id=168 data-nosnippet>168</a>        }
+<a href=#169 id=169 data-nosnippet>169</a>        .then_with(|| usage_b.input_tokens.cmp(<span class="kw-2">&amp;</span>usage_a.input_tokens))
+<a href=#170 id=170 data-nosnippet>170</a>        .then_with(|| name_a.cmp(name_b))
+<a href=#171 id=171 data-nosnippet>171</a>    });
+<a href=#172 id=172 data-nosnippet>172</a>    models
+<a href=#173 id=173 data-nosnippet>173</a>}
 <a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">let </span>unreported = CacheHit::new(<span class="prelude-val">None</span>, <span class="number">1_200</span>, <span class="number">0</span>, <span class="number">0</span>);
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="macro">assert_eq!</span>(unreported.label(), NO_HIT_RATE);
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">assert_eq!</span>(
-<a href=#178 id=178 data-nosnippet>178</a>            unreported.detail(),
-<a href=#179 id=179 data-nosnippet>179</a>            <span class="string">"The provider reported no prompt-cache use."
-<a href=#180 id=180 data-nosnippet>180</a>        </span>);
-<a href=#181 id=181 data-nosnippet>181</a>
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="comment">// A provider that reported zero cache reads missed: that is 0 %.
-<a href=#183 id=183 data-nosnippet>183</a>        </span><span class="kw">let </span>missed = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.0</span>), <span class="number">1_200</span>, <span class="number">0</span>, <span class="number">0</span>);
-<a href=#184 id=184 data-nosnippet>184</a>        <span class="macro">assert_eq!</span>(missed.label(), <span class="string">"0.0%"</span>);
-<a href=#185 id=185 data-nosnippet>185</a>    }
-<a href=#186 id=186 data-nosnippet>186</a>
-<a href=#187 id=187 data-nosnippet>187</a>    <span class="attr">#[test]
-<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">fn </span>the_detail_says_when_unreported_requests_make_the_totals_disagree() {
-<a href=#189 id=189 data-nosnippet>189</a>        <span class="comment">// One request of 1,000 tokens read 800 from the cache; another of
-<a href=#190 id=190 data-nosnippet>190</a>        // 1,000 said nothing about the cache. The daemon rates the first.
-<a href=#191 id=191 data-nosnippet>191</a>        </span><span class="kw">let </span>mixed = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8</span>), <span class="number">2_000</span>, <span class="number">800</span>, <span class="number">0</span>);
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="macro">assert_eq!</span>(mixed.label(), <span class="string">"80.0%"</span>);
-<a href=#193 id=193 data-nosnippet>193</a>        <span class="macro">assert!</span>(
-<a href=#194 id=194 data-nosnippet>194</a>            mixed
-<a href=#195 id=195 data-nosnippet>195</a>                .detail()
-<a href=#196 id=196 data-nosnippet>196</a>                .ends_with(<span class="string">"Requests that did not report cache use are left out of the rate."</span>),
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="string">"{}"</span>,
-<a href=#198 id=198 data-nosnippet>198</a>            mixed.detail()
-<a href=#199 id=199 data-nosnippet>199</a>        );
-<a href=#200 id=200 data-nosnippet>200</a>    }
-<a href=#201 id=201 data-nosnippet>201</a>
-<a href=#202 id=202 data-nosnippet>202</a>    <span class="attr">#[test]
-<a href=#203 id=203 data-nosnippet>203</a>    </span><span class="kw">fn </span>an_out_of_range_rate_is_clamped_and_a_non_finite_one_dropped() {
-<a href=#204 id=204 data-nosnippet>204</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">1.5</span>), <span class="number">10</span>, <span class="number">10</span>, <span class="number">0</span>).label(), <span class="string">"100.0%"</span>);
-<a href=#205 id=205 data-nosnippet>205</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(-<span class="number">0.1</span>), <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).label(), <span class="string">"0.0%"</span>);
-<a href=#206 id=206 data-nosnippet>206</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(f64::NAN), <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).rate, <span class="prelude-val">None</span>);
-<a href=#207 id=207 data-nosnippet>207</a>    }
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="attr">#[test]
-<a href=#210 id=210 data-nosnippet>210</a>    </span><span class="kw">fn </span>rollups_and_model_rows_carry_their_own_figures() {
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">let </span>model = ModelUsageRollup {
-<a href=#212 id=212 data-nosnippet>212</a>            input_tokens: <span class="number">4_000</span>,
-<a href=#213 id=213 data-nosnippet>213</a>            cache_read_tokens: <span class="number">1_000</span>,
-<a href=#214 id=214 data-nosnippet>214</a>            cache_write_tokens: <span class="number">3_000</span>,
-<a href=#215 id=215 data-nosnippet>215</a>            cache_hit_rate: <span class="prelude-val">Some</span>(<span class="number">0.25</span>),
-<a href=#216 id=216 data-nosnippet>216</a>            ..ModelUsageRollup::default()
-<a href=#217 id=217 data-nosnippet>217</a>        };
-<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>usage = UsageRollup {
-<a href=#219 id=219 data-nosnippet>219</a>            input_tokens: <span class="number">4_000</span>,
-<a href=#220 id=220 data-nosnippet>220</a>            cache_read_tokens: <span class="number">1_000</span>,
-<a href=#221 id=221 data-nosnippet>221</a>            cache_write_tokens: <span class="number">3_000</span>,
-<a href=#222 id=222 data-nosnippet>222</a>            cache_hit_rate: <span class="prelude-val">Some</span>(<span class="number">0.25</span>),
-<a href=#223 id=223 data-nosnippet>223</a>            ..UsageRollup::default()
-<a href=#224 id=224 data-nosnippet>224</a>        };
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">let </span>expected = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.25</span>), <span class="number">4_000</span>, <span class="number">1_000</span>, <span class="number">3_000</span>);
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert_eq!</span>(CacheHit::of_model(<span class="kw-2">&amp;</span>model), expected);
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="macro">assert_eq!</span>(CacheHit::of(<span class="kw-2">&amp;</span>usage), expected);
-<a href=#228 id=228 data-nosnippet>228</a>    }
-<a href=#229 id=229 data-nosnippet>229</a>
-<a href=#230 id=230 data-nosnippet>230</a>    <span class="attr">#[test]
-<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">fn </span>counts_group_their_digits_by_three() {
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">0</span>), <span class="string">"0"</span>);
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">999</span>), <span class="string">"999"</span>);
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">1_000</span>), <span class="string">"1,000"</span>);
-<a href=#235 id=235 data-nosnippet>235</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">12_345_678</span>), <span class="string">"12,345,678"</span>);
-<a href=#236 id=236 data-nosnippet>236</a>    }
-<a href=#237 id=237 data-nosnippet>237</a>}
+<a href=#175 id=175 data-nosnippet>175</a><span class="attr">#[cfg(test)]
+<a href=#176 id=176 data-nosnippet>176</a></span><span class="kw">mod </span>tests {
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#178 id=178 data-nosnippet>178</a>
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="attr">#[test]
+<a href=#180 id=180 data-nosnippet>180</a>    </span><span class="kw">fn </span>the_rate_is_the_daemons_share_of_inclusive_input_read_from_the_cache() {
+<a href=#181 id=181 data-nosnippet>181</a>        <span class="kw">let </span>hit = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8</span>), <span class="number">10_000</span>, <span class="number">8_000</span>, <span class="number">500</span>);
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="macro">assert_eq!</span>(hit.percent().as_deref(), <span class="prelude-val">Some</span>(<span class="string">"80.0%"</span>));
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="macro">assert_eq!</span>(hit.label(), <span class="string">"80.0%"</span>);
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="macro">assert_eq!</span>(
+<a href=#185 id=185 data-nosnippet>185</a>            hit.detail(),
+<a href=#186 id=186 data-nosnippet>186</a>            <span class="string">"8,000 of 10,000 input tokens read from the prompt cache; 500 written to it."
+<a href=#187 id=187 data-nosnippet>187</a>        </span>);
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8253</span>), <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>).label(), <span class="string">"82.5%"</span>);
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="attr">#[test]
+<a href=#192 id=192 data-nosnippet>192</a>    </span><span class="kw">fn </span>no_input_or_no_reported_cache_use_is_a_dash_not_zero() {
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>empty = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.0</span>), <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="macro">assert_eq!</span>(empty.rate, <span class="prelude-val">None</span>, <span class="string">"no input: nothing to rate"</span>);
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="macro">assert_eq!</span>(empty.label(), NO_HIT_RATE);
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="macro">assert_eq!</span>(empty.detail(), <span class="string">"No input tokens yet."</span>);
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="kw">let </span>unreported = CacheHit::new(<span class="prelude-val">None</span>, <span class="number">1_200</span>, <span class="number">0</span>, <span class="number">0</span>);
+<a href=#199 id=199 data-nosnippet>199</a>        <span class="macro">assert_eq!</span>(unreported.label(), NO_HIT_RATE);
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="macro">assert_eq!</span>(
+<a href=#201 id=201 data-nosnippet>201</a>            unreported.detail(),
+<a href=#202 id=202 data-nosnippet>202</a>            <span class="string">"The provider reported no prompt-cache use."
+<a href=#203 id=203 data-nosnippet>203</a>        </span>);
+<a href=#204 id=204 data-nosnippet>204</a>
+<a href=#205 id=205 data-nosnippet>205</a>        <span class="comment">// A provider that reported zero cache reads missed: that is 0 %.
+<a href=#206 id=206 data-nosnippet>206</a>        </span><span class="kw">let </span>missed = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.0</span>), <span class="number">1_200</span>, <span class="number">0</span>, <span class="number">0</span>);
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="macro">assert_eq!</span>(missed.label(), <span class="string">"0.0%"</span>);
+<a href=#208 id=208 data-nosnippet>208</a>    }
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>    <span class="attr">#[test]
+<a href=#211 id=211 data-nosnippet>211</a>    </span><span class="kw">fn </span>the_detail_says_when_unreported_requests_make_the_totals_disagree() {
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="comment">// One request of 1,000 tokens read 800 from the cache; another of
+<a href=#213 id=213 data-nosnippet>213</a>        // 1,000 said nothing about the cache. The daemon rates the first.
+<a href=#214 id=214 data-nosnippet>214</a>        </span><span class="kw">let </span>mixed = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.8</span>), <span class="number">2_000</span>, <span class="number">800</span>, <span class="number">0</span>);
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="macro">assert_eq!</span>(mixed.label(), <span class="string">"80.0%"</span>);
+<a href=#216 id=216 data-nosnippet>216</a>        <span class="macro">assert!</span>(
+<a href=#217 id=217 data-nosnippet>217</a>            mixed
+<a href=#218 id=218 data-nosnippet>218</a>                .detail()
+<a href=#219 id=219 data-nosnippet>219</a>                .ends_with(<span class="string">"Requests that did not report cache use are left out of the rate."</span>),
+<a href=#220 id=220 data-nosnippet>220</a>            <span class="string">"{}"</span>,
+<a href=#221 id=221 data-nosnippet>221</a>            mixed.detail()
+<a href=#222 id=222 data-nosnippet>222</a>        );
+<a href=#223 id=223 data-nosnippet>223</a>    }
+<a href=#224 id=224 data-nosnippet>224</a>
+<a href=#225 id=225 data-nosnippet>225</a>    <span class="attr">#[test]
+<a href=#226 id=226 data-nosnippet>226</a>    </span><span class="kw">fn </span>an_out_of_range_rate_is_clamped_and_a_non_finite_one_dropped() {
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">1.5</span>), <span class="number">10</span>, <span class="number">10</span>, <span class="number">0</span>).label(), <span class="string">"100.0%"</span>);
+<a href=#228 id=228 data-nosnippet>228</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(-<span class="number">0.1</span>), <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).label(), <span class="string">"0.0%"</span>);
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="macro">assert_eq!</span>(CacheHit::new(<span class="prelude-val">Some</span>(f64::NAN), <span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>).rate, <span class="prelude-val">None</span>);
+<a href=#230 id=230 data-nosnippet>230</a>    }
+<a href=#231 id=231 data-nosnippet>231</a>
+<a href=#232 id=232 data-nosnippet>232</a>    <span class="attr">#[test]
+<a href=#233 id=233 data-nosnippet>233</a>    </span><span class="kw">fn </span>rollups_and_model_rows_carry_their_own_figures() {
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>model = ModelUsageRollup {
+<a href=#235 id=235 data-nosnippet>235</a>            input_tokens: <span class="number">4_000</span>,
+<a href=#236 id=236 data-nosnippet>236</a>            cache_read_tokens: <span class="number">1_000</span>,
+<a href=#237 id=237 data-nosnippet>237</a>            cache_write_tokens: <span class="number">3_000</span>,
+<a href=#238 id=238 data-nosnippet>238</a>            cache_hit_rate: <span class="prelude-val">Some</span>(<span class="number">0.25</span>),
+<a href=#239 id=239 data-nosnippet>239</a>            ..ModelUsageRollup::default()
+<a href=#240 id=240 data-nosnippet>240</a>        };
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">let </span>usage = UsageRollup {
+<a href=#242 id=242 data-nosnippet>242</a>            input_tokens: <span class="number">4_000</span>,
+<a href=#243 id=243 data-nosnippet>243</a>            cache_read_tokens: <span class="number">1_000</span>,
+<a href=#244 id=244 data-nosnippet>244</a>            cache_write_tokens: <span class="number">3_000</span>,
+<a href=#245 id=245 data-nosnippet>245</a>            cache_hit_rate: <span class="prelude-val">Some</span>(<span class="number">0.25</span>),
+<a href=#246 id=246 data-nosnippet>246</a>            ..UsageRollup::default()
+<a href=#247 id=247 data-nosnippet>247</a>        };
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>expected = CacheHit::new(<span class="prelude-val">Some</span>(<span class="number">0.25</span>), <span class="number">4_000</span>, <span class="number">1_000</span>, <span class="number">3_000</span>);
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="macro">assert_eq!</span>(CacheHit::of_model(<span class="kw-2">&amp;</span>model), expected);
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="macro">assert_eq!</span>(CacheHit::of(<span class="kw-2">&amp;</span>usage), expected);
+<a href=#251 id=251 data-nosnippet>251</a>    }
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="attr">#[test]
+<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="kw">fn </span>counts_group_their_digits_by_three() {
+<a href=#255 id=255 data-nosnippet>255</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">0</span>), <span class="string">"0"</span>);
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">999</span>), <span class="string">"999"</span>);
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">1_000</span>), <span class="string">"1,000"</span>);
+<a href=#258 id=258 data-nosnippet>258</a>        <span class="macro">assert_eq!</span>(format_count(<span class="number">12_345_678</span>), <span class="string">"12,345,678"</span>);
+<a href=#259 id=259 data-nosnippet>259</a>    }
+<a href=#260 id=260 data-nosnippet>260</a>}
 </code></pre></div></section></main></body></html>
