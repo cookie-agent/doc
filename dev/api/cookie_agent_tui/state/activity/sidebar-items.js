@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["WAITING_ON_MINOR"],"enum":["SessionActivity"],"fn":["daemon_reports_waiting","session_activity","waiting_label"]};
+window.SIDEBAR_ITEMS = {"constant":["WAITING_ON_MINOR"],"enum":["SessionActivity"],"fn":["daemon_reports_waiting","session_activity","session_at_work","waiting_label"]};
