@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["McpServerState"],"struct":["McpRegistry","McpRegistryOptions","McpServerFailure","McpServerStatus"],"trait":["McpObserver"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_INSTRUCTIONS_CHARS"],"enum":["McpServerState"],"struct":["McpRegistry","McpRegistryOptions","McpServerFailure","McpServerStatus"],"trait":["McpObserver"]};

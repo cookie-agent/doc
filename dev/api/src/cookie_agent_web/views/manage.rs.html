@@ -791,588 +791,606 @@
 <a href=#791 id=791 data-nosnippet>791</a>    <span class="kw">let </span>on_runtime = edit.table_runtime().cloned();
 <a href=#792 id=792 data-nosnippet>792</a>    <span class="kw">let </span>transport = RwSignal::new(fields.transport);
 <a href=#793 id=793 data-nosnippet>793</a>    <span class="kw">let </span>enabled = RwSignal::new(fields.enabled);
-<a href=#794 id=794 data-nosnippet>794</a>    <span class="kw">let </span>extras = RwSignal::new(fields.extras.clone());
-<a href=#795 id=795 data-nosnippet>795</a>    <span class="comment">// One copy for the runtime, shared by its workspaces.
-<a href=#796 id=796 data-nosnippet>796</a>    </span><span class="kw">let </span>shared = RwSignal::new(
-<a href=#797 id=797 data-nosnippet>797</a>        editing
-<a href=#798 id=798 data-nosnippet>798</a>            .as_ref()
-<a href=#799 id=799 data-nosnippet>799</a>            .and_then(|server| server.definition.scope)
-<a href=#800 id=800 data-nosnippet>800</a>            .is_some_and(|scope| scope == cookie_agent_protocol::McpServerScope::Runtime),
-<a href=#801 id=801 data-nosnippet>801</a>    );
-<a href=#802 id=802 data-nosnippet>802</a>    <span class="kw">let </span>editing_name = editing.as_ref().map(|server| server.name.clone());
-<a href=#803 id=803 data-nosnippet>803</a>    <span class="kw">let </span>submit = <span class="kw">move </span>|| {
-<a href=#804 id=804 data-nosnippet>804</a>        <span class="kw">let </span><span class="kw-2">mut </span>fields = McpFields {
-<a href=#805 id=805 data-nosnippet>805</a>            name: field_value(<span class="string">"mcp-name"</span>),
-<a href=#806 id=806 data-nosnippet>806</a>            transport: fields.transport,
-<a href=#807 id=807 data-nosnippet>807</a>            endpoint: field_value(<span class="string">"mcp-endpoint"</span>),
-<a href=#808 id=808 data-nosnippet>808</a>            extras: field_value(<span class="string">"mcp-extras"</span>),
-<a href=#809 id=809 data-nosnippet>809</a>            environment: field_value(<span class="string">"mcp-env"</span>),
-<a href=#810 id=810 data-nosnippet>810</a>            cwd: field_value(<span class="string">"mcp-cwd"</span>),
-<a href=#811 id=811 data-nosnippet>811</a>            enabled: enabled.get_untracked(),
-<a href=#812 id=812 data-nosnippet>812</a>            include_tools: field_value(<span class="string">"mcp-include-tools"</span>),
-<a href=#813 id=813 data-nosnippet>813</a>            exclude_tools: field_value(<span class="string">"mcp-exclude-tools"</span>),
-<a href=#814 id=814 data-nosnippet>814</a>        };
-<a href=#815 id=815 data-nosnippet>815</a>        fields.transport = transport.get_untracked();
-<a href=#816 id=816 data-nosnippet>816</a>        <span class="kw">if </span>fields.transport == McpTransport::Http {
-<a href=#817 id=817 data-nosnippet>817</a>            fields.environment = <span class="string">"{}"</span>.into();
-<a href=#818 id=818 data-nosnippet>818</a>        }
-<a href=#819 id=819 data-nosnippet>819</a>        <span class="kw">let </span>scope = <span class="prelude-val">Some</span>(<span class="kw">if </span>shared.get_untracked() {
-<a href=#820 id=820 data-nosnippet>820</a>            cookie_agent_protocol::McpServerScope::Runtime
-<a href=#821 id=821 data-nosnippet>821</a>        } <span class="kw">else </span>{
-<a href=#822 id=822 data-nosnippet>822</a>            cookie_agent_protocol::McpServerScope::Workspace
-<a href=#823 id=823 data-nosnippet>823</a>        });
-<a href=#824 id=824 data-nosnippet>824</a>        <span class="kw">match </span>workspace.submit_mcp(
-<a href=#825 id=825 data-nosnippet>825</a>            fields,
-<a href=#826 id=826 data-nosnippet>826</a>            editing.clone(),
-<a href=#827 id=827 data-nosnippet>827</a>            persist.get_untracked(),
-<a href=#828 id=828 data-nosnippet>828</a>            runtime.clone(),
-<a href=#829 id=829 data-nosnippet>829</a>            scope,
-<a href=#830 id=830 data-nosnippet>830</a>        ) {
-<a href=#831 id=831 data-nosnippet>831</a>            <span class="prelude-val">Ok</span>(()) =&gt; form.set(<span class="prelude-val">None</span>),
-<a href=#832 id=832 data-nosnippet>832</a>            <span class="prelude-val">Err</span>(message) =&gt; error.set(<span class="prelude-val">Some</span>(message)),
-<a href=#833 id=833 data-nosnippet>833</a>        }
-<a href=#834 id=834 data-nosnippet>834</a>    };
-<a href=#835 id=835 data-nosnippet>835</a>    <span class="macro">view!</span> {
-<a href=#836 id=836 data-nosnippet>836</a>        &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;
-<a href=#837 id=837 data-nosnippet>837</a>            {<span class="kw">match </span>(editing_name.is_some(), <span class="kw-2">&amp;</span>on_runtime) {
-<a href=#838 id=838 data-nosnippet>838</a>                (<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(runtime)) =&gt; <span class="macro">format!</span>(<span class="string">"Edit MCP server on {runtime}"</span>),
-<a href=#839 id=839 data-nosnippet>839</a>                (<span class="bool-val">true</span>, <span class="prelude-val">None</span>) =&gt; <span class="string">"Edit MCP server"</span>.to_owned(),
-<a href=#840 id=840 data-nosnippet>840</a>                (<span class="bool-val">false</span>, <span class="prelude-val">Some</span>(runtime)) =&gt; <span class="macro">format!</span>(<span class="string">"New MCP server on {runtime}"</span>),
-<a href=#841 id=841 data-nosnippet>841</a>                (<span class="bool-val">false</span>, <span class="prelude-val">None</span>) =&gt; <span class="string">"New MCP server"</span>.to_owned(),
-<a href=#842 id=842 data-nosnippet>842</a>            }}
-<a href=#843 id=843 data-nosnippet>843</a>        &lt;/p&gt;
-<a href=#844 id=844 data-nosnippet>844</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#845 id=845 data-nosnippet>845</a>            &lt;span&gt;<span class="string">"Name"</span>&lt;/span&gt;
-<a href=#846 id=846 data-nosnippet>846</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-name" </span>class=FIELD value=fields.name.clone() /&gt;
-<a href=#847 id=847 data-nosnippet>847</a>            {editing_name.is_some().then(|| <span class="macro">view!</span> { &lt;span class=NOTE&gt;<span class="string">"A new name renames the server."</span>&lt;/span&gt; })}
-<a href=#848 id=848 data-nosnippet>848</a>        &lt;/label&gt;
+<a href=#794 id=794 data-nosnippet>794</a>    <span class="kw">let </span>always_load = RwSignal::new(fields.always_load);
+<a href=#795 id=795 data-nosnippet>795</a>    <span class="kw">let </span>instructions = RwSignal::new(fields.instructions);
+<a href=#796 id=796 data-nosnippet>796</a>    <span class="kw">let </span>extras = RwSignal::new(fields.extras.clone());
+<a href=#797 id=797 data-nosnippet>797</a>    <span class="comment">// One copy for the runtime, shared by its workspaces.
+<a href=#798 id=798 data-nosnippet>798</a>    </span><span class="kw">let </span>shared = RwSignal::new(
+<a href=#799 id=799 data-nosnippet>799</a>        editing
+<a href=#800 id=800 data-nosnippet>800</a>            .as_ref()
+<a href=#801 id=801 data-nosnippet>801</a>            .and_then(|server| server.definition.scope)
+<a href=#802 id=802 data-nosnippet>802</a>            .is_some_and(|scope| scope == cookie_agent_protocol::McpServerScope::Runtime),
+<a href=#803 id=803 data-nosnippet>803</a>    );
+<a href=#804 id=804 data-nosnippet>804</a>    <span class="kw">let </span>editing_name = editing.as_ref().map(|server| server.name.clone());
+<a href=#805 id=805 data-nosnippet>805</a>    <span class="kw">let </span>submit = <span class="kw">move </span>|| {
+<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">let </span><span class="kw-2">mut </span>fields = McpFields {
+<a href=#807 id=807 data-nosnippet>807</a>            name: field_value(<span class="string">"mcp-name"</span>),
+<a href=#808 id=808 data-nosnippet>808</a>            transport: fields.transport,
+<a href=#809 id=809 data-nosnippet>809</a>            endpoint: field_value(<span class="string">"mcp-endpoint"</span>),
+<a href=#810 id=810 data-nosnippet>810</a>            extras: field_value(<span class="string">"mcp-extras"</span>),
+<a href=#811 id=811 data-nosnippet>811</a>            environment: field_value(<span class="string">"mcp-env"</span>),
+<a href=#812 id=812 data-nosnippet>812</a>            cwd: field_value(<span class="string">"mcp-cwd"</span>),
+<a href=#813 id=813 data-nosnippet>813</a>            enabled: enabled.get_untracked(),
+<a href=#814 id=814 data-nosnippet>814</a>            include_tools: field_value(<span class="string">"mcp-include-tools"</span>),
+<a href=#815 id=815 data-nosnippet>815</a>            exclude_tools: field_value(<span class="string">"mcp-exclude-tools"</span>),
+<a href=#816 id=816 data-nosnippet>816</a>            always_load: always_load.get_untracked(),
+<a href=#817 id=817 data-nosnippet>817</a>            always_load_tools: field_value(<span class="string">"mcp-always-load-tools"</span>),
+<a href=#818 id=818 data-nosnippet>818</a>            instructions: instructions.get_untracked(),
+<a href=#819 id=819 data-nosnippet>819</a>        };
+<a href=#820 id=820 data-nosnippet>820</a>        fields.transport = transport.get_untracked();
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">if </span>fields.transport == McpTransport::Http {
+<a href=#822 id=822 data-nosnippet>822</a>            fields.environment = <span class="string">"{}"</span>.into();
+<a href=#823 id=823 data-nosnippet>823</a>        }
+<a href=#824 id=824 data-nosnippet>824</a>        <span class="kw">let </span>scope = <span class="prelude-val">Some</span>(<span class="kw">if </span>shared.get_untracked() {
+<a href=#825 id=825 data-nosnippet>825</a>            cookie_agent_protocol::McpServerScope::Runtime
+<a href=#826 id=826 data-nosnippet>826</a>        } <span class="kw">else </span>{
+<a href=#827 id=827 data-nosnippet>827</a>            cookie_agent_protocol::McpServerScope::Workspace
+<a href=#828 id=828 data-nosnippet>828</a>        });
+<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">match </span>workspace.submit_mcp(
+<a href=#830 id=830 data-nosnippet>830</a>            fields,
+<a href=#831 id=831 data-nosnippet>831</a>            editing.clone(),
+<a href=#832 id=832 data-nosnippet>832</a>            persist.get_untracked(),
+<a href=#833 id=833 data-nosnippet>833</a>            runtime.clone(),
+<a href=#834 id=834 data-nosnippet>834</a>            scope,
+<a href=#835 id=835 data-nosnippet>835</a>        ) {
+<a href=#836 id=836 data-nosnippet>836</a>            <span class="prelude-val">Ok</span>(()) =&gt; form.set(<span class="prelude-val">None</span>),
+<a href=#837 id=837 data-nosnippet>837</a>            <span class="prelude-val">Err</span>(message) =&gt; error.set(<span class="prelude-val">Some</span>(message)),
+<a href=#838 id=838 data-nosnippet>838</a>        }
+<a href=#839 id=839 data-nosnippet>839</a>    };
+<a href=#840 id=840 data-nosnippet>840</a>    <span class="macro">view!</span> {
+<a href=#841 id=841 data-nosnippet>841</a>        &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;
+<a href=#842 id=842 data-nosnippet>842</a>            {<span class="kw">match </span>(editing_name.is_some(), <span class="kw-2">&amp;</span>on_runtime) {
+<a href=#843 id=843 data-nosnippet>843</a>                (<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(runtime)) =&gt; <span class="macro">format!</span>(<span class="string">"Edit MCP server on {runtime}"</span>),
+<a href=#844 id=844 data-nosnippet>844</a>                (<span class="bool-val">true</span>, <span class="prelude-val">None</span>) =&gt; <span class="string">"Edit MCP server"</span>.to_owned(),
+<a href=#845 id=845 data-nosnippet>845</a>                (<span class="bool-val">false</span>, <span class="prelude-val">Some</span>(runtime)) =&gt; <span class="macro">format!</span>(<span class="string">"New MCP server on {runtime}"</span>),
+<a href=#846 id=846 data-nosnippet>846</a>                (<span class="bool-val">false</span>, <span class="prelude-val">None</span>) =&gt; <span class="string">"New MCP server"</span>.to_owned(),
+<a href=#847 id=847 data-nosnippet>847</a>            }}
+<a href=#848 id=848 data-nosnippet>848</a>        &lt;/p&gt;
 <a href=#849 id=849 data-nosnippet>849</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#850 id=850 data-nosnippet>850</a>            &lt;span&gt;<span class="string">"Transport"</span>&lt;/span&gt;
-<a href=#851 id=851 data-nosnippet>851</a>            &lt;select
-<a href=#852 id=852 data-nosnippet>852</a>                id=<span class="string">"mcp-transport"
-<a href=#853 id=853 data-nosnippet>853</a>                </span>class=FIELD
-<a href=#854 id=854 data-nosnippet>854</a>                on:change=<span class="kw">move </span>|event| {
-<a href=#855 id=855 data-nosnippet>855</a>                    <span class="kw">let </span>next = <span class="kw">if </span>event_target_value(<span class="kw-2">&amp;</span>event) == <span class="string">"http" </span>{ McpTransport::Http } <span class="kw">else </span>{ McpTransport::Stdio };
-<a href=#856 id=856 data-nosnippet>856</a>                    <span class="kw">if </span>next != transport.get_untracked() {
-<a href=#857 id=857 data-nosnippet>857</a>                        transport.set(next);
-<a href=#858 id=858 data-nosnippet>858</a>                        extras.set(next.extras().<span class="number">1</span>.to_owned());
-<a href=#859 id=859 data-nosnippet>859</a>                    }
-<a href=#860 id=860 data-nosnippet>860</a>                }
-<a href=#861 id=861 data-nosnippet>861</a>            &gt;
-<a href=#862 id=862 data-nosnippet>862</a>                &lt;option value=<span class="string">"stdio" </span>selected=fields.transport == McpTransport::Stdio&gt;<span class="string">"stdio"</span>&lt;/option&gt;
-<a href=#863 id=863 data-nosnippet>863</a>                &lt;option value=<span class="string">"http" </span>selected=fields.transport == McpTransport::Http&gt;<span class="string">"http"</span>&lt;/option&gt;
-<a href=#864 id=864 data-nosnippet>864</a>            &lt;/select&gt;
-<a href=#865 id=865 data-nosnippet>865</a>        &lt;/label&gt;
-<a href=#866 id=866 data-nosnippet>866</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#867 id=867 data-nosnippet>867</a>            &lt;span&gt;{<span class="kw">move </span>|| <span class="kw">if </span>transport.get() == McpTransport::Stdio { <span class="string">"Command" </span>} <span class="kw">else </span>{ <span class="string">"URL" </span>}}&lt;/span&gt;
-<a href=#868 id=868 data-nosnippet>868</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-endpoint" </span>class=FIELD value=fields.endpoint.clone() /&gt;
-<a href=#869 id=869 data-nosnippet>869</a>        &lt;/label&gt;
-<a href=#870 id=870 data-nosnippet>870</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#871 id=871 data-nosnippet>871</a>            &lt;span&gt;{<span class="kw">move </span>|| transport.get().extras().<span class="number">0</span>}&lt;/span&gt;
-<a href=#872 id=872 data-nosnippet>872</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-extras" </span>class=FIELD prop:value=<span class="kw">move </span>|| extras.get() on:input=<span class="kw">move </span>|event| extras.set(event_target_value(<span class="kw-2">&amp;</span>event)) /&gt;
-<a href=#873 id=873 data-nosnippet>873</a>        &lt;/label&gt;
-<a href=#874 id=874 data-nosnippet>874</a>        &lt;Show when=<span class="kw">move </span>|| transport.get() == McpTransport::Stdio&gt;
-<a href=#875 id=875 data-nosnippet>875</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#876 id=876 data-nosnippet>876</a>                &lt;span&gt;<span class="string">"Environment JSON object"</span>&lt;/span&gt;
-<a href=#877 id=877 data-nosnippet>877</a>                &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-env" </span>class=FIELD value=fields.environment.clone() /&gt;
-<a href=#878 id=878 data-nosnippet>878</a>            &lt;/label&gt;
-<a href=#879 id=879 data-nosnippet>879</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#880 id=880 data-nosnippet>880</a>                &lt;span&gt;<span class="string">"Working directory"</span>&lt;/span&gt;
-<a href=#881 id=881 data-nosnippet>881</a>                &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-cwd" </span>class=FIELD value=fields.cwd.clone() /&gt;
-<a href=#882 id=882 data-nosnippet>882</a>            &lt;/label&gt;
-<a href=#883 id=883 data-nosnippet>883</a>        &lt;/Show&gt;
-<a href=#884 id=884 data-nosnippet>884</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#885 id=885 data-nosnippet>885</a>            &lt;span&gt;<span class="string">"Include tools"</span>&lt;/span&gt;
-<a href=#886 id=886 data-nosnippet>886</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-include-tools" </span>class=FIELD placeholder=<span class="string">"every tool" </span>value=fields.include_tools.clone() /&gt;
-<a href=#887 id=887 data-nosnippet>887</a>            &lt;span class=NOTE&gt;<span class="string">"Patterns over the server's tool names, comma-separated; * and ? match like permission patterns"</span>&lt;/span&gt;
-<a href=#888 id=888 data-nosnippet>888</a>        &lt;/label&gt;
+<a href=#850 id=850 data-nosnippet>850</a>            &lt;span&gt;<span class="string">"Name"</span>&lt;/span&gt;
+<a href=#851 id=851 data-nosnippet>851</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-name" </span>class=FIELD value=fields.name.clone() /&gt;
+<a href=#852 id=852 data-nosnippet>852</a>            {editing_name.is_some().then(|| <span class="macro">view!</span> { &lt;span class=NOTE&gt;<span class="string">"A new name renames the server."</span>&lt;/span&gt; })}
+<a href=#853 id=853 data-nosnippet>853</a>        &lt;/label&gt;
+<a href=#854 id=854 data-nosnippet>854</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#855 id=855 data-nosnippet>855</a>            &lt;span&gt;<span class="string">"Transport"</span>&lt;/span&gt;
+<a href=#856 id=856 data-nosnippet>856</a>            &lt;select
+<a href=#857 id=857 data-nosnippet>857</a>                id=<span class="string">"mcp-transport"
+<a href=#858 id=858 data-nosnippet>858</a>                </span>class=FIELD
+<a href=#859 id=859 data-nosnippet>859</a>                on:change=<span class="kw">move </span>|event| {
+<a href=#860 id=860 data-nosnippet>860</a>                    <span class="kw">let </span>next = <span class="kw">if </span>event_target_value(<span class="kw-2">&amp;</span>event) == <span class="string">"http" </span>{ McpTransport::Http } <span class="kw">else </span>{ McpTransport::Stdio };
+<a href=#861 id=861 data-nosnippet>861</a>                    <span class="kw">if </span>next != transport.get_untracked() {
+<a href=#862 id=862 data-nosnippet>862</a>                        transport.set(next);
+<a href=#863 id=863 data-nosnippet>863</a>                        extras.set(next.extras().<span class="number">1</span>.to_owned());
+<a href=#864 id=864 data-nosnippet>864</a>                    }
+<a href=#865 id=865 data-nosnippet>865</a>                }
+<a href=#866 id=866 data-nosnippet>866</a>            &gt;
+<a href=#867 id=867 data-nosnippet>867</a>                &lt;option value=<span class="string">"stdio" </span>selected=fields.transport == McpTransport::Stdio&gt;<span class="string">"stdio"</span>&lt;/option&gt;
+<a href=#868 id=868 data-nosnippet>868</a>                &lt;option value=<span class="string">"http" </span>selected=fields.transport == McpTransport::Http&gt;<span class="string">"http"</span>&lt;/option&gt;
+<a href=#869 id=869 data-nosnippet>869</a>            &lt;/select&gt;
+<a href=#870 id=870 data-nosnippet>870</a>        &lt;/label&gt;
+<a href=#871 id=871 data-nosnippet>871</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#872 id=872 data-nosnippet>872</a>            &lt;span&gt;{<span class="kw">move </span>|| <span class="kw">if </span>transport.get() == McpTransport::Stdio { <span class="string">"Command" </span>} <span class="kw">else </span>{ <span class="string">"URL" </span>}}&lt;/span&gt;
+<a href=#873 id=873 data-nosnippet>873</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-endpoint" </span>class=FIELD value=fields.endpoint.clone() /&gt;
+<a href=#874 id=874 data-nosnippet>874</a>        &lt;/label&gt;
+<a href=#875 id=875 data-nosnippet>875</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#876 id=876 data-nosnippet>876</a>            &lt;span&gt;{<span class="kw">move </span>|| transport.get().extras().<span class="number">0</span>}&lt;/span&gt;
+<a href=#877 id=877 data-nosnippet>877</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-extras" </span>class=FIELD prop:value=<span class="kw">move </span>|| extras.get() on:input=<span class="kw">move </span>|event| extras.set(event_target_value(<span class="kw-2">&amp;</span>event)) /&gt;
+<a href=#878 id=878 data-nosnippet>878</a>        &lt;/label&gt;
+<a href=#879 id=879 data-nosnippet>879</a>        &lt;Show when=<span class="kw">move </span>|| transport.get() == McpTransport::Stdio&gt;
+<a href=#880 id=880 data-nosnippet>880</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#881 id=881 data-nosnippet>881</a>                &lt;span&gt;<span class="string">"Environment JSON object"</span>&lt;/span&gt;
+<a href=#882 id=882 data-nosnippet>882</a>                &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-env" </span>class=FIELD value=fields.environment.clone() /&gt;
+<a href=#883 id=883 data-nosnippet>883</a>            &lt;/label&gt;
+<a href=#884 id=884 data-nosnippet>884</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#885 id=885 data-nosnippet>885</a>                &lt;span&gt;<span class="string">"Working directory"</span>&lt;/span&gt;
+<a href=#886 id=886 data-nosnippet>886</a>                &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-cwd" </span>class=FIELD value=fields.cwd.clone() /&gt;
+<a href=#887 id=887 data-nosnippet>887</a>            &lt;/label&gt;
+<a href=#888 id=888 data-nosnippet>888</a>        &lt;/Show&gt;
 <a href=#889 id=889 data-nosnippet>889</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#890 id=890 data-nosnippet>890</a>            &lt;span&gt;<span class="string">"Exclude tools"</span>&lt;/span&gt;
-<a href=#891 id=891 data-nosnippet>891</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-exclude-tools" </span>class=FIELD value=fields.exclude_tools.clone() /&gt;
-<a href=#892 id=892 data-nosnippet>892</a>        &lt;/label&gt;
-<a href=#893 id=893 data-nosnippet>893</a>        &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
-<a href=#894 id=894 data-nosnippet>894</a>            &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-enabled" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| enabled.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| enabled.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
-<a href=#895 id=895 data-nosnippet>895</a>            &lt;span&gt;<span class="string">"Enabled"</span>&lt;/span&gt;
-<a href=#896 id=896 data-nosnippet>896</a>        &lt;/label&gt;
-<a href=#897 id=897 data-nosnippet>897</a>        {on_runtime.is_some().then(|| <span class="macro">view!</span> {
-<a href=#898 id=898 data-nosnippet>898</a>            &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
-<a href=#899 id=899 data-nosnippet>899</a>                &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-shared" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| shared.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| shared.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
-<a href=#900 id=900 data-nosnippet>900</a>                &lt;span&gt;<span class="string">"One for the runtime, shared by its workspaces (a browser, say)"</span>&lt;/span&gt;
-<a href=#901 id=901 data-nosnippet>901</a>            &lt;/label&gt;
-<a href=#902 id=902 data-nosnippet>902</a>        })}
-<a href=#903 id=903 data-nosnippet>903</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm" </span>class:hidden=on_runtime.is_some()&gt;
-<a href=#904 id=904 data-nosnippet>904</a>            &lt;span&gt;<span class="string">"Keep it"</span>&lt;/span&gt;
-<a href=#905 id=905 data-nosnippet>905</a>            &lt;select
-<a href=#906 id=906 data-nosnippet>906</a>                id=<span class="string">"mcp-persist"
-<a href=#907 id=907 data-nosnippet>907</a>                </span>class=FIELD
-<a href=#908 id=908 data-nosnippet>908</a>                on:change=<span class="kw">move </span>|event| {
-<a href=#909 id=909 data-nosnippet>909</a>                    persist.set(<span class="kw">if </span>event_target_value(<span class="kw-2">&amp;</span>event) == <span class="string">"user" </span>{ PersistChoice::User } <span class="kw">else </span>{ PersistChoice::Runtime });
-<a href=#910 id=910 data-nosnippet>910</a>                }
-<a href=#911 id=911 data-nosnippet>911</a>            &gt;
-<a href=#912 id=912 data-nosnippet>912</a>                &lt;option value=<span class="string">"runtime" </span>selected=<span class="kw">move </span>|| persist.get() == PersistChoice::Runtime&gt;{PersistChoice::Runtime.label()}&lt;/option&gt;
-<a href=#913 id=913 data-nosnippet>913</a>                &lt;option value=<span class="string">"user" </span>selected=<span class="kw">move </span>|| persist.get() == PersistChoice::User&gt;{PersistChoice::User.label()}&lt;/option&gt;
-<a href=#914 id=914 data-nosnippet>914</a>            &lt;/select&gt;
-<a href=#915 id=915 data-nosnippet>915</a>        &lt;/label&gt;
-<a href=#916 id=916 data-nosnippet>916</a>        {<span class="kw">move </span>|| error.get().map(|message| <span class="macro">view!</span> { &lt;p class=ERROR&gt;{message}&lt;/p&gt; })}
-<a href=#917 id=917 data-nosnippet>917</a>        &lt;div class=<span class="string">"flex gap-2"</span>&gt;
-<a href=#918 id=918 data-nosnippet>918</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"mcp-save" </span>class=PRIMARY on:click=<span class="kw">move </span>|<span class="kw">_</span>| submit()&gt;
-<a href=#919 id=919 data-nosnippet>919</a>                <span class="string">"Save"
-<a href=#920 id=920 data-nosnippet>920</a>            </span>&lt;/button&gt;
-<a href=#921 id=921 data-nosnippet>921</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| form.set(<span class="prelude-val">None</span>)&gt;
-<a href=#922 id=922 data-nosnippet>922</a>                <span class="string">"Cancel"
-<a href=#923 id=923 data-nosnippet>923</a>            </span>&lt;/button&gt;
-<a href=#924 id=924 data-nosnippet>924</a>        &lt;/div&gt;
-<a href=#925 id=925 data-nosnippet>925</a>    }
-<a href=#926 id=926 data-nosnippet>926</a>}
-<a href=#927 id=927 data-nosnippet>927</a>
-<a href=#928 id=928 data-nosnippet>928</a><span class="comment">// ---- /connect --------------------------------------------------------------
-<a href=#929 id=929 data-nosnippet>929</a>
-<a href=#930 id=930 data-nosnippet>930</a></span><span class="kw">pub fn </span>connect_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
-<a href=#931 id=931 data-nosnippet>931</a>    <span class="kw">let </span>search = RwSignal::new(String::new());
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">let </span>open = RwSignal::new(<span class="prelude-val">None</span>::&lt;ProviderDescriptor&gt;);
-<a href=#933 id=933 data-nosnippet>933</a>    <span class="kw">let </span>confirm_disconnect = RwSignal::new(<span class="bool-val">false</span>);
-<a href=#934 id=934 data-nosnippet>934</a>    <span class="macro">view!</span> {
-<a href=#935 id=935 data-nosnippet>935</a>        {<span class="kw">move </span>|| <span class="kw">match </span>open.get() {
-<a href=#936 id=936 data-nosnippet>936</a>            <span class="prelude-val">Some</span>(provider) =&gt; provider_view(workspace, provider, open, confirm_disconnect).into_any(),
-<a href=#937 id=937 data-nosnippet>937</a>            <span class="prelude-val">None </span>=&gt; <span class="macro">view!</span> {
-<a href=#938 id=938 data-nosnippet>938</a>                &lt;input
-<a href=#939 id=939 data-nosnippet>939</a>                    <span class="kw">type</span>=<span class="string">"search"
-<a href=#940 id=940 data-nosnippet>940</a>                    </span>id=<span class="string">"provider-search"
-<a href=#941 id=941 data-nosnippet>941</a>                    </span>class=FIELD
-<a href=#942 id=942 data-nosnippet>942</a>                    placeholder=<span class="string">"Search providers"
-<a href=#943 id=943 data-nosnippet>943</a>                    </span>prop:value=<span class="kw">move </span>|| search.get()
-<a href=#944 id=944 data-nosnippet>944</a>                    on:input=<span class="kw">move </span>|event| search.set(event_target_value(<span class="kw-2">&amp;</span>event))
-<a href=#945 id=945 data-nosnippet>945</a>                /&gt;
-<a href=#946 id=946 data-nosnippet>946</a>                {<span class="kw">move </span>|| workspace
-<a href=#947 id=947 data-nosnippet>947</a>                    .with_runtime(|runtime| runtime.snapshot().map(catalog_status_line))
-<a href=#948 id=948 data-nosnippet>948</a>                    .map(|line| <span class="macro">view!</span> { &lt;p class=NOTE&gt;{line}&lt;/p&gt; })}
-<a href=#949 id=949 data-nosnippet>949</a>                {<span class="kw">move </span>|| {
-<a href=#950 id=950 data-nosnippet>950</a>                    <span class="kw">let </span>query = search.get().trim().to_lowercase();
-<a href=#951 id=951 data-nosnippet>951</a>                    <span class="kw">let </span>operations = workspace.provider_operations.get();
-<a href=#952 id=952 data-nosnippet>952</a>                    workspace
-<a href=#953 id=953 data-nosnippet>953</a>                        .providers()
-<a href=#954 id=954 data-nosnippet>954</a>                        .into_iter()
-<a href=#955 id=955 data-nosnippet>955</a>                        .filter(|provider| {
-<a href=#956 id=956 data-nosnippet>956</a>                            query.is_empty()
-<a href=#957 id=957 data-nosnippet>957</a>                                || provider.id.as_str().to_lowercase().contains(<span class="kw-2">&amp;</span>query)
-<a href=#958 id=958 data-nosnippet>958</a>                                || provider.display_name.to_string().to_lowercase().contains(<span class="kw-2">&amp;</span>query)
-<a href=#959 id=959 data-nosnippet>959</a>                        })
-<a href=#960 id=960 data-nosnippet>960</a>                        .map(|provider| {
-<a href=#961 id=961 data-nosnippet>961</a>                            <span class="kw">let </span>operation = operations.get(<span class="kw-2">&amp;</span>provider.id).cloned();
-<a href=#962 id=962 data-nosnippet>962</a>                            <span class="kw">let </span>state = row_state(<span class="kw-2">&amp;</span>provider, <span class="kw-2">&amp;</span>[], operation.as_ref());
-<a href=#963 id=963 data-nosnippet>963</a>                            <span class="kw">let </span>detail = <span class="kw">match </span>(<span class="kw-2">&amp;</span>operation, state) {
-<a href=#964 id=964 data-nosnippet>964</a>                                (<span class="prelude-val">Some</span>(ProviderOperation::InProgress(action)), <span class="kw">_</span>) =&gt; {
-<a href=#965 id=965 data-nosnippet>965</a>                                    <span class="macro">format!</span>(<span class="string">"{} in progress…"</span>, action_name(<span class="kw-2">*</span>action))
-<a href=#966 id=966 data-nosnippet>966</a>                                }
-<a href=#967 id=967 data-nosnippet>967</a>                                (<span class="prelude-val">Some</span>(ProviderOperation::Error { message, .. }), <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(<span class="string">"error · {message}"</span>),
-<a href=#968 id=968 data-nosnippet>968</a>                                (<span class="kw">_</span>, ProviderRowState::Unsupported) =&gt; <span class="string">"unsupported"</span>.into(),
-<a href=#969 id=969 data-nosnippet>969</a>                                (<span class="kw">_</span>, ProviderRowState::ConnectedReconnect) =&gt; <span class="string">"connected"</span>.into(),
-<a href=#970 id=970 data-nosnippet>970</a>                                (<span class="kw">_</span>, ProviderRowState::Removed) =&gt; <span class="string">"removed from the current catalog"</span>.into(),
-<a href=#971 id=971 data-nosnippet>971</a>                                <span class="kw">_ </span>=&gt; <span class="string">"disconnected"</span>.into(),
-<a href=#972 id=972 data-nosnippet>972</a>                            };
-<a href=#973 id=973 data-nosnippet>973</a>                            <span class="kw">let </span>note = unusable_models_note(<span class="kw-2">&amp;</span>provider);
-<a href=#974 id=974 data-nosnippet>974</a>                            <span class="kw">let </span>picked = provider.clone();
-<a href=#975 id=975 data-nosnippet>975</a>                            <span class="macro">view!</span> {
-<a href=#976 id=976 data-nosnippet>976</a>                                &lt;button
-<a href=#977 id=977 data-nosnippet>977</a>                                    <span class="kw">type</span>=<span class="string">"button"
-<a href=#978 id=978 data-nosnippet>978</a>                                    </span>class=ROW
-<a href=#979 id=979 data-nosnippet>979</a>                                    data-provider=provider.id.to_string()
-<a href=#980 id=980 data-nosnippet>980</a>                                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#981 id=981 data-nosnippet>981</a>                                        confirm_disconnect.set(<span class="bool-val">false</span>);
-<a href=#982 id=982 data-nosnippet>982</a>                                        open.set(<span class="prelude-val">Some</span>(picked.clone()));
-<a href=#983 id=983 data-nosnippet>983</a>                                    }
-<a href=#984 id=984 data-nosnippet>984</a>                                &gt;
-<a href=#985 id=985 data-nosnippet>985</a>                                    &lt;span class=<span class="string">"flex w-full items-center gap-2"</span>&gt;
-<a href=#986 id=986 data-nosnippet>986</a>                                        &lt;span class=<span class="string">"min-w-0 flex-1 truncate text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/span&gt;
-<a href=#987 id=987 data-nosnippet>987</a>                                        {(state == ProviderRowState::ConnectedReconnect).then(|| <span class="macro">view!</span> {
-<a href=#988 id=988 data-nosnippet>988</a>                                            &lt;Glyph icon=icondata::FaPlugSolid class=<span class="string">"text-green-700 dark:text-green-400" </span>/&gt;
-<a href=#989 id=989 data-nosnippet>989</a>                                        })}
-<a href=#990 id=990 data-nosnippet>990</a>                                    &lt;/span&gt;
-<a href=#991 id=991 data-nosnippet>991</a>                                    &lt;span class=NOTE&gt;{detail}&lt;/span&gt;
-<a href=#992 id=992 data-nosnippet>992</a>                                    {note.map(|note| <span class="macro">view!</span> { &lt;span class=NOTE&gt;{note}&lt;/span&gt; })}
-<a href=#993 id=993 data-nosnippet>993</a>                                &lt;/button&gt;
-<a href=#994 id=994 data-nosnippet>994</a>                            }
-<a href=#995 id=995 data-nosnippet>995</a>                        })
-<a href=#996 id=996 data-nosnippet>996</a>                        .collect_view()
-<a href=#997 id=997 data-nosnippet>997</a>                }}
-<a href=#998 id=998 data-nosnippet>998</a>            }
-<a href=#999 id=999 data-nosnippet>999</a>                .into_any(),
-<a href=#1000 id=1000 data-nosnippet>1000</a>        }}
-<a href=#1001 id=1001 data-nosnippet>1001</a>    }
-<a href=#1002 id=1002 data-nosnippet>1002</a>}
-<a href=#1003 id=1003 data-nosnippet>1003</a>
-<a href=#1004 id=1004 data-nosnippet>1004</a><span class="doccomment">/// A provider's connect form, or its details when it cannot be connected.
-<a href=#1005 id=1005 data-nosnippet>1005</a>/// Credentials stay in their password fields: they are read once when the
-<a href=#1006 id=1006 data-nosnippet>1006</a>/// form is sent and never kept in the page's state.
-<a href=#1007 id=1007 data-nosnippet>1007</a></span><span class="kw">fn </span>provider_view(
-<a href=#1008 id=1008 data-nosnippet>1008</a>    workspace: Workspace,
-<a href=#1009 id=1009 data-nosnippet>1009</a>    provider: ProviderDescriptor,
-<a href=#1010 id=1010 data-nosnippet>1010</a>    open: RwSignal&lt;<span class="prelude-ty">Option</span>&lt;ProviderDescriptor&gt;&gt;,
-<a href=#1011 id=1011 data-nosnippet>1011</a>    confirm_disconnect: RwSignal&lt;bool&gt;,
-<a href=#1012 id=1012 data-nosnippet>1012</a>) -&gt; <span class="kw">impl </span>IntoView {
-<a href=#1013 id=1013 data-nosnippet>1013</a>    <span class="kw">let </span>state = row_state(<span class="kw-2">&amp;</span>provider, <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>);
-<a href=#1014 id=1014 data-nosnippet>1014</a>    <span class="kw">let </span>summary = model_counts_summary(<span class="kw-2">&amp;</span>provider);
-<a href=#1015 id=1015 data-nosnippet>1015</a>    <span class="kw">let </span>back = <span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="prelude-val">None</span>);
-<a href=#1016 id=1016 data-nosnippet>1016</a>    <span class="kw">if </span>state == ProviderRowState::Unsupported {
-<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="kw">let </span>reason = provider
-<a href=#1018 id=1018 data-nosnippet>1018</a>            .support
-<a href=#1019 id=1019 data-nosnippet>1019</a>            .reason
-<a href=#1020 id=1020 data-nosnippet>1020</a>            .as_ref()
-<a href=#1021 id=1021 data-nosnippet>1021</a>            .map_or_else(|| <span class="string">"unsupported"</span>.to_owned(), ToString::to_string);
-<a href=#1022 id=1022 data-nosnippet>1022</a>        <span class="kw">return </span><span class="macro">view!</span> {
-<a href=#1023 id=1023 data-nosnippet>1023</a>            &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/p&gt;
-<a href=#1024 id=1024 data-nosnippet>1024</a>            &lt;p class=<span class="string">"text-sm"</span>&gt;{reason}&lt;/p&gt;
-<a href=#1025 id=1025 data-nosnippet>1025</a>            &lt;p class=NOTE&gt;{summary}&lt;/p&gt;
-<a href=#1026 id=1026 data-nosnippet>1026</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Back"</span>&lt;/button&gt;
-<a href=#1027 id=1027 data-nosnippet>1027</a>        }
-<a href=#1028 id=1028 data-nosnippet>1028</a>        .into_any();
-<a href=#1029 id=1029 data-nosnippet>1029</a>    }
-<a href=#1030 id=1030 data-nosnippet>1030</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(initial) = initial_auth_method(<span class="kw-2">&amp;</span>provider).cloned() <span class="kw">else </span>{
-<a href=#1031 id=1031 data-nosnippet>1031</a>        <span class="kw">return </span><span class="macro">view!</span> {
-<a href=#1032 id=1032 data-nosnippet>1032</a>            &lt;p class=<span class="string">"text-sm"</span>&gt;<span class="string">"This provider has no store-backed authentication form."</span>&lt;/p&gt;
-<a href=#1033 id=1033 data-nosnippet>1033</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Back"</span>&lt;/button&gt;
-<a href=#1034 id=1034 data-nosnippet>1034</a>        }
-<a href=#1035 id=1035 data-nosnippet>1035</a>        .into_any();
-<a href=#1036 id=1036 data-nosnippet>1036</a>    };
-<a href=#1037 id=1037 data-nosnippet>1037</a>    <span class="kw">let </span>method = RwSignal::new(initial.id.clone());
-<a href=#1038 id=1038 data-nosnippet>1038</a>    <span class="kw">let </span>error = RwSignal::new(<span class="prelude-val">None</span>::&lt;String&gt;);
-<a href=#1039 id=1039 data-nosnippet>1039</a>    <span class="kw">let </span>submitted = RwSignal::new(<span class="bool-val">false</span>);
-<a href=#1040 id=1040 data-nosnippet>1040</a>    <span class="kw">let </span>reconnect = provider.durable_connection.is_some();
-<a href=#1041 id=1041 data-nosnippet>1041</a>    <span class="kw">let </span>provider_id = provider.id.clone();
-<a href=#1042 id=1042 data-nosnippet>1042</a>    <span class="comment">// A connect that finished without an error closes the form.
-<a href=#1043 id=1043 data-nosnippet>1043</a>    </span>Effect::new(<span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="kw">let </span>operation = workspace
-<a href=#1045 id=1045 data-nosnippet>1045</a>            .provider_operations
-<a href=#1046 id=1046 data-nosnippet>1046</a>            .with(|operations| operations.get(<span class="kw-2">&amp;</span>provider_id).cloned());
-<a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="kw">if </span>!submitted.get_untracked() {
-<a href=#1048 id=1048 data-nosnippet>1048</a>            <span class="kw">return</span>;
-<a href=#1049 id=1049 data-nosnippet>1049</a>        }
-<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="kw">match </span>operation {
-<a href=#1051 id=1051 data-nosnippet>1051</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#1052 id=1052 data-nosnippet>1052</a>                submitted.set(<span class="bool-val">false</span>);
-<a href=#1053 id=1053 data-nosnippet>1053</a>                open.set(<span class="prelude-val">None</span>);
-<a href=#1054 id=1054 data-nosnippet>1054</a>            }
-<a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="prelude-val">Some</span>(ProviderOperation::Error { message, .. }) =&gt; {
-<a href=#1056 id=1056 data-nosnippet>1056</a>                submitted.set(<span class="bool-val">false</span>);
-<a href=#1057 id=1057 data-nosnippet>1057</a>                error.set(<span class="prelude-val">Some</span>(message));
-<a href=#1058 id=1058 data-nosnippet>1058</a>            }
-<a href=#1059 id=1059 data-nosnippet>1059</a>            <span class="prelude-val">Some</span>(ProviderOperation::InProgress(<span class="kw">_</span>)) =&gt; {}
-<a href=#1060 id=1060 data-nosnippet>1060</a>        }
-<a href=#1061 id=1061 data-nosnippet>1061</a>    });
-<a href=#1062 id=1062 data-nosnippet>1062</a>    <span class="kw">let </span>methods = provider.auth_methods.clone();
-<a href=#1063 id=1063 data-nosnippet>1063</a>    <span class="kw">let </span>credential_methods = provider.auth_methods.clone();
-<a href=#1064 id=1064 data-nosnippet>1064</a>    <span class="kw">let </span>setup_fields = provider.setup_fields.clone();
-<a href=#1065 id=1065 data-nosnippet>1065</a>    <span class="kw">let </span>form_provider = provider.clone();
-<a href=#1066 id=1066 data-nosnippet>1066</a>    <span class="kw">let </span>submit = <span class="kw">move </span>|| {
-<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span>provider = form_provider.clone();
-<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(auth) = provider
-<a href=#1069 id=1069 data-nosnippet>1069</a>            .auth_methods
-<a href=#1070 id=1070 data-nosnippet>1070</a>            .iter()
-<a href=#1071 id=1071 data-nosnippet>1071</a>            .find(|candidate| candidate.id == method.get_untracked())
-<a href=#1072 id=1072 data-nosnippet>1072</a>            .cloned()
-<a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">else </span>{
-<a href=#1074 id=1074 data-nosnippet>1074</a>            <span class="kw">return</span>;
-<a href=#1075 id=1075 data-nosnippet>1075</a>        };
-<a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="kw">let </span>typed_setup = provider
-<a href=#1077 id=1077 data-nosnippet>1077</a>            .setup_fields
-<a href=#1078 id=1078 data-nosnippet>1078</a>            .iter()
-<a href=#1079 id=1079 data-nosnippet>1079</a>            .enumerate()
-<a href=#1080 id=1080 data-nosnippet>1080</a>            .map(|(index, field)| (field, field_value(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"setup-{index}"</span>))))
-<a href=#1081 id=1081 data-nosnippet>1081</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1082 id=1082 data-nosnippet>1082</a>        <span class="kw">let </span>setup = <span class="kw">match </span>setup_values(
-<a href=#1083 id=1083 data-nosnippet>1083</a>            <span class="kw-2">&amp;</span>typed_setup
-<a href=#1084 id=1084 data-nosnippet>1084</a>                .iter()
-<a href=#1085 id=1085 data-nosnippet>1085</a>                .map(|(field, value)| (<span class="kw-2">*</span>field, value.as_str()))
-<a href=#1086 id=1086 data-nosnippet>1086</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
-<a href=#1087 id=1087 data-nosnippet>1087</a>        ) {
-<a href=#1088 id=1088 data-nosnippet>1088</a>            <span class="prelude-val">Ok</span>(values) =&gt; values,
-<a href=#1089 id=1089 data-nosnippet>1089</a>            <span class="prelude-val">Err</span>(message) =&gt; {
-<a href=#1090 id=1090 data-nosnippet>1090</a>                error.set(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"Invalid public setup: {message}"</span>)));
-<a href=#1091 id=1091 data-nosnippet>1091</a>                <span class="kw">return</span>;
-<a href=#1092 id=1092 data-nosnippet>1092</a>            }
+<a href=#890 id=890 data-nosnippet>890</a>            &lt;span&gt;<span class="string">"Include tools"</span>&lt;/span&gt;
+<a href=#891 id=891 data-nosnippet>891</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-include-tools" </span>class=FIELD placeholder=<span class="string">"every tool" </span>value=fields.include_tools.clone() /&gt;
+<a href=#892 id=892 data-nosnippet>892</a>            &lt;span class=NOTE&gt;<span class="string">"Patterns over the server's tool names, comma-separated; * and ? match like permission patterns"</span>&lt;/span&gt;
+<a href=#893 id=893 data-nosnippet>893</a>        &lt;/label&gt;
+<a href=#894 id=894 data-nosnippet>894</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#895 id=895 data-nosnippet>895</a>            &lt;span&gt;<span class="string">"Exclude tools"</span>&lt;/span&gt;
+<a href=#896 id=896 data-nosnippet>896</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-exclude-tools" </span>class=FIELD value=fields.exclude_tools.clone() /&gt;
+<a href=#897 id=897 data-nosnippet>897</a>        &lt;/label&gt;
+<a href=#898 id=898 data-nosnippet>898</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#899 id=899 data-nosnippet>899</a>            &lt;span&gt;<span class="string">"Always load tools"</span>&lt;/span&gt;
+<a href=#900 id=900 data-nosnippet>900</a>            &lt;input <span class="kw">type</span>=<span class="string">"text" </span>id=<span class="string">"mcp-always-load-tools" </span>class=FIELD value=fields.always_load_tools.clone() /&gt;
+<a href=#901 id=901 data-nosnippet>901</a>            &lt;span class=NOTE&gt;<span class="string">"Tools sent up front on models that load tools on demand, as patterns"</span>&lt;/span&gt;
+<a href=#902 id=902 data-nosnippet>902</a>        &lt;/label&gt;
+<a href=#903 id=903 data-nosnippet>903</a>        &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
+<a href=#904 id=904 data-nosnippet>904</a>            &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-always-load" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| always_load.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| always_load.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
+<a href=#905 id=905 data-nosnippet>905</a>            &lt;span&gt;<span class="string">"Always load every tool"</span>&lt;/span&gt;
+<a href=#906 id=906 data-nosnippet>906</a>        &lt;/label&gt;
+<a href=#907 id=907 data-nosnippet>907</a>        &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
+<a href=#908 id=908 data-nosnippet>908</a>            &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-instructions" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| instructions.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| instructions.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
+<a href=#909 id=909 data-nosnippet>909</a>            &lt;span&gt;<span class="string">"Show the server's instructions with its tools"</span>&lt;/span&gt;
+<a href=#910 id=910 data-nosnippet>910</a>        &lt;/label&gt;
+<a href=#911 id=911 data-nosnippet>911</a>        &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
+<a href=#912 id=912 data-nosnippet>912</a>            &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-enabled" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| enabled.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| enabled.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
+<a href=#913 id=913 data-nosnippet>913</a>            &lt;span&gt;<span class="string">"Enabled"</span>&lt;/span&gt;
+<a href=#914 id=914 data-nosnippet>914</a>        &lt;/label&gt;
+<a href=#915 id=915 data-nosnippet>915</a>        {on_runtime.is_some().then(|| <span class="macro">view!</span> {
+<a href=#916 id=916 data-nosnippet>916</a>            &lt;label class=<span class="string">"flex min-h-11 items-center gap-2 text-sm"</span>&gt;
+<a href=#917 id=917 data-nosnippet>917</a>                &lt;input <span class="kw">type</span>=<span class="string">"checkbox" </span>id=<span class="string">"mcp-shared" </span>class=<span class="string">"h-5 w-5" </span>prop:checked=<span class="kw">move </span>|| shared.get() on:change=<span class="kw">move </span>|<span class="kw">_</span>| shared.update(|on| <span class="kw-2">*</span>on = !<span class="kw-2">*</span>on) /&gt;
+<a href=#918 id=918 data-nosnippet>918</a>                &lt;span&gt;<span class="string">"One for the runtime, shared by its workspaces (a browser, say)"</span>&lt;/span&gt;
+<a href=#919 id=919 data-nosnippet>919</a>            &lt;/label&gt;
+<a href=#920 id=920 data-nosnippet>920</a>        })}
+<a href=#921 id=921 data-nosnippet>921</a>        &lt;label class=<span class="string">"flex flex-col gap-1 text-sm" </span>class:hidden=on_runtime.is_some()&gt;
+<a href=#922 id=922 data-nosnippet>922</a>            &lt;span&gt;<span class="string">"Keep it"</span>&lt;/span&gt;
+<a href=#923 id=923 data-nosnippet>923</a>            &lt;select
+<a href=#924 id=924 data-nosnippet>924</a>                id=<span class="string">"mcp-persist"
+<a href=#925 id=925 data-nosnippet>925</a>                </span>class=FIELD
+<a href=#926 id=926 data-nosnippet>926</a>                on:change=<span class="kw">move </span>|event| {
+<a href=#927 id=927 data-nosnippet>927</a>                    persist.set(<span class="kw">if </span>event_target_value(<span class="kw-2">&amp;</span>event) == <span class="string">"user" </span>{ PersistChoice::User } <span class="kw">else </span>{ PersistChoice::Runtime });
+<a href=#928 id=928 data-nosnippet>928</a>                }
+<a href=#929 id=929 data-nosnippet>929</a>            &gt;
+<a href=#930 id=930 data-nosnippet>930</a>                &lt;option value=<span class="string">"runtime" </span>selected=<span class="kw">move </span>|| persist.get() == PersistChoice::Runtime&gt;{PersistChoice::Runtime.label()}&lt;/option&gt;
+<a href=#931 id=931 data-nosnippet>931</a>                &lt;option value=<span class="string">"user" </span>selected=<span class="kw">move </span>|| persist.get() == PersistChoice::User&gt;{PersistChoice::User.label()}&lt;/option&gt;
+<a href=#932 id=932 data-nosnippet>932</a>            &lt;/select&gt;
+<a href=#933 id=933 data-nosnippet>933</a>        &lt;/label&gt;
+<a href=#934 id=934 data-nosnippet>934</a>        {<span class="kw">move </span>|| error.get().map(|message| <span class="macro">view!</span> { &lt;p class=ERROR&gt;{message}&lt;/p&gt; })}
+<a href=#935 id=935 data-nosnippet>935</a>        &lt;div class=<span class="string">"flex gap-2"</span>&gt;
+<a href=#936 id=936 data-nosnippet>936</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"mcp-save" </span>class=PRIMARY on:click=<span class="kw">move </span>|<span class="kw">_</span>| submit()&gt;
+<a href=#937 id=937 data-nosnippet>937</a>                <span class="string">"Save"
+<a href=#938 id=938 data-nosnippet>938</a>            </span>&lt;/button&gt;
+<a href=#939 id=939 data-nosnippet>939</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| form.set(<span class="prelude-val">None</span>)&gt;
+<a href=#940 id=940 data-nosnippet>940</a>                <span class="string">"Cancel"
+<a href=#941 id=941 data-nosnippet>941</a>            </span>&lt;/button&gt;
+<a href=#942 id=942 data-nosnippet>942</a>        &lt;/div&gt;
+<a href=#943 id=943 data-nosnippet>943</a>    }
+<a href=#944 id=944 data-nosnippet>944</a>}
+<a href=#945 id=945 data-nosnippet>945</a>
+<a href=#946 id=946 data-nosnippet>946</a><span class="comment">// ---- /connect --------------------------------------------------------------
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a></span><span class="kw">pub fn </span>connect_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#949 id=949 data-nosnippet>949</a>    <span class="kw">let </span>search = RwSignal::new(String::new());
+<a href=#950 id=950 data-nosnippet>950</a>    <span class="kw">let </span>open = RwSignal::new(<span class="prelude-val">None</span>::&lt;ProviderDescriptor&gt;);
+<a href=#951 id=951 data-nosnippet>951</a>    <span class="kw">let </span>confirm_disconnect = RwSignal::new(<span class="bool-val">false</span>);
+<a href=#952 id=952 data-nosnippet>952</a>    <span class="macro">view!</span> {
+<a href=#953 id=953 data-nosnippet>953</a>        {<span class="kw">move </span>|| <span class="kw">match </span>open.get() {
+<a href=#954 id=954 data-nosnippet>954</a>            <span class="prelude-val">Some</span>(provider) =&gt; provider_view(workspace, provider, open, confirm_disconnect).into_any(),
+<a href=#955 id=955 data-nosnippet>955</a>            <span class="prelude-val">None </span>=&gt; <span class="macro">view!</span> {
+<a href=#956 id=956 data-nosnippet>956</a>                &lt;input
+<a href=#957 id=957 data-nosnippet>957</a>                    <span class="kw">type</span>=<span class="string">"search"
+<a href=#958 id=958 data-nosnippet>958</a>                    </span>id=<span class="string">"provider-search"
+<a href=#959 id=959 data-nosnippet>959</a>                    </span>class=FIELD
+<a href=#960 id=960 data-nosnippet>960</a>                    placeholder=<span class="string">"Search providers"
+<a href=#961 id=961 data-nosnippet>961</a>                    </span>prop:value=<span class="kw">move </span>|| search.get()
+<a href=#962 id=962 data-nosnippet>962</a>                    on:input=<span class="kw">move </span>|event| search.set(event_target_value(<span class="kw-2">&amp;</span>event))
+<a href=#963 id=963 data-nosnippet>963</a>                /&gt;
+<a href=#964 id=964 data-nosnippet>964</a>                {<span class="kw">move </span>|| workspace
+<a href=#965 id=965 data-nosnippet>965</a>                    .with_runtime(|runtime| runtime.snapshot().map(catalog_status_line))
+<a href=#966 id=966 data-nosnippet>966</a>                    .map(|line| <span class="macro">view!</span> { &lt;p class=NOTE&gt;{line}&lt;/p&gt; })}
+<a href=#967 id=967 data-nosnippet>967</a>                {<span class="kw">move </span>|| {
+<a href=#968 id=968 data-nosnippet>968</a>                    <span class="kw">let </span>query = search.get().trim().to_lowercase();
+<a href=#969 id=969 data-nosnippet>969</a>                    <span class="kw">let </span>operations = workspace.provider_operations.get();
+<a href=#970 id=970 data-nosnippet>970</a>                    workspace
+<a href=#971 id=971 data-nosnippet>971</a>                        .providers()
+<a href=#972 id=972 data-nosnippet>972</a>                        .into_iter()
+<a href=#973 id=973 data-nosnippet>973</a>                        .filter(|provider| {
+<a href=#974 id=974 data-nosnippet>974</a>                            query.is_empty()
+<a href=#975 id=975 data-nosnippet>975</a>                                || provider.id.as_str().to_lowercase().contains(<span class="kw-2">&amp;</span>query)
+<a href=#976 id=976 data-nosnippet>976</a>                                || provider.display_name.to_string().to_lowercase().contains(<span class="kw-2">&amp;</span>query)
+<a href=#977 id=977 data-nosnippet>977</a>                        })
+<a href=#978 id=978 data-nosnippet>978</a>                        .map(|provider| {
+<a href=#979 id=979 data-nosnippet>979</a>                            <span class="kw">let </span>operation = operations.get(<span class="kw-2">&amp;</span>provider.id).cloned();
+<a href=#980 id=980 data-nosnippet>980</a>                            <span class="kw">let </span>state = row_state(<span class="kw-2">&amp;</span>provider, <span class="kw-2">&amp;</span>[], operation.as_ref());
+<a href=#981 id=981 data-nosnippet>981</a>                            <span class="kw">let </span>detail = <span class="kw">match </span>(<span class="kw-2">&amp;</span>operation, state) {
+<a href=#982 id=982 data-nosnippet>982</a>                                (<span class="prelude-val">Some</span>(ProviderOperation::InProgress(action)), <span class="kw">_</span>) =&gt; {
+<a href=#983 id=983 data-nosnippet>983</a>                                    <span class="macro">format!</span>(<span class="string">"{} in progress…"</span>, action_name(<span class="kw-2">*</span>action))
+<a href=#984 id=984 data-nosnippet>984</a>                                }
+<a href=#985 id=985 data-nosnippet>985</a>                                (<span class="prelude-val">Some</span>(ProviderOperation::Error { message, .. }), <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(<span class="string">"error · {message}"</span>),
+<a href=#986 id=986 data-nosnippet>986</a>                                (<span class="kw">_</span>, ProviderRowState::Unsupported) =&gt; <span class="string">"unsupported"</span>.into(),
+<a href=#987 id=987 data-nosnippet>987</a>                                (<span class="kw">_</span>, ProviderRowState::ConnectedReconnect) =&gt; <span class="string">"connected"</span>.into(),
+<a href=#988 id=988 data-nosnippet>988</a>                                (<span class="kw">_</span>, ProviderRowState::Removed) =&gt; <span class="string">"removed from the current catalog"</span>.into(),
+<a href=#989 id=989 data-nosnippet>989</a>                                <span class="kw">_ </span>=&gt; <span class="string">"disconnected"</span>.into(),
+<a href=#990 id=990 data-nosnippet>990</a>                            };
+<a href=#991 id=991 data-nosnippet>991</a>                            <span class="kw">let </span>note = unusable_models_note(<span class="kw-2">&amp;</span>provider);
+<a href=#992 id=992 data-nosnippet>992</a>                            <span class="kw">let </span>picked = provider.clone();
+<a href=#993 id=993 data-nosnippet>993</a>                            <span class="macro">view!</span> {
+<a href=#994 id=994 data-nosnippet>994</a>                                &lt;button
+<a href=#995 id=995 data-nosnippet>995</a>                                    <span class="kw">type</span>=<span class="string">"button"
+<a href=#996 id=996 data-nosnippet>996</a>                                    </span>class=ROW
+<a href=#997 id=997 data-nosnippet>997</a>                                    data-provider=provider.id.to_string()
+<a href=#998 id=998 data-nosnippet>998</a>                                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#999 id=999 data-nosnippet>999</a>                                        confirm_disconnect.set(<span class="bool-val">false</span>);
+<a href=#1000 id=1000 data-nosnippet>1000</a>                                        open.set(<span class="prelude-val">Some</span>(picked.clone()));
+<a href=#1001 id=1001 data-nosnippet>1001</a>                                    }
+<a href=#1002 id=1002 data-nosnippet>1002</a>                                &gt;
+<a href=#1003 id=1003 data-nosnippet>1003</a>                                    &lt;span class=<span class="string">"flex w-full items-center gap-2"</span>&gt;
+<a href=#1004 id=1004 data-nosnippet>1004</a>                                        &lt;span class=<span class="string">"min-w-0 flex-1 truncate text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/span&gt;
+<a href=#1005 id=1005 data-nosnippet>1005</a>                                        {(state == ProviderRowState::ConnectedReconnect).then(|| <span class="macro">view!</span> {
+<a href=#1006 id=1006 data-nosnippet>1006</a>                                            &lt;Glyph icon=icondata::FaPlugSolid class=<span class="string">"text-green-700 dark:text-green-400" </span>/&gt;
+<a href=#1007 id=1007 data-nosnippet>1007</a>                                        })}
+<a href=#1008 id=1008 data-nosnippet>1008</a>                                    &lt;/span&gt;
+<a href=#1009 id=1009 data-nosnippet>1009</a>                                    &lt;span class=NOTE&gt;{detail}&lt;/span&gt;
+<a href=#1010 id=1010 data-nosnippet>1010</a>                                    {note.map(|note| <span class="macro">view!</span> { &lt;span class=NOTE&gt;{note}&lt;/span&gt; })}
+<a href=#1011 id=1011 data-nosnippet>1011</a>                                &lt;/button&gt;
+<a href=#1012 id=1012 data-nosnippet>1012</a>                            }
+<a href=#1013 id=1013 data-nosnippet>1013</a>                        })
+<a href=#1014 id=1014 data-nosnippet>1014</a>                        .collect_view()
+<a href=#1015 id=1015 data-nosnippet>1015</a>                }}
+<a href=#1016 id=1016 data-nosnippet>1016</a>            }
+<a href=#1017 id=1017 data-nosnippet>1017</a>                .into_any(),
+<a href=#1018 id=1018 data-nosnippet>1018</a>        }}
+<a href=#1019 id=1019 data-nosnippet>1019</a>    }
+<a href=#1020 id=1020 data-nosnippet>1020</a>}
+<a href=#1021 id=1021 data-nosnippet>1021</a>
+<a href=#1022 id=1022 data-nosnippet>1022</a><span class="doccomment">/// A provider's connect form, or its details when it cannot be connected.
+<a href=#1023 id=1023 data-nosnippet>1023</a>/// Credentials stay in their password fields: they are read once when the
+<a href=#1024 id=1024 data-nosnippet>1024</a>/// form is sent and never kept in the page's state.
+<a href=#1025 id=1025 data-nosnippet>1025</a></span><span class="kw">fn </span>provider_view(
+<a href=#1026 id=1026 data-nosnippet>1026</a>    workspace: Workspace,
+<a href=#1027 id=1027 data-nosnippet>1027</a>    provider: ProviderDescriptor,
+<a href=#1028 id=1028 data-nosnippet>1028</a>    open: RwSignal&lt;<span class="prelude-ty">Option</span>&lt;ProviderDescriptor&gt;&gt;,
+<a href=#1029 id=1029 data-nosnippet>1029</a>    confirm_disconnect: RwSignal&lt;bool&gt;,
+<a href=#1030 id=1030 data-nosnippet>1030</a>) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#1031 id=1031 data-nosnippet>1031</a>    <span class="kw">let </span>state = row_state(<span class="kw-2">&amp;</span>provider, <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>);
+<a href=#1032 id=1032 data-nosnippet>1032</a>    <span class="kw">let </span>summary = model_counts_summary(<span class="kw-2">&amp;</span>provider);
+<a href=#1033 id=1033 data-nosnippet>1033</a>    <span class="kw">let </span>back = <span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="prelude-val">None</span>);
+<a href=#1034 id=1034 data-nosnippet>1034</a>    <span class="kw">if </span>state == ProviderRowState::Unsupported {
+<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">let </span>reason = provider
+<a href=#1036 id=1036 data-nosnippet>1036</a>            .support
+<a href=#1037 id=1037 data-nosnippet>1037</a>            .reason
+<a href=#1038 id=1038 data-nosnippet>1038</a>            .as_ref()
+<a href=#1039 id=1039 data-nosnippet>1039</a>            .map_or_else(|| <span class="string">"unsupported"</span>.to_owned(), ToString::to_string);
+<a href=#1040 id=1040 data-nosnippet>1040</a>        <span class="kw">return </span><span class="macro">view!</span> {
+<a href=#1041 id=1041 data-nosnippet>1041</a>            &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/p&gt;
+<a href=#1042 id=1042 data-nosnippet>1042</a>            &lt;p class=<span class="string">"text-sm"</span>&gt;{reason}&lt;/p&gt;
+<a href=#1043 id=1043 data-nosnippet>1043</a>            &lt;p class=NOTE&gt;{summary}&lt;/p&gt;
+<a href=#1044 id=1044 data-nosnippet>1044</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Back"</span>&lt;/button&gt;
+<a href=#1045 id=1045 data-nosnippet>1045</a>        }
+<a href=#1046 id=1046 data-nosnippet>1046</a>        .into_any();
+<a href=#1047 id=1047 data-nosnippet>1047</a>    }
+<a href=#1048 id=1048 data-nosnippet>1048</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(initial) = initial_auth_method(<span class="kw-2">&amp;</span>provider).cloned() <span class="kw">else </span>{
+<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="kw">return </span><span class="macro">view!</span> {
+<a href=#1050 id=1050 data-nosnippet>1050</a>            &lt;p class=<span class="string">"text-sm"</span>&gt;<span class="string">"This provider has no store-backed authentication form."</span>&lt;/p&gt;
+<a href=#1051 id=1051 data-nosnippet>1051</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Back"</span>&lt;/button&gt;
+<a href=#1052 id=1052 data-nosnippet>1052</a>        }
+<a href=#1053 id=1053 data-nosnippet>1053</a>        .into_any();
+<a href=#1054 id=1054 data-nosnippet>1054</a>    };
+<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="kw">let </span>method = RwSignal::new(initial.id.clone());
+<a href=#1056 id=1056 data-nosnippet>1056</a>    <span class="kw">let </span>error = RwSignal::new(<span class="prelude-val">None</span>::&lt;String&gt;);
+<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">let </span>submitted = RwSignal::new(<span class="bool-val">false</span>);
+<a href=#1058 id=1058 data-nosnippet>1058</a>    <span class="kw">let </span>reconnect = provider.durable_connection.is_some();
+<a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="kw">let </span>provider_id = provider.id.clone();
+<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="comment">// A connect that finished without an error closes the form.
+<a href=#1061 id=1061 data-nosnippet>1061</a>    </span>Effect::new(<span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">let </span>operation = workspace
+<a href=#1063 id=1063 data-nosnippet>1063</a>            .provider_operations
+<a href=#1064 id=1064 data-nosnippet>1064</a>            .with(|operations| operations.get(<span class="kw-2">&amp;</span>provider_id).cloned());
+<a href=#1065 id=1065 data-nosnippet>1065</a>        <span class="kw">if </span>!submitted.get_untracked() {
+<a href=#1066 id=1066 data-nosnippet>1066</a>            <span class="kw">return</span>;
+<a href=#1067 id=1067 data-nosnippet>1067</a>        }
+<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw">match </span>operation {
+<a href=#1069 id=1069 data-nosnippet>1069</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#1070 id=1070 data-nosnippet>1070</a>                submitted.set(<span class="bool-val">false</span>);
+<a href=#1071 id=1071 data-nosnippet>1071</a>                open.set(<span class="prelude-val">None</span>);
+<a href=#1072 id=1072 data-nosnippet>1072</a>            }
+<a href=#1073 id=1073 data-nosnippet>1073</a>            <span class="prelude-val">Some</span>(ProviderOperation::Error { message, .. }) =&gt; {
+<a href=#1074 id=1074 data-nosnippet>1074</a>                submitted.set(<span class="bool-val">false</span>);
+<a href=#1075 id=1075 data-nosnippet>1075</a>                error.set(<span class="prelude-val">Some</span>(message));
+<a href=#1076 id=1076 data-nosnippet>1076</a>            }
+<a href=#1077 id=1077 data-nosnippet>1077</a>            <span class="prelude-val">Some</span>(ProviderOperation::InProgress(<span class="kw">_</span>)) =&gt; {}
+<a href=#1078 id=1078 data-nosnippet>1078</a>        }
+<a href=#1079 id=1079 data-nosnippet>1079</a>    });
+<a href=#1080 id=1080 data-nosnippet>1080</a>    <span class="kw">let </span>methods = provider.auth_methods.clone();
+<a href=#1081 id=1081 data-nosnippet>1081</a>    <span class="kw">let </span>credential_methods = provider.auth_methods.clone();
+<a href=#1082 id=1082 data-nosnippet>1082</a>    <span class="kw">let </span>setup_fields = provider.setup_fields.clone();
+<a href=#1083 id=1083 data-nosnippet>1083</a>    <span class="kw">let </span>form_provider = provider.clone();
+<a href=#1084 id=1084 data-nosnippet>1084</a>    <span class="kw">let </span>submit = <span class="kw">move </span>|| {
+<a href=#1085 id=1085 data-nosnippet>1085</a>        <span class="kw">let </span>provider = form_provider.clone();
+<a href=#1086 id=1086 data-nosnippet>1086</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(auth) = provider
+<a href=#1087 id=1087 data-nosnippet>1087</a>            .auth_methods
+<a href=#1088 id=1088 data-nosnippet>1088</a>            .iter()
+<a href=#1089 id=1089 data-nosnippet>1089</a>            .find(|candidate| candidate.id == method.get_untracked())
+<a href=#1090 id=1090 data-nosnippet>1090</a>            .cloned()
+<a href=#1091 id=1091 data-nosnippet>1091</a>        <span class="kw">else </span>{
+<a href=#1092 id=1092 data-nosnippet>1092</a>            <span class="kw">return</span>;
 <a href=#1093 id=1093 data-nosnippet>1093</a>        };
-<a href=#1094 id=1094 data-nosnippet>1094</a>        <span class="kw">let </span>typed = auth
-<a href=#1095 id=1095 data-nosnippet>1095</a>            .credentials
+<a href=#1094 id=1094 data-nosnippet>1094</a>        <span class="kw">let </span>typed_setup = provider
+<a href=#1095 id=1095 data-nosnippet>1095</a>            .setup_fields
 <a href=#1096 id=1096 data-nosnippet>1096</a>            .iter()
 <a href=#1097 id=1097 data-nosnippet>1097</a>            .enumerate()
-<a href=#1098 id=1098 data-nosnippet>1098</a>            .map(|(index, field)| (field, field_value(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"credential-{index}"</span>))))
+<a href=#1098 id=1098 data-nosnippet>1098</a>            .map(|(index, field)| (field, field_value(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"setup-{index}"</span>))))
 <a href=#1099 id=1099 data-nosnippet>1099</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">let </span>credentials = credential_values(
-<a href=#1101 id=1101 data-nosnippet>1101</a>            <span class="kw-2">&amp;</span>typed
+<a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">let </span>setup = <span class="kw">match </span>setup_values(
+<a href=#1101 id=1101 data-nosnippet>1101</a>            <span class="kw-2">&amp;</span>typed_setup
 <a href=#1102 id=1102 data-nosnippet>1102</a>                .iter()
 <a href=#1103 id=1103 data-nosnippet>1103</a>                .map(|(field, value)| (<span class="kw-2">*</span>field, value.as_str()))
 <a href=#1104 id=1104 data-nosnippet>1104</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
-<a href=#1105 id=1105 data-nosnippet>1105</a>        );
-<a href=#1106 id=1106 data-nosnippet>1106</a>        drop(typed);
-<a href=#1107 id=1107 data-nosnippet>1107</a>        <span class="kw">let </span>credentials = <span class="kw">match </span>credentials {
-<a href=#1108 id=1108 data-nosnippet>1108</a>            <span class="prelude-val">Ok</span>(values) =&gt; values,
-<a href=#1109 id=1109 data-nosnippet>1109</a>            <span class="prelude-val">Err</span>(message) =&gt; {
-<a href=#1110 id=1110 data-nosnippet>1110</a>                error.set(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"Invalid credentials: {message}"</span>)));
-<a href=#1111 id=1111 data-nosnippet>1111</a>                <span class="kw">return</span>;
-<a href=#1112 id=1112 data-nosnippet>1112</a>            }
-<a href=#1113 id=1113 data-nosnippet>1113</a>        };
-<a href=#1114 id=1114 data-nosnippet>1114</a>        error.set(<span class="prelude-val">None</span>);
-<a href=#1115 id=1115 data-nosnippet>1115</a>        <span class="kw">match </span>workspace.connect_provider(provider, auth.id.clone(), setup, credentials, reconnect) {
-<a href=#1116 id=1116 data-nosnippet>1116</a>            <span class="prelude-val">Ok</span>(()) =&gt; submitted.set(<span class="bool-val">true</span>),
-<a href=#1117 id=1117 data-nosnippet>1117</a>            <span class="prelude-val">Err</span>(message) =&gt; error.set(<span class="prelude-val">Some</span>(message)),
-<a href=#1118 id=1118 data-nosnippet>1118</a>        }
-<a href=#1119 id=1119 data-nosnippet>1119</a>    };
-<a href=#1120 id=1120 data-nosnippet>1120</a>    <span class="kw">let </span>disconnect_provider = provider.clone();
-<a href=#1121 id=1121 data-nosnippet>1121</a>    <span class="macro">view!</span> {
-<a href=#1122 id=1122 data-nosnippet>1122</a>        &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/p&gt;
-<a href=#1123 id=1123 data-nosnippet>1123</a>        &lt;p class=NOTE&gt;{summary}&lt;/p&gt;
-<a href=#1124 id=1124 data-nosnippet>1124</a>        &lt;p class=NOTE&gt;{cookie_agent_client_state::providers::DURABLE_PROVIDER_COPY}&lt;/p&gt;
-<a href=#1125 id=1125 data-nosnippet>1125</a>        &lt;Show when={
-<a href=#1126 id=1126 data-nosnippet>1126</a>            <span class="kw">let </span>count = methods.len();
-<a href=#1127 id=1127 data-nosnippet>1127</a>            <span class="kw">move </span>|| count &gt; <span class="number">1
-<a href=#1128 id=1128 data-nosnippet>1128</a>        </span>}&gt;
-<a href=#1129 id=1129 data-nosnippet>1129</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#1130 id=1130 data-nosnippet>1130</a>                &lt;span&gt;<span class="string">"Authentication"</span>&lt;/span&gt;
-<a href=#1131 id=1131 data-nosnippet>1131</a>                &lt;select
-<a href=#1132 id=1132 data-nosnippet>1132</a>                    id=<span class="string">"provider-auth-method"
-<a href=#1133 id=1133 data-nosnippet>1133</a>                    </span>class=FIELD
-<a href=#1134 id=1134 data-nosnippet>1134</a>                    on:change=<span class="kw">move </span>|event| {
-<a href=#1135 id=1135 data-nosnippet>1135</a>                        <span class="kw">if let </span><span class="prelude-val">Ok</span>(id) = cookie_agent_protocol::AuthMethodId::new(event_target_value(<span class="kw-2">&amp;</span>event)) {
-<a href=#1136 id=1136 data-nosnippet>1136</a>                            method.set(id);
-<a href=#1137 id=1137 data-nosnippet>1137</a>                        }
-<a href=#1138 id=1138 data-nosnippet>1138</a>                    }
-<a href=#1139 id=1139 data-nosnippet>1139</a>                &gt;
-<a href=#1140 id=1140 data-nosnippet>1140</a>                    {methods
-<a href=#1141 id=1141 data-nosnippet>1141</a>                        .iter()
-<a href=#1142 id=1142 data-nosnippet>1142</a>                        .map(|candidate| {
-<a href=#1143 id=1143 data-nosnippet>1143</a>                            <span class="kw">let </span>id = candidate.id.clone();
-<a href=#1144 id=1144 data-nosnippet>1144</a>                            <span class="macro">view!</span> {
-<a href=#1145 id=1145 data-nosnippet>1145</a>                                &lt;option value=candidate.id.to_string() selected=<span class="kw">move </span>|| method.get() == id&gt;
-<a href=#1146 id=1146 data-nosnippet>1146</a>                                    {candidate.display_name.to_string()}
-<a href=#1147 id=1147 data-nosnippet>1147</a>                                &lt;/option&gt;
-<a href=#1148 id=1148 data-nosnippet>1148</a>                            }
-<a href=#1149 id=1149 data-nosnippet>1149</a>                        })
-<a href=#1150 id=1150 data-nosnippet>1150</a>                        .collect_view()}
-<a href=#1151 id=1151 data-nosnippet>1151</a>                &lt;/select&gt;
-<a href=#1152 id=1152 data-nosnippet>1152</a>            &lt;/label&gt;
-<a href=#1153 id=1153 data-nosnippet>1153</a>        &lt;/Show&gt;
-<a href=#1154 id=1154 data-nosnippet>1154</a>        {<span class="kw">move </span>|| {
-<a href=#1155 id=1155 data-nosnippet>1155</a>            <span class="kw">let </span>current = method.get();
-<a href=#1156 id=1156 data-nosnippet>1156</a>            credential_methods
-<a href=#1157 id=1157 data-nosnippet>1157</a>                .iter()
-<a href=#1158 id=1158 data-nosnippet>1158</a>                .find(|candidate| candidate.id == current)
-<a href=#1159 id=1159 data-nosnippet>1159</a>                .map(|auth| {
-<a href=#1160 id=1160 data-nosnippet>1160</a>                    auth.credentials
-<a href=#1161 id=1161 data-nosnippet>1161</a>                        .iter()
-<a href=#1162 id=1162 data-nosnippet>1162</a>                        .enumerate()
-<a href=#1163 id=1163 data-nosnippet>1163</a>                        .map(|(index, field)| <span class="macro">view!</span> {
-<a href=#1164 id=1164 data-nosnippet>1164</a>                            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#1165 id=1165 data-nosnippet>1165</a>                                &lt;span&gt;{<span class="macro">format!</span>(<span class="string">"{}{}"</span>, field.display_name, <span class="kw">if </span>field.required { <span class="string">"" </span>} <span class="kw">else </span>{ <span class="string">" (optional)" </span>})}&lt;/span&gt;
-<a href=#1166 id=1166 data-nosnippet>1166</a>                                &lt;input
-<a href=#1167 id=1167 data-nosnippet>1167</a>                                    <span class="kw">type</span>=<span class="string">"password"
-<a href=#1168 id=1168 data-nosnippet>1168</a>                                    </span>id=<span class="macro">format!</span>(<span class="string">"credential-{index}"</span>)
-<a href=#1169 id=1169 data-nosnippet>1169</a>                                    class=FIELD
-<a href=#1170 id=1170 data-nosnippet>1170</a>                                    autocomplete=<span class="string">"off"
-<a href=#1171 id=1171 data-nosnippet>1171</a>                                    </span>spellcheck=<span class="string">"false"
-<a href=#1172 id=1172 data-nosnippet>1172</a>                                </span>/&gt;
-<a href=#1173 id=1173 data-nosnippet>1173</a>                                &lt;span class=NOTE&gt;{field.help.to_string()}&lt;/span&gt;
-<a href=#1174 id=1174 data-nosnippet>1174</a>                            &lt;/label&gt;
-<a href=#1175 id=1175 data-nosnippet>1175</a>                        })
-<a href=#1176 id=1176 data-nosnippet>1176</a>                        .collect_view()
-<a href=#1177 id=1177 data-nosnippet>1177</a>                })
-<a href=#1178 id=1178 data-nosnippet>1178</a>        }}
-<a href=#1179 id=1179 data-nosnippet>1179</a>        {setup_fields
-<a href=#1180 id=1180 data-nosnippet>1180</a>            .iter()
-<a href=#1181 id=1181 data-nosnippet>1181</a>            .enumerate()
-<a href=#1182 id=1182 data-nosnippet>1182</a>            .map(|(index, field)| <span class="macro">view!</span> {
-<a href=#1183 id=1183 data-nosnippet>1183</a>                &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
-<a href=#1184 id=1184 data-nosnippet>1184</a>                    &lt;span&gt;{<span class="macro">format!</span>(<span class="string">"{}{}"</span>, field.display_name, <span class="kw">if </span>field.required { <span class="string">"" </span>} <span class="kw">else </span>{ <span class="string">" (optional)" </span>})}&lt;/span&gt;
-<a href=#1185 id=1185 data-nosnippet>1185</a>                    &lt;input
-<a href=#1186 id=1186 data-nosnippet>1186</a>                        <span class="kw">type</span>=<span class="string">"text"
-<a href=#1187 id=1187 data-nosnippet>1187</a>                        </span>id=<span class="macro">format!</span>(<span class="string">"setup-{index}"</span>)
-<a href=#1188 id=1188 data-nosnippet>1188</a>                        class=FIELD
-<a href=#1189 id=1189 data-nosnippet>1189</a>                        value=initial_setup_text(<span class="kw-2">&amp;</span>disconnect_provider, field)
-<a href=#1190 id=1190 data-nosnippet>1190</a>                    /&gt;
-<a href=#1191 id=1191 data-nosnippet>1191</a>                    &lt;span class=NOTE&gt;{field.help.to_string()}&lt;/span&gt;
-<a href=#1192 id=1192 data-nosnippet>1192</a>                &lt;/label&gt;
-<a href=#1193 id=1193 data-nosnippet>1193</a>            })
-<a href=#1194 id=1194 data-nosnippet>1194</a>            .collect_view()}
-<a href=#1195 id=1195 data-nosnippet>1195</a>        {<span class="kw">move </span>|| error.get().map(|message| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"provider-error"</span>&gt;{message}&lt;/p&gt; })}
-<a href=#1196 id=1196 data-nosnippet>1196</a>        &lt;div class=<span class="string">"flex flex-wrap gap-2"</span>&gt;
-<a href=#1197 id=1197 data-nosnippet>1197</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-connect" </span>class=PRIMARY on:click=<span class="kw">move </span>|<span class="kw">_</span>| submit()&gt;
-<a href=#1198 id=1198 data-nosnippet>1198</a>                &lt;Glyph icon=icondata::FaPlugSolid /&gt;
-<a href=#1199 id=1199 data-nosnippet>1199</a>                {<span class="kw">if </span>reconnect { <span class="string">"Reconnect" </span>} <span class="kw">else </span>{ <span class="string">"Connect" </span>}}
-<a href=#1200 id=1200 data-nosnippet>1200</a>            &lt;/button&gt;
-<a href=#1201 id=1201 data-nosnippet>1201</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Cancel"</span>&lt;/button&gt;
-<a href=#1202 id=1202 data-nosnippet>1202</a>            &lt;Show when=<span class="kw">move </span>|| reconnect&gt;
-<a href=#1203 id=1203 data-nosnippet>1203</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-disconnect" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| confirm_disconnect.set(<span class="bool-val">true</span>)&gt;
-<a href=#1204 id=1204 data-nosnippet>1204</a>                    <span class="string">"Disconnect"
-<a href=#1205 id=1205 data-nosnippet>1205</a>                </span>&lt;/button&gt;
-<a href=#1206 id=1206 data-nosnippet>1206</a>            &lt;/Show&gt;
-<a href=#1207 id=1207 data-nosnippet>1207</a>        &lt;/div&gt;
-<a href=#1208 id=1208 data-nosnippet>1208</a>        &lt;Show when=<span class="kw">move </span>|| confirm_disconnect.get()&gt;
-<a href=#1209 id=1209 data-nosnippet>1209</a>            &lt;div class=CONFIRM&gt;
-<a href=#1210 id=1210 data-nosnippet>1210</a>                &lt;p class=<span class="string">"text-sm"</span>&gt;<span class="string">"Remove the stored connection and its credentials?"</span>&lt;/p&gt;
-<a href=#1211 id=1211 data-nosnippet>1211</a>                &lt;div class=<span class="string">"flex gap-2"</span>&gt;
-<a href=#1212 id=1212 data-nosnippet>1212</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-disconnect-confirm" </span>class=PRIMARY on:click={
-<a href=#1213 id=1213 data-nosnippet>1213</a>                        <span class="kw">let </span>provider = provider.clone();
-<a href=#1214 id=1214 data-nosnippet>1214</a>                        <span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#1215 id=1215 data-nosnippet>1215</a>                            confirm_disconnect.set(<span class="bool-val">false</span>);
-<a href=#1216 id=1216 data-nosnippet>1216</a>                            open.set(<span class="prelude-val">None</span>);
-<a href=#1217 id=1217 data-nosnippet>1217</a>                            workspace.disconnect_provider(provider.clone());
-<a href=#1218 id=1218 data-nosnippet>1218</a>                        }
-<a href=#1219 id=1219 data-nosnippet>1219</a>                    }&gt;
-<a href=#1220 id=1220 data-nosnippet>1220</a>                        <span class="string">"Disconnect"
-<a href=#1221 id=1221 data-nosnippet>1221</a>                    </span>&lt;/button&gt;
-<a href=#1222 id=1222 data-nosnippet>1222</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| confirm_disconnect.set(<span class="bool-val">false</span>)&gt;<span class="string">"Keep it"</span>&lt;/button&gt;
-<a href=#1223 id=1223 data-nosnippet>1223</a>                &lt;/div&gt;
-<a href=#1224 id=1224 data-nosnippet>1224</a>            &lt;/div&gt;
-<a href=#1225 id=1225 data-nosnippet>1225</a>        &lt;/Show&gt;
-<a href=#1226 id=1226 data-nosnippet>1226</a>    }
-<a href=#1227 id=1227 data-nosnippet>1227</a>    .into_any()
-<a href=#1228 id=1228 data-nosnippet>1228</a>}
-<a href=#1229 id=1229 data-nosnippet>1229</a>
-<a href=#1230 id=1230 data-nosnippet>1230</a><span class="comment">// ---- /config ---------------------------------------------------------------
-<a href=#1231 id=1231 data-nosnippet>1231</a>
-<a href=#1232 id=1232 data-nosnippet>1232</a></span><span class="doccomment">/// `config.toml`: the Settings view's Configuration section. The agent
-<a href=#1233 id=1233 data-nosnippet>1233</a>/// documents are the Agents view ([`super::agents`]).
-<a href=#1234 id=1234 data-nosnippet>1234</a></span><span class="kw">pub fn </span>config_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
-<a href=#1235 id=1235 data-nosnippet>1235</a>    <span class="kw">move </span>|| {
-<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(edit) = workspace
-<a href=#1237 id=1237 data-nosnippet>1237</a>            .config_edit
-<a href=#1238 id=1238 data-nosnippet>1238</a>            .get()
-<a href=#1239 id=1239 data-nosnippet>1239</a>            .filter(|edit| edit.path == <span class="string">"config.toml"</span>)
-<a href=#1240 id=1240 data-nosnippet>1240</a>        {
-<a href=#1241 id=1241 data-nosnippet>1241</a>            <span class="kw">let </span>path = edit.path.clone();
-<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="kw">return </span><span class="macro">view!</span> {
-<a href=#1243 id=1243 data-nosnippet>1243</a>                &lt;div class=EDITOR_PAGE&gt;
-<a href=#1244 id=1244 data-nosnippet>1244</a>                &lt;p class=<span class="string">"font-mono text-sm font-bold" </span>id=<span class="string">"config-path"</span>&gt;{path}&lt;/p&gt;
-<a href=#1245 id=1245 data-nosnippet>1245</a>                {<span class="kw">move </span>|| workspace.config_error.get().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"config-error"</span>&gt;{error}&lt;/p&gt; })}
-<a href=#1246 id=1246 data-nosnippet>1246</a>                &lt;textarea id=<span class="string">"config-text" </span>class=EDITOR spellcheck=<span class="string">"false"</span>&gt;{edit.text.clone()}&lt;/textarea&gt;
-<a href=#1247 id=1247 data-nosnippet>1247</a>                &lt;div class=EDITOR_ACTIONS&gt;
-<a href=#1248 id=1248 data-nosnippet>1248</a>                    &lt;button
-<a href=#1249 id=1249 data-nosnippet>1249</a>                        <span class="kw">type</span>=<span class="string">"button"
-<a href=#1250 id=1250 data-nosnippet>1250</a>                        </span>id=<span class="string">"config-apply"
-<a href=#1251 id=1251 data-nosnippet>1251</a>                        </span>class=PRIMARY
-<a href=#1252 id=1252 data-nosnippet>1252</a>                        on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.apply_config(area_value(<span class="string">"config-text"</span>))
-<a href=#1253 id=1253 data-nosnippet>1253</a>                    &gt;
-<a href=#1254 id=1254 data-nosnippet>1254</a>                        <span class="string">"Apply"
-<a href=#1255 id=1255 data-nosnippet>1255</a>                    </span>&lt;/button&gt;
-<a href=#1256 id=1256 data-nosnippet>1256</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.config_edit.set(<span class="prelude-val">None</span>)&gt;
-<a href=#1257 id=1257 data-nosnippet>1257</a>                        <span class="string">"Cancel"
-<a href=#1258 id=1258 data-nosnippet>1258</a>                    </span>&lt;/button&gt;
-<a href=#1259 id=1259 data-nosnippet>1259</a>                &lt;/div&gt;
-<a href=#1260 id=1260 data-nosnippet>1260</a>                &lt;/div&gt;
-<a href=#1261 id=1261 data-nosnippet>1261</a>            }
-<a href=#1262 id=1262 data-nosnippet>1262</a>            .into_any();
-<a href=#1263 id=1263 data-nosnippet>1263</a>        }
-<a href=#1264 id=1264 data-nosnippet>1264</a>        <span class="kw">let </span>config = <span class="kw">match </span>workspace.config.get() {
-<a href=#1265 id=1265 data-nosnippet>1265</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#1266 id=1266 data-nosnippet>1266</a>                <span class="kw">return </span>loading(<span class="string">"Reading the configuration…"</span>).into_any();
-<a href=#1267 id=1267 data-nosnippet>1267</a>            }
-<a href=#1268 id=1268 data-nosnippet>1268</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">return </span><span class="macro">view!</span> { &lt;p class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
-<a href=#1269 id=1269 data-nosnippet>1269</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(config)) =&gt; config,
-<a href=#1270 id=1270 data-nosnippet>1270</a>        };
-<a href=#1271 id=1271 data-nosnippet>1271</a>        <span class="kw">let </span>draft = workspace
-<a href=#1272 id=1272 data-nosnippet>1272</a>            .config_drafts
-<a href=#1273 id=1273 data-nosnippet>1273</a>            .with(|drafts| drafts.contains_key(<span class="string">"config.toml"</span>));
-<a href=#1274 id=1274 data-nosnippet>1274</a>        <span class="kw">let </span>label = config_rows(<span class="kw-2">&amp;</span>config)
-<a href=#1275 id=1275 data-nosnippet>1275</a>            .into_iter()
-<a href=#1276 id=1276 data-nosnippet>1276</a>            .find(|row| row.path.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"config.toml"</span>))
-<a href=#1277 id=1277 data-nosnippet>1277</a>            .map(|row| row.label)
-<a href=#1278 id=1278 data-nosnippet>1278</a>            .unwrap_or_default();
-<a href=#1279 id=1279 data-nosnippet>1279</a>        <span class="macro">view!</span> {
-<a href=#1280 id=1280 data-nosnippet>1280</a>            {<span class="kw">move </span>|| workspace.config_error.get().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"config-error"</span>&gt;{error}&lt;/p&gt; })}
-<a href=#1281 id=1281 data-nosnippet>1281</a>            {config.status.error.clone().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR&gt;{<span class="macro">format!</span>(<span class="string">"The running configuration has an error: {error}"</span>)}&lt;/p&gt; })}
-<a href=#1282 id=1282 data-nosnippet>1282</a>            {(!config.status.diagnostics.is_empty() || !config.status.native_compaction.is_empty() || !config.status.deferred_tools.is_empty()).then(|| <span class="macro">view!</span> {
-<a href=#1283 id=1283 data-nosnippet>1283</a>                &lt;ul class=<span class="string">"flex flex-col gap-1 text-sm text-caramel dark:text-maple" </span>id=<span class="string">"config-diagnostics"</span>&gt;
-<a href=#1284 id=1284 data-nosnippet>1284</a>                    {config.status.diagnostics.iter().cloned().chain(cookie_agent_client_state::config::record_lines(<span class="kw-2">&amp;</span>config.status)).map(|line| <span class="macro">view!</span> { &lt;li&gt;{line}&lt;/li&gt; }).collect_view()}
-<a href=#1285 id=1285 data-nosnippet>1285</a>                &lt;/ul&gt;
-<a href=#1286 id=1286 data-nosnippet>1286</a>            })}
-<a href=#1287 id=1287 data-nosnippet>1287</a>            &lt;div class=<span class="string">"flex items-center gap-2" </span>data-config-path=<span class="string">"config.toml"</span>&gt;
-<a href=#1288 id=1288 data-nosnippet>1288</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=<span class="macro">format!</span>(<span class="string">"{ROW} min-w-0 flex-1"</span>) on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.edit_config(<span class="string">"config.toml"</span>)&gt;
-<a href=#1289 id=1289 data-nosnippet>1289</a>                    &lt;span class=<span class="string">"flex items-center gap-2 font-mono text-sm whitespace-pre"</span>&gt;
-<a href=#1290 id=1290 data-nosnippet>1290</a>                        &lt;Glyph icon=icondata::FaFileLinesRegular class=<span class="string">"opacity-70" </span>/&gt;
-<a href=#1291 id=1291 data-nosnippet>1291</a>                        {label}
-<a href=#1292 id=1292 data-nosnippet>1292</a>                    &lt;/span&gt;
-<a href=#1293 id=1293 data-nosnippet>1293</a>                    {draft.then(|| <span class="macro">view!</span> { &lt;span class=<span class="string">"text-xs text-caramel dark:text-maple"</span>&gt;<span class="string">"not applied"</span>&lt;/span&gt; })}
-<a href=#1294 id=1294 data-nosnippet>1294</a>                &lt;/button&gt;
-<a href=#1295 id=1295 data-nosnippet>1295</a>            &lt;/div&gt;
-<a href=#1296 id=1296 data-nosnippet>1296</a>            &lt;div class=<span class="string">"mt-3 flex flex-col gap-2 border-t border-toasted pt-3 dark:border-ember"</span>&gt;
-<a href=#1297 id=1297 data-nosnippet>1297</a>                &lt;div class=<span class="string">"flex flex-wrap gap-2"</span>&gt;
-<a href=#1298 id=1298 data-nosnippet>1298</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"config-reload" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.reload_config()&gt;
-<a href=#1299 id=1299 data-nosnippet>1299</a>                        &lt;Glyph icon=icondata::FaArrowsRotateSolid /&gt;
-<a href=#1300 id=1300 data-nosnippet>1300</a>                        <span class="string">"Reload from disk"
-<a href=#1301 id=1301 data-nosnippet>1301</a>                    </span>&lt;/button&gt;
-<a href=#1302 id=1302 data-nosnippet>1302</a>                    <span class="comment">// Beside the reload, so the parts it cannot apply are
-<a href=#1303 id=1303 data-nosnippet>1303</a>                    // applied where the configuration was changed; it
-<a href=#1304 id=1304 data-nosnippet>1304</a>                    // stands out while some wait for a restart.
-<a href=#1305 id=1305 data-nosnippet>1305</a>                    </span>{<span class="kw">move </span>|| workspace.can_restart.get().then(|| {
-<a href=#1306 id=1306 data-nosnippet>1306</a>                        <span class="kw">let </span>needed = <span class="kw">move </span>|| workspace.config_status.with(|status| {
-<a href=#1307 id=1307 data-nosnippet>1307</a>                            status.as_ref().is_some_and(|status| !status.restart_required.is_empty())
-<a href=#1308 id=1308 data-nosnippet>1308</a>                        });
-<a href=#1309 id=1309 data-nosnippet>1309</a>                        <span class="macro">view!</span> {
-<a href=#1310 id=1310 data-nosnippet>1310</a>                            &lt;button
-<a href=#1311 id=1311 data-nosnippet>1311</a>                                <span class="kw">type</span>=<span class="string">"button"
-<a href=#1312 id=1312 data-nosnippet>1312</a>                                </span>id=<span class="string">"restart-daemon"
-<a href=#1313 id=1313 data-nosnippet>1313</a>                                </span>class=<span class="kw">move </span>|| <span class="kw">if </span>needed() { PRIMARY } <span class="kw">else </span>{ BUTTON }
-<a href=#1314 id=1314 data-nosnippet>1314</a>                                data-restart-needed=<span class="kw">move </span>|| needed().then_some(<span class="string">""</span>)
-<a href=#1315 id=1315 data-nosnippet>1315</a>                                on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.ask_restart()
-<a href=#1316 id=1316 data-nosnippet>1316</a>                            &gt;
-<a href=#1317 id=1317 data-nosnippet>1317</a>                                &lt;Glyph icon=icondata::FaPowerOffSolid /&gt;
-<a href=#1318 id=1318 data-nosnippet>1318</a>                                <span class="string">"Restart daemon"
-<a href=#1319 id=1319 data-nosnippet>1319</a>                            </span>&lt;/button&gt;
-<a href=#1320 id=1320 data-nosnippet>1320</a>                        }
-<a href=#1321 id=1321 data-nosnippet>1321</a>                    })}
-<a href=#1322 id=1322 data-nosnippet>1322</a>                &lt;/div&gt;
-<a href=#1323 id=1323 data-nosnippet>1323</a>                {<span class="kw">move </span>|| workspace.can_restart.get().then(|| <span class="macro">view!</span> {
-<a href=#1324 id=1324 data-nosnippet>1324</a>                    &lt;p class=NOTE&gt;
-<a href=#1325 id=1325 data-nosnippet>1325</a>                        {<span class="kw">move </span>|| {
-<a href=#1326 id=1326 data-nosnippet>1326</a>                            <span class="kw">let </span>parts = workspace.config_status.with(|status| {
-<a href=#1327 id=1327 data-nosnippet>1327</a>                                status.as_ref().map(cookie_agent_client_state::restart::restart_parts).unwrap_or_default()
-<a href=#1328 id=1328 data-nosnippet>1328</a>                            });
-<a href=#1329 id=1329 data-nosnippet>1329</a>                            <span class="kw">if </span>parts.is_empty() {
-<a href=#1330 id=1330 data-nosnippet>1330</a>                                <span class="string">"Restarting relaunches the daemon with the same arguments; clients reconnect on their own."</span>.to_owned()
-<a href=#1331 id=1331 data-nosnippet>1331</a>                            } <span class="kw">else </span>{
-<a href=#1332 id=1332 data-nosnippet>1332</a>                                <span class="macro">format!</span>(<span class="string">"Waiting for a restart: {parts}."</span>)
-<a href=#1333 id=1333 data-nosnippet>1333</a>                            }
-<a href=#1334 id=1334 data-nosnippet>1334</a>                        }}
-<a href=#1335 id=1335 data-nosnippet>1335</a>                    &lt;/p&gt;
-<a href=#1336 id=1336 data-nosnippet>1336</a>                })}
-<a href=#1337 id=1337 data-nosnippet>1337</a>            &lt;/div&gt;
-<a href=#1338 id=1338 data-nosnippet>1338</a>        }
-<a href=#1339 id=1339 data-nosnippet>1339</a>        .into_any()
-<a href=#1340 id=1340 data-nosnippet>1340</a>    }
-<a href=#1341 id=1341 data-nosnippet>1341</a>}
-<a href=#1342 id=1342 data-nosnippet>1342</a>
-<a href=#1343 id=1343 data-nosnippet>1343</a><span class="comment">// ---- /plugins --------------------------------------------------------------
-<a href=#1344 id=1344 data-nosnippet>1344</a>
-<a href=#1345 id=1345 data-nosnippet>1345</a></span><span class="kw">pub fn </span>plugins_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
-<a href=#1346 id=1346 data-nosnippet>1346</a>    <span class="kw">move </span>|| {
-<a href=#1347 id=1347 data-nosnippet>1347</a>        <span class="kw">match </span>workspace.plugins.get() {
-<a href=#1348 id=1348 data-nosnippet>1348</a>        <span class="prelude-val">None </span>=&gt; loading(<span class="string">"Reading plugins…"</span>).into_any(),
-<a href=#1349 id=1349 data-nosnippet>1349</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="macro">view!</span> { &lt;p class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
-<a href=#1350 id=1350 data-nosnippet>1350</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(plugins)) <span class="kw">if </span>plugins.is_empty() =&gt; empty_state(
-<a href=#1351 id=1351 data-nosnippet>1351</a>            icondata::FaPuzzlePieceSolid,
-<a href=#1352 id=1352 data-nosnippet>1352</a>            <span class="string">"No plugins are configured. Add one under [plugins.&lt;name&gt;] in the config."</span>,
-<a href=#1353 id=1353 data-nosnippet>1353</a>        )
-<a href=#1354 id=1354 data-nosnippet>1354</a>        .into_any(),
-<a href=#1355 id=1355 data-nosnippet>1355</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(plugins)) =&gt; plugins
-<a href=#1356 id=1356 data-nosnippet>1356</a>            .into_iter()
-<a href=#1357 id=1357 data-nosnippet>1357</a>            .map(|plugin| {
-<a href=#1358 id=1358 data-nosnippet>1358</a>                <span class="kw">let </span>name = plugin.name.clone();
-<a href=#1359 id=1359 data-nosnippet>1359</a>                <span class="macro">view!</span> {
-<a href=#1360 id=1360 data-nosnippet>1360</a>                    &lt;div class=<span class="string">"plugin flex flex-col gap-1 border-b border-toasted py-2 dark:border-ember" </span>data-plugin=plugin.name.clone()&gt;
-<a href=#1361 id=1361 data-nosnippet>1361</a>                        &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
-<a href=#1362 id=1362 data-nosnippet>1362</a>                            &lt;span class=<span class="string">"min-w-0 flex-1 truncate font-mono text-sm font-bold"</span>&gt;{plugin.name.clone()}&lt;/span&gt;
-<a href=#1363 id=1363 data-nosnippet>1363</a>                            &lt;span class=<span class="macro">format!</span>(<span class="string">"plugin-state {STATE}"</span>)&gt;{plugin_state_label(plugin.state)}&lt;/span&gt;
-<a href=#1364 id=1364 data-nosnippet>1364</a>                        &lt;/div&gt;
-<a href=#1365 id=1365 data-nosnippet>1365</a>                        &lt;pre class=<span class="macro">format!</span>(<span class="string">"{NOTE} whitespace-pre-wrap font-mono"</span>)&gt;{plugin_detail(<span class="kw-2">&amp;</span>plugin)}&lt;/pre&gt;
-<a href=#1366 id=1366 data-nosnippet>1366</a>                        &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=<span class="macro">format!</span>(<span class="string">"{BUTTON} self-start"</span>) data-plugin-restart on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.restart_plugin(name.clone())&gt;
-<a href=#1367 id=1367 data-nosnippet>1367</a>                            &lt;Glyph icon=icondata::FaArrowsRotateSolid /&gt;
-<a href=#1368 id=1368 data-nosnippet>1368</a>                            <span class="string">"Restart"
-<a href=#1369 id=1369 data-nosnippet>1369</a>                        </span>&lt;/button&gt;
-<a href=#1370 id=1370 data-nosnippet>1370</a>                    &lt;/div&gt;
-<a href=#1371 id=1371 data-nosnippet>1371</a>                }
-<a href=#1372 id=1372 data-nosnippet>1372</a>            })
-<a href=#1373 id=1373 data-nosnippet>1373</a>            .collect_view()
-<a href=#1374 id=1374 data-nosnippet>1374</a>            .into_any(),
-<a href=#1375 id=1375 data-nosnippet>1375</a>    }
-<a href=#1376 id=1376 data-nosnippet>1376</a>    }
-<a href=#1377 id=1377 data-nosnippet>1377</a>}
+<a href=#1105 id=1105 data-nosnippet>1105</a>        ) {
+<a href=#1106 id=1106 data-nosnippet>1106</a>            <span class="prelude-val">Ok</span>(values) =&gt; values,
+<a href=#1107 id=1107 data-nosnippet>1107</a>            <span class="prelude-val">Err</span>(message) =&gt; {
+<a href=#1108 id=1108 data-nosnippet>1108</a>                error.set(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"Invalid public setup: {message}"</span>)));
+<a href=#1109 id=1109 data-nosnippet>1109</a>                <span class="kw">return</span>;
+<a href=#1110 id=1110 data-nosnippet>1110</a>            }
+<a href=#1111 id=1111 data-nosnippet>1111</a>        };
+<a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="kw">let </span>typed = auth
+<a href=#1113 id=1113 data-nosnippet>1113</a>            .credentials
+<a href=#1114 id=1114 data-nosnippet>1114</a>            .iter()
+<a href=#1115 id=1115 data-nosnippet>1115</a>            .enumerate()
+<a href=#1116 id=1116 data-nosnippet>1116</a>            .map(|(index, field)| (field, field_value(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"credential-{index}"</span>))))
+<a href=#1117 id=1117 data-nosnippet>1117</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#1118 id=1118 data-nosnippet>1118</a>        <span class="kw">let </span>credentials = credential_values(
+<a href=#1119 id=1119 data-nosnippet>1119</a>            <span class="kw-2">&amp;</span>typed
+<a href=#1120 id=1120 data-nosnippet>1120</a>                .iter()
+<a href=#1121 id=1121 data-nosnippet>1121</a>                .map(|(field, value)| (<span class="kw-2">*</span>field, value.as_str()))
+<a href=#1122 id=1122 data-nosnippet>1122</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
+<a href=#1123 id=1123 data-nosnippet>1123</a>        );
+<a href=#1124 id=1124 data-nosnippet>1124</a>        drop(typed);
+<a href=#1125 id=1125 data-nosnippet>1125</a>        <span class="kw">let </span>credentials = <span class="kw">match </span>credentials {
+<a href=#1126 id=1126 data-nosnippet>1126</a>            <span class="prelude-val">Ok</span>(values) =&gt; values,
+<a href=#1127 id=1127 data-nosnippet>1127</a>            <span class="prelude-val">Err</span>(message) =&gt; {
+<a href=#1128 id=1128 data-nosnippet>1128</a>                error.set(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"Invalid credentials: {message}"</span>)));
+<a href=#1129 id=1129 data-nosnippet>1129</a>                <span class="kw">return</span>;
+<a href=#1130 id=1130 data-nosnippet>1130</a>            }
+<a href=#1131 id=1131 data-nosnippet>1131</a>        };
+<a href=#1132 id=1132 data-nosnippet>1132</a>        error.set(<span class="prelude-val">None</span>);
+<a href=#1133 id=1133 data-nosnippet>1133</a>        <span class="kw">match </span>workspace.connect_provider(provider, auth.id.clone(), setup, credentials, reconnect) {
+<a href=#1134 id=1134 data-nosnippet>1134</a>            <span class="prelude-val">Ok</span>(()) =&gt; submitted.set(<span class="bool-val">true</span>),
+<a href=#1135 id=1135 data-nosnippet>1135</a>            <span class="prelude-val">Err</span>(message) =&gt; error.set(<span class="prelude-val">Some</span>(message)),
+<a href=#1136 id=1136 data-nosnippet>1136</a>        }
+<a href=#1137 id=1137 data-nosnippet>1137</a>    };
+<a href=#1138 id=1138 data-nosnippet>1138</a>    <span class="kw">let </span>disconnect_provider = provider.clone();
+<a href=#1139 id=1139 data-nosnippet>1139</a>    <span class="macro">view!</span> {
+<a href=#1140 id=1140 data-nosnippet>1140</a>        &lt;p class=<span class="string">"text-sm font-bold"</span>&gt;{<span class="macro">format!</span>(<span class="string">"{} ({})"</span>, provider.display_name, provider.id)}&lt;/p&gt;
+<a href=#1141 id=1141 data-nosnippet>1141</a>        &lt;p class=NOTE&gt;{summary}&lt;/p&gt;
+<a href=#1142 id=1142 data-nosnippet>1142</a>        &lt;p class=NOTE&gt;{cookie_agent_client_state::providers::DURABLE_PROVIDER_COPY}&lt;/p&gt;
+<a href=#1143 id=1143 data-nosnippet>1143</a>        &lt;Show when={
+<a href=#1144 id=1144 data-nosnippet>1144</a>            <span class="kw">let </span>count = methods.len();
+<a href=#1145 id=1145 data-nosnippet>1145</a>            <span class="kw">move </span>|| count &gt; <span class="number">1
+<a href=#1146 id=1146 data-nosnippet>1146</a>        </span>}&gt;
+<a href=#1147 id=1147 data-nosnippet>1147</a>            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#1148 id=1148 data-nosnippet>1148</a>                &lt;span&gt;<span class="string">"Authentication"</span>&lt;/span&gt;
+<a href=#1149 id=1149 data-nosnippet>1149</a>                &lt;select
+<a href=#1150 id=1150 data-nosnippet>1150</a>                    id=<span class="string">"provider-auth-method"
+<a href=#1151 id=1151 data-nosnippet>1151</a>                    </span>class=FIELD
+<a href=#1152 id=1152 data-nosnippet>1152</a>                    on:change=<span class="kw">move </span>|event| {
+<a href=#1153 id=1153 data-nosnippet>1153</a>                        <span class="kw">if let </span><span class="prelude-val">Ok</span>(id) = cookie_agent_protocol::AuthMethodId::new(event_target_value(<span class="kw-2">&amp;</span>event)) {
+<a href=#1154 id=1154 data-nosnippet>1154</a>                            method.set(id);
+<a href=#1155 id=1155 data-nosnippet>1155</a>                        }
+<a href=#1156 id=1156 data-nosnippet>1156</a>                    }
+<a href=#1157 id=1157 data-nosnippet>1157</a>                &gt;
+<a href=#1158 id=1158 data-nosnippet>1158</a>                    {methods
+<a href=#1159 id=1159 data-nosnippet>1159</a>                        .iter()
+<a href=#1160 id=1160 data-nosnippet>1160</a>                        .map(|candidate| {
+<a href=#1161 id=1161 data-nosnippet>1161</a>                            <span class="kw">let </span>id = candidate.id.clone();
+<a href=#1162 id=1162 data-nosnippet>1162</a>                            <span class="macro">view!</span> {
+<a href=#1163 id=1163 data-nosnippet>1163</a>                                &lt;option value=candidate.id.to_string() selected=<span class="kw">move </span>|| method.get() == id&gt;
+<a href=#1164 id=1164 data-nosnippet>1164</a>                                    {candidate.display_name.to_string()}
+<a href=#1165 id=1165 data-nosnippet>1165</a>                                &lt;/option&gt;
+<a href=#1166 id=1166 data-nosnippet>1166</a>                            }
+<a href=#1167 id=1167 data-nosnippet>1167</a>                        })
+<a href=#1168 id=1168 data-nosnippet>1168</a>                        .collect_view()}
+<a href=#1169 id=1169 data-nosnippet>1169</a>                &lt;/select&gt;
+<a href=#1170 id=1170 data-nosnippet>1170</a>            &lt;/label&gt;
+<a href=#1171 id=1171 data-nosnippet>1171</a>        &lt;/Show&gt;
+<a href=#1172 id=1172 data-nosnippet>1172</a>        {<span class="kw">move </span>|| {
+<a href=#1173 id=1173 data-nosnippet>1173</a>            <span class="kw">let </span>current = method.get();
+<a href=#1174 id=1174 data-nosnippet>1174</a>            credential_methods
+<a href=#1175 id=1175 data-nosnippet>1175</a>                .iter()
+<a href=#1176 id=1176 data-nosnippet>1176</a>                .find(|candidate| candidate.id == current)
+<a href=#1177 id=1177 data-nosnippet>1177</a>                .map(|auth| {
+<a href=#1178 id=1178 data-nosnippet>1178</a>                    auth.credentials
+<a href=#1179 id=1179 data-nosnippet>1179</a>                        .iter()
+<a href=#1180 id=1180 data-nosnippet>1180</a>                        .enumerate()
+<a href=#1181 id=1181 data-nosnippet>1181</a>                        .map(|(index, field)| <span class="macro">view!</span> {
+<a href=#1182 id=1182 data-nosnippet>1182</a>                            &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#1183 id=1183 data-nosnippet>1183</a>                                &lt;span&gt;{<span class="macro">format!</span>(<span class="string">"{}{}"</span>, field.display_name, <span class="kw">if </span>field.required { <span class="string">"" </span>} <span class="kw">else </span>{ <span class="string">" (optional)" </span>})}&lt;/span&gt;
+<a href=#1184 id=1184 data-nosnippet>1184</a>                                &lt;input
+<a href=#1185 id=1185 data-nosnippet>1185</a>                                    <span class="kw">type</span>=<span class="string">"password"
+<a href=#1186 id=1186 data-nosnippet>1186</a>                                    </span>id=<span class="macro">format!</span>(<span class="string">"credential-{index}"</span>)
+<a href=#1187 id=1187 data-nosnippet>1187</a>                                    class=FIELD
+<a href=#1188 id=1188 data-nosnippet>1188</a>                                    autocomplete=<span class="string">"off"
+<a href=#1189 id=1189 data-nosnippet>1189</a>                                    </span>spellcheck=<span class="string">"false"
+<a href=#1190 id=1190 data-nosnippet>1190</a>                                </span>/&gt;
+<a href=#1191 id=1191 data-nosnippet>1191</a>                                &lt;span class=NOTE&gt;{field.help.to_string()}&lt;/span&gt;
+<a href=#1192 id=1192 data-nosnippet>1192</a>                            &lt;/label&gt;
+<a href=#1193 id=1193 data-nosnippet>1193</a>                        })
+<a href=#1194 id=1194 data-nosnippet>1194</a>                        .collect_view()
+<a href=#1195 id=1195 data-nosnippet>1195</a>                })
+<a href=#1196 id=1196 data-nosnippet>1196</a>        }}
+<a href=#1197 id=1197 data-nosnippet>1197</a>        {setup_fields
+<a href=#1198 id=1198 data-nosnippet>1198</a>            .iter()
+<a href=#1199 id=1199 data-nosnippet>1199</a>            .enumerate()
+<a href=#1200 id=1200 data-nosnippet>1200</a>            .map(|(index, field)| <span class="macro">view!</span> {
+<a href=#1201 id=1201 data-nosnippet>1201</a>                &lt;label class=<span class="string">"flex flex-col gap-1 text-sm"</span>&gt;
+<a href=#1202 id=1202 data-nosnippet>1202</a>                    &lt;span&gt;{<span class="macro">format!</span>(<span class="string">"{}{}"</span>, field.display_name, <span class="kw">if </span>field.required { <span class="string">"" </span>} <span class="kw">else </span>{ <span class="string">" (optional)" </span>})}&lt;/span&gt;
+<a href=#1203 id=1203 data-nosnippet>1203</a>                    &lt;input
+<a href=#1204 id=1204 data-nosnippet>1204</a>                        <span class="kw">type</span>=<span class="string">"text"
+<a href=#1205 id=1205 data-nosnippet>1205</a>                        </span>id=<span class="macro">format!</span>(<span class="string">"setup-{index}"</span>)
+<a href=#1206 id=1206 data-nosnippet>1206</a>                        class=FIELD
+<a href=#1207 id=1207 data-nosnippet>1207</a>                        value=initial_setup_text(<span class="kw-2">&amp;</span>disconnect_provider, field)
+<a href=#1208 id=1208 data-nosnippet>1208</a>                    /&gt;
+<a href=#1209 id=1209 data-nosnippet>1209</a>                    &lt;span class=NOTE&gt;{field.help.to_string()}&lt;/span&gt;
+<a href=#1210 id=1210 data-nosnippet>1210</a>                &lt;/label&gt;
+<a href=#1211 id=1211 data-nosnippet>1211</a>            })
+<a href=#1212 id=1212 data-nosnippet>1212</a>            .collect_view()}
+<a href=#1213 id=1213 data-nosnippet>1213</a>        {<span class="kw">move </span>|| error.get().map(|message| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"provider-error"</span>&gt;{message}&lt;/p&gt; })}
+<a href=#1214 id=1214 data-nosnippet>1214</a>        &lt;div class=<span class="string">"flex flex-wrap gap-2"</span>&gt;
+<a href=#1215 id=1215 data-nosnippet>1215</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-connect" </span>class=PRIMARY on:click=<span class="kw">move </span>|<span class="kw">_</span>| submit()&gt;
+<a href=#1216 id=1216 data-nosnippet>1216</a>                &lt;Glyph icon=icondata::FaPlugSolid /&gt;
+<a href=#1217 id=1217 data-nosnippet>1217</a>                {<span class="kw">if </span>reconnect { <span class="string">"Reconnect" </span>} <span class="kw">else </span>{ <span class="string">"Connect" </span>}}
+<a href=#1218 id=1218 data-nosnippet>1218</a>            &lt;/button&gt;
+<a href=#1219 id=1219 data-nosnippet>1219</a>            &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=back&gt;<span class="string">"Cancel"</span>&lt;/button&gt;
+<a href=#1220 id=1220 data-nosnippet>1220</a>            &lt;Show when=<span class="kw">move </span>|| reconnect&gt;
+<a href=#1221 id=1221 data-nosnippet>1221</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-disconnect" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| confirm_disconnect.set(<span class="bool-val">true</span>)&gt;
+<a href=#1222 id=1222 data-nosnippet>1222</a>                    <span class="string">"Disconnect"
+<a href=#1223 id=1223 data-nosnippet>1223</a>                </span>&lt;/button&gt;
+<a href=#1224 id=1224 data-nosnippet>1224</a>            &lt;/Show&gt;
+<a href=#1225 id=1225 data-nosnippet>1225</a>        &lt;/div&gt;
+<a href=#1226 id=1226 data-nosnippet>1226</a>        &lt;Show when=<span class="kw">move </span>|| confirm_disconnect.get()&gt;
+<a href=#1227 id=1227 data-nosnippet>1227</a>            &lt;div class=CONFIRM&gt;
+<a href=#1228 id=1228 data-nosnippet>1228</a>                &lt;p class=<span class="string">"text-sm"</span>&gt;<span class="string">"Remove the stored connection and its credentials?"</span>&lt;/p&gt;
+<a href=#1229 id=1229 data-nosnippet>1229</a>                &lt;div class=<span class="string">"flex gap-2"</span>&gt;
+<a href=#1230 id=1230 data-nosnippet>1230</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"provider-disconnect-confirm" </span>class=PRIMARY on:click={
+<a href=#1231 id=1231 data-nosnippet>1231</a>                        <span class="kw">let </span>provider = provider.clone();
+<a href=#1232 id=1232 data-nosnippet>1232</a>                        <span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#1233 id=1233 data-nosnippet>1233</a>                            confirm_disconnect.set(<span class="bool-val">false</span>);
+<a href=#1234 id=1234 data-nosnippet>1234</a>                            open.set(<span class="prelude-val">None</span>);
+<a href=#1235 id=1235 data-nosnippet>1235</a>                            workspace.disconnect_provider(provider.clone());
+<a href=#1236 id=1236 data-nosnippet>1236</a>                        }
+<a href=#1237 id=1237 data-nosnippet>1237</a>                    }&gt;
+<a href=#1238 id=1238 data-nosnippet>1238</a>                        <span class="string">"Disconnect"
+<a href=#1239 id=1239 data-nosnippet>1239</a>                    </span>&lt;/button&gt;
+<a href=#1240 id=1240 data-nosnippet>1240</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| confirm_disconnect.set(<span class="bool-val">false</span>)&gt;<span class="string">"Keep it"</span>&lt;/button&gt;
+<a href=#1241 id=1241 data-nosnippet>1241</a>                &lt;/div&gt;
+<a href=#1242 id=1242 data-nosnippet>1242</a>            &lt;/div&gt;
+<a href=#1243 id=1243 data-nosnippet>1243</a>        &lt;/Show&gt;
+<a href=#1244 id=1244 data-nosnippet>1244</a>    }
+<a href=#1245 id=1245 data-nosnippet>1245</a>    .into_any()
+<a href=#1246 id=1246 data-nosnippet>1246</a>}
+<a href=#1247 id=1247 data-nosnippet>1247</a>
+<a href=#1248 id=1248 data-nosnippet>1248</a><span class="comment">// ---- /config ---------------------------------------------------------------
+<a href=#1249 id=1249 data-nosnippet>1249</a>
+<a href=#1250 id=1250 data-nosnippet>1250</a></span><span class="doccomment">/// `config.toml`: the Settings view's Configuration section. The agent
+<a href=#1251 id=1251 data-nosnippet>1251</a>/// documents are the Agents view ([`super::agents`]).
+<a href=#1252 id=1252 data-nosnippet>1252</a></span><span class="kw">pub fn </span>config_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#1253 id=1253 data-nosnippet>1253</a>    <span class="kw">move </span>|| {
+<a href=#1254 id=1254 data-nosnippet>1254</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(edit) = workspace
+<a href=#1255 id=1255 data-nosnippet>1255</a>            .config_edit
+<a href=#1256 id=1256 data-nosnippet>1256</a>            .get()
+<a href=#1257 id=1257 data-nosnippet>1257</a>            .filter(|edit| edit.path == <span class="string">"config.toml"</span>)
+<a href=#1258 id=1258 data-nosnippet>1258</a>        {
+<a href=#1259 id=1259 data-nosnippet>1259</a>            <span class="kw">let </span>path = edit.path.clone();
+<a href=#1260 id=1260 data-nosnippet>1260</a>            <span class="kw">return </span><span class="macro">view!</span> {
+<a href=#1261 id=1261 data-nosnippet>1261</a>                &lt;div class=EDITOR_PAGE&gt;
+<a href=#1262 id=1262 data-nosnippet>1262</a>                &lt;p class=<span class="string">"font-mono text-sm font-bold" </span>id=<span class="string">"config-path"</span>&gt;{path}&lt;/p&gt;
+<a href=#1263 id=1263 data-nosnippet>1263</a>                {<span class="kw">move </span>|| workspace.config_error.get().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"config-error"</span>&gt;{error}&lt;/p&gt; })}
+<a href=#1264 id=1264 data-nosnippet>1264</a>                &lt;textarea id=<span class="string">"config-text" </span>class=EDITOR spellcheck=<span class="string">"false"</span>&gt;{edit.text.clone()}&lt;/textarea&gt;
+<a href=#1265 id=1265 data-nosnippet>1265</a>                &lt;div class=EDITOR_ACTIONS&gt;
+<a href=#1266 id=1266 data-nosnippet>1266</a>                    &lt;button
+<a href=#1267 id=1267 data-nosnippet>1267</a>                        <span class="kw">type</span>=<span class="string">"button"
+<a href=#1268 id=1268 data-nosnippet>1268</a>                        </span>id=<span class="string">"config-apply"
+<a href=#1269 id=1269 data-nosnippet>1269</a>                        </span>class=PRIMARY
+<a href=#1270 id=1270 data-nosnippet>1270</a>                        on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.apply_config(area_value(<span class="string">"config-text"</span>))
+<a href=#1271 id=1271 data-nosnippet>1271</a>                    &gt;
+<a href=#1272 id=1272 data-nosnippet>1272</a>                        <span class="string">"Apply"
+<a href=#1273 id=1273 data-nosnippet>1273</a>                    </span>&lt;/button&gt;
+<a href=#1274 id=1274 data-nosnippet>1274</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.config_edit.set(<span class="prelude-val">None</span>)&gt;
+<a href=#1275 id=1275 data-nosnippet>1275</a>                        <span class="string">"Cancel"
+<a href=#1276 id=1276 data-nosnippet>1276</a>                    </span>&lt;/button&gt;
+<a href=#1277 id=1277 data-nosnippet>1277</a>                &lt;/div&gt;
+<a href=#1278 id=1278 data-nosnippet>1278</a>                &lt;/div&gt;
+<a href=#1279 id=1279 data-nosnippet>1279</a>            }
+<a href=#1280 id=1280 data-nosnippet>1280</a>            .into_any();
+<a href=#1281 id=1281 data-nosnippet>1281</a>        }
+<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="kw">let </span>config = <span class="kw">match </span>workspace.config.get() {
+<a href=#1283 id=1283 data-nosnippet>1283</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#1284 id=1284 data-nosnippet>1284</a>                <span class="kw">return </span>loading(<span class="string">"Reading the configuration…"</span>).into_any();
+<a href=#1285 id=1285 data-nosnippet>1285</a>            }
+<a href=#1286 id=1286 data-nosnippet>1286</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">return </span><span class="macro">view!</span> { &lt;p class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
+<a href=#1287 id=1287 data-nosnippet>1287</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(config)) =&gt; config,
+<a href=#1288 id=1288 data-nosnippet>1288</a>        };
+<a href=#1289 id=1289 data-nosnippet>1289</a>        <span class="kw">let </span>draft = workspace
+<a href=#1290 id=1290 data-nosnippet>1290</a>            .config_drafts
+<a href=#1291 id=1291 data-nosnippet>1291</a>            .with(|drafts| drafts.contains_key(<span class="string">"config.toml"</span>));
+<a href=#1292 id=1292 data-nosnippet>1292</a>        <span class="kw">let </span>label = config_rows(<span class="kw-2">&amp;</span>config)
+<a href=#1293 id=1293 data-nosnippet>1293</a>            .into_iter()
+<a href=#1294 id=1294 data-nosnippet>1294</a>            .find(|row| row.path.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"config.toml"</span>))
+<a href=#1295 id=1295 data-nosnippet>1295</a>            .map(|row| row.label)
+<a href=#1296 id=1296 data-nosnippet>1296</a>            .unwrap_or_default();
+<a href=#1297 id=1297 data-nosnippet>1297</a>        <span class="macro">view!</span> {
+<a href=#1298 id=1298 data-nosnippet>1298</a>            {<span class="kw">move </span>|| workspace.config_error.get().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR id=<span class="string">"config-error"</span>&gt;{error}&lt;/p&gt; })}
+<a href=#1299 id=1299 data-nosnippet>1299</a>            {config.status.error.clone().map(|error| <span class="macro">view!</span> { &lt;p class=ERROR&gt;{<span class="macro">format!</span>(<span class="string">"The running configuration has an error: {error}"</span>)}&lt;/p&gt; })}
+<a href=#1300 id=1300 data-nosnippet>1300</a>            {(!config.status.diagnostics.is_empty() || !config.status.native_compaction.is_empty() || !config.status.deferred_tools.is_empty()).then(|| <span class="macro">view!</span> {
+<a href=#1301 id=1301 data-nosnippet>1301</a>                &lt;ul class=<span class="string">"flex flex-col gap-1 text-sm text-caramel dark:text-maple" </span>id=<span class="string">"config-diagnostics"</span>&gt;
+<a href=#1302 id=1302 data-nosnippet>1302</a>                    {config.status.diagnostics.iter().cloned().chain(cookie_agent_client_state::config::record_lines(<span class="kw-2">&amp;</span>config.status)).map(|line| <span class="macro">view!</span> { &lt;li&gt;{line}&lt;/li&gt; }).collect_view()}
+<a href=#1303 id=1303 data-nosnippet>1303</a>                &lt;/ul&gt;
+<a href=#1304 id=1304 data-nosnippet>1304</a>            })}
+<a href=#1305 id=1305 data-nosnippet>1305</a>            &lt;div class=<span class="string">"flex items-center gap-2" </span>data-config-path=<span class="string">"config.toml"</span>&gt;
+<a href=#1306 id=1306 data-nosnippet>1306</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=<span class="macro">format!</span>(<span class="string">"{ROW} min-w-0 flex-1"</span>) on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.edit_config(<span class="string">"config.toml"</span>)&gt;
+<a href=#1307 id=1307 data-nosnippet>1307</a>                    &lt;span class=<span class="string">"flex items-center gap-2 font-mono text-sm whitespace-pre"</span>&gt;
+<a href=#1308 id=1308 data-nosnippet>1308</a>                        &lt;Glyph icon=icondata::FaFileLinesRegular class=<span class="string">"opacity-70" </span>/&gt;
+<a href=#1309 id=1309 data-nosnippet>1309</a>                        {label}
+<a href=#1310 id=1310 data-nosnippet>1310</a>                    &lt;/span&gt;
+<a href=#1311 id=1311 data-nosnippet>1311</a>                    {draft.then(|| <span class="macro">view!</span> { &lt;span class=<span class="string">"text-xs text-caramel dark:text-maple"</span>&gt;<span class="string">"not applied"</span>&lt;/span&gt; })}
+<a href=#1312 id=1312 data-nosnippet>1312</a>                &lt;/button&gt;
+<a href=#1313 id=1313 data-nosnippet>1313</a>            &lt;/div&gt;
+<a href=#1314 id=1314 data-nosnippet>1314</a>            &lt;div class=<span class="string">"mt-3 flex flex-col gap-2 border-t border-toasted pt-3 dark:border-ember"</span>&gt;
+<a href=#1315 id=1315 data-nosnippet>1315</a>                &lt;div class=<span class="string">"flex flex-wrap gap-2"</span>&gt;
+<a href=#1316 id=1316 data-nosnippet>1316</a>                    &lt;button <span class="kw">type</span>=<span class="string">"button" </span>id=<span class="string">"config-reload" </span>class=BUTTON on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.reload_config()&gt;
+<a href=#1317 id=1317 data-nosnippet>1317</a>                        &lt;Glyph icon=icondata::FaArrowsRotateSolid /&gt;
+<a href=#1318 id=1318 data-nosnippet>1318</a>                        <span class="string">"Reload from disk"
+<a href=#1319 id=1319 data-nosnippet>1319</a>                    </span>&lt;/button&gt;
+<a href=#1320 id=1320 data-nosnippet>1320</a>                    <span class="comment">// Beside the reload, so the parts it cannot apply are
+<a href=#1321 id=1321 data-nosnippet>1321</a>                    // applied where the configuration was changed; it
+<a href=#1322 id=1322 data-nosnippet>1322</a>                    // stands out while some wait for a restart.
+<a href=#1323 id=1323 data-nosnippet>1323</a>                    </span>{<span class="kw">move </span>|| workspace.can_restart.get().then(|| {
+<a href=#1324 id=1324 data-nosnippet>1324</a>                        <span class="kw">let </span>needed = <span class="kw">move </span>|| workspace.config_status.with(|status| {
+<a href=#1325 id=1325 data-nosnippet>1325</a>                            status.as_ref().is_some_and(|status| !status.restart_required.is_empty())
+<a href=#1326 id=1326 data-nosnippet>1326</a>                        });
+<a href=#1327 id=1327 data-nosnippet>1327</a>                        <span class="macro">view!</span> {
+<a href=#1328 id=1328 data-nosnippet>1328</a>                            &lt;button
+<a href=#1329 id=1329 data-nosnippet>1329</a>                                <span class="kw">type</span>=<span class="string">"button"
+<a href=#1330 id=1330 data-nosnippet>1330</a>                                </span>id=<span class="string">"restart-daemon"
+<a href=#1331 id=1331 data-nosnippet>1331</a>                                </span>class=<span class="kw">move </span>|| <span class="kw">if </span>needed() { PRIMARY } <span class="kw">else </span>{ BUTTON }
+<a href=#1332 id=1332 data-nosnippet>1332</a>                                data-restart-needed=<span class="kw">move </span>|| needed().then_some(<span class="string">""</span>)
+<a href=#1333 id=1333 data-nosnippet>1333</a>                                on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.ask_restart()
+<a href=#1334 id=1334 data-nosnippet>1334</a>                            &gt;
+<a href=#1335 id=1335 data-nosnippet>1335</a>                                &lt;Glyph icon=icondata::FaPowerOffSolid /&gt;
+<a href=#1336 id=1336 data-nosnippet>1336</a>                                <span class="string">"Restart daemon"
+<a href=#1337 id=1337 data-nosnippet>1337</a>                            </span>&lt;/button&gt;
+<a href=#1338 id=1338 data-nosnippet>1338</a>                        }
+<a href=#1339 id=1339 data-nosnippet>1339</a>                    })}
+<a href=#1340 id=1340 data-nosnippet>1340</a>                &lt;/div&gt;
+<a href=#1341 id=1341 data-nosnippet>1341</a>                {<span class="kw">move </span>|| workspace.can_restart.get().then(|| <span class="macro">view!</span> {
+<a href=#1342 id=1342 data-nosnippet>1342</a>                    &lt;p class=NOTE&gt;
+<a href=#1343 id=1343 data-nosnippet>1343</a>                        {<span class="kw">move </span>|| {
+<a href=#1344 id=1344 data-nosnippet>1344</a>                            <span class="kw">let </span>parts = workspace.config_status.with(|status| {
+<a href=#1345 id=1345 data-nosnippet>1345</a>                                status.as_ref().map(cookie_agent_client_state::restart::restart_parts).unwrap_or_default()
+<a href=#1346 id=1346 data-nosnippet>1346</a>                            });
+<a href=#1347 id=1347 data-nosnippet>1347</a>                            <span class="kw">if </span>parts.is_empty() {
+<a href=#1348 id=1348 data-nosnippet>1348</a>                                <span class="string">"Restarting relaunches the daemon with the same arguments; clients reconnect on their own."</span>.to_owned()
+<a href=#1349 id=1349 data-nosnippet>1349</a>                            } <span class="kw">else </span>{
+<a href=#1350 id=1350 data-nosnippet>1350</a>                                <span class="macro">format!</span>(<span class="string">"Waiting for a restart: {parts}."</span>)
+<a href=#1351 id=1351 data-nosnippet>1351</a>                            }
+<a href=#1352 id=1352 data-nosnippet>1352</a>                        }}
+<a href=#1353 id=1353 data-nosnippet>1353</a>                    &lt;/p&gt;
+<a href=#1354 id=1354 data-nosnippet>1354</a>                })}
+<a href=#1355 id=1355 data-nosnippet>1355</a>            &lt;/div&gt;
+<a href=#1356 id=1356 data-nosnippet>1356</a>        }
+<a href=#1357 id=1357 data-nosnippet>1357</a>        .into_any()
+<a href=#1358 id=1358 data-nosnippet>1358</a>    }
+<a href=#1359 id=1359 data-nosnippet>1359</a>}
+<a href=#1360 id=1360 data-nosnippet>1360</a>
+<a href=#1361 id=1361 data-nosnippet>1361</a><span class="comment">// ---- /plugins --------------------------------------------------------------
+<a href=#1362 id=1362 data-nosnippet>1362</a>
+<a href=#1363 id=1363 data-nosnippet>1363</a></span><span class="kw">pub fn </span>plugins_sheet(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#1364 id=1364 data-nosnippet>1364</a>    <span class="kw">move </span>|| {
+<a href=#1365 id=1365 data-nosnippet>1365</a>        <span class="kw">match </span>workspace.plugins.get() {
+<a href=#1366 id=1366 data-nosnippet>1366</a>        <span class="prelude-val">None </span>=&gt; loading(<span class="string">"Reading plugins…"</span>).into_any(),
+<a href=#1367 id=1367 data-nosnippet>1367</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="macro">view!</span> { &lt;p class=ERROR&gt;{error}&lt;/p&gt; }.into_any(),
+<a href=#1368 id=1368 data-nosnippet>1368</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(plugins)) <span class="kw">if </span>plugins.is_empty() =&gt; empty_state(
+<a href=#1369 id=1369 data-nosnippet>1369</a>            icondata::FaPuzzlePieceSolid,
+<a href=#1370 id=1370 data-nosnippet>1370</a>            <span class="string">"No plugins are configured. Add one under [plugins.&lt;name&gt;] in the config."</span>,
+<a href=#1371 id=1371 data-nosnippet>1371</a>        )
+<a href=#1372 id=1372 data-nosnippet>1372</a>        .into_any(),
+<a href=#1373 id=1373 data-nosnippet>1373</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(plugins)) =&gt; plugins
+<a href=#1374 id=1374 data-nosnippet>1374</a>            .into_iter()
+<a href=#1375 id=1375 data-nosnippet>1375</a>            .map(|plugin| {
+<a href=#1376 id=1376 data-nosnippet>1376</a>                <span class="kw">let </span>name = plugin.name.clone();
+<a href=#1377 id=1377 data-nosnippet>1377</a>                <span class="macro">view!</span> {
+<a href=#1378 id=1378 data-nosnippet>1378</a>                    &lt;div class=<span class="string">"plugin flex flex-col gap-1 border-b border-toasted py-2 dark:border-ember" </span>data-plugin=plugin.name.clone()&gt;
+<a href=#1379 id=1379 data-nosnippet>1379</a>                        &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
+<a href=#1380 id=1380 data-nosnippet>1380</a>                            &lt;span class=<span class="string">"min-w-0 flex-1 truncate font-mono text-sm font-bold"</span>&gt;{plugin.name.clone()}&lt;/span&gt;
+<a href=#1381 id=1381 data-nosnippet>1381</a>                            &lt;span class=<span class="macro">format!</span>(<span class="string">"plugin-state {STATE}"</span>)&gt;{plugin_state_label(plugin.state)}&lt;/span&gt;
+<a href=#1382 id=1382 data-nosnippet>1382</a>                        &lt;/div&gt;
+<a href=#1383 id=1383 data-nosnippet>1383</a>                        &lt;pre class=<span class="macro">format!</span>(<span class="string">"{NOTE} whitespace-pre-wrap font-mono"</span>)&gt;{plugin_detail(<span class="kw-2">&amp;</span>plugin)}&lt;/pre&gt;
+<a href=#1384 id=1384 data-nosnippet>1384</a>                        &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=<span class="macro">format!</span>(<span class="string">"{BUTTON} self-start"</span>) data-plugin-restart on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.restart_plugin(name.clone())&gt;
+<a href=#1385 id=1385 data-nosnippet>1385</a>                            &lt;Glyph icon=icondata::FaArrowsRotateSolid /&gt;
+<a href=#1386 id=1386 data-nosnippet>1386</a>                            <span class="string">"Restart"
+<a href=#1387 id=1387 data-nosnippet>1387</a>                        </span>&lt;/button&gt;
+<a href=#1388 id=1388 data-nosnippet>1388</a>                    &lt;/div&gt;
+<a href=#1389 id=1389 data-nosnippet>1389</a>                }
+<a href=#1390 id=1390 data-nosnippet>1390</a>            })
+<a href=#1391 id=1391 data-nosnippet>1391</a>            .collect_view()
+<a href=#1392 id=1392 data-nosnippet>1392</a>            .into_any(),
+<a href=#1393 id=1393 data-nosnippet>1393</a>    }
+<a href=#1394 id=1394 data-nosnippet>1394</a>    }
+<a href=#1395 id=1395 data-nosnippet>1395</a>}
 </code></pre></div></section></main></body></html>
