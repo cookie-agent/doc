@@ -401,17 +401,53 @@
 <a href=#401 id=401 data-nosnippet>401</a>        output.push(<span class="string">'\n'</span>);
 <a href=#402 id=402 data-nosnippet>402</a>        output.push_str(<span class="kw-2">&amp;</span>note);
 <a href=#403 id=403 data-nosnippet>403</a>    }
-<a href=#404 id=404 data-nosnippet>404</a>    result(
-<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">if </span>loaded.is_empty() {
-<a href=#406 id=406 data-nosnippet>406</a>            <span class="string">"No tools loaded"
-<a href=#407 id=407 data-nosnippet>407</a>        </span>} <span class="kw">else </span>{
-<a href=#408 id=408 data-nosnippet>408</a>            <span class="string">"Tools loaded"
-<a href=#409 id=409 data-nosnippet>409</a>        </span>},
-<a href=#410 id=410 data-nosnippet>410</a>        output,
-<a href=#411 id=411 data-nosnippet>411</a>        loaded,
-<a href=#412 id=412 data-nosnippet>412</a>    )
-<a href=#413 id=413 data-nosnippet>413</a>}
-<a href=#414 id=414 data-nosnippet>414</a>
-<a href=#415 id=415 data-nosnippet>415</a><span class="attr">#[cfg(test)]
-<a href=#416 id=416 data-nosnippet>416</a></span><span class="kw">mod </span>tests;
+<a href=#404 id=404 data-nosnippet>404</a>    <span class="kw">let </span>instructions = provider_instructions(view, <span class="kw-2">&amp;</span>loaded);
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="kw">let </span><span class="kw-2">mut </span>result = result(
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">if </span>loaded.is_empty() {
+<a href=#407 id=407 data-nosnippet>407</a>            <span class="string">"No tools loaded"
+<a href=#408 id=408 data-nosnippet>408</a>        </span>} <span class="kw">else </span>{
+<a href=#409 id=409 data-nosnippet>409</a>            <span class="string">"Tools loaded"
+<a href=#410 id=410 data-nosnippet>410</a>        </span>},
+<a href=#411 id=411 data-nosnippet>411</a>        output,
+<a href=#412 id=412 data-nosnippet>412</a>        loaded,
+<a href=#413 id=413 data-nosnippet>413</a>    );
+<a href=#414 id=414 data-nosnippet>414</a>    result.additional_messages.extend(instructions);
+<a href=#415 id=415 data-nosnippet>415</a>    result
+<a href=#416 id=416 data-nosnippet>416</a>}
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a><span class="doccomment">/// The prompt sections of the deferred providers whose tools `loaded`
+<a href=#419 id=419 data-nosnippet>419</a>/// loads first, as one message after the result (deferred tools in cookie,
+<a href=#420 id=420 data-nosnippet>420</a>/// section 7.3). Stored with the result, so history never shifts.
+<a href=#421 id=421 data-nosnippet>421</a></span><span class="kw">fn </span>provider_instructions(
+<a href=#422 id=422 data-nosnippet>422</a>    view: <span class="kw-2">&amp;</span>DeferralView,
+<a href=#423 id=423 data-nosnippet>423</a>    loaded: <span class="kw-2">&amp;</span>[String],
+<a href=#424 id=424 data-nosnippet>424</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::ToolEmittedMessage&gt; {
+<a href=#425 id=425 data-nosnippet>425</a>    <span class="kw">let </span><span class="kw-2">mut </span>providers = Vec::new();
+<a href=#426 id=426 data-nosnippet>426</a>    <span class="kw">for </span>name <span class="kw">in </span>loaded {
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = view.deferred.iter().find(|entry| <span class="kw-2">&amp;</span>entry.name == name)
+<a href=#428 id=428 data-nosnippet>428</a>            &amp;&amp; view.sections.contains_key(<span class="kw-2">&amp;</span>entry.provider)
+<a href=#429 id=429 data-nosnippet>429</a>            &amp;&amp; !providers.contains(&amp;&amp;entry.provider)
+<a href=#430 id=430 data-nosnippet>430</a>        {
+<a href=#431 id=431 data-nosnippet>431</a>            providers.push(<span class="kw-2">&amp;</span>entry.provider);
+<a href=#432 id=432 data-nosnippet>432</a>        }
+<a href=#433 id=433 data-nosnippet>433</a>    }
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="kw">let </span>blocks = providers
+<a href=#435 id=435 data-nosnippet>435</a>        .into_iter()
+<a href=#436 id=436 data-nosnippet>436</a>        .filter_map(|provider| view.sections.get(provider))
+<a href=#437 id=437 data-nosnippet>437</a>        .cloned()
+<a href=#438 id=438 data-nosnippet>438</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">if </span>blocks.is_empty() {
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#441 id=441 data-nosnippet>441</a>    }
+<a href=#442 id=442 data-nosnippet>442</a>    cookie_agent_protocol::ToolEmittedMessage::new(
+<a href=#443 id=443 data-nosnippet>443</a>        cookie_agent_protocol::ToolEmittedMessageRole::System,
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="macro">vec!</span>[cookie_agent_protocol::ToolEmittedContent::Text(
+<a href=#445 id=445 data-nosnippet>445</a>            blocks.join(<span class="string">"\n\n"</span>),
+<a href=#446 id=446 data-nosnippet>446</a>        )],
+<a href=#447 id=447 data-nosnippet>447</a>    )
+<a href=#448 id=448 data-nosnippet>448</a>    .ok()
+<a href=#449 id=449 data-nosnippet>449</a>}
+<a href=#450 id=450 data-nosnippet>450</a>
+<a href=#451 id=451 data-nosnippet>451</a><span class="attr">#[cfg(test)]
+<a href=#452 id=452 data-nosnippet>452</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
