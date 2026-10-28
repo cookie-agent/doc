@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AGENT_NAME","DISPLAY_NAME","KEEPALIVE_INTERVAL","PROVIDER_ID","REDIRECT_PATH","TOKEN_SHARING_SCOPE"],"enum":["ChatGptError"],"fn":["valid_redirect_uri"],"mod":["catalog"],"struct":["AccountSummary","ChatGptCredentials","ChatGptEndpoints","SignedIn"]};

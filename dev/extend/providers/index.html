@@ -1715,6 +1715,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chatgpt" class="md-nav__link">
+    <span class="md-ellipsis">
+      ChatGPT
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#custom-providers" class="md-nav__link">
     <span class="md-ellipsis">
       Custom providers
@@ -3144,6 +3153,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/chatgpt-sign-in/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sign in with ChatGPT
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/acp-v2/" class="md-nav__link">
         
   
@@ -3885,29 +3917,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specs/chatgpt-sign-in/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Sign in with ChatGPT
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../specs/runtime-management/" class="md-nav__link">
         
   
@@ -4128,6 +4137,15 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chatgpt" class="md-nav__link">
+    <span class="md-ellipsis">
+      ChatGPT
+    </span>
+  </a>
   
 </li>
       
@@ -4446,7 +4464,7 @@ stored); unconfigured providers report counts alone.</p>
 <td><code>source</code></td>
 <td>string</td>
 <td><em>(required)</em></td>
-<td>Must be <code>"models_dev"</code>.</td>
+<td>Must be <code>"models_dev"</code>, or <code>"chatgpt"</code> for the built-in <a href="#chatgpt">ChatGPT</a> provider, which takes only <code>headers</code> and <code>models</code>.</td>
 </tr>
 <tr>
 <td><code>base_url</code></td>
@@ -4647,6 +4665,52 @@ Alibaba Cloud Model Studio (<code>alibaba</code>, <code>alibaba-cn</code>); and
 <code>reasoning_effort = "none"</code> for Kimi Code, which has no <code>on</code> variant. Kimi Code
 serves thinking-off K3 requests with its K2.8 Preview model. Other providers,
 including Moonshot, get no toggle variants.</p>
+<h2 id="chatgpt">ChatGPT<a class="headerlink" href="#chatgpt" title="Permanent link">&para;</a></h2>
+<p>The built-in <code>chatgpt</code> provider, shown as <strong>Codex / ChatGPT</strong>, runs models
+on a ChatGPT plan (Go, Plus, Pro, Business, and others) through OpenAI's
+<a href="https://developers.openai.com/siwc">Sign in with ChatGPT</a> token sharing,
+with no API key and no per-token billing. It is not in models.dev: its
+models are the ones the signed-in plan lists.</p>
+<p><strong>Sign in</strong> from <code>/connect</code> in the TUI, the web client's provider list, or
+<code>cookie connect chatgpt</code>, and choose <strong>Continue with ChatGPT</strong>. The first
+sign-in registers cookie with OpenAI as <strong>Cookie Agent</strong>, which then appears
+in ChatGPT's connected apps.</p>
+<ul>
+<li>The browser returns to <code>http://127.0.0.1:&lt;port&gt;/auth/callback</code>. The TUI and
+  <code>cookie connect</code> listen for it on the machine they run on, so a daemon on
+  another machine works the same way.</li>
+<li>When the browser runs somewhere else, the page it returns to fails to
+  load: paste that page's address into the sign-in.</li>
+<li>A web page the daemon serves from <code>127.0.0.1</code> or <code>localhost</code> shares the
+  daemon's machine, so the daemon catches the redirect itself.</li>
+</ul>
+<p><strong>What is stored.</strong> The tokens live beside the provider store, in
+<code>~/.cookie-agent/providers/chatgpt-sign-in.json</code>, and the plan's model list
+in <code>chatgpt-models.json</code> there. The provider store keeps only the account.
+Access tokens last an hour and refresh on their own; a daemon refreshes at
+least daily, so the 30-day refresh token stays valid while it is idle. When
+a sign-in can no longer refresh, the provider says <strong>sign-in expired: sign
+in again</strong>, its models fail with that reason, and signing in again restores
+them. Disconnecting signs out and revokes the sign-in.</p>
+<p><strong>Models.</strong> The list comes from the account's <code>GET /v1/models</code>: at sign-in
+and hourly after. Codex's <code>ultra</code> reasoning (its multi-agent mode) is left
+out. Requests never send <code>max_output_tokens</code>, <code>temperature</code>, <code>top_p</code>,
+<code>truncation</code>, <code>user</code>, <code>service_tier</code>, or prompt-cache retention, which the
+route refuses; a setting that names one is dropped with a warning. Cookie's
+standalone native compaction is unavailable on this route, so its own
+summary compacts.</p>
+<p><strong>Usage limits.</strong> A plan that has reached its limit answers with
+<code>subscription_sharing_usage_limit_exceeded</code>, which is not retried. OpenAI
+gives no reset time; ChatGPT's settings show the plan's usage.</p>
+<p><code>[providers.chatgpt]</code> is optional, and only <code>source = "chatgpt"</code> with
+<code>headers</code> and <code>models</code> (managed model overrides) is accepted:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[providers.chatgpt]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"chatgpt"</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">models</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">"gpt-6-luna"</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">display_name</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Luna"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><code>source = "chatgpt"</code> names this provider and no other, and the <code>chatgpt</code> ID
+accepts no other source. <code>api_key</code>, <code>auth_override</code>, <code>base_url</code>, <code>setup</code>, and
+<code>cache</code> are refused: ChatGPT is signed in, not configured.</p>
 <h2 id="custom-providers">Custom providers<a class="headerlink" href="#custom-providers" title="Permanent link">&para;</a></h2>
 <p>Custom providers are config-only, never appear in <code>/connect</code>, and never use
 the provider store. Any valid provider ID is allowed; on collision with a
@@ -4655,38 +4719,38 @@ catalog provider ID the custom definition takes precedence.</p>
 <p>Complete <code>config.toml</code> for an illustrative endpoint. Replace the URL, model ID,
 limits, and capability declarations with those of your actual service. The
 reasoning-only variants inherit sampling and endpoint settings from the base:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"custom"</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://api.example.invalid/v1"</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">adaptor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"openai-compatible"</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"bearer-api-key-v1"</span><span class="p">,</span><span class="w"> </span><span class="n">values</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">api_key</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"${env:CUSTOM_API_KEY}"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">]</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">display_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Example Model"</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">model_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"backend-model-v1"</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">generation_options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="n">top_p</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.95</span><span class="p">,</span><span class="w"> </span><span class="n">max_output_tokens</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">adaptor_options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">request_endpoint</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"completions"</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.capabilities]</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"text"</span><span class="p">]</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"text"</span><span class="p">]</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">context_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">output_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4096</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="n">top_p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="n">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="n">media</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{}</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.low]</span>
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"low"</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>
-<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.medium]</span>
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"medium"</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>
-<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.xhigh]</span>
-<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="n">model_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"backend-model-high-v1"</span>
-<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"xhigh"</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"custom"</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://api.example.invalid/v1"</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">adaptor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"openai-compatible"</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"bearer-api-key-v1"</span><span class="p">,</span><span class="w"> </span><span class="n">values</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">api_key</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"${env:CUSTOM_API_KEY}"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">]</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">display_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Example Model"</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">model_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"backend-model-v1"</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">generation_options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="n">top_p</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.95</span><span class="p">,</span><span class="w"> </span><span class="n">max_output_tokens</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">adaptor_options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">request_endpoint</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"completions"</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.capabilities]</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"text"</span><span class="p">]</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"text"</span><span class="p">]</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="n">context_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="n">output_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4096</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="n">top_p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="n">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">media</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{}</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.low]</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"low"</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.medium]</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"medium"</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"example-model"</span><span class="k">.variants.xhigh]</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="n">model_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"backend-model-high-v1"</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="n">reasoning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"effort"</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"xhigh"</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>The local selection key is <code>custom.example/example-model</code>. The base, <code>low</code>, and
 <code>medium</code> variants send <code>backend-model-v1</code>; <code>xhigh</code> sends <code>backend-model-high-v1</code>.
@@ -5074,8 +5138,8 @@ the current configuration or catalog changes.</p>
 Set unsupported features to <code>false</code>. Invalid effective declarations are errors.
 For an endpoint without parallel tool calls or structured output, add this
 fragment to its capabilities table:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">parallel_tool_calls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">structured_output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">parallel_tool_calls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">structured_output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
 <p>cookie-agent requires tool calling. <code>tool_calling = false</code> (which also requires
 <code>parallel_tool_calls = false</code>) is accepted, but the model compiles as
@@ -5347,8 +5411,8 @@ object accepts exactly one of:</p>
 </table>
 <p>A concrete off toggle or <code>none</code> effort is not removal of the reasoning object.
 There is no null/clear operation. Example fragment disabling a managed variant:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[providers.openai.models.gpt-5.variants.low]</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[providers.openai.models.gpt-5.variants.low]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
 <h3 id="provider-definitions-and-headers">Provider definitions and headers<a class="headerlink" href="#provider-definitions-and-headers" title="Permanent link">&para;</a></h3>
 <p>Providers are defined only in the user <code>config.toml</code>. The sparse rules above
@@ -5368,24 +5432,24 @@ field of it, to use the family defaults. A cache table is validated against
 the provider's resolved adaptor; wrong-family fields and unknown keys are load
 errors.</p>
 <p>The following are fragments for already-defined providers, not a complete file:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[providers.anthropic.cache]</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">[providers.</span><span class="s2">"custom.bedrock"</span><span class="k">.cache]</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="k">[providers.openai.cache]</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"auto"</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30m"</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="k">[providers.</span><span class="s2">"custom.compatible"</span><span class="k">.cache]</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="n">prompt_cache_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tenant-${session_id}"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[providers.anthropic.cache]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">[providers.</span><span class="s2">"custom.bedrock"</span><span class="k">.cache]</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">tools</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="k">[providers.openai.cache]</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"auto"</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30m"</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="n">rolling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="k">[providers.</span><span class="s2">"custom.compatible"</span><span class="k">.cache]</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="n">prompt_cache_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tenant-${session_id}"</span>
 </code></pre></div>
 <p>Here <code>custom.bedrock</code> is an existing custom <code>aws-bedrock-converse</code> provider.
 A managed provider can contain models routed through different adaptor families;
@@ -5497,9 +5561,9 @@ your account. Catalog context tiers are selected independently for each request
 from its reported input-token count. Both managed and custom models use this
 model-local table. Rates are validated even for disabled or unavailable models;
 managed model IDs must still exist in the catalog.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"model-name"</span><span class="k">.pricing]</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">input_per_million_usd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1.25"</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">output_per_million_usd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5.0"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[providers.</span><span class="s2">"custom.example"</span><span class="k">.models.</span><span class="s2">"model-name"</span><span class="k">.pricing]</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">input_per_million_usd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1.25"</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">output_per_million_usd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5.0"</span>
 </code></pre></div>
 <p>All fields are optional quoted, finite, nonnegative decimal USD rates per
 million tokens. Quoting preserves the authored decimal exactly.</p>
