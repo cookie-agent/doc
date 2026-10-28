@@ -1440,6 +1440,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#in-stream-compaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      In-stream compaction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-provider-record" class="md-nav__link">
     <span class="md-ellipsis">
       The provider record
@@ -3950,6 +3959,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#in-stream-compaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      In-stream compaction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-provider-record" class="md-nav__link">
     <span class="md-ellipsis">
       The provider record
@@ -4094,6 +4112,25 @@ compaction rereads files.</p>
 a summary. Such a checkpoint still serves its own model. On any other model the
 engine first summarizes the events it covers from the saved log, once, and
 commits that as a new checkpoint; the request then proceeds on it.</p>
+<h3 id="in-stream-compaction">In-stream compaction<a class="headerlink" href="#in-stream-compaction" title="Permanent link">&para;</a></h3>
+<p>A model with <code>compaction = "in-stream"</code>, and every <a href="../../extend/providers/#chatgpt">ChatGPT</a>
+model, compacts inside its own requests instead of with the standalone call:</p>
+<ul>
+<li><strong>The server compacts at the trigger.</strong> Each request carries
+  <code>context_management</code> with <code>compact_threshold</code> set to the
+  <a href="#the-trigger-threshold">trigger threshold</a>. When the rendered input
+  reaches it, the server compacts before it answers and streams <code>compaction</code>
+  items beside the answer.</li>
+<li><strong>The items travel with their turn.</strong> They are kept in the turn's native
+  replay and sent back to the same model, which continues from them. Another
+  model replays the turn without them, from the turns themselves.</li>
+<li><strong>The engine's own checkpoint is a backstop.</strong> It waits until the latest
+  turn's usage reaches halfway from the trigger to the input budget (85% of
+  the budget with the default 70% trigger), so it fires only when the server
+  did not compact. The context-length retry is unchanged.</li>
+<li><strong>No standalone call.</strong> Such a model declares compaction unsupported, so a
+  checkpoint holds the summary alone.</li>
+</ul>
 <h3 id="the-provider-record">The provider record<a class="headerlink" href="#the-provider-record" title="Permanent link">&para;</a></h3>
 <p>The daemon remembers, per provider ID, what native compaction answered, in
 <code>native-compaction.json</code> in its data folder (<code>~/.cookie-agent</code> by default):</p>

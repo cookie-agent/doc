@@ -84,223 +84,228 @@
 <a href=#84 id=84 data-nosnippet>84</a><span class="doccomment">/// A model override's `compaction` setting. Native compaction is attempted
 <a href=#85 id=85 data-nosnippet>85</a>/// on every Responses adapter unless the override says `"unsupported"`; the
 <a href=#86 id=86 data-nosnippet>86</a>/// adapter-named values are accepted and mean the same as omitting the key.
-<a href=#87 id=87 data-nosnippet>87</a></span><span class="attr">#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
-<a href=#88 id=88 data-nosnippet>88</a></span><span class="kw">pub enum </span>NativeCompactionConfig {
-<a href=#89 id=89 data-nosnippet>89</a>    <span class="attr">#[default]
-<a href=#90 id=90 data-nosnippet>90</a>    </span>Default,
-<a href=#91 id=91 data-nosnippet>91</a>    Unsupported,
-<a href=#92 id=92 data-nosnippet>92</a>    OpenAiResponsesCompact,
-<a href=#93 id=93 data-nosnippet>93</a>    AzureResponsesCompact,
-<a href=#94 id=94 data-nosnippet>94</a>}
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a><span class="kw">impl </span>NativeCompactionConfig {
-<a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// Whether the setting allows native compaction where the adapter has it.
-<a href=#98 id=98 data-nosnippet>98</a>    </span><span class="attr">#[must_use]
-<a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">pub const fn </span>allows_native(<span class="self">self</span>) -&gt; bool {
-<a href=#100 id=100 data-nosnippet>100</a>        !<span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Unsupported)
-<a href=#101 id=101 data-nosnippet>101</a>    }
-<a href=#102 id=102 data-nosnippet>102</a>}
-<a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>NativeCompactionConfig {
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">where
-<a href=#107 id=107 data-nosnippet>107</a>        </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
-<a href=#108 id=108 data-nosnippet>108</a>    {
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">match </span>String::deserialize(deserializer)<span class="question-mark">?</span>.as_str() {
-<a href=#110 id=110 data-nosnippet>110</a>            <span class="string">"unsupported" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Unsupported),
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="string">"openai-responses-compact" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::OpenAiResponsesCompact),
-<a href=#112 id=112 data-nosnippet>112</a>            <span class="string">"azure-responses-compact" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::AzureResponsesCompact),
-<a href=#113 id=113 data-nosnippet>113</a>            <span class="string">"v1" </span>=&gt; <span class="prelude-val">Err</span>(serde::de::Error::custom(
-<a href=#114 id=114 data-nosnippet>114</a>                <span class="string">"compaction = \"v1\" was removed; omit `compaction` for native compaction or set \"unsupported\""</span>,
-<a href=#115 id=115 data-nosnippet>115</a>            )),
-<a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(serde::de::Error::custom(
-<a href=#117 id=117 data-nosnippet>117</a>                <span class="string">"compaction must be \"unsupported\" (\"openai-responses-compact\" and \"azure-responses-compact\" are accepted and redundant)"</span>,
-<a href=#118 id=118 data-nosnippet>118</a>            )),
-<a href=#119 id=119 data-nosnippet>119</a>        }
-<a href=#120 id=120 data-nosnippet>120</a>    }
-<a href=#121 id=121 data-nosnippet>121</a>}
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a><span class="doccomment">/// Internal digest decoding remains permissive for existing compiled model state.
-<a href=#124 id=124 data-nosnippet>124</a></span><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-<a href=#125 id=125 data-nosnippet>125</a>#[serde(transparent)]
-<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">pub struct </span>Sha256Digest(String);
+<a href=#87 id=87 data-nosnippet>87</a>/// `"in-stream"` asks an OpenAI Responses model for server-side compaction
+<a href=#88 id=88 data-nosnippet>88</a>/// inside its requests instead of the standalone compact call.
+<a href=#89 id=89 data-nosnippet>89</a></span><span class="attr">#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
+<a href=#90 id=90 data-nosnippet>90</a></span><span class="kw">pub enum </span>NativeCompactionConfig {
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="attr">#[default]
+<a href=#92 id=92 data-nosnippet>92</a>    </span>Default,
+<a href=#93 id=93 data-nosnippet>93</a>    Unsupported,
+<a href=#94 id=94 data-nosnippet>94</a>    OpenAiResponsesCompact,
+<a href=#95 id=95 data-nosnippet>95</a>    AzureResponsesCompact,
+<a href=#96 id=96 data-nosnippet>96</a>    InStream,
+<a href=#97 id=97 data-nosnippet>97</a>}
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a><span class="kw">impl </span>NativeCompactionConfig {
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Whether the setting allows the standalone native compaction call where
+<a href=#101 id=101 data-nosnippet>101</a>    /// the adapter has it.
+<a href=#102 id=102 data-nosnippet>102</a>    </span><span class="attr">#[must_use]
+<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="kw">pub const fn </span>allows_native(<span class="self">self</span>) -&gt; bool {
+<a href=#104 id=104 data-nosnippet>104</a>        !<span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Unsupported | <span class="self">Self</span>::InStream)
+<a href=#105 id=105 data-nosnippet>105</a>    }
+<a href=#106 id=106 data-nosnippet>106</a>}
+<a href=#107 id=107 data-nosnippet>107</a>
+<a href=#108 id=108 data-nosnippet>108</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>NativeCompactionConfig {
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
+<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">where
+<a href=#111 id=111 data-nosnippet>111</a>        </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
+<a href=#112 id=112 data-nosnippet>112</a>    {
+<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">match </span>String::deserialize(deserializer)<span class="question-mark">?</span>.as_str() {
+<a href=#114 id=114 data-nosnippet>114</a>            <span class="string">"unsupported" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Unsupported),
+<a href=#115 id=115 data-nosnippet>115</a>            <span class="string">"openai-responses-compact" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::OpenAiResponsesCompact),
+<a href=#116 id=116 data-nosnippet>116</a>            <span class="string">"azure-responses-compact" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::AzureResponsesCompact),
+<a href=#117 id=117 data-nosnippet>117</a>            <span class="string">"in-stream" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::InStream),
+<a href=#118 id=118 data-nosnippet>118</a>            <span class="string">"v1" </span>=&gt; <span class="prelude-val">Err</span>(serde::de::Error::custom(
+<a href=#119 id=119 data-nosnippet>119</a>                <span class="string">"compaction = \"v1\" was removed; omit `compaction` for native compaction or set \"unsupported\""</span>,
+<a href=#120 id=120 data-nosnippet>120</a>            )),
+<a href=#121 id=121 data-nosnippet>121</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(serde::de::Error::custom(
+<a href=#122 id=122 data-nosnippet>122</a>                <span class="string">"compaction must be \"unsupported\" or \"in-stream\" (\"openai-responses-compact\" and \"azure-responses-compact\" are accepted and redundant)"</span>,
+<a href=#123 id=123 data-nosnippet>123</a>            )),
+<a href=#124 id=124 data-nosnippet>124</a>        }
+<a href=#125 id=125 data-nosnippet>125</a>    }
+<a href=#126 id=126 data-nosnippet>126</a>}
 <a href=#127 id=127 data-nosnippet>127</a>
-<a href=#128 id=128 data-nosnippet>128</a><span class="kw">impl </span>Sha256Digest {
-<a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">pub fn </span>new(value: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ModelTypeError&gt; {
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>value = value.into();
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">if </span>value.len() == <span class="number">64
-<a href=#132 id=132 data-nosnippet>132</a>            </span>&amp;&amp; value
-<a href=#133 id=133 data-nosnippet>133</a>                .bytes()
-<a href=#134 id=134 data-nosnippet>134</a>                .all(|byte| byte.is_ascii_digit() || (<span class="string">b'a'</span>..=<span class="string">b'f'</span>).contains(<span class="kw-2">&amp;</span>byte))
-<a href=#135 id=135 data-nosnippet>135</a>        {
-<a href=#136 id=136 data-nosnippet>136</a>            <span class="prelude-val">Ok</span>(<span class="self">Self</span>(value))
-<a href=#137 id=137 data-nosnippet>137</a>        } <span class="kw">else </span>{
-<a href=#138 id=138 data-nosnippet>138</a>            <span class="prelude-val">Err</span>(ModelTypeError::Fingerprint)
-<a href=#139 id=139 data-nosnippet>139</a>        }
-<a href=#140 id=140 data-nosnippet>140</a>    }
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="attr">#[must_use]
-<a href=#143 id=143 data-nosnippet>143</a>    </span><span class="kw">pub fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-<a href=#144 id=144 data-nosnippet>144</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0
-<a href=#145 id=145 data-nosnippet>145</a>    </span>}
+<a href=#128 id=128 data-nosnippet>128</a><span class="doccomment">/// Internal digest decoding remains permissive for existing compiled model state.
+<a href=#129 id=129 data-nosnippet>129</a></span><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+<a href=#130 id=130 data-nosnippet>130</a>#[serde(transparent)]
+<a href=#131 id=131 data-nosnippet>131</a></span><span class="kw">pub struct </span>Sha256Digest(String);
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a><span class="kw">impl </span>Sha256Digest {
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">pub fn </span>new(value: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ModelTypeError&gt; {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">let </span>value = value.into();
+<a href=#136 id=136 data-nosnippet>136</a>        <span class="kw">if </span>value.len() == <span class="number">64
+<a href=#137 id=137 data-nosnippet>137</a>            </span>&amp;&amp; value
+<a href=#138 id=138 data-nosnippet>138</a>                .bytes()
+<a href=#139 id=139 data-nosnippet>139</a>                .all(|byte| byte.is_ascii_digit() || (<span class="string">b'a'</span>..=<span class="string">b'f'</span>).contains(<span class="kw-2">&amp;</span>byte))
+<a href=#140 id=140 data-nosnippet>140</a>        {
+<a href=#141 id=141 data-nosnippet>141</a>            <span class="prelude-val">Ok</span>(<span class="self">Self</span>(value))
+<a href=#142 id=142 data-nosnippet>142</a>        } <span class="kw">else </span>{
+<a href=#143 id=143 data-nosnippet>143</a>            <span class="prelude-val">Err</span>(ModelTypeError::Fingerprint)
+<a href=#144 id=144 data-nosnippet>144</a>        }
+<a href=#145 id=145 data-nosnippet>145</a>    }
 <a href=#146 id=146 data-nosnippet>146</a>
-<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hash(domain: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span><span class="kw">impl </span>Serialize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, serde_json::Error&gt; {
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = Sha256::new();
-<a href=#149 id=149 data-nosnippet>149</a>        hasher.update(domain.as_bytes());
-<a href=#150 id=150 data-nosnippet>150</a>        hasher.update([<span class="number">0</span>]);
-<a href=#151 id=151 data-nosnippet>151</a>        hasher.update(serde_json::to_vec(value)<span class="question-mark">?</span>);
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(<span class="macro">format!</span>(<span class="string">"{:x}"</span>, hasher.finalize())))
-<a href=#153 id=153 data-nosnippet>153</a>    }
-<a href=#154 id=154 data-nosnippet>154</a>}
-<a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-<a href=#157 id=157 data-nosnippet>157</a>#[serde(deny_unknown_fields)]
-<a href=#158 id=158 data-nosnippet>158</a></span><span class="doccomment">/// Compiled capabilities; authored declarations use `AuthoredCapabilities`.
-<a href=#159 id=159 data-nosnippet>159</a></span><span class="kw">pub struct </span>ModelCapabilities {
-<a href=#160 id=160 data-nosnippet>160</a>    <span class="kw">pub </span>input: BTreeSet&lt;Modality&gt;,
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">pub </span>output: BTreeSet&lt;Modality&gt;,
-<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">pub </span>context_tokens: u64,
-<a href=#163 id=163 data-nosnippet>163</a>    <span class="doccomment">/// Separately documented input-token limit, when narrower than the context window.
-<a href=#164 id=164 data-nosnippet>164</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
-<a href=#165 id=165 data-nosnippet>165</a>    </span><span class="kw">pub </span>input_tokens: <span class="prelude-ty">Option</span>&lt;u64&gt;,
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">pub </span>output_tokens: u64,
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">pub </span>tool_calling: bool,
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">pub </span>parallel_tool_calls: bool,
-<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">pub </span>structured_output: bool,
-<a href=#170 id=170 data-nosnippet>170</a>    <span class="kw">pub </span>reasoning: bool,
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">pub </span>temperature: bool,
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">pub </span>top_p: bool,
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">pub </span>seed: bool,
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="attr">#[serde(default)]
-<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">pub </span>compaction: CompactionCapability,
-<a href=#176 id=176 data-nosnippet>176</a>    <span class="attr">#[serde(default, skip_serializing_if = <span class="string">"DeferredToolsSupport::is_unsupported"</span>)]
-<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">pub </span>deferred_tools: DeferredToolsSupport,
-<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">pub </span>native_replay: ReplayCapability,
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">pub </span>cancellation: CancellationCapability,
-<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">pub </span>media: BTreeMap&lt;MediaKind, MediaCapability&gt;,
-<a href=#181 id=181 data-nosnippet>181</a>}
-<a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-<a href=#184 id=184 data-nosnippet>184</a>#[serde(rename_all = <span class="string">"snake_case"</span>)]
-<a href=#185 id=185 data-nosnippet>185</a></span><span class="doccomment">/// Authoring tool choices keep arbitrary names; protocol names are length-validated.
-<a href=#186 id=186 data-nosnippet>186</a></span><span class="kw">pub enum </span>ToolChoice {
-<a href=#187 id=187 data-nosnippet>187</a>    Auto,
-<a href=#188 id=188 data-nosnippet>188</a>    <span class="prelude-val">None</span>,
-<a href=#189 id=189 data-nosnippet>189</a>    Required,
-<a href=#190 id=190 data-nosnippet>190</a>    Named(String),
-<a href=#191 id=191 data-nosnippet>191</a>}
-<a href=#192 id=192 data-nosnippet>192</a>
-<a href=#193 id=193 data-nosnippet>193</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-<a href=#194 id=194 data-nosnippet>194</a>#[serde(deny_unknown_fields)]
-<a href=#195 id=195 data-nosnippet>195</a></span><span class="doccomment">/// Authoring defaults permit omitted optional fields and are validated against capabilities later.
-<a href=#196 id=196 data-nosnippet>196</a></span><span class="kw">pub struct </span>RequestDefaults {
-<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">pub </span>temperature: <span class="prelude-ty">Option</span>&lt;FiniteF32&gt;,
-<a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">pub </span>top_p: <span class="prelude-ty">Option</span>&lt;FiniteF32&gt;,
-<a href=#199 id=199 data-nosnippet>199</a>    <span class="kw">pub </span>max_output_tokens: <span class="prelude-ty">Option</span>&lt;u64&gt;,
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="attr">#[serde(default)]
-<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub </span>stop: Vec&lt;String&gt;,
-<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">pub </span>seed: <span class="prelude-ty">Option</span>&lt;i64&gt;,
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">pub </span>tool_choice: <span class="prelude-ty">Option</span>&lt;ToolChoice&gt;,
-<a href=#204 id=204 data-nosnippet>204</a>}
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-<a href=#207 id=207 data-nosnippet>207</a>#[serde(tag = <span class="string">"type"</span>, rename_all = <span class="string">"snake_case"</span>, deny_unknown_fields)]
-<a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">pub enum </span>ReasoningBehavior {
-<a href=#209 id=209 data-nosnippet>209</a>    Effort { value: ReasoningEffort },
-<a href=#210 id=210 data-nosnippet>210</a>    Toggle { enabled: bool },
-<a href=#211 id=211 data-nosnippet>211</a>    BudgetTokens { value: i64 },
-<a href=#212 id=212 data-nosnippet>212</a>}
-<a href=#213 id=213 data-nosnippet>213</a>
-<a href=#214 id=214 data-nosnippet>214</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-<a href=#215 id=215 data-nosnippet>215</a>#[serde(deny_unknown_fields)]
-<a href=#216 id=216 data-nosnippet>216</a></span><span class="doccomment">/// Runtime-ready authoring defaults retain request application behavior and permissive decoding.
-<a href=#217 id=217 data-nosnippet>217</a></span><span class="kw">pub struct </span>ResolvedRequestDefaults {
-<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">pub </span>request: RequestDefaults,
-<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">pub </span>reasoning: <span class="prelude-ty">Option</span>&lt;ReasoningBehavior&gt;,
-<a href=#220 id=220 data-nosnippet>220</a>}
-<a href=#221 id=221 data-nosnippet>221</a>
-<a href=#222 id=222 data-nosnippet>222</a><span class="kw">impl </span>ResolvedRequestDefaults {
-<a href=#223 id=223 data-nosnippet>223</a>    <span class="doccomment">/// Fills unset request fields from these defaults for one adapter family.
-<a href=#224 id=224 data-nosnippet>224</a>    ///
-<a href=#225 id=225 data-nosnippet>225</a>    /// An effort variant becomes the normalized `reasoning_effort` except on
-<a href=#226 id=226 data-nosnippet>226</a>    /// Gemini and Vertex, whose compiled provider options already carry it as
-<a href=#227 id=227 data-nosnippet>227</a>    /// `thinkingConfig.thinkingLevel`: Google takes exactly one thinking
-<a href=#228 id=228 data-nosnippet>228</a>    /// representation, and Oven rejects the normalized effort next to a
-<a href=#229 id=229 data-nosnippet>229</a>    /// `thinkingConfig`.
-<a href=#230 id=230 data-nosnippet>230</a>    </span><span class="attr">#[must_use]
-<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">pub fn </span>apply(
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#233 id=233 data-nosnippet>233</a>        adapter: <span class="kw">crate</span>::adapters::OvenAdapterFamily,
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw-2">mut </span>request: oven_sdk::Request,
-<a href=#235 id=235 data-nosnippet>235</a>    ) -&gt; oven_sdk::Request {
-<a href=#236 id=236 data-nosnippet>236</a>        request.inference.max_output_tokens = request
-<a href=#237 id=237 data-nosnippet>237</a>            .inference
-<a href=#238 id=238 data-nosnippet>238</a>            .max_output_tokens
-<a href=#239 id=239 data-nosnippet>239</a>            .or(<span class="self">self</span>.request.max_output_tokens);
-<a href=#240 id=240 data-nosnippet>240</a>        request.inference.temperature = request
-<a href=#241 id=241 data-nosnippet>241</a>            .inference
-<a href=#242 id=242 data-nosnippet>242</a>            .temperature
-<a href=#243 id=243 data-nosnippet>243</a>            .or(<span class="self">self</span>.request.temperature.map(|value| f64::from(value.get())));
-<a href=#244 id=244 data-nosnippet>244</a>        request.inference.top_p = request
-<a href=#245 id=245 data-nosnippet>245</a>            .inference
-<a href=#246 id=246 data-nosnippet>246</a>            .top_p
-<a href=#247 id=247 data-nosnippet>247</a>            .or(<span class="self">self</span>.request.top_p.map(|value| f64::from(value.get())));
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>thinking_config_carries_effort = <span class="macro">matches!</span>(
-<a href=#249 id=249 data-nosnippet>249</a>            adapter,
-<a href=#250 id=250 data-nosnippet>250</a>            <span class="kw">crate</span>::adapters::OvenAdapterFamily::GoogleGemini
-<a href=#251 id=251 data-nosnippet>251</a>                | <span class="kw">crate</span>::adapters::OvenAdapterFamily::GoogleVertexGemini
-<a href=#252 id=252 data-nosnippet>252</a>        );
-<a href=#253 id=253 data-nosnippet>253</a>        request.inference.reasoning_effort =
-<a href=#254 id=254 data-nosnippet>254</a>            request
-<a href=#255 id=255 data-nosnippet>255</a>                .inference
-<a href=#256 id=256 data-nosnippet>256</a>                .reasoning_effort
-<a href=#257 id=257 data-nosnippet>257</a>                .clone()
-<a href=#258 id=258 data-nosnippet>258</a>                .or_else(|| <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.reasoning {
-<a href=#259 id=259 data-nosnippet>259</a>                    <span class="prelude-val">Some</span>(ReasoningBehavior::Effort { .. }) <span class="kw">if </span>thinking_config_carries_effort =&gt; {
-<a href=#260 id=260 data-nosnippet>260</a>                        <span class="prelude-val">None
-<a href=#261 id=261 data-nosnippet>261</a>                    </span>}
-<a href=#262 id=262 data-nosnippet>262</a>                    <span class="prelude-val">Some</span>(ReasoningBehavior::Effort { value }) =&gt; <span class="prelude-val">Some</span>(
-<a href=#263 id=263 data-nosnippet>263</a>                        <span class="kw">match </span>value {
-<a href=#264 id=264 data-nosnippet>264</a>                            ReasoningEffort::None =&gt; <span class="string">"none"</span>,
-<a href=#265 id=265 data-nosnippet>265</a>                            ReasoningEffort::Minimal =&gt; <span class="string">"minimal"</span>,
-<a href=#266 id=266 data-nosnippet>266</a>                            ReasoningEffort::Low =&gt; <span class="string">"low"</span>,
-<a href=#267 id=267 data-nosnippet>267</a>                            ReasoningEffort::Medium =&gt; <span class="string">"medium"</span>,
-<a href=#268 id=268 data-nosnippet>268</a>                            ReasoningEffort::High =&gt; <span class="string">"high"</span>,
-<a href=#269 id=269 data-nosnippet>269</a>                            ReasoningEffort::Xhigh =&gt; <span class="string">"xhigh"</span>,
-<a href=#270 id=270 data-nosnippet>270</a>                            ReasoningEffort::Max =&gt; <span class="string">"max"</span>,
-<a href=#271 id=271 data-nosnippet>271</a>                            ReasoningEffort::Default =&gt; <span class="string">"default"</span>,
-<a href=#272 id=272 data-nosnippet>272</a>                        }
-<a href=#273 id=273 data-nosnippet>273</a>                        .to_owned(),
-<a href=#274 id=274 data-nosnippet>274</a>                    ),
-<a href=#275 id=275 data-nosnippet>275</a>                    <span class="prelude-val">Some</span>(
-<a href=#276 id=276 data-nosnippet>276</a>                        ReasoningBehavior::Toggle { .. } | ReasoningBehavior::BudgetTokens { .. },
-<a href=#277 id=277 data-nosnippet>277</a>                    )
-<a href=#278 id=278 data-nosnippet>278</a>                    | <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#279 id=279 data-nosnippet>279</a>                });
-<a href=#280 id=280 data-nosnippet>280</a>        request
-<a href=#281 id=281 data-nosnippet>281</a>    }
-<a href=#282 id=282 data-nosnippet>282</a>}
-<a href=#283 id=283 data-nosnippet>283</a>
-<a href=#284 id=284 data-nosnippet>284</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-<a href=#285 id=285 data-nosnippet>285</a>#[serde(deny_unknown_fields)]
-<a href=#286 id=286 data-nosnippet>286</a></span><span class="doccomment">/// Authoring options are an adapter-neutral overlay; protocol options are a tagged adapter enum.
-<a href=#287 id=287 data-nosnippet>287</a></span><span class="kw">pub struct </span>ProviderOptions {
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="kw">pub </span>request_endpoint: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::authoring::RequestEndpoint&gt;,
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">pub </span>api_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="attr">#[serde(default)]
-<a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">pub </span>beta: Vec&lt;String&gt;,
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">pub </span>organization: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">pub </span>project: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">pub </span>store: <span class="prelude-ty">Option</span>&lt;bool&gt;,
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="kw">pub </span>api_path: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#296 id=296 data-nosnippet>296</a>    <span class="kw">pub </span>location: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">pub </span>region: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">pub </span>deployment: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#299 id=299 data-nosnippet>299</a>}
-<a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a><span class="attr">#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-<a href=#302 id=302 data-nosnippet>302</a></span><span class="kw">pub enum </span>ModelTypeError {
-<a href=#303 id=303 data-nosnippet>303</a>    <span class="attr">#[error(<span class="string">"fingerprint must be lowercase SHA-256 hexadecimal"</span>)]
-<a href=#304 id=304 data-nosnippet>304</a>    </span>Fingerprint,
-<a href=#305 id=305 data-nosnippet>305</a>}
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="attr">#[must_use]
+<a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">pub fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0
+<a href=#150 id=150 data-nosnippet>150</a>    </span>}
+<a href=#151 id=151 data-nosnippet>151</a>
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hash(domain: <span class="kw-2">&amp;</span>str, value: <span class="kw-2">&amp;</span><span class="kw">impl </span>Serialize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, serde_json::Error&gt; {
+<a href=#153 id=153 data-nosnippet>153</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = Sha256::new();
+<a href=#154 id=154 data-nosnippet>154</a>        hasher.update(domain.as_bytes());
+<a href=#155 id=155 data-nosnippet>155</a>        hasher.update([<span class="number">0</span>]);
+<a href=#156 id=156 data-nosnippet>156</a>        hasher.update(serde_json::to_vec(value)<span class="question-mark">?</span>);
+<a href=#157 id=157 data-nosnippet>157</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(<span class="macro">format!</span>(<span class="string">"{:x}"</span>, hasher.finalize())))
+<a href=#158 id=158 data-nosnippet>158</a>    }
+<a href=#159 id=159 data-nosnippet>159</a>}
+<a href=#160 id=160 data-nosnippet>160</a>
+<a href=#161 id=161 data-nosnippet>161</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+<a href=#162 id=162 data-nosnippet>162</a>#[serde(deny_unknown_fields)]
+<a href=#163 id=163 data-nosnippet>163</a></span><span class="doccomment">/// Compiled capabilities; authored declarations use `AuthoredCapabilities`.
+<a href=#164 id=164 data-nosnippet>164</a></span><span class="kw">pub struct </span>ModelCapabilities {
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">pub </span>input: BTreeSet&lt;Modality&gt;,
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">pub </span>output: BTreeSet&lt;Modality&gt;,
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">pub </span>context_tokens: u64,
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// Separately documented input-token limit, when narrower than the context window.
+<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
+<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">pub </span>input_tokens: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">pub </span>output_tokens: u64,
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">pub </span>tool_calling: bool,
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">pub </span>parallel_tool_calls: bool,
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">pub </span>structured_output: bool,
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">pub </span>reasoning: bool,
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">pub </span>temperature: bool,
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">pub </span>top_p: bool,
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">pub </span>seed: bool,
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="attr">#[serde(default)]
+<a href=#180 id=180 data-nosnippet>180</a>    </span><span class="kw">pub </span>compaction: CompactionCapability,
+<a href=#181 id=181 data-nosnippet>181</a>    <span class="attr">#[serde(default, skip_serializing_if = <span class="string">"DeferredToolsSupport::is_unsupported"</span>)]
+<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">pub </span>deferred_tools: DeferredToolsSupport,
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">pub </span>native_replay: ReplayCapability,
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">pub </span>cancellation: CancellationCapability,
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">pub </span>media: BTreeMap&lt;MediaKind, MediaCapability&gt;,
+<a href=#186 id=186 data-nosnippet>186</a>}
+<a href=#187 id=187 data-nosnippet>187</a>
+<a href=#188 id=188 data-nosnippet>188</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+<a href=#189 id=189 data-nosnippet>189</a>#[serde(rename_all = <span class="string">"snake_case"</span>)]
+<a href=#190 id=190 data-nosnippet>190</a></span><span class="doccomment">/// Authoring tool choices keep arbitrary names; protocol names are length-validated.
+<a href=#191 id=191 data-nosnippet>191</a></span><span class="kw">pub enum </span>ToolChoice {
+<a href=#192 id=192 data-nosnippet>192</a>    Auto,
+<a href=#193 id=193 data-nosnippet>193</a>    <span class="prelude-val">None</span>,
+<a href=#194 id=194 data-nosnippet>194</a>    Required,
+<a href=#195 id=195 data-nosnippet>195</a>    Named(String),
+<a href=#196 id=196 data-nosnippet>196</a>}
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+<a href=#199 id=199 data-nosnippet>199</a>#[serde(deny_unknown_fields)]
+<a href=#200 id=200 data-nosnippet>200</a></span><span class="doccomment">/// Authoring defaults permit omitted optional fields and are validated against capabilities later.
+<a href=#201 id=201 data-nosnippet>201</a></span><span class="kw">pub struct </span>RequestDefaults {
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">pub </span>temperature: <span class="prelude-ty">Option</span>&lt;FiniteF32&gt;,
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">pub </span>top_p: <span class="prelude-ty">Option</span>&lt;FiniteF32&gt;,
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="kw">pub </span>max_output_tokens: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+<a href=#205 id=205 data-nosnippet>205</a>    <span class="attr">#[serde(default)]
+<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">pub </span>stop: Vec&lt;String&gt;,
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">pub </span>seed: <span class="prelude-ty">Option</span>&lt;i64&gt;,
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">pub </span>tool_choice: <span class="prelude-ty">Option</span>&lt;ToolChoice&gt;,
+<a href=#209 id=209 data-nosnippet>209</a>}
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a><span class="attr">#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+<a href=#212 id=212 data-nosnippet>212</a>#[serde(tag = <span class="string">"type"</span>, rename_all = <span class="string">"snake_case"</span>, deny_unknown_fields)]
+<a href=#213 id=213 data-nosnippet>213</a></span><span class="kw">pub enum </span>ReasoningBehavior {
+<a href=#214 id=214 data-nosnippet>214</a>    Effort { value: ReasoningEffort },
+<a href=#215 id=215 data-nosnippet>215</a>    Toggle { enabled: bool },
+<a href=#216 id=216 data-nosnippet>216</a>    BudgetTokens { value: i64 },
+<a href=#217 id=217 data-nosnippet>217</a>}
+<a href=#218 id=218 data-nosnippet>218</a>
+<a href=#219 id=219 data-nosnippet>219</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+<a href=#220 id=220 data-nosnippet>220</a>#[serde(deny_unknown_fields)]
+<a href=#221 id=221 data-nosnippet>221</a></span><span class="doccomment">/// Runtime-ready authoring defaults retain request application behavior and permissive decoding.
+<a href=#222 id=222 data-nosnippet>222</a></span><span class="kw">pub struct </span>ResolvedRequestDefaults {
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">pub </span>request: RequestDefaults,
+<a href=#224 id=224 data-nosnippet>224</a>    <span class="kw">pub </span>reasoning: <span class="prelude-ty">Option</span>&lt;ReasoningBehavior&gt;,
+<a href=#225 id=225 data-nosnippet>225</a>}
+<a href=#226 id=226 data-nosnippet>226</a>
+<a href=#227 id=227 data-nosnippet>227</a><span class="kw">impl </span>ResolvedRequestDefaults {
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="doccomment">/// Fills unset request fields from these defaults for one adapter family.
+<a href=#229 id=229 data-nosnippet>229</a>    ///
+<a href=#230 id=230 data-nosnippet>230</a>    /// An effort variant becomes the normalized `reasoning_effort` except on
+<a href=#231 id=231 data-nosnippet>231</a>    /// Gemini and Vertex, whose compiled provider options already carry it as
+<a href=#232 id=232 data-nosnippet>232</a>    /// `thinkingConfig.thinkingLevel`: Google takes exactly one thinking
+<a href=#233 id=233 data-nosnippet>233</a>    /// representation, and Oven rejects the normalized effort next to a
+<a href=#234 id=234 data-nosnippet>234</a>    /// `thinkingConfig`.
+<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="attr">#[must_use]
+<a href=#236 id=236 data-nosnippet>236</a>    </span><span class="kw">pub fn </span>apply(
+<a href=#237 id=237 data-nosnippet>237</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#238 id=238 data-nosnippet>238</a>        adapter: <span class="kw">crate</span>::adapters::OvenAdapterFamily,
+<a href=#239 id=239 data-nosnippet>239</a>        <span class="kw-2">mut </span>request: oven_sdk::Request,
+<a href=#240 id=240 data-nosnippet>240</a>    ) -&gt; oven_sdk::Request {
+<a href=#241 id=241 data-nosnippet>241</a>        request.inference.max_output_tokens = request
+<a href=#242 id=242 data-nosnippet>242</a>            .inference
+<a href=#243 id=243 data-nosnippet>243</a>            .max_output_tokens
+<a href=#244 id=244 data-nosnippet>244</a>            .or(<span class="self">self</span>.request.max_output_tokens);
+<a href=#245 id=245 data-nosnippet>245</a>        request.inference.temperature = request
+<a href=#246 id=246 data-nosnippet>246</a>            .inference
+<a href=#247 id=247 data-nosnippet>247</a>            .temperature
+<a href=#248 id=248 data-nosnippet>248</a>            .or(<span class="self">self</span>.request.temperature.map(|value| f64::from(value.get())));
+<a href=#249 id=249 data-nosnippet>249</a>        request.inference.top_p = request
+<a href=#250 id=250 data-nosnippet>250</a>            .inference
+<a href=#251 id=251 data-nosnippet>251</a>            .top_p
+<a href=#252 id=252 data-nosnippet>252</a>            .or(<span class="self">self</span>.request.top_p.map(|value| f64::from(value.get())));
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="kw">let </span>thinking_config_carries_effort = <span class="macro">matches!</span>(
+<a href=#254 id=254 data-nosnippet>254</a>            adapter,
+<a href=#255 id=255 data-nosnippet>255</a>            <span class="kw">crate</span>::adapters::OvenAdapterFamily::GoogleGemini
+<a href=#256 id=256 data-nosnippet>256</a>                | <span class="kw">crate</span>::adapters::OvenAdapterFamily::GoogleVertexGemini
+<a href=#257 id=257 data-nosnippet>257</a>        );
+<a href=#258 id=258 data-nosnippet>258</a>        request.inference.reasoning_effort =
+<a href=#259 id=259 data-nosnippet>259</a>            request
+<a href=#260 id=260 data-nosnippet>260</a>                .inference
+<a href=#261 id=261 data-nosnippet>261</a>                .reasoning_effort
+<a href=#262 id=262 data-nosnippet>262</a>                .clone()
+<a href=#263 id=263 data-nosnippet>263</a>                .or_else(|| <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.reasoning {
+<a href=#264 id=264 data-nosnippet>264</a>                    <span class="prelude-val">Some</span>(ReasoningBehavior::Effort { .. }) <span class="kw">if </span>thinking_config_carries_effort =&gt; {
+<a href=#265 id=265 data-nosnippet>265</a>                        <span class="prelude-val">None
+<a href=#266 id=266 data-nosnippet>266</a>                    </span>}
+<a href=#267 id=267 data-nosnippet>267</a>                    <span class="prelude-val">Some</span>(ReasoningBehavior::Effort { value }) =&gt; <span class="prelude-val">Some</span>(
+<a href=#268 id=268 data-nosnippet>268</a>                        <span class="kw">match </span>value {
+<a href=#269 id=269 data-nosnippet>269</a>                            ReasoningEffort::None =&gt; <span class="string">"none"</span>,
+<a href=#270 id=270 data-nosnippet>270</a>                            ReasoningEffort::Minimal =&gt; <span class="string">"minimal"</span>,
+<a href=#271 id=271 data-nosnippet>271</a>                            ReasoningEffort::Low =&gt; <span class="string">"low"</span>,
+<a href=#272 id=272 data-nosnippet>272</a>                            ReasoningEffort::Medium =&gt; <span class="string">"medium"</span>,
+<a href=#273 id=273 data-nosnippet>273</a>                            ReasoningEffort::High =&gt; <span class="string">"high"</span>,
+<a href=#274 id=274 data-nosnippet>274</a>                            ReasoningEffort::Xhigh =&gt; <span class="string">"xhigh"</span>,
+<a href=#275 id=275 data-nosnippet>275</a>                            ReasoningEffort::Max =&gt; <span class="string">"max"</span>,
+<a href=#276 id=276 data-nosnippet>276</a>                            ReasoningEffort::Default =&gt; <span class="string">"default"</span>,
+<a href=#277 id=277 data-nosnippet>277</a>                        }
+<a href=#278 id=278 data-nosnippet>278</a>                        .to_owned(),
+<a href=#279 id=279 data-nosnippet>279</a>                    ),
+<a href=#280 id=280 data-nosnippet>280</a>                    <span class="prelude-val">Some</span>(
+<a href=#281 id=281 data-nosnippet>281</a>                        ReasoningBehavior::Toggle { .. } | ReasoningBehavior::BudgetTokens { .. },
+<a href=#282 id=282 data-nosnippet>282</a>                    )
+<a href=#283 id=283 data-nosnippet>283</a>                    | <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#284 id=284 data-nosnippet>284</a>                });
+<a href=#285 id=285 data-nosnippet>285</a>        request
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>}
+<a href=#288 id=288 data-nosnippet>288</a>
+<a href=#289 id=289 data-nosnippet>289</a><span class="attr">#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+<a href=#290 id=290 data-nosnippet>290</a>#[serde(deny_unknown_fields)]
+<a href=#291 id=291 data-nosnippet>291</a></span><span class="doccomment">/// Authoring options are an adapter-neutral overlay; protocol options are a tagged adapter enum.
+<a href=#292 id=292 data-nosnippet>292</a></span><span class="kw">pub struct </span>ProviderOptions {
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">pub </span>request_endpoint: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::authoring::RequestEndpoint&gt;,
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">pub </span>api_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="attr">#[serde(default)]
+<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">pub </span>beta: Vec&lt;String&gt;,
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">pub </span>organization: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">pub </span>project: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">pub </span>store: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+<a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">pub </span>api_path: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">pub </span>location: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">pub </span>region: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#303 id=303 data-nosnippet>303</a>    <span class="kw">pub </span>deployment: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#304 id=304 data-nosnippet>304</a>}
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a><span class="attr">#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+<a href=#307 id=307 data-nosnippet>307</a></span><span class="kw">pub enum </span>ModelTypeError {
+<a href=#308 id=308 data-nosnippet>308</a>    <span class="attr">#[error(<span class="string">"fingerprint must be lowercase SHA-256 hexadecimal"</span>)]
+<a href=#309 id=309 data-nosnippet>309</a>    </span>Fingerprint,
+<a href=#310 id=310 data-nosnippet>310</a>}
 </code></pre></div></section></main></body></html>
