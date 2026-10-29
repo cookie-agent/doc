@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LOOP_WARNING_MARKER","TOOL_EMITTED_SYSTEM_USER_MARKER"],"fn":["deferred_tools_announcement","loop_warning","tool_output_elision_marker","without_loop_warning"],"mod":["memory_snapshot"]};
