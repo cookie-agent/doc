@@ -307,92 +307,168 @@
 <a href=#307 id=307 data-nosnippet>307</a>    }
 <a href=#308 id=308 data-nosnippet>308</a>}
 <a href=#309 id=309 data-nosnippet>309</a>
-<a href=#310 id=310 data-nosnippet>310</a><span class="doccomment">/// The announcement of what became loadable and what left since the
-<a href=#311 id=311 data-nosnippet>311</a>/// announcements `fold` adds up to; `None` when nothing changed (section 7.2).
-<a href=#312 id=312 data-nosnippet>312</a></span><span class="kw">fn </span>announcement(entries: <span class="kw-2">&amp;</span>[DeferredEntry], fold: <span class="kw-2">&amp;</span>DeferralFold) -&gt; <span class="prelude-ty">Option</span>&lt;EventPayload&gt; {
-<a href=#313 id=313 data-nosnippet>313</a>    <span class="kw">let </span><span class="kw-2">mut </span>loadable = BTreeMap::&lt;<span class="kw-2">&amp;</span>str, (<span class="kw-2">&amp;</span>Group, BTreeSet&lt;<span class="kw-2">&amp;</span>str&gt;)&gt;::new();
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries {
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="kw">if </span>!fold.loaded.contains(<span class="kw-2">&amp;</span>entry.name) {
-<a href=#316 id=316 data-nosnippet>316</a>            loadable
-<a href=#317 id=317 data-nosnippet>317</a>                .entry(entry.group.name.as_str())
-<a href=#318 id=318 data-nosnippet>318</a>                .or_insert_with(|| (<span class="kw-2">&amp;</span>entry.group, BTreeSet::new()))
-<a href=#319 id=319 data-nosnippet>319</a>                .<span class="number">1
-<a href=#320 id=320 data-nosnippet>320</a>                </span>.insert(entry.name.as_str());
-<a href=#321 id=321 data-nosnippet>321</a>        }
-<a href=#322 id=322 data-nosnippet>322</a>    }
-<a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">let </span>declared = entries
-<a href=#324 id=324 data-nosnippet>324</a>        .iter()
-<a href=#325 id=325 data-nosnippet>325</a>        .map(|entry| entry.name.as_str())
-<a href=#326 id=326 data-nosnippet>326</a>        .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="kw">let </span><span class="kw-2">mut </span>added = Vec::new();
-<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">for </span>(name, (group, tools)) <span class="kw">in </span><span class="kw-2">&amp;</span>loadable {
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>known = fold.announced.get(<span class="kw-2">*</span>name);
-<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">let </span>new = tools
-<a href=#331 id=331 data-nosnippet>331</a>            .iter()
-<a href=#332 id=332 data-nosnippet>332</a>            .filter(|tool| known.is_none_or(|state| !state.tools.contains(<span class="kw-2">**</span>tool)))
-<a href=#333 id=333 data-nosnippet>333</a>            .map(|tool| (<span class="kw-2">*</span>tool).to_owned())
-<a href=#334 id=334 data-nosnippet>334</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">if </span>new.is_empty() {
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="kw">continue</span>;
-<a href=#337 id=337 data-nosnippet>337</a>        }
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span>summary = group
-<a href=#339 id=339 data-nosnippet>339</a>            .summary
-<a href=#340 id=340 data-nosnippet>340</a>            .clone()
-<a href=#341 id=341 data-nosnippet>341</a>            .filter(|summary| known.is_none_or(|state| state.summary.as_ref() != <span class="prelude-val">Some</span>(summary)))
-<a href=#342 id=342 data-nosnippet>342</a>            .map(|summary| bounded_summary(<span class="kw-2">&amp;</span>summary));
-<a href=#343 id=343 data-nosnippet>343</a>        added.push(AnnouncedToolGroup {
-<a href=#344 id=344 data-nosnippet>344</a>            name: (<span class="kw-2">*</span>name).to_owned(),
-<a href=#345 id=345 data-nosnippet>345</a>            source: group.source,
-<a href=#346 id=346 data-nosnippet>346</a>            untrusted: group.untrusted &amp;&amp; summary.is_some(),
-<a href=#347 id=347 data-nosnippet>347</a>            summary,
-<a href=#348 id=348 data-nosnippet>348</a>            tools: new,
-<a href=#349 id=349 data-nosnippet>349</a>        });
-<a href=#350 id=350 data-nosnippet>350</a>    }
-<a href=#351 id=351 data-nosnippet>351</a>    <span class="comment">// A loaded tool stays declared, so only a tool that left the request
-<a href=#352 id=352 data-nosnippet>352</a>    // altogether is removed.
-<a href=#353 id=353 data-nosnippet>353</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>removed = Vec::new();
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">for </span>(name, state) <span class="kw">in </span><span class="kw-2">&amp;</span>fold.announced {
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>gone = state
-<a href=#356 id=356 data-nosnippet>356</a>            .tools
-<a href=#357 id=357 data-nosnippet>357</a>            .iter()
-<a href=#358 id=358 data-nosnippet>358</a>            .filter(|tool| !declared.contains(tool.as_str()))
-<a href=#359 id=359 data-nosnippet>359</a>            .cloned()
-<a href=#360 id=360 data-nosnippet>360</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">if </span>!gone.is_empty() {
-<a href=#362 id=362 data-nosnippet>362</a>            removed.push(AnnouncedToolGroup {
-<a href=#363 id=363 data-nosnippet>363</a>                name: name.clone(),
-<a href=#364 id=364 data-nosnippet>364</a>                source: entries
-<a href=#365 id=365 data-nosnippet>365</a>                    .iter()
-<a href=#366 id=366 data-nosnippet>366</a>                    .find(|entry| <span class="kw-2">&amp;</span>entry.group.name == name)
-<a href=#367 id=367 data-nosnippet>367</a>                    .map_or(ToolGroupSource::Unknown, |entry| entry.group.source),
-<a href=#368 id=368 data-nosnippet>368</a>                summary: <span class="prelude-val">None</span>,
-<a href=#369 id=369 data-nosnippet>369</a>                untrusted: <span class="bool-val">false</span>,
-<a href=#370 id=370 data-nosnippet>370</a>                tools: gone,
-<a href=#371 id=371 data-nosnippet>371</a>            });
-<a href=#372 id=372 data-nosnippet>372</a>        }
-<a href=#373 id=373 data-nosnippet>373</a>    }
-<a href=#374 id=374 data-nosnippet>374</a>    (!added.is_empty() || !removed.is_empty())
-<a href=#375 id=375 data-nosnippet>375</a>        .then_some(EventPayload::DeferredToolsAnnounced { added, removed })
-<a href=#376 id=376 data-nosnippet>376</a>}
-<a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a><span class="doccomment">/// A summary within its byte bound, cut at a character boundary.
-<a href=#379 id=379 data-nosnippet>379</a></span><span class="kw">fn </span>bounded_summary(summary: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#380 id=380 data-nosnippet>380</a>    <span class="kw">const </span>MARKER: <span class="kw-2">&amp;</span>str = <span class="string">" [truncated]"</span>;
-<a href=#381 id=381 data-nosnippet>381</a>    <span class="kw">let </span>limit = AnnouncedToolGroup::MAX_SUMMARY_BYTES;
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="kw">if </span>summary.len() &lt;= limit {
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">return </span>summary.to_owned();
-<a href=#384 id=384 data-nosnippet>384</a>    }
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="kw">let </span><span class="kw-2">mut </span>end = limit - MARKER.len();
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">while </span>!summary.is_char_boundary(end) {
-<a href=#387 id=387 data-nosnippet>387</a>        end -= <span class="number">1</span>;
-<a href=#388 id=388 data-nosnippet>388</a>    }
-<a href=#389 id=389 data-nosnippet>389</a>    <span class="macro">format!</span>(<span class="string">"{}{MARKER}"</span>, <span class="kw-2">&amp;</span>summary[..end])
-<a href=#390 id=390 data-nosnippet>390</a>}
-<a href=#391 id=391 data-nosnippet>391</a>
-<a href=#392 id=392 data-nosnippet>392</a><span class="doccomment">/// The user turn an announcement renders as in the model's history
-<a href=#393 id=393 data-nosnippet>393</a>/// (section 7.2), as the protocol crate renders it for the clients too.
-<a href=#394 id=394 data-nosnippet>394</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>cookie_agent_protocol::model_text::deferred_tools_announcement <span class="kw">as </span>render_announcement;
-<a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a><span class="attr">#[cfg(test)]
-<a href=#397 id=397 data-nosnippet>397</a></span><span class="kw">mod </span>tests;
+<a href=#310 id=310 data-nosnippet>310</a><span class="doccomment">/// A request's tools on a model that does not defer: every tool up front.
+<a href=#311 id=311 data-nosnippet>311</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>EagerPlan {
+<a href=#312 id=312 data-nosnippet>312</a>    <span class="doccomment">/// Every tool the request declares, sorted by name.
+<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) definitions: Vec&lt;ToolDefinition&gt;,
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="doccomment">/// Round tools that left the session but stay declared until the round
+<a href=#315 id=315 data-nosnippet>315</a>    /// ends; a call to one is refused.
+<a href=#316 id=316 data-nosnippet>316</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) departed: HashSet&lt;String&gt;,
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="doccomment">/// The round start to append before the request, if one starts.
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pending: Vec&lt;EventPayload&gt;,
+<a href=#319 id=319 data-nosnippet>319</a>}
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a><span class="doccomment">/// Plans a request's tools on a model that does not defer (stable prefix
+<a href=#322 id=322 data-nosnippet>322</a>/// spec, section 4). The round's tools are declared from its record, those
+<a href=#323 id=323 data-nosnippet>323</a>/// that left included; a tool that joined is declared from its live
+<a href=#324 id=324 data-nosnippet>324</a>/// definition. A round starts here when the log has none since its
+<a href=#325 id=325 data-nosnippet>325</a>/// checkpoint, with every composed tool. A loader tool a deferring model's
+<a href=#326 id=326 data-nosnippet>326</a>/// round declared is left out: nothing is loadable here.
+<a href=#327 id=327 data-nosnippet>327</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>plan_eager(
+<a href=#328 id=328 data-nosnippet>328</a>    candidates: Vec&lt;(ToolDefinition, ProviderKey)&gt;,
+<a href=#329 id=329 data-nosnippet>329</a>    fold: <span class="kw-2">&amp;</span>DeferralFold,
+<a href=#330 id=330 data-nosnippet>330</a>) -&gt; EagerPlan {
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">let </span><span class="kw-2">mut </span>pending = Vec::new();
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">let </span>round = <span class="kw">match </span><span class="kw-2">&amp;</span>fold.round {
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="prelude-val">Some</span>(round) =&gt; round.tools.clone(),
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="prelude-val">None </span>=&gt; {
+<a href=#335 id=335 data-nosnippet>335</a>            <span class="kw">let </span><span class="kw-2">mut </span>tools = candidates
+<a href=#336 id=336 data-nosnippet>336</a>                .iter()
+<a href=#337 id=337 data-nosnippet>337</a>                .map(|(definition, <span class="kw">_</span>)| round_definition(definition))
+<a href=#338 id=338 data-nosnippet>338</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#339 id=339 data-nosnippet>339</a>            tools.sort_by(|left, right| left.name.cmp(<span class="kw-2">&amp;</span>right.name));
+<a href=#340 id=340 data-nosnippet>340</a>            <span class="kw">let </span><span class="kw-2">mut </span>prompt_groups = candidates
+<a href=#341 id=341 data-nosnippet>341</a>                .iter()
+<a href=#342 id=342 data-nosnippet>342</a>                .map(|(<span class="kw">_</span>, provider)| provider_label(provider))
+<a href=#343 id=343 data-nosnippet>343</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#344 id=344 data-nosnippet>344</a>            prompt_groups.sort();
+<a href=#345 id=345 data-nosnippet>345</a>            prompt_groups.dedup();
+<a href=#346 id=346 data-nosnippet>346</a>            pending.push(EventPayload::ToolRoundStarted {
+<a href=#347 id=347 data-nosnippet>347</a>                tools: tools.clone(),
+<a href=#348 id=348 data-nosnippet>348</a>                prompt_groups,
+<a href=#349 id=349 data-nosnippet>349</a>            });
+<a href=#350 id=350 data-nosnippet>350</a>            tools
+<a href=#351 id=351 data-nosnippet>351</a>        }
+<a href=#352 id=352 data-nosnippet>352</a>    };
+<a href=#353 id=353 data-nosnippet>353</a>    <span class="kw">let </span>present = candidates
+<a href=#354 id=354 data-nosnippet>354</a>        .iter()
+<a href=#355 id=355 data-nosnippet>355</a>        .map(|(definition, <span class="kw">_</span>)| definition.name.clone())
+<a href=#356 id=356 data-nosnippet>356</a>        .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">let </span><span class="kw-2">mut </span>in_round = HashSet::with_capacity(round.len());
+<a href=#358 id=358 data-nosnippet>358</a>    <span class="kw">let </span><span class="kw-2">mut </span>definitions = Vec::with_capacity(round.len() + candidates.len());
+<a href=#359 id=359 data-nosnippet>359</a>    <span class="kw">let </span><span class="kw-2">mut </span>departed = HashSet::new();
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">for </span>tool <span class="kw">in </span><span class="kw-2">&amp;</span>round {
+<a href=#361 id=361 data-nosnippet>361</a>        in_round.insert(tool.name.clone());
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw">if </span>is_loader(<span class="kw-2">&amp;</span>tool.name) {
+<a href=#363 id=363 data-nosnippet>363</a>            <span class="kw">continue</span>;
+<a href=#364 id=364 data-nosnippet>364</a>        }
+<a href=#365 id=365 data-nosnippet>365</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(definition) = declared(tool) {
+<a href=#366 id=366 data-nosnippet>366</a>            definitions.push(definition);
+<a href=#367 id=367 data-nosnippet>367</a>        }
+<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">if </span>!present.contains(<span class="kw-2">&amp;</span>tool.name) {
+<a href=#369 id=369 data-nosnippet>369</a>            departed.insert(tool.name.clone());
+<a href=#370 id=370 data-nosnippet>370</a>        }
+<a href=#371 id=371 data-nosnippet>371</a>    }
+<a href=#372 id=372 data-nosnippet>372</a>    definitions.extend(
+<a href=#373 id=373 data-nosnippet>373</a>        candidates
+<a href=#374 id=374 data-nosnippet>374</a>            .into_iter()
+<a href=#375 id=375 data-nosnippet>375</a>            .filter(|(definition, <span class="kw">_</span>)| !in_round.contains(<span class="kw-2">&amp;</span>definition.name))
+<a href=#376 id=376 data-nosnippet>376</a>            .map(|(definition, <span class="kw">_</span>)| definition),
+<a href=#377 id=377 data-nosnippet>377</a>    );
+<a href=#378 id=378 data-nosnippet>378</a>    definitions.sort_by(|left, right| left.name.cmp(<span class="kw-2">&amp;</span>right.name));
+<a href=#379 id=379 data-nosnippet>379</a>    EagerPlan {
+<a href=#380 id=380 data-nosnippet>380</a>        definitions,
+<a href=#381 id=381 data-nosnippet>381</a>        departed,
+<a href=#382 id=382 data-nosnippet>382</a>        pending,
+<a href=#383 id=383 data-nosnippet>383</a>    }
+<a href=#384 id=384 data-nosnippet>384</a>}
+<a href=#385 id=385 data-nosnippet>385</a>
+<a href=#386 id=386 data-nosnippet>386</a><span class="doccomment">/// The announcement of what became loadable and what left since the
+<a href=#387 id=387 data-nosnippet>387</a>/// announcements `fold` adds up to; `None` when nothing changed (section 7.2).
+<a href=#388 id=388 data-nosnippet>388</a></span><span class="kw">fn </span>announcement(entries: <span class="kw-2">&amp;</span>[DeferredEntry], fold: <span class="kw-2">&amp;</span>DeferralFold) -&gt; <span class="prelude-ty">Option</span>&lt;EventPayload&gt; {
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">let </span><span class="kw-2">mut </span>loadable = BTreeMap::&lt;<span class="kw-2">&amp;</span>str, (<span class="kw-2">&amp;</span>Group, BTreeSet&lt;<span class="kw-2">&amp;</span>str&gt;)&gt;::new();
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries {
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">if </span>!fold.loaded.contains(<span class="kw-2">&amp;</span>entry.name) {
+<a href=#392 id=392 data-nosnippet>392</a>            loadable
+<a href=#393 id=393 data-nosnippet>393</a>                .entry(entry.group.name.as_str())
+<a href=#394 id=394 data-nosnippet>394</a>                .or_insert_with(|| (<span class="kw-2">&amp;</span>entry.group, BTreeSet::new()))
+<a href=#395 id=395 data-nosnippet>395</a>                .<span class="number">1
+<a href=#396 id=396 data-nosnippet>396</a>                </span>.insert(entry.name.as_str());
+<a href=#397 id=397 data-nosnippet>397</a>        }
+<a href=#398 id=398 data-nosnippet>398</a>    }
+<a href=#399 id=399 data-nosnippet>399</a>    <span class="kw">let </span>declared = entries
+<a href=#400 id=400 data-nosnippet>400</a>        .iter()
+<a href=#401 id=401 data-nosnippet>401</a>        .map(|entry| entry.name.as_str())
+<a href=#402 id=402 data-nosnippet>402</a>        .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#403 id=403 data-nosnippet>403</a>    <span class="kw">let </span><span class="kw-2">mut </span>added = Vec::new();
+<a href=#404 id=404 data-nosnippet>404</a>    <span class="kw">for </span>(name, (group, tools)) <span class="kw">in </span><span class="kw-2">&amp;</span>loadable {
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">let </span>known = fold.announced.get(<span class="kw-2">*</span>name);
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">let </span>new = tools
+<a href=#407 id=407 data-nosnippet>407</a>            .iter()
+<a href=#408 id=408 data-nosnippet>408</a>            .filter(|tool| known.is_none_or(|state| !state.tools.contains(<span class="kw-2">**</span>tool)))
+<a href=#409 id=409 data-nosnippet>409</a>            .map(|tool| (<span class="kw-2">*</span>tool).to_owned())
+<a href=#410 id=410 data-nosnippet>410</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">if </span>new.is_empty() {
+<a href=#412 id=412 data-nosnippet>412</a>            <span class="kw">continue</span>;
+<a href=#413 id=413 data-nosnippet>413</a>        }
+<a href=#414 id=414 data-nosnippet>414</a>        <span class="kw">let </span>summary = group
+<a href=#415 id=415 data-nosnippet>415</a>            .summary
+<a href=#416 id=416 data-nosnippet>416</a>            .clone()
+<a href=#417 id=417 data-nosnippet>417</a>            .filter(|summary| known.is_none_or(|state| state.summary.as_ref() != <span class="prelude-val">Some</span>(summary)))
+<a href=#418 id=418 data-nosnippet>418</a>            .map(|summary| bounded_summary(<span class="kw-2">&amp;</span>summary));
+<a href=#419 id=419 data-nosnippet>419</a>        added.push(AnnouncedToolGroup {
+<a href=#420 id=420 data-nosnippet>420</a>            name: (<span class="kw-2">*</span>name).to_owned(),
+<a href=#421 id=421 data-nosnippet>421</a>            source: group.source,
+<a href=#422 id=422 data-nosnippet>422</a>            untrusted: group.untrusted &amp;&amp; summary.is_some(),
+<a href=#423 id=423 data-nosnippet>423</a>            summary,
+<a href=#424 id=424 data-nosnippet>424</a>            tools: new,
+<a href=#425 id=425 data-nosnippet>425</a>        });
+<a href=#426 id=426 data-nosnippet>426</a>    }
+<a href=#427 id=427 data-nosnippet>427</a>    <span class="comment">// A loaded tool stays declared, so only a tool that left the request
+<a href=#428 id=428 data-nosnippet>428</a>    // altogether is removed.
+<a href=#429 id=429 data-nosnippet>429</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>removed = Vec::new();
+<a href=#430 id=430 data-nosnippet>430</a>    <span class="kw">for </span>(name, state) <span class="kw">in </span><span class="kw-2">&amp;</span>fold.announced {
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">let </span>gone = state
+<a href=#432 id=432 data-nosnippet>432</a>            .tools
+<a href=#433 id=433 data-nosnippet>433</a>            .iter()
+<a href=#434 id=434 data-nosnippet>434</a>            .filter(|tool| !declared.contains(tool.as_str()))
+<a href=#435 id=435 data-nosnippet>435</a>            .cloned()
+<a href=#436 id=436 data-nosnippet>436</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">if </span>!gone.is_empty() {
+<a href=#438 id=438 data-nosnippet>438</a>            removed.push(AnnouncedToolGroup {
+<a href=#439 id=439 data-nosnippet>439</a>                name: name.clone(),
+<a href=#440 id=440 data-nosnippet>440</a>                source: entries
+<a href=#441 id=441 data-nosnippet>441</a>                    .iter()
+<a href=#442 id=442 data-nosnippet>442</a>                    .find(|entry| <span class="kw-2">&amp;</span>entry.group.name == name)
+<a href=#443 id=443 data-nosnippet>443</a>                    .map_or(ToolGroupSource::Unknown, |entry| entry.group.source),
+<a href=#444 id=444 data-nosnippet>444</a>                summary: <span class="prelude-val">None</span>,
+<a href=#445 id=445 data-nosnippet>445</a>                untrusted: <span class="bool-val">false</span>,
+<a href=#446 id=446 data-nosnippet>446</a>                tools: gone,
+<a href=#447 id=447 data-nosnippet>447</a>            });
+<a href=#448 id=448 data-nosnippet>448</a>        }
+<a href=#449 id=449 data-nosnippet>449</a>    }
+<a href=#450 id=450 data-nosnippet>450</a>    (!added.is_empty() || !removed.is_empty())
+<a href=#451 id=451 data-nosnippet>451</a>        .then_some(EventPayload::DeferredToolsAnnounced { added, removed })
+<a href=#452 id=452 data-nosnippet>452</a>}
+<a href=#453 id=453 data-nosnippet>453</a>
+<a href=#454 id=454 data-nosnippet>454</a><span class="doccomment">/// A summary within its byte bound, cut at a character boundary.
+<a href=#455 id=455 data-nosnippet>455</a></span><span class="kw">fn </span>bounded_summary(summary: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#456 id=456 data-nosnippet>456</a>    <span class="kw">const </span>MARKER: <span class="kw-2">&amp;</span>str = <span class="string">" [truncated]"</span>;
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="kw">let </span>limit = AnnouncedToolGroup::MAX_SUMMARY_BYTES;
+<a href=#458 id=458 data-nosnippet>458</a>    <span class="kw">if </span>summary.len() &lt;= limit {
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">return </span>summary.to_owned();
+<a href=#460 id=460 data-nosnippet>460</a>    }
+<a href=#461 id=461 data-nosnippet>461</a>    <span class="kw">let </span><span class="kw-2">mut </span>end = limit - MARKER.len();
+<a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">while </span>!summary.is_char_boundary(end) {
+<a href=#463 id=463 data-nosnippet>463</a>        end -= <span class="number">1</span>;
+<a href=#464 id=464 data-nosnippet>464</a>    }
+<a href=#465 id=465 data-nosnippet>465</a>    <span class="macro">format!</span>(<span class="string">"{}{MARKER}"</span>, <span class="kw-2">&amp;</span>summary[..end])
+<a href=#466 id=466 data-nosnippet>466</a>}
+<a href=#467 id=467 data-nosnippet>467</a>
+<a href=#468 id=468 data-nosnippet>468</a><span class="doccomment">/// The user turn an announcement renders as in the model's history
+<a href=#469 id=469 data-nosnippet>469</a>/// (section 7.2), as the protocol crate renders it for the clients too.
+<a href=#470 id=470 data-nosnippet>470</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>cookie_agent_protocol::model_text::deferred_tools_announcement <span class="kw">as </span>render_announcement;
+<a href=#471 id=471 data-nosnippet>471</a>
+<a href=#472 id=472 data-nosnippet>472</a><span class="attr">#[cfg(test)]
+<a href=#473 id=473 data-nosnippet>473</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
