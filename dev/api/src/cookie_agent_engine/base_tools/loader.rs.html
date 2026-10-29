@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a><span class="attr">#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 <a href=#34 id=34 data-nosnippet>34</a>#[serde(deny_unknown_fields)]
 <a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">struct </span>ToolSearchArgs {
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// "select:&lt;name&gt;,&lt;name&gt;" loads those tools by exact name; any other text is keywords, such as "browser click", and loads the best matches.
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// "select:&lt;name&gt;,&lt;name&gt;" loads those tools by exact name; any other text is keywords, such as "browser click", and loads the best matches. "+word" requires the word in a tool's name, as in "+slack send".
 <a href=#37 id=37 data-nosnippet>37</a>    </span>query: String,
 <a href=#38 id=38 data-nosnippet>38</a>    <span class="doccomment">/// At most how many keyword matches to load; 5 when absent, and every match when 0 or less. A select: query loads every name it lists.
 <a href=#39 id=39 data-nosnippet>39</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>            result_truncation: Default::default(),
 <a href=#62 id=62 data-nosnippet>62</a>            name: TOOL_SEARCH.into(),
 <a href=#63 id=63 data-nosnippet>63</a>            permission_name: <span class="prelude-val">None</span>,
-<a href=#64 id=64 data-nosnippet>64</a>            description: <span class="string">"Load deferred tools so you can call them. Use \"select:&lt;name&gt;,&lt;name&gt;\" to load tools by the exact names a &lt;tools_added&gt; announcement lists, or keywords to find and load the best matches by name, group, description, and parameters. Loaded tools stay callable."</span>.into(),
+<a href=#64 id=64 data-nosnippet>64</a>            description: <span class="string">"Load deferred tools so you can call them. Use \"select:&lt;name&gt;,&lt;name&gt;\" to load tools by the exact names an announcement lists, or keywords to find and load the best matches by name, group, description, and parameters; \"+word\" requires the word in a tool's name. Loaded tools stay callable."</span>.into(),
 <a href=#65 id=65 data-nosnippet>65</a>            parameters: schema::&lt;ToolSearchArgs&gt;(),
 <a href=#66 id=66 data-nosnippet>66</a>        }
 <a href=#67 id=67 data-nosnippet>67</a>    }
@@ -288,155 +288,170 @@
 <a href=#288 id=288 data-nosnippet>288</a>
 <a href=#289 id=289 data-nosnippet>289</a><span class="doccomment">/// Loads the best keyword matches for `query`, at most `limit` of them.
 <a href=#290 id=290 data-nosnippet>290</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>search_result(view: <span class="kw-2">&amp;</span>DeferralView, query: <span class="kw-2">&amp;</span>str, limit: usize) -&gt; ToolResult {
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">let </span>terms = query
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">let </span>words = query
 <a href=#292 id=292 data-nosnippet>292</a>        .split_whitespace()
 <a href=#293 id=293 data-nosnippet>293</a>        .map(str::to_lowercase)
 <a href=#294 id=294 data-nosnippet>294</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="kw">if </span>view.deferred.is_empty() {
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">return </span>result(
-<a href=#297 id=297 data-nosnippet>297</a>            <span class="string">"No loadable tools"</span>,
-<a href=#298 id=298 data-nosnippet>298</a>            <span class="string">"No tools are loadable in this session."</span>.into(),
-<a href=#299 id=299 data-nosnippet>299</a>            Vec::new(),
-<a href=#300 id=300 data-nosnippet>300</a>        );
-<a href=#301 id=301 data-nosnippet>301</a>    }
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">let </span><span class="kw-2">mut </span>matches = view
-<a href=#303 id=303 data-nosnippet>303</a>        .deferred
-<a href=#304 id=304 data-nosnippet>304</a>        .iter()
-<a href=#305 id=305 data-nosnippet>305</a>        .filter_map(|entry| {
-<a href=#306 id=306 data-nosnippet>306</a>            <span class="kw">let </span>haystack = haystack(entry);
-<a href=#307 id=307 data-nosnippet>307</a>            <span class="kw">let </span>score = terms
-<a href=#308 id=308 data-nosnippet>308</a>                .iter()
-<a href=#309 id=309 data-nosnippet>309</a>                .filter(|term| haystack.contains(term.as_str()))
-<a href=#310 id=310 data-nosnippet>310</a>                .count();
-<a href=#311 id=311 data-nosnippet>311</a>            (score &gt; <span class="number">0</span>).then_some((score, entry))
-<a href=#312 id=312 data-nosnippet>312</a>        })
-<a href=#313 id=313 data-nosnippet>313</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#314 id=314 data-nosnippet>314</a>    matches.sort_by(|(left_score, left), (right_score, right)| {
-<a href=#315 id=315 data-nosnippet>315</a>        right_score
-<a href=#316 id=316 data-nosnippet>316</a>            .cmp(left_score)
-<a href=#317 id=317 data-nosnippet>317</a>            .then_with(|| left.name.cmp(<span class="kw-2">&amp;</span>right.name))
-<a href=#318 id=318 data-nosnippet>318</a>    });
-<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">if </span>matches.is_empty() {
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">return </span>result(
-<a href=#321 id=321 data-nosnippet>321</a>            <span class="string">"No matching tools"</span>,
-<a href=#322 id=322 data-nosnippet>322</a>            <span class="macro">format!</span>(
-<a href=#323 id=323 data-nosnippet>323</a>                <span class="string">"No loadable tools match \"{query}\". Try other words, a group's name, or select:&lt;name&gt;."
-<a href=#324 id=324 data-nosnippet>324</a>            </span>),
-<a href=#325 id=325 data-nosnippet>325</a>            Vec::new(),
-<a href=#326 id=326 data-nosnippet>326</a>        );
-<a href=#327 id=327 data-nosnippet>327</a>    }
-<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">let </span>total = matches.len();
-<a href=#329 id=329 data-nosnippet>329</a>    <span class="kw">let </span>names = matches
-<a href=#330 id=330 data-nosnippet>330</a>        .into_iter()
-<a href=#331 id=331 data-nosnippet>331</a>        .take(limit)
-<a href=#332 id=332 data-nosnippet>332</a>        .map(|(<span class="kw">_</span>, entry)| entry.name.clone())
-<a href=#333 id=333 data-nosnippet>333</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">let </span>more = (names.len() &lt; total).then(|| {
-<a href=#335 id=335 data-nosnippet>335</a>        <span class="macro">format!</span>(
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="string">"{} more match; raise limit or select them by name."</span>,
-<a href=#337 id=337 data-nosnippet>337</a>            total - names.len()
-<a href=#338 id=338 data-nosnippet>338</a>        )
-<a href=#339 id=339 data-nosnippet>339</a>    });
-<a href=#340 id=340 data-nosnippet>340</a>    load_result(view, <span class="kw-2">&amp;</span>names, more)
-<a href=#341 id=341 data-nosnippet>341</a>}
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a><span class="doccomment">/// Loads `names`, recording the tools that newly load, and says why the
-<a href=#344 id=344 data-nosnippet>344</a>/// others did not; `more` ends the output.
-<a href=#345 id=345 data-nosnippet>345</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load_result(
-<a href=#346 id=346 data-nosnippet>346</a>    view: <span class="kw-2">&amp;</span>DeferralView,
-<a href=#347 id=347 data-nosnippet>347</a>    names: <span class="kw-2">&amp;</span>[String],
-<a href=#348 id=348 data-nosnippet>348</a>    more: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#349 id=349 data-nosnippet>349</a>) -&gt; ToolResult {
-<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">let </span><span class="kw-2">mut </span>loaded = Vec::new();
-<a href=#351 id=351 data-nosnippet>351</a>    <span class="kw">let </span><span class="kw-2">mut </span>lines = Vec::new();
-<a href=#352 id=352 data-nosnippet>352</a>    <span class="kw">let </span><span class="kw-2">mut </span>notes = Vec::new();
-<a href=#353 id=353 data-nosnippet>353</a>    <span class="kw">let </span><span class="kw-2">mut </span>seen = std::collections::HashSet::new();
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">for </span>name <span class="kw">in </span>names {
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">if </span>!seen.insert(name.as_str()) {
-<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">continue</span>;
-<a href=#357 id=357 data-nosnippet>357</a>        }
-<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>entry = view.deferred.iter().find(|entry| <span class="kw-2">&amp;</span>entry.name == name);
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">match </span>entry {
-<a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">_ if </span>view.eager.contains(name) =&gt; {
-<a href=#361 id=361 data-nosnippet>361</a>                notes.push(<span class="macro">format!</span>(<span class="string">"{name}: already callable, no need to load it"</span>));
-<a href=#362 id=362 data-nosnippet>362</a>            }
-<a href=#363 id=363 data-nosnippet>363</a>            <span class="prelude-val">None </span>=&gt; notes.push(<span class="macro">format!</span>(<span class="string">"{name}: no loadable tool has this name"</span>)),
-<a href=#364 id=364 data-nosnippet>364</a>            <span class="prelude-val">Some</span>(entry) =&gt; {
-<a href=#365 id=365 data-nosnippet>365</a>                <span class="kw">let </span>already = <span class="kw">if </span>view.loaded.contains(name) {
-<a href=#366 id=366 data-nosnippet>366</a>                    <span class="string">" (already loaded)"
-<a href=#367 id=367 data-nosnippet>367</a>                </span>} <span class="kw">else </span>{
-<a href=#368 id=368 data-nosnippet>368</a>                    loaded.push(name.clone());
-<a href=#369 id=369 data-nosnippet>369</a>                    <span class="string">""
-<a href=#370 id=370 data-nosnippet>370</a>                </span>};
-<a href=#371 id=371 data-nosnippet>371</a>                lines.push(<span class="macro">format!</span>(
-<a href=#372 id=372 data-nosnippet>372</a>                    <span class="string">"- {} [{}]{already}: {}"</span>,
-<a href=#373 id=373 data-nosnippet>373</a>                    entry.name,
-<a href=#374 id=374 data-nosnippet>374</a>                    entry.group.name,
-<a href=#375 id=375 data-nosnippet>375</a>                    first_sentence(<span class="kw-2">&amp;</span>entry.description)
-<a href=#376 id=376 data-nosnippet>376</a>                ));
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="comment">// `+word` must be in the tool's name; every word counts toward the rank.
+<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">let </span>required = words
+<a href=#297 id=297 data-nosnippet>297</a>        .iter()
+<a href=#298 id=298 data-nosnippet>298</a>        .filter_map(|word| word.strip_prefix(<span class="string">'+'</span>))
+<a href=#299 id=299 data-nosnippet>299</a>        .filter(|word| !word.is_empty())
+<a href=#300 id=300 data-nosnippet>300</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">let </span>terms = words
+<a href=#302 id=302 data-nosnippet>302</a>        .iter()
+<a href=#303 id=303 data-nosnippet>303</a>        .map(|word| word.trim_start_matches(<span class="string">'+'</span>))
+<a href=#304 id=304 data-nosnippet>304</a>        .filter(|word| !word.is_empty())
+<a href=#305 id=305 data-nosnippet>305</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">if </span>view.deferred.is_empty() {
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">return </span>result(
+<a href=#308 id=308 data-nosnippet>308</a>            <span class="string">"No loadable tools"</span>,
+<a href=#309 id=309 data-nosnippet>309</a>            <span class="string">"No tools are loadable in this session."</span>.into(),
+<a href=#310 id=310 data-nosnippet>310</a>            Vec::new(),
+<a href=#311 id=311 data-nosnippet>311</a>        );
+<a href=#312 id=312 data-nosnippet>312</a>    }
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="kw">let </span><span class="kw-2">mut </span>matches = view
+<a href=#314 id=314 data-nosnippet>314</a>        .deferred
+<a href=#315 id=315 data-nosnippet>315</a>        .iter()
+<a href=#316 id=316 data-nosnippet>316</a>        .filter(|entry| {
+<a href=#317 id=317 data-nosnippet>317</a>            <span class="kw">let </span>name = entry.name.to_lowercase();
+<a href=#318 id=318 data-nosnippet>318</a>            required.iter().all(|word| name.contains(word))
+<a href=#319 id=319 data-nosnippet>319</a>        })
+<a href=#320 id=320 data-nosnippet>320</a>        .filter_map(|entry| {
+<a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">let </span>haystack = haystack(entry);
+<a href=#322 id=322 data-nosnippet>322</a>            <span class="kw">let </span>score = terms
+<a href=#323 id=323 data-nosnippet>323</a>                .iter()
+<a href=#324 id=324 data-nosnippet>324</a>                .filter(|term| haystack.contains(<span class="kw-2">**</span>term))
+<a href=#325 id=325 data-nosnippet>325</a>                .count();
+<a href=#326 id=326 data-nosnippet>326</a>            (score &gt; <span class="number">0</span>).then_some((score, entry))
+<a href=#327 id=327 data-nosnippet>327</a>        })
+<a href=#328 id=328 data-nosnippet>328</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#329 id=329 data-nosnippet>329</a>    matches.sort_by(|(left_score, left), (right_score, right)| {
+<a href=#330 id=330 data-nosnippet>330</a>        right_score
+<a href=#331 id=331 data-nosnippet>331</a>            .cmp(left_score)
+<a href=#332 id=332 data-nosnippet>332</a>            .then_with(|| left.name.cmp(<span class="kw-2">&amp;</span>right.name))
+<a href=#333 id=333 data-nosnippet>333</a>    });
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">if </span>matches.is_empty() {
+<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">return </span>result(
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="string">"No matching tools"</span>,
+<a href=#337 id=337 data-nosnippet>337</a>            <span class="macro">format!</span>(
+<a href=#338 id=338 data-nosnippet>338</a>                <span class="string">"No loadable tools match \"{query}\". Try other words, a group's name, or select:&lt;name&gt;."
+<a href=#339 id=339 data-nosnippet>339</a>            </span>),
+<a href=#340 id=340 data-nosnippet>340</a>            Vec::new(),
+<a href=#341 id=341 data-nosnippet>341</a>        );
+<a href=#342 id=342 data-nosnippet>342</a>    }
+<a href=#343 id=343 data-nosnippet>343</a>    <span class="kw">let </span>total = matches.len();
+<a href=#344 id=344 data-nosnippet>344</a>    <span class="kw">let </span>names = matches
+<a href=#345 id=345 data-nosnippet>345</a>        .into_iter()
+<a href=#346 id=346 data-nosnippet>346</a>        .take(limit)
+<a href=#347 id=347 data-nosnippet>347</a>        .map(|(<span class="kw">_</span>, entry)| entry.name.clone())
+<a href=#348 id=348 data-nosnippet>348</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#349 id=349 data-nosnippet>349</a>    <span class="kw">let </span>more = (names.len() &lt; total).then(|| {
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="macro">format!</span>(
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="string">"{} more match; raise limit or select them by name."</span>,
+<a href=#352 id=352 data-nosnippet>352</a>            total - names.len()
+<a href=#353 id=353 data-nosnippet>353</a>        )
+<a href=#354 id=354 data-nosnippet>354</a>    });
+<a href=#355 id=355 data-nosnippet>355</a>    load_result(view, <span class="kw-2">&amp;</span>names, more)
+<a href=#356 id=356 data-nosnippet>356</a>}
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a><span class="doccomment">/// Loads `names`, recording the tools that newly load, and says why the
+<a href=#359 id=359 data-nosnippet>359</a>/// others did not; `more` ends the output.
+<a href=#360 id=360 data-nosnippet>360</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load_result(
+<a href=#361 id=361 data-nosnippet>361</a>    view: <span class="kw-2">&amp;</span>DeferralView,
+<a href=#362 id=362 data-nosnippet>362</a>    names: <span class="kw-2">&amp;</span>[String],
+<a href=#363 id=363 data-nosnippet>363</a>    more: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#364 id=364 data-nosnippet>364</a>) -&gt; ToolResult {
+<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">let </span><span class="kw-2">mut </span>loaded = Vec::new();
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">let </span><span class="kw-2">mut </span>lines = Vec::new();
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">let </span><span class="kw-2">mut </span>notes = Vec::new();
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="kw">let </span><span class="kw-2">mut </span>seen = std::collections::HashSet::new();
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">for </span>name <span class="kw">in </span>names {
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">if </span>!seen.insert(name.as_str()) {
+<a href=#371 id=371 data-nosnippet>371</a>            <span class="kw">continue</span>;
+<a href=#372 id=372 data-nosnippet>372</a>        }
+<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span>entry = view.deferred.iter().find(|entry| <span class="kw-2">&amp;</span>entry.name == name);
+<a href=#374 id=374 data-nosnippet>374</a>        <span class="kw">match </span>entry {
+<a href=#375 id=375 data-nosnippet>375</a>            <span class="kw">_ if </span>view.eager.contains(name) =&gt; {
+<a href=#376 id=376 data-nosnippet>376</a>                notes.push(<span class="macro">format!</span>(<span class="string">"{name}: already callable, no need to load it"</span>));
 <a href=#377 id=377 data-nosnippet>377</a>            }
-<a href=#378 id=378 data-nosnippet>378</a>        }
-<a href=#379 id=379 data-nosnippet>379</a>    }
-<a href=#380 id=380 data-nosnippet>380</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="kw">match </span>loaded.len() {
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="number">0 </span>=&gt; <span class="string">"Loaded no new tools."</span>.to_owned(),
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="number">1 </span>=&gt; <span class="string">"Loaded 1 tool:"</span>.to_owned(),
-<a href=#383 id=383 data-nosnippet>383</a>        count =&gt; <span class="macro">format!</span>(<span class="string">"Loaded {count} tools:"</span>),
-<a href=#384 id=384 data-nosnippet>384</a>    };
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="kw">for </span>line <span class="kw">in </span>lines {
-<a href=#386 id=386 data-nosnippet>386</a>        output.push(<span class="string">'\n'</span>);
-<a href=#387 id=387 data-nosnippet>387</a>        output.push_str(<span class="kw-2">&amp;</span>line);
-<a href=#388 id=388 data-nosnippet>388</a>    }
-<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">for </span>note <span class="kw">in </span>notes.into_iter().chain(more) {
-<a href=#390 id=390 data-nosnippet>390</a>        output.push(<span class="string">'\n'</span>);
-<a href=#391 id=391 data-nosnippet>391</a>        output.push_str(<span class="kw-2">&amp;</span>note);
-<a href=#392 id=392 data-nosnippet>392</a>    }
-<a href=#393 id=393 data-nosnippet>393</a>    <span class="kw">let </span>instructions = provider_instructions(view, <span class="kw-2">&amp;</span>loaded);
-<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">let </span><span class="kw-2">mut </span>result = result(
-<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">if </span>loaded.is_empty() {
-<a href=#396 id=396 data-nosnippet>396</a>            <span class="string">"No tools loaded"
-<a href=#397 id=397 data-nosnippet>397</a>        </span>} <span class="kw">else </span>{
-<a href=#398 id=398 data-nosnippet>398</a>            <span class="string">"Tools loaded"
-<a href=#399 id=399 data-nosnippet>399</a>        </span>},
-<a href=#400 id=400 data-nosnippet>400</a>        output,
-<a href=#401 id=401 data-nosnippet>401</a>        loaded,
-<a href=#402 id=402 data-nosnippet>402</a>    );
-<a href=#403 id=403 data-nosnippet>403</a>    result.additional_messages.extend(instructions);
-<a href=#404 id=404 data-nosnippet>404</a>    result
-<a href=#405 id=405 data-nosnippet>405</a>}
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a><span class="doccomment">/// The prompt sections of the deferred providers whose tools `loaded`
-<a href=#408 id=408 data-nosnippet>408</a>/// loads first, as one message after the result (deferred tools in cookie,
-<a href=#409 id=409 data-nosnippet>409</a>/// section 7.3). Stored with the result, so history never shifts.
-<a href=#410 id=410 data-nosnippet>410</a></span><span class="kw">fn </span>provider_instructions(
-<a href=#411 id=411 data-nosnippet>411</a>    view: <span class="kw-2">&amp;</span>DeferralView,
-<a href=#412 id=412 data-nosnippet>412</a>    loaded: <span class="kw-2">&amp;</span>[String],
-<a href=#413 id=413 data-nosnippet>413</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::ToolEmittedMessage&gt; {
-<a href=#414 id=414 data-nosnippet>414</a>    <span class="kw">let </span><span class="kw-2">mut </span>providers = Vec::new();
-<a href=#415 id=415 data-nosnippet>415</a>    <span class="kw">for </span>name <span class="kw">in </span>loaded {
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = view.deferred.iter().find(|entry| <span class="kw-2">&amp;</span>entry.name == name)
-<a href=#417 id=417 data-nosnippet>417</a>            &amp;&amp; view.sections.contains_key(<span class="kw-2">&amp;</span>entry.provider)
-<a href=#418 id=418 data-nosnippet>418</a>            &amp;&amp; !providers.contains(&amp;&amp;entry.provider)
-<a href=#419 id=419 data-nosnippet>419</a>        {
-<a href=#420 id=420 data-nosnippet>420</a>            providers.push(<span class="kw-2">&amp;</span>entry.provider);
-<a href=#421 id=421 data-nosnippet>421</a>        }
-<a href=#422 id=422 data-nosnippet>422</a>    }
-<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">let </span>blocks = providers
-<a href=#424 id=424 data-nosnippet>424</a>        .into_iter()
-<a href=#425 id=425 data-nosnippet>425</a>        .filter_map(|provider| view.sections.get(provider))
-<a href=#426 id=426 data-nosnippet>426</a>        .cloned()
-<a href=#427 id=427 data-nosnippet>427</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#428 id=428 data-nosnippet>428</a>    <span class="kw">if </span>blocks.is_empty() {
-<a href=#429 id=429 data-nosnippet>429</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#430 id=430 data-nosnippet>430</a>    }
-<a href=#431 id=431 data-nosnippet>431</a>    cookie_agent_protocol::ToolEmittedMessage::new(
-<a href=#432 id=432 data-nosnippet>432</a>        cookie_agent_protocol::ToolEmittedMessageRole::System,
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="macro">vec!</span>[cookie_agent_protocol::ToolEmittedContent::Text(
-<a href=#434 id=434 data-nosnippet>434</a>            blocks.join(<span class="string">"\n\n"</span>),
-<a href=#435 id=435 data-nosnippet>435</a>        )],
-<a href=#436 id=436 data-nosnippet>436</a>    )
-<a href=#437 id=437 data-nosnippet>437</a>    .ok()
-<a href=#438 id=438 data-nosnippet>438</a>}
-<a href=#439 id=439 data-nosnippet>439</a>
-<a href=#440 id=440 data-nosnippet>440</a><span class="attr">#[cfg(test)]
-<a href=#441 id=441 data-nosnippet>441</a></span><span class="kw">mod </span>tests;
+<a href=#378 id=378 data-nosnippet>378</a>            <span class="prelude-val">None </span>=&gt; notes.push(<span class="macro">format!</span>(<span class="string">"{name}: no loadable tool has this name"</span>)),
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="prelude-val">Some</span>(entry) =&gt; {
+<a href=#380 id=380 data-nosnippet>380</a>                <span class="kw">let </span>already = <span class="kw">if </span>view.loaded.contains(name) {
+<a href=#381 id=381 data-nosnippet>381</a>                    <span class="string">" (already loaded)"
+<a href=#382 id=382 data-nosnippet>382</a>                </span>} <span class="kw">else </span>{
+<a href=#383 id=383 data-nosnippet>383</a>                    loaded.push(name.clone());
+<a href=#384 id=384 data-nosnippet>384</a>                    <span class="string">""
+<a href=#385 id=385 data-nosnippet>385</a>                </span>};
+<a href=#386 id=386 data-nosnippet>386</a>                lines.push(<span class="macro">format!</span>(
+<a href=#387 id=387 data-nosnippet>387</a>                    <span class="string">"- {} [{}]{already}: {}"</span>,
+<a href=#388 id=388 data-nosnippet>388</a>                    entry.name,
+<a href=#389 id=389 data-nosnippet>389</a>                    entry.group.name,
+<a href=#390 id=390 data-nosnippet>390</a>                    first_sentence(<span class="kw-2">&amp;</span>entry.description)
+<a href=#391 id=391 data-nosnippet>391</a>                ));
+<a href=#392 id=392 data-nosnippet>392</a>            }
+<a href=#393 id=393 data-nosnippet>393</a>        }
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="kw">match </span>loaded.len() {
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="number">0 </span>=&gt; <span class="string">"Loaded no new tools."</span>.to_owned(),
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="number">1 </span>=&gt; <span class="string">"Loaded 1 tool:"</span>.to_owned(),
+<a href=#398 id=398 data-nosnippet>398</a>        count =&gt; <span class="macro">format!</span>(<span class="string">"Loaded {count} tools:"</span>),
+<a href=#399 id=399 data-nosnippet>399</a>    };
+<a href=#400 id=400 data-nosnippet>400</a>    <span class="kw">for </span>line <span class="kw">in </span>lines {
+<a href=#401 id=401 data-nosnippet>401</a>        output.push(<span class="string">'\n'</span>);
+<a href=#402 id=402 data-nosnippet>402</a>        output.push_str(<span class="kw-2">&amp;</span>line);
+<a href=#403 id=403 data-nosnippet>403</a>    }
+<a href=#404 id=404 data-nosnippet>404</a>    <span class="kw">for </span>note <span class="kw">in </span>notes.into_iter().chain(more) {
+<a href=#405 id=405 data-nosnippet>405</a>        output.push(<span class="string">'\n'</span>);
+<a href=#406 id=406 data-nosnippet>406</a>        output.push_str(<span class="kw-2">&amp;</span>note);
+<a href=#407 id=407 data-nosnippet>407</a>    }
+<a href=#408 id=408 data-nosnippet>408</a>    <span class="kw">let </span>instructions = provider_instructions(view, <span class="kw-2">&amp;</span>loaded);
+<a href=#409 id=409 data-nosnippet>409</a>    <span class="kw">let </span><span class="kw-2">mut </span>result = result(
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">if </span>loaded.is_empty() {
+<a href=#411 id=411 data-nosnippet>411</a>            <span class="string">"No tools loaded"
+<a href=#412 id=412 data-nosnippet>412</a>        </span>} <span class="kw">else </span>{
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="string">"Tools loaded"
+<a href=#414 id=414 data-nosnippet>414</a>        </span>},
+<a href=#415 id=415 data-nosnippet>415</a>        output,
+<a href=#416 id=416 data-nosnippet>416</a>        loaded,
+<a href=#417 id=417 data-nosnippet>417</a>    );
+<a href=#418 id=418 data-nosnippet>418</a>    result.additional_messages.extend(instructions);
+<a href=#419 id=419 data-nosnippet>419</a>    result
+<a href=#420 id=420 data-nosnippet>420</a>}
+<a href=#421 id=421 data-nosnippet>421</a>
+<a href=#422 id=422 data-nosnippet>422</a><span class="doccomment">/// The prompt sections of the deferred providers whose tools `loaded`
+<a href=#423 id=423 data-nosnippet>423</a>/// loads first, as one message after the result (deferred tools in cookie,
+<a href=#424 id=424 data-nosnippet>424</a>/// section 7.3). Stored with the result, so history never shifts.
+<a href=#425 id=425 data-nosnippet>425</a></span><span class="kw">fn </span>provider_instructions(
+<a href=#426 id=426 data-nosnippet>426</a>    view: <span class="kw-2">&amp;</span>DeferralView,
+<a href=#427 id=427 data-nosnippet>427</a>    loaded: <span class="kw-2">&amp;</span>[String],
+<a href=#428 id=428 data-nosnippet>428</a>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::ToolEmittedMessage&gt; {
+<a href=#429 id=429 data-nosnippet>429</a>    <span class="kw">let </span><span class="kw-2">mut </span>providers = Vec::new();
+<a href=#430 id=430 data-nosnippet>430</a>    <span class="kw">for </span>name <span class="kw">in </span>loaded {
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = view.deferred.iter().find(|entry| <span class="kw-2">&amp;</span>entry.name == name)
+<a href=#432 id=432 data-nosnippet>432</a>            &amp;&amp; view.sections.contains_key(<span class="kw-2">&amp;</span>entry.provider)
+<a href=#433 id=433 data-nosnippet>433</a>            &amp;&amp; !providers.contains(&amp;&amp;entry.provider)
+<a href=#434 id=434 data-nosnippet>434</a>        {
+<a href=#435 id=435 data-nosnippet>435</a>            providers.push(<span class="kw-2">&amp;</span>entry.provider);
+<a href=#436 id=436 data-nosnippet>436</a>        }
+<a href=#437 id=437 data-nosnippet>437</a>    }
+<a href=#438 id=438 data-nosnippet>438</a>    <span class="kw">let </span>blocks = providers
+<a href=#439 id=439 data-nosnippet>439</a>        .into_iter()
+<a href=#440 id=440 data-nosnippet>440</a>        .filter_map(|provider| view.sections.get(provider))
+<a href=#441 id=441 data-nosnippet>441</a>        .cloned()
+<a href=#442 id=442 data-nosnippet>442</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#443 id=443 data-nosnippet>443</a>    <span class="kw">if </span>blocks.is_empty() {
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#445 id=445 data-nosnippet>445</a>    }
+<a href=#446 id=446 data-nosnippet>446</a>    cookie_agent_protocol::ToolEmittedMessage::new(
+<a href=#447 id=447 data-nosnippet>447</a>        cookie_agent_protocol::ToolEmittedMessageRole::System,
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="macro">vec!</span>[cookie_agent_protocol::ToolEmittedContent::Text(
+<a href=#449 id=449 data-nosnippet>449</a>            blocks.join(<span class="string">"\n\n"</span>),
+<a href=#450 id=450 data-nosnippet>450</a>        )],
+<a href=#451 id=451 data-nosnippet>451</a>    )
+<a href=#452 id=452 data-nosnippet>452</a>    .ok()
+<a href=#453 id=453 data-nosnippet>453</a>}
+<a href=#454 id=454 data-nosnippet>454</a>
+<a href=#455 id=455 data-nosnippet>455</a><span class="attr">#[cfg(test)]
+<a href=#456 id=456 data-nosnippet>456</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
