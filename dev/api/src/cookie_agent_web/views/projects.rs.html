@@ -1107,127 +1107,138 @@
 <a href=#1107 id=1107 data-nosnippet>1107</a></span><span class="kw">fn </span>EmojiPicker(workspace: Workspace, open: RwSignal&lt;bool&gt;) -&gt; <span class="kw">impl </span>IntoView {
 <a href=#1108 id=1108 data-nosnippet>1108</a>    <span class="kw">let </span>query = RwSignal::new(String::new());
 <a href=#1109 id=1109 data-nosnippet>1109</a>    <span class="kw">let </span>typed = RwSignal::new(String::new());
-<a href=#1110 id=1110 data-nosnippet>1110</a>    <span class="kw">let </span>search = NodeRef::&lt;html::Input&gt;::new();
-<a href=#1111 id=1111 data-nosnippet>1111</a>    Effect::new(<span class="kw">move </span>|<span class="kw">_</span>| {
-<a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(input) = search.get() {
-<a href=#1113 id=1113 data-nosnippet>1113</a>            <span class="comment">// A phone's keyboard would cover the sheet: only a wider
-<a href=#1114 id=1114 data-nosnippet>1114</a>            // window starts in the search box.
-<a href=#1115 id=1115 data-nosnippet>1115</a>            </span><span class="kw">if </span>!workspace.narrow.get_untracked() {
-<a href=#1116 id=1116 data-nosnippet>1116</a>                request_animation_frame(<span class="kw">move </span>|| {
-<a href=#1117 id=1117 data-nosnippet>1117</a>                    <span class="kw">let _ </span>= input.focus();
-<a href=#1118 id=1118 data-nosnippet>1118</a>                });
-<a href=#1119 id=1119 data-nosnippet>1119</a>            }
-<a href=#1120 id=1120 data-nosnippet>1120</a>        }
-<a href=#1121 id=1121 data-nosnippet>1121</a>    });
-<a href=#1122 id=1122 data-nosnippet>1122</a>    <span class="kw">let </span>choose = <span class="kw">move </span>|emoji: <span class="prelude-ty">Option</span>&lt;String&gt;| {
-<a href=#1123 id=1123 data-nosnippet>1123</a>        workspace.edit_editor(|editor| editor.emoji = emoji);
-<a href=#1124 id=1124 data-nosnippet>1124</a>        open.set(<span class="bool-val">false</span>);
-<a href=#1125 id=1125 data-nosnippet>1125</a>    };
-<a href=#1126 id=1126 data-nosnippet>1126</a>    <span class="kw">let </span>typed_error = <span class="kw">move </span>|| {
-<a href=#1127 id=1127 data-nosnippet>1127</a>        <span class="kw">let </span>text = typed.get();
-<a href=#1128 id=1128 data-nosnippet>1128</a>        <span class="kw">let </span>text = text.trim();
-<a href=#1129 id=1129 data-nosnippet>1129</a>        (!text.is_empty())
-<a href=#1130 id=1130 data-nosnippet>1130</a>            .then(|| validate_emoji(text).err())
-<a href=#1131 id=1131 data-nosnippet>1131</a>            .flatten()
-<a href=#1132 id=1132 data-nosnippet>1132</a>    };
-<a href=#1133 id=1133 data-nosnippet>1133</a>    <span class="kw">let </span>use_typed = <span class="kw">move </span>|| {
-<a href=#1134 id=1134 data-nosnippet>1134</a>        <span class="kw">let </span>text = typed.get_untracked().trim().to_owned();
-<a href=#1135 id=1135 data-nosnippet>1135</a>        <span class="kw">if </span>validate_emoji(<span class="kw-2">&amp;</span>text).is_ok() {
-<a href=#1136 id=1136 data-nosnippet>1136</a>            choose(<span class="prelude-val">Some</span>(text));
-<a href=#1137 id=1137 data-nosnippet>1137</a>        }
-<a href=#1138 id=1138 data-nosnippet>1138</a>    };
-<a href=#1139 id=1139 data-nosnippet>1139</a>    <span class="macro">view!</span> {
-<a href=#1140 id=1140 data-nosnippet>1140</a>        <span class="comment">// A phone's sheet covers the page below a dimmed backdrop.
-<a href=#1141 id=1141 data-nosnippet>1141</a>        </span>&lt;div class=<span class="string">"fixed inset-0 z-30 bg-espresso/30 sm:hidden dark:bg-night/60" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="bool-val">false</span>)&gt;&lt;/div&gt;
-<a href=#1142 id=1142 data-nosnippet>1142</a>        &lt;div
-<a href=#1143 id=1143 data-nosnippet>1143</a>            id=<span class="string">"emoji-picker"
-<a href=#1144 id=1144 data-nosnippet>1144</a>            </span>role=<span class="string">"dialog"
-<a href=#1145 id=1145 data-nosnippet>1145</a>            </span>aria-label=<span class="string">"Choose an emoji"
-<a href=#1146 id=1146 data-nosnippet>1146</a>            </span>class=<span class="string">"fixed inset-x-0 bottom-0 z-40 flex max-h-[75dvh] flex-col gap-2 rounded-t-2xl border-t border-toasted bg-cream p-3 shadow-xl sm:static sm:z-auto sm:max-h-96 sm:rounded-lg sm:border sm:shadow-md dark:border-ember dark:bg-night"
-<a href=#1147 id=1147 data-nosnippet>1147</a>        </span>&gt;
-<a href=#1148 id=1148 data-nosnippet>1148</a>            &lt;span class=<span class="string">"mx-auto h-1 w-10 shrink-0 rounded-full bg-crust sm:hidden dark:bg-smoke" </span>aria-hidden=<span class="string">"true"</span>&gt;&lt;/span&gt;
-<a href=#1149 id=1149 data-nosnippet>1149</a>            &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
-<a href=#1150 id=1150 data-nosnippet>1150</a>                &lt;input
-<a href=#1151 id=1151 data-nosnippet>1151</a>                    <span class="kw">type</span>=<span class="string">"search"
-<a href=#1152 id=1152 data-nosnippet>1152</a>                    </span>node_ref=search
-<a href=#1153 id=1153 data-nosnippet>1153</a>                    id=<span class="string">"emoji-search"
-<a href=#1154 id=1154 data-nosnippet>1154</a>                    </span>class=FIELD
-<a href=#1155 id=1155 data-nosnippet>1155</a>                    placeholder=<span class="string">"Search by name"
-<a href=#1156 id=1156 data-nosnippet>1156</a>                    </span>autocomplete=<span class="string">"off"
-<a href=#1157 id=1157 data-nosnippet>1157</a>                    </span>prop:value=<span class="kw">move </span>|| query.get()
-<a href=#1158 id=1158 data-nosnippet>1158</a>                    on:input=<span class="kw">move </span>|event| query.set(event_target_value(<span class="kw-2">&amp;</span>event))
-<a href=#1159 id=1159 data-nosnippet>1159</a>                /&gt;
-<a href=#1160 id=1160 data-nosnippet>1160</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=ICON_BUTTON aria-label=<span class="string">"Close" </span>title=<span class="string">"Close" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="bool-val">false</span>)&gt;
-<a href=#1161 id=1161 data-nosnippet>1161</a>                    &lt;Glyph icon=icondata::FaXmarkSolid /&gt;
-<a href=#1162 id=1162 data-nosnippet>1162</a>                &lt;/button&gt;
-<a href=#1163 id=1163 data-nosnippet>1163</a>            &lt;/div&gt;
-<a href=#1164 id=1164 data-nosnippet>1164</a>            &lt;div class=<span class="string">"min-h-0 flex-1 overflow-y-auto" </span>data-emoji-grid&gt;
-<a href=#1165 id=1165 data-nosnippet>1165</a>                {<span class="kw">move </span>|| {
-<a href=#1166 id=1166 data-nosnippet>1166</a>                    <span class="kw">let </span>found = <span class="kw">crate</span>::emoji::search(<span class="kw-2">&amp;</span>query.get());
-<a href=#1167 id=1167 data-nosnippet>1167</a>                    <span class="kw">if </span>found.is_empty() {
-<a href=#1168 id=1168 data-nosnippet>1168</a>                        <span class="kw">return </span><span class="macro">view!</span> { &lt;p class=<span class="macro">format!</span>(<span class="string">"py-4 text-center {NOTE}"</span>)&gt;<span class="string">"No emoji has that name. Type one below instead."</span>&lt;/p&gt; }.into_any();
-<a href=#1169 id=1169 data-nosnippet>1169</a>                    }
-<a href=#1170 id=1170 data-nosnippet>1170</a>                    found
-<a href=#1171 id=1171 data-nosnippet>1171</a>                        .into_iter()
-<a href=#1172 id=1172 data-nosnippet>1172</a>                        .map(|(group, emoji)| <span class="macro">view!</span> {
-<a href=#1173 id=1173 data-nosnippet>1173</a>                            &lt;div class=<span class="string">"flex flex-col gap-1 pb-2"</span>&gt;
-<a href=#1174 id=1174 data-nosnippet>1174</a>                                &lt;span class=<span class="macro">format!</span>(<span class="string">"sticky top-0 bg-cream py-0.5 font-bold dark:bg-night {NOTE}"</span>)&gt;{group}&lt;/span&gt;
-<a href=#1175 id=1175 data-nosnippet>1175</a>                                &lt;div class=<span class="string">"grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]"</span>&gt;
-<a href=#1176 id=1176 data-nosnippet>1176</a>                                    {emoji.into_iter().map(|(emoji, name)| <span class="macro">view!</span> {
-<a href=#1177 id=1177 data-nosnippet>1177</a>                                        &lt;button
-<a href=#1178 id=1178 data-nosnippet>1178</a>                                            <span class="kw">type</span>=<span class="string">"button"
-<a href=#1179 id=1179 data-nosnippet>1179</a>                                            </span>class=<span class="string">"inline-flex h-11 w-11 items-center justify-center rounded-md text-2xl hover:bg-toasted active:bg-crust dark:hover:bg-ember dark:active:bg-smoke"
-<a href=#1180 id=1180 data-nosnippet>1180</a>                                            </span>title=name
-<a href=#1181 id=1181 data-nosnippet>1181</a>                                            aria-label=name
-<a href=#1182 id=1182 data-nosnippet>1182</a>                                            data-emoji=emoji
-<a href=#1183 id=1183 data-nosnippet>1183</a>                                            on:click=<span class="kw">move </span>|<span class="kw">_</span>| choose(<span class="prelude-val">Some</span>(emoji.to_owned()))
-<a href=#1184 id=1184 data-nosnippet>1184</a>                                        &gt;
-<a href=#1185 id=1185 data-nosnippet>1185</a>                                            {emoji}
-<a href=#1186 id=1186 data-nosnippet>1186</a>                                        &lt;/button&gt;
-<a href=#1187 id=1187 data-nosnippet>1187</a>                                    }).collect_view()}
-<a href=#1188 id=1188 data-nosnippet>1188</a>                                &lt;/div&gt;
-<a href=#1189 id=1189 data-nosnippet>1189</a>                            &lt;/div&gt;
-<a href=#1190 id=1190 data-nosnippet>1190</a>                        })
-<a href=#1191 id=1191 data-nosnippet>1191</a>                        .collect_view()
-<a href=#1192 id=1192 data-nosnippet>1192</a>                        .into_any()
-<a href=#1193 id=1193 data-nosnippet>1193</a>                }}
-<a href=#1194 id=1194 data-nosnippet>1194</a>            &lt;/div&gt;
-<a href=#1195 id=1195 data-nosnippet>1195</a>            &lt;div class=<span class="string">"flex flex-wrap items-start gap-2 border-t border-toasted pt-2 dark:border-ember"</span>&gt;
-<a href=#1196 id=1196 data-nosnippet>1196</a>                &lt;div class=<span class="string">"flex min-w-0 flex-1 flex-col gap-1"</span>&gt;
-<a href=#1197 id=1197 data-nosnippet>1197</a>                    &lt;input
-<a href=#1198 id=1198 data-nosnippet>1198</a>                        <span class="kw">type</span>=<span class="string">"text"
-<a href=#1199 id=1199 data-nosnippet>1199</a>                        </span>id=<span class="string">"emoji-typed"
-<a href=#1200 id=1200 data-nosnippet>1200</a>                        </span>class=<span class="macro">format!</span>(<span class="string">"{FIELD} text-lg"</span>)
-<a href=#1201 id=1201 data-nosnippet>1201</a>                        placeholder=<span class="string">"Or type or paste one"
-<a href=#1202 id=1202 data-nosnippet>1202</a>                        </span>aria-label=<span class="string">"Any one emoji"
-<a href=#1203 id=1203 data-nosnippet>1203</a>                        </span>autocomplete=<span class="string">"off"
-<a href=#1204 id=1204 data-nosnippet>1204</a>                        </span>prop:value=<span class="kw">move </span>|| typed.get()
-<a href=#1205 id=1205 data-nosnippet>1205</a>                        on:input=<span class="kw">move </span>|event| typed.set(event_target_value(<span class="kw-2">&amp;</span>event))
-<a href=#1206 id=1206 data-nosnippet>1206</a>                        on:keydown=<span class="kw">move </span>|event: ev::KeyboardEvent| {
-<a href=#1207 id=1207 data-nosnippet>1207</a>                            <span class="kw">if </span>event.key() == <span class="string">"Enter" </span>{
-<a href=#1208 id=1208 data-nosnippet>1208</a>                                event.prevent_default();
-<a href=#1209 id=1209 data-nosnippet>1209</a>                                use_typed();
-<a href=#1210 id=1210 data-nosnippet>1210</a>                            }
-<a href=#1211 id=1211 data-nosnippet>1211</a>                        }
-<a href=#1212 id=1212 data-nosnippet>1212</a>                    /&gt;
-<a href=#1213 id=1213 data-nosnippet>1213</a>                    {<span class="kw">move </span>|| typed_error().map(|reason| <span class="macro">view!</span> {
-<a href=#1214 id=1214 data-nosnippet>1214</a>                        &lt;span class=<span class="string">"text-xs text-red-800 dark:text-red-300" </span>data-emoji-error&gt;{<span class="macro">format!</span>(<span class="string">"Not one emoji: {reason}."</span>)}&lt;/span&gt;
-<a href=#1215 id=1215 data-nosnippet>1215</a>                    })}
-<a href=#1216 id=1216 data-nosnippet>1216</a>                &lt;/div&gt;
-<a href=#1217 id=1217 data-nosnippet>1217</a>                &lt;button
-<a href=#1218 id=1218 data-nosnippet>1218</a>                    <span class="kw">type</span>=<span class="string">"button"
-<a href=#1219 id=1219 data-nosnippet>1219</a>                    </span>class=BUTTON
-<a href=#1220 id=1220 data-nosnippet>1220</a>                    id=<span class="string">"emoji-use"
-<a href=#1221 id=1221 data-nosnippet>1221</a>                    </span>disabled=<span class="kw">move </span>|| typed.with(|text| validate_emoji(text.trim()).is_err())
-<a href=#1222 id=1222 data-nosnippet>1222</a>                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| use_typed()
-<a href=#1223 id=1223 data-nosnippet>1223</a>                &gt;
-<a href=#1224 id=1224 data-nosnippet>1224</a>                    <span class="string">"Use"
-<a href=#1225 id=1225 data-nosnippet>1225</a>                </span>&lt;/button&gt;
-<a href=#1226 id=1226 data-nosnippet>1226</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON id=<span class="string">"emoji-none" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| choose(<span class="prelude-val">None</span>)&gt;
-<a href=#1227 id=1227 data-nosnippet>1227</a>                    <span class="string">"No emoji"
-<a href=#1228 id=1228 data-nosnippet>1228</a>                </span>&lt;/button&gt;
-<a href=#1229 id=1229 data-nosnippet>1229</a>            &lt;/div&gt;
-<a href=#1230 id=1230 data-nosnippet>1230</a>        &lt;/div&gt;
-<a href=#1231 id=1231 data-nosnippet>1231</a>    }
-<a href=#1232 id=1232 data-nosnippet>1232</a>}
+<a href=#1110 id=1110 data-nosnippet>1110</a>    <span class="comment">// The emoji the pointer or the keyboard is on, named below the grid:
+<a href=#1111 id=1111 data-nosnippet>1111</a>    // a native tooltip on each would pop up afresh as the pointer crosses
+<a href=#1112 id=1112 data-nosnippet>1112</a>    // the grid, which lags.
+<a href=#1113 id=1113 data-nosnippet>1113</a>    </span><span class="kw">let </span>pointed = RwSignal::new(<span class="prelude-val">None</span>::&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str)&gt;);
+<a href=#1114 id=1114 data-nosnippet>1114</a>    <span class="kw">let </span>search = NodeRef::&lt;html::Input&gt;::new();
+<a href=#1115 id=1115 data-nosnippet>1115</a>    Effect::new(<span class="kw">move </span>|<span class="kw">_</span>| {
+<a href=#1116 id=1116 data-nosnippet>1116</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(input) = search.get() {
+<a href=#1117 id=1117 data-nosnippet>1117</a>            <span class="comment">// A phone's keyboard would cover the sheet: only a wider
+<a href=#1118 id=1118 data-nosnippet>1118</a>            // window starts in the search box.
+<a href=#1119 id=1119 data-nosnippet>1119</a>            </span><span class="kw">if </span>!workspace.narrow.get_untracked() {
+<a href=#1120 id=1120 data-nosnippet>1120</a>                request_animation_frame(<span class="kw">move </span>|| {
+<a href=#1121 id=1121 data-nosnippet>1121</a>                    <span class="kw">let _ </span>= input.focus();
+<a href=#1122 id=1122 data-nosnippet>1122</a>                });
+<a href=#1123 id=1123 data-nosnippet>1123</a>            }
+<a href=#1124 id=1124 data-nosnippet>1124</a>        }
+<a href=#1125 id=1125 data-nosnippet>1125</a>    });
+<a href=#1126 id=1126 data-nosnippet>1126</a>    <span class="kw">let </span>choose = <span class="kw">move </span>|emoji: <span class="prelude-ty">Option</span>&lt;String&gt;| {
+<a href=#1127 id=1127 data-nosnippet>1127</a>        workspace.edit_editor(|editor| editor.emoji = emoji);
+<a href=#1128 id=1128 data-nosnippet>1128</a>        open.set(<span class="bool-val">false</span>);
+<a href=#1129 id=1129 data-nosnippet>1129</a>    };
+<a href=#1130 id=1130 data-nosnippet>1130</a>    <span class="kw">let </span>typed_error = <span class="kw">move </span>|| {
+<a href=#1131 id=1131 data-nosnippet>1131</a>        <span class="kw">let </span>text = typed.get();
+<a href=#1132 id=1132 data-nosnippet>1132</a>        <span class="kw">let </span>text = text.trim();
+<a href=#1133 id=1133 data-nosnippet>1133</a>        (!text.is_empty())
+<a href=#1134 id=1134 data-nosnippet>1134</a>            .then(|| validate_emoji(text).err())
+<a href=#1135 id=1135 data-nosnippet>1135</a>            .flatten()
+<a href=#1136 id=1136 data-nosnippet>1136</a>    };
+<a href=#1137 id=1137 data-nosnippet>1137</a>    <span class="kw">let </span>use_typed = <span class="kw">move </span>|| {
+<a href=#1138 id=1138 data-nosnippet>1138</a>        <span class="kw">let </span>text = typed.get_untracked().trim().to_owned();
+<a href=#1139 id=1139 data-nosnippet>1139</a>        <span class="kw">if </span>validate_emoji(<span class="kw-2">&amp;</span>text).is_ok() {
+<a href=#1140 id=1140 data-nosnippet>1140</a>            choose(<span class="prelude-val">Some</span>(text));
+<a href=#1141 id=1141 data-nosnippet>1141</a>        }
+<a href=#1142 id=1142 data-nosnippet>1142</a>    };
+<a href=#1143 id=1143 data-nosnippet>1143</a>    <span class="macro">view!</span> {
+<a href=#1144 id=1144 data-nosnippet>1144</a>        <span class="comment">// A phone's sheet covers the page below a dimmed backdrop.
+<a href=#1145 id=1145 data-nosnippet>1145</a>        </span>&lt;div class=<span class="string">"fixed inset-0 z-30 bg-espresso/30 sm:hidden dark:bg-night/60" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="bool-val">false</span>)&gt;&lt;/div&gt;
+<a href=#1146 id=1146 data-nosnippet>1146</a>        &lt;div
+<a href=#1147 id=1147 data-nosnippet>1147</a>            id=<span class="string">"emoji-picker"
+<a href=#1148 id=1148 data-nosnippet>1148</a>            </span>role=<span class="string">"dialog"
+<a href=#1149 id=1149 data-nosnippet>1149</a>            </span>aria-label=<span class="string">"Choose an emoji"
+<a href=#1150 id=1150 data-nosnippet>1150</a>            </span>class=<span class="string">"fixed inset-x-0 bottom-0 z-40 flex max-h-[75dvh] flex-col gap-2 rounded-t-2xl border-t border-toasted bg-cream p-3 shadow-xl sm:static sm:z-auto sm:max-h-96 sm:rounded-lg sm:border sm:shadow-md dark:border-ember dark:bg-night"
+<a href=#1151 id=1151 data-nosnippet>1151</a>        </span>&gt;
+<a href=#1152 id=1152 data-nosnippet>1152</a>            &lt;span class=<span class="string">"mx-auto h-1 w-10 shrink-0 rounded-full bg-crust sm:hidden dark:bg-smoke" </span>aria-hidden=<span class="string">"true"</span>&gt;&lt;/span&gt;
+<a href=#1153 id=1153 data-nosnippet>1153</a>            &lt;div class=<span class="string">"flex items-center gap-2"</span>&gt;
+<a href=#1154 id=1154 data-nosnippet>1154</a>                &lt;input
+<a href=#1155 id=1155 data-nosnippet>1155</a>                    <span class="kw">type</span>=<span class="string">"search"
+<a href=#1156 id=1156 data-nosnippet>1156</a>                    </span>node_ref=search
+<a href=#1157 id=1157 data-nosnippet>1157</a>                    id=<span class="string">"emoji-search"
+<a href=#1158 id=1158 data-nosnippet>1158</a>                    </span>class=FIELD
+<a href=#1159 id=1159 data-nosnippet>1159</a>                    placeholder=<span class="string">"Search by name"
+<a href=#1160 id=1160 data-nosnippet>1160</a>                    </span>autocomplete=<span class="string">"off"
+<a href=#1161 id=1161 data-nosnippet>1161</a>                    </span>prop:value=<span class="kw">move </span>|| query.get()
+<a href=#1162 id=1162 data-nosnippet>1162</a>                    on:input=<span class="kw">move </span>|event| query.set(event_target_value(<span class="kw-2">&amp;</span>event))
+<a href=#1163 id=1163 data-nosnippet>1163</a>                /&gt;
+<a href=#1164 id=1164 data-nosnippet>1164</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=ICON_BUTTON aria-label=<span class="string">"Close" </span>title=<span class="string">"Close" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| open.set(<span class="bool-val">false</span>)&gt;
+<a href=#1165 id=1165 data-nosnippet>1165</a>                    &lt;Glyph icon=icondata::FaXmarkSolid /&gt;
+<a href=#1166 id=1166 data-nosnippet>1166</a>                &lt;/button&gt;
+<a href=#1167 id=1167 data-nosnippet>1167</a>            &lt;/div&gt;
+<a href=#1168 id=1168 data-nosnippet>1168</a>            &lt;div class=<span class="string">"min-h-0 flex-1 overflow-y-auto" </span>data-emoji-grid on:pointerleave=<span class="kw">move </span>|<span class="kw">_</span>| pointed.set(<span class="prelude-val">None</span>)&gt;
+<a href=#1169 id=1169 data-nosnippet>1169</a>                {<span class="kw">move </span>|| {
+<a href=#1170 id=1170 data-nosnippet>1170</a>                    <span class="kw">let </span>found = <span class="kw">crate</span>::emoji::search(<span class="kw-2">&amp;</span>query.get());
+<a href=#1171 id=1171 data-nosnippet>1171</a>                    <span class="kw">if </span>found.is_empty() {
+<a href=#1172 id=1172 data-nosnippet>1172</a>                        <span class="kw">return </span><span class="macro">view!</span> { &lt;p class=<span class="macro">format!</span>(<span class="string">"py-4 text-center {NOTE}"</span>)&gt;<span class="string">"No emoji has that name. Type one below instead."</span>&lt;/p&gt; }.into_any();
+<a href=#1173 id=1173 data-nosnippet>1173</a>                    }
+<a href=#1174 id=1174 data-nosnippet>1174</a>                    found
+<a href=#1175 id=1175 data-nosnippet>1175</a>                        .into_iter()
+<a href=#1176 id=1176 data-nosnippet>1176</a>                        .map(|(group, emoji)| <span class="macro">view!</span> {
+<a href=#1177 id=1177 data-nosnippet>1177</a>                            &lt;div class=<span class="string">"flex flex-col gap-1 pb-2"</span>&gt;
+<a href=#1178 id=1178 data-nosnippet>1178</a>                                &lt;span class=<span class="macro">format!</span>(<span class="string">"sticky top-0 bg-cream py-0.5 font-bold dark:bg-night {NOTE}"</span>)&gt;{group}&lt;/span&gt;
+<a href=#1179 id=1179 data-nosnippet>1179</a>                                &lt;div class=<span class="string">"grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]"</span>&gt;
+<a href=#1180 id=1180 data-nosnippet>1180</a>                                    {emoji.into_iter().map(|(emoji, name)| <span class="macro">view!</span> {
+<a href=#1181 id=1181 data-nosnippet>1181</a>                                        &lt;button
+<a href=#1182 id=1182 data-nosnippet>1182</a>                                            <span class="kw">type</span>=<span class="string">"button"
+<a href=#1183 id=1183 data-nosnippet>1183</a>                                            </span>class=<span class="string">"inline-flex h-11 w-11 items-center justify-center rounded-md text-2xl hover:bg-toasted active:bg-crust dark:hover:bg-ember dark:active:bg-smoke"
+<a href=#1184 id=1184 data-nosnippet>1184</a>                                            </span>aria-label=name
+<a href=#1185 id=1185 data-nosnippet>1185</a>                                            data-emoji=emoji
+<a href=#1186 id=1186 data-nosnippet>1186</a>                                            on:pointerenter=<span class="kw">move </span>|<span class="kw">_</span>| pointed.set(<span class="prelude-val">Some</span>((emoji, name)))
+<a href=#1187 id=1187 data-nosnippet>1187</a>                                            on:focus=<span class="kw">move </span>|<span class="kw">_</span>| pointed.set(<span class="prelude-val">Some</span>((emoji, name)))
+<a href=#1188 id=1188 data-nosnippet>1188</a>                                            on:click=<span class="kw">move </span>|<span class="kw">_</span>| choose(<span class="prelude-val">Some</span>(emoji.to_owned()))
+<a href=#1189 id=1189 data-nosnippet>1189</a>                                        &gt;
+<a href=#1190 id=1190 data-nosnippet>1190</a>                                            {emoji}
+<a href=#1191 id=1191 data-nosnippet>1191</a>                                        &lt;/button&gt;
+<a href=#1192 id=1192 data-nosnippet>1192</a>                                    }).collect_view()}
+<a href=#1193 id=1193 data-nosnippet>1193</a>                                &lt;/div&gt;
+<a href=#1194 id=1194 data-nosnippet>1194</a>                            &lt;/div&gt;
+<a href=#1195 id=1195 data-nosnippet>1195</a>                        })
+<a href=#1196 id=1196 data-nosnippet>1196</a>                        .collect_view()
+<a href=#1197 id=1197 data-nosnippet>1197</a>                        .into_any()
+<a href=#1198 id=1198 data-nosnippet>1198</a>                }}
+<a href=#1199 id=1199 data-nosnippet>1199</a>            &lt;/div&gt;
+<a href=#1200 id=1200 data-nosnippet>1200</a>            &lt;p class=<span class="macro">format!</span>(<span class="string">"hidden h-5 shrink-0 items-center gap-1.5 truncate sm:flex {NOTE}"</span>) data-emoji-pointed&gt;
+<a href=#1201 id=1201 data-nosnippet>1201</a>                {<span class="kw">move </span>|| pointed.get().map(|(emoji, name)| <span class="macro">view!</span> {
+<a href=#1202 id=1202 data-nosnippet>1202</a>                    &lt;span class=<span class="string">"text-base"</span>&gt;{emoji}&lt;/span&gt;
+<a href=#1203 id=1203 data-nosnippet>1203</a>                    &lt;span class=<span class="string">"truncate"</span>&gt;{name}&lt;/span&gt;
+<a href=#1204 id=1204 data-nosnippet>1204</a>                })}
+<a href=#1205 id=1205 data-nosnippet>1205</a>            &lt;/p&gt;
+<a href=#1206 id=1206 data-nosnippet>1206</a>            &lt;div class=<span class="string">"flex flex-wrap items-start gap-2 border-t border-toasted pt-2 dark:border-ember"</span>&gt;
+<a href=#1207 id=1207 data-nosnippet>1207</a>                &lt;div class=<span class="string">"flex min-w-0 flex-1 flex-col gap-1"</span>&gt;
+<a href=#1208 id=1208 data-nosnippet>1208</a>                    &lt;input
+<a href=#1209 id=1209 data-nosnippet>1209</a>                        <span class="kw">type</span>=<span class="string">"text"
+<a href=#1210 id=1210 data-nosnippet>1210</a>                        </span>id=<span class="string">"emoji-typed"
+<a href=#1211 id=1211 data-nosnippet>1211</a>                        </span>class=<span class="macro">format!</span>(<span class="string">"{FIELD} text-lg"</span>)
+<a href=#1212 id=1212 data-nosnippet>1212</a>                        placeholder=<span class="string">"Or type or paste one"
+<a href=#1213 id=1213 data-nosnippet>1213</a>                        </span>aria-label=<span class="string">"Any one emoji"
+<a href=#1214 id=1214 data-nosnippet>1214</a>                        </span>autocomplete=<span class="string">"off"
+<a href=#1215 id=1215 data-nosnippet>1215</a>                        </span>prop:value=<span class="kw">move </span>|| typed.get()
+<a href=#1216 id=1216 data-nosnippet>1216</a>                        on:input=<span class="kw">move </span>|event| typed.set(event_target_value(<span class="kw-2">&amp;</span>event))
+<a href=#1217 id=1217 data-nosnippet>1217</a>                        on:keydown=<span class="kw">move </span>|event: ev::KeyboardEvent| {
+<a href=#1218 id=1218 data-nosnippet>1218</a>                            <span class="kw">if </span>event.key() == <span class="string">"Enter" </span>{
+<a href=#1219 id=1219 data-nosnippet>1219</a>                                event.prevent_default();
+<a href=#1220 id=1220 data-nosnippet>1220</a>                                use_typed();
+<a href=#1221 id=1221 data-nosnippet>1221</a>                            }
+<a href=#1222 id=1222 data-nosnippet>1222</a>                        }
+<a href=#1223 id=1223 data-nosnippet>1223</a>                    /&gt;
+<a href=#1224 id=1224 data-nosnippet>1224</a>                    {<span class="kw">move </span>|| typed_error().map(|reason| <span class="macro">view!</span> {
+<a href=#1225 id=1225 data-nosnippet>1225</a>                        &lt;span class=<span class="string">"text-xs text-red-800 dark:text-red-300" </span>data-emoji-error&gt;{<span class="macro">format!</span>(<span class="string">"Not one emoji: {reason}."</span>)}&lt;/span&gt;
+<a href=#1226 id=1226 data-nosnippet>1226</a>                    })}
+<a href=#1227 id=1227 data-nosnippet>1227</a>                &lt;/div&gt;
+<a href=#1228 id=1228 data-nosnippet>1228</a>                &lt;button
+<a href=#1229 id=1229 data-nosnippet>1229</a>                    <span class="kw">type</span>=<span class="string">"button"
+<a href=#1230 id=1230 data-nosnippet>1230</a>                    </span>class=BUTTON
+<a href=#1231 id=1231 data-nosnippet>1231</a>                    id=<span class="string">"emoji-use"
+<a href=#1232 id=1232 data-nosnippet>1232</a>                    </span>disabled=<span class="kw">move </span>|| typed.with(|text| validate_emoji(text.trim()).is_err())
+<a href=#1233 id=1233 data-nosnippet>1233</a>                    on:click=<span class="kw">move </span>|<span class="kw">_</span>| use_typed()
+<a href=#1234 id=1234 data-nosnippet>1234</a>                &gt;
+<a href=#1235 id=1235 data-nosnippet>1235</a>                    <span class="string">"Use"
+<a href=#1236 id=1236 data-nosnippet>1236</a>                </span>&lt;/button&gt;
+<a href=#1237 id=1237 data-nosnippet>1237</a>                &lt;button <span class="kw">type</span>=<span class="string">"button" </span>class=BUTTON id=<span class="string">"emoji-none" </span>on:click=<span class="kw">move </span>|<span class="kw">_</span>| choose(<span class="prelude-val">None</span>)&gt;
+<a href=#1238 id=1238 data-nosnippet>1238</a>                    <span class="string">"No emoji"
+<a href=#1239 id=1239 data-nosnippet>1239</a>                </span>&lt;/button&gt;
+<a href=#1240 id=1240 data-nosnippet>1240</a>            &lt;/div&gt;
+<a href=#1241 id=1241 data-nosnippet>1241</a>        &lt;/div&gt;
+<a href=#1242 id=1242 data-nosnippet>1242</a>    }
+<a href=#1243 id=1243 data-nosnippet>1243</a>}
 </code></pre></div></section></main></body></html>

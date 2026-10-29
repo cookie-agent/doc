@@ -4409,6 +4409,10 @@ daemon. The <a href="../../specs/acp-agents/">ACP agents spec</a> has the design
 <li><code>cookie</code> must be on that machine: the MCP bridge that offers cookie's tools
   to the agent is <code>cookie runtime mcp-bridge</code>. A runtime always has it, since
   it is <code>cookie runtime</code>.</li>
+<li>No model provider is needed: a daemon whose only agents are ACP agents
+  runs them, from the TUI, the web client, and <code>cookie run -a &lt;agent&gt;</code>.
+  Without a provider's <code>small_model</code>, a session the agent does not name
+  stays untitled, and the setup banner can be dismissed with <strong>Not now</strong>.</li>
 </ul>
 <h2 id="on-the-daemons-machine">On the daemon's machine<a class="headerlink" href="#on-the-daemons-machine" title="Permanent link">&para;</a></h2>
 <p>Declare agents under <code>[runtimes.local.acp.agents.&lt;agent&gt;]</code> in
@@ -4723,6 +4727,15 @@ these again when cookie has to start a new ACP session because the agent
 lost the one it had (or a fork or revert before its first reply starts
 over), and not when it resumes, loads, or forks one, since the agent
 remembers them there. Later prompts carry only the input.</p>
+<p>An agent that takes a system prompt (<code>sessionCapabilities.systemPrompt</code>;
+Claude Code and Codex do) gets these as one instead, appended to its own
+instructions when cookie opens its session, and the first prompt carries
+only your message, so an agent that names its session after its first
+message (Codex) names it after yours. Its system prompt is not part of its
+conversation, so cookie sends the same one again whenever it resumes or
+forks the agent's session. The transcript shows what was sent either way.
+An agent's title that only repeats the start of what cookie put ahead of
+your first message names nothing: the session keeps cookie's title.</p>
 <h2 id="forking-reverting-and-deleting-a-session">Forking, reverting, and deleting a session<a class="headerlink" href="#forking-reverting-and-deleting-a-session" title="Permanent link">&para;</a></h2>
 <p>The agent keeps its own conversation, so cookie keeps it in step when you
 change the session's:</p>
@@ -4864,7 +4877,10 @@ not in it.</p>
   TUI's command palette (<code>/</code> on an empty composer, or ctrl+p) lists them
   after cookie's own, marked <code>(agent)</code>; a command that takes input asks for
   it. In the web client, typing <code>/</code> in the composer lists them above it.
-  Choosing one sends <code>/&lt;name&gt; &lt;input&gt;</code> to the agent.</li>
+  Choosing one sends <code>/&lt;name&gt; &lt;input&gt;</code> to the agent. The agent's skills,
+  which Codex announces as commands named <code>$&lt;skill&gt;</code>, are listed only for
+  a search that starts with <code>$</code> (<code>$review</code> in the TUI's palette), and
+  choosing one sends the mention <code>$&lt;skill&gt; &lt;input&gt;</code>, as Codex takes it.</li>
 <li><strong>Model and effort.</strong> The agent's model option (category <code>model</code>) and
   its reasoning effort (category <code>thought_level</code>), when it offers them,
   read as the session's model and variant: <code>claude • Opus[High]</code> in the
@@ -4897,7 +4913,11 @@ not in it.</p>
   fast mode, is a switch in the web client and toggles from its row in
   <code>/options</code>. Choosing a value changes it on the agent at once (on a
   draft, when its session starts), and a mode the agent switches to by
-  itself (Claude Code leaving plan mode) shows at once too.</li>
+  itself (Claude Code leaving plan mode) shows at once too. The session
+  keeps its options, model and effort included: when cookie resumes or
+  forks the agent's session, after its process stopped while idle
+  (<code>[acp] idle_shutdown_ms</code>) or the daemon restarted, it sets back every
+  value the agent came back without (Codex resumes on its own defaults).</li>
 <li><strong>Context.</strong> The status line shows how much context the agent's
   conversation uses, as the agent reports it (<code>ctx</code> in the TUI, with the
   share of the agent's context window; the tokens in the web client).</li>
@@ -4912,7 +4932,12 @@ not in it.</p>
   sends them after the call started (Claude Code does); its status; its
   content as text, images, and links; edits as diffs; the files it touched
   as links; and its raw output when it sends no content. With Claude Code,
-  the call's tool name (<code>Read</code>, <code>Bash</code>) is the name it was called by.</li>
+  the call's tool name (<code>Read</code>, <code>Bash</code>) is the name it was called by. A
+  command the agent runs through a shell string (Codex reports
+  <code>/bin/bash -lc '&lt;command&gt;'</code>) shows as the command itself. Codex's
+  auto-review of one of its calls (its "Guardian Review") shows as one line
+  with its verdict and what it reviewed (<code>Auto-review: approved, low risk</code>
+  · <code>cat calc.py</code>), its reasoning as the line's output.</li>
 <li><strong>Images</strong> the agent puts in its reply show in the reply, as an image a
   model generates does; cookie keeps them with the session.</li>
 <li><strong>Command output.</strong> A command the agent runs shows its output as cookie's
@@ -4941,7 +4966,9 @@ not in it.</p>
   send meanwhile goes into it. It shows even after you stopped a run, since
   the agent is already working.</li>
 <li><strong>Commands left running.</strong> A command the agent leaves running when its
-  call ends (Claude Code's background commands) shows in the session's
+  call ends (Claude Code's background commands), or when its turn ends or
+  is stopped with the call still open (Codex keeps a command running after
+  a stop), shows in the session's
   background calls, marked "run by the agent", until it exits. Cookie keeps
   the agent's process and the session alive meanwhile, and an idle daemon
   restart waits for it. Only the agent can stop it: ask it to. When the
