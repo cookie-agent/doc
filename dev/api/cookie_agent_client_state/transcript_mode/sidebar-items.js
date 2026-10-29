@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TranscriptMode"],"fn":["needs_user","reply_start","thinking_step","work_summary","working_subtext"],"struct":["WorkSummary"]};
+window.SIDEBAR_ITEMS = {"enum":["ItemFold","TranscriptMode"],"fn":["needs_user","reply_start","thinking_step","work_summary","working_subtext"],"struct":["FoldPlan","WorkRow","WorkSummary"]};
