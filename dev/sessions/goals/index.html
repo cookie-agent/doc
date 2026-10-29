@@ -2013,6 +2013,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/deferred_tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deferred Tools [deferred_tools]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/approval/" class="md-nav__link">
         
   
@@ -2325,10 +2348,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_20" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_21" >
         
           
-          <label class="md-nav__link" for="__nav_9_20" id="__nav_9_20_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_21" id="__nav_9_21_label" tabindex="0">
             
   
   
@@ -2341,8 +2364,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_20_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_20">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_21">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -4073,8 +4096,9 @@
 
 <h1 id="goal-mode">Goal Mode<a class="headerlink" href="#goal-mode" title="Permanent link">&para;</a></h1>
 <p>Goal mode lets you give a root session a durable objective and a checklist the
-agent maintains while it works. It is activated explicitly: the engine never
-infers a goal from prompt content, and only root sessions can have one.</p>
+agent maintains while it works. You set one with <code>/goal</code>, or the agent sets
+one with <code>goal_set</code>, for example when you ask it in your own words to set a
+goal. Only root sessions can have one.</p>
 <p>The <a href="../../specs/goal-mode/">goal mode design spec</a> describes the runtime,
 plugin, and persistence contracts behind this workflow.</p>
 <h2 id="activation-and-goal-bar">Activation and goal bar<a class="headerlink" href="#activation-and-goal-bar" title="Permanent link">&para;</a></h2>
@@ -4094,21 +4118,25 @@ composer. Completed and cancelled goals keep a read-only bar and detail view;
 the bar is hidden when no goal exists. The producer queue strip is separate and
 appears above the goal bar and composer.</p>
 <p>Setting a new objective errors if a goal is already active or paused; cancel or
-complete the current goal first.</p>
+complete the current goal first. The same holds for the agent's <code>goal_set</code>.</p>
 <p>A goal moves through four lifecycle states: <code>active</code>, <code>paused</code>, <code>completed</code>,
-and <code>cancelled</code>. Completed and cancelled are terminal. Only you control the
-lifecycle: the agent can read and revise the checklist through its tools, but
-it cannot activate, pause, resume, or cancel a goal.</p>
+and <code>cancelled</code>. Completed and cancelled are terminal. The agent can start a
+goal when none is active or paused, and read and revise its checklist, but
+only you can pause, resume, or cancel one.</p>
 <h2 id="checklist-and-tools">Checklist and tools<a class="headerlink" href="#checklist-and-tools" title="Permanent link">&para;</a></h2>
-<p>While a goal is active or paused, the root run gains two extra tools, <code>goal_get</code> and
+<p>Every root run has three goal tools: <code>goal_get</code>, <code>goal_set</code>, and
 <code>goal_update</code>. They are <strong>root-only</strong>: delegated child sessions never see them,
 and there is no goal inheritance into subagents. They are also not a
-configurable capability; they cannot be granted to anything else. The tools
-appear or disappear at the next run start after a lifecycle change, never
-mid-run.</p>
-<p><code>goal_get</code> and <code>goal_update</code> declare no permission. Setting the goal is what
-makes them available, and they act on that goal alone, so permission rules do
-not govern them and every call is allowed.</p>
+configurable capability; they cannot be granted to anything else. On a model
+that loads <a href="../../reference/tools/#deferred-tools">deferred tools</a> they are
+deferred: the model sees their names and loads them when it needs them. An
+<a href="../../extend/acp-agents/">ACP agent's</a> root session has them only while your
+goal is active or paused when the run starts.</p>
+<p><code>goal_set { objective, items? }</code> starts a goal, with its first checklist when
+it gives one, as <code>/goal</code> does. A goal the agent started is continued and
+completed like yours.</p>
+<p>The goal tools declare no permission. They act on the session's own goal
+alone, so permission rules do not govern them and every call is allowed.</p>
 <p>Each checklist item contains only a description and a finished flag, with no
 item ID. <code>goal_update { items }</code> replaces the entire ordered checklist of the
 current/latest session goal when the engine actor accepts the update. The engine
