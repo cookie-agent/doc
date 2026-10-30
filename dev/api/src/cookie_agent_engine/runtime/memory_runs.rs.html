@@ -383,139 +383,144 @@
 <a href=#383 id=383 data-nosnippet>383</a>        policy: <span class="kw-2">&amp;</span>FrozenRunPolicy,
 <a href=#384 id=384 data-nosnippet>384</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
 <a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(session)<span class="question-mark">?</span>;
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>delegated = <span class="macro">matches!</span>(projection.meta.origin, SessionOrigin::Delegated { .. });
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>access = memory_access(
-<a href=#388 id=388 data-nosnippet>388</a>            <span class="self">self</span>.global_attached(session),
-<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw-2">&amp;</span>policy.agent,
-<a href=#390 id=390 data-nosnippet>390</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>projection.permission_overlay),
-<a href=#391 id=391 data-nosnippet>391</a>        );
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>machines = <span class="kw">if </span>access.available &amp;&amp; !delegated {
-<a href=#393 id=393 data-nosnippet>393</a>            <span class="self">self</span>.session_machines(session)
-<a href=#394 id=394 data-nosnippet>394</a>        } <span class="kw">else </span>{
-<a href=#395 id=395 data-nosnippet>395</a>            Vec::new()
-<a href=#396 id=396 data-nosnippet>396</a>        };
-<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>project = <span class="kw">if </span>access.available &amp;&amp; !delegated {
-<a href=#398 id=398 data-nosnippet>398</a>            <span class="kw">let </span>engine = <span class="self">self</span>.clone();
-<a href=#399 id=399 data-nosnippet>399</a>            tokio::task::spawn_blocking(<span class="kw">move </span>|| engine.session_project(session))
-<a href=#400 id=400 data-nosnippet>400</a>                .<span class="kw">await
-<a href=#401 id=401 data-nosnippet>401</a>                </span>.ok()
-<a href=#402 id=402 data-nosnippet>402</a>                .flatten()
-<a href=#403 id=403 data-nosnippet>403</a>                .map(|project| project.name)
-<a href=#404 id=404 data-nosnippet>404</a>        } <span class="kw">else </span>{
-<a href=#405 id=405 data-nosnippet>405</a>            <span class="prelude-val">None
-<a href=#406 id=406 data-nosnippet>406</a>        </span>};
-<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">let </span>facts = SnapshotFacts {
-<a href=#408 id=408 data-nosnippet>408</a>            access,
-<a href=#409 id=409 data-nosnippet>409</a>            agent: policy.agent.agent.clone(),
-<a href=#410 id=410 data-nosnippet>410</a>            delegated,
-<a href=#411 id=411 data-nosnippet>411</a>            machines: machines
-<a href=#412 id=412 data-nosnippet>412</a>                .iter()
-<a href=#413 id=413 data-nosnippet>413</a>                .map(|(machine, <span class="kw">_</span>)| machine.clone())
-<a href=#414 id=414 data-nosnippet>414</a>                .collect(),
-<a href=#415 id=415 data-nosnippet>415</a>            project,
-<a href=#416 id=416 data-nosnippet>416</a>            rules: memory_rules_fingerprint(<span class="kw-2">&amp;</span>policy.agent, <span class="kw-2">&amp;</span>projection.permission_overlay),
-<a href=#417 id=417 data-nosnippet>417</a>        };
-<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">let </span>events = projection.log.event_snapshot();
-<a href=#419 id=419 data-nosnippet>419</a>        <span class="kw">let </span>snapshot = <span class="kw">match </span>snapshot_change(latest_snapshot(<span class="kw-2">&amp;</span>events), <span class="kw-2">&amp;</span>facts) {
-<a href=#420 id=420 data-nosnippet>420</a>            SnapshotChange::Keep =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-<a href=#421 id=421 data-nosnippet>421</a>            SnapshotChange::Clear =&gt; MemorySnapshot::unavailable(),
-<a href=#422 id=422 data-nosnippet>422</a>            SnapshotChange::Take =&gt; {
-<a href=#423 id=423 data-nosnippet>423</a>                <span class="kw">let </span>caller = MemoryCaller {
-<a href=#424 id=424 data-nosnippet>424</a>                    agent: policy.agent.clone(),
-<a href=#425 id=425 data-nosnippet>425</a>                    overlay: projection.permission_overlay.clone(),
-<a href=#426 id=426 data-nosnippet>426</a>                    related: RelatedMemory::default(),
-<a href=#427 id=427 data-nosnippet>427</a>                };
-<a href=#428 id=428 data-nosnippet>428</a>                <span class="kw">let </span>request = SnapshotRequest {
-<a href=#429 id=429 data-nosnippet>429</a>                    agent: facts.agent,
-<a href=#430 id=430 data-nosnippet>430</a>                    delegated,
-<a href=#431 id=431 data-nosnippet>431</a>                    writable: access.writable,
-<a href=#432 id=432 data-nosnippet>432</a>                    machines,
-<a href=#433 id=433 data-nosnippet>433</a>                    project: facts.project,
-<a href=#434 id=434 data-nosnippet>434</a>                    limits: <span class="self">self</span>.memory_limits(),
-<a href=#435 id=435 data-nosnippet>435</a>                    now: jiff::Timestamp::now(),
-<a href=#436 id=436 data-nosnippet>436</a>                    read: ReadRules::new(<span class="kw">move </span>|url| caller.visibility(url)),
-<a href=#437 id=437 data-nosnippet>437</a>                    rules: <span class="prelude-val">Some</span>(facts.rules),
-<a href=#438 id=438 data-nosnippet>438</a>                };
-<a href=#439 id=439 data-nosnippet>439</a>                <span class="kw">let </span>root = <span class="self">self</span>.memory_root().clone();
-<a href=#440 id=440 data-nosnippet>440</a>                <span class="kw">let </span>now = request.now;
-<a href=#441 id=441 data-nosnippet>441</a>                <span class="kw">match </span>tokio::task::spawn_blocking(<span class="kw">move </span>|| {
-<a href=#442 id=442 data-nosnippet>442</a>                    <span class="kw">let </span>taken = root.snapshot(<span class="kw-2">&amp;</span>request)<span class="question-mark">?</span>;
-<a href=#443 id=443 data-nosnippet>443</a>                    root.record_reads(taken.shown.iter().map(|(url, <span class="kw">_</span>)| url), now);
-<a href=#444 id=444 data-nosnippet>444</a>                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, <span class="kw">crate</span>::memory::MemoryError&gt;(taken)
-<a href=#445 id=445 data-nosnippet>445</a>                })
-<a href=#446 id=446 data-nosnippet>446</a>                .<span class="kw">await
-<a href=#447 id=447 data-nosnippet>447</a>                </span>{
-<a href=#448 id=448 data-nosnippet>448</a>                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(taken)) =&gt; {
-<a href=#449 id=449 data-nosnippet>449</a>                        <span class="kw">for </span>(url, revision) <span class="kw">in </span>taken.shown {
-<a href=#450 id=450 data-nosnippet>450</a>                            <span class="self">self</span>.inner.memory_seen.saw(session, url, revision);
-<a href=#451 id=451 data-nosnippet>451</a>                        }
-<a href=#452 id=452 data-nosnippet>452</a>                        taken.snapshot
-<a href=#453 id=453 data-nosnippet>453</a>                    }
-<a href=#454 id=454 data-nosnippet>454</a>                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(error)) =&gt; {
-<a href=#455 id=455 data-nosnippet>455</a>                        <span class="macro">eprintln!</span>(<span class="string">"cookie-agent: memory snapshot of session {session}: {error}"</span>);
-<a href=#456 id=456 data-nosnippet>456</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#457 id=457 data-nosnippet>457</a>                    }
-<a href=#458 id=458 data-nosnippet>458</a>                    <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#459 id=459 data-nosnippet>459</a>                        <span class="macro">eprintln!</span>(<span class="string">"cookie-agent: memory snapshot of session {session}: {error}"</span>);
-<a href=#460 id=460 data-nosnippet>460</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#461 id=461 data-nosnippet>461</a>                    }
-<a href=#462 id=462 data-nosnippet>462</a>                }
-<a href=#463 id=463 data-nosnippet>463</a>            }
-<a href=#464 id=464 data-nosnippet>464</a>        };
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="self">self</span>.append(
-<a href=#466 id=466 data-nosnippet>466</a>            session,
-<a href=#467 id=467 data-nosnippet>467</a>            <span class="prelude-val">Some</span>(run),
-<a href=#468 id=468 data-nosnippet>468</a>            event_origin(<span class="string">"engine:memory"</span>),
-<a href=#469 id=469 data-nosnippet>469</a>            Event::MemoryLoaded { snapshot },
-<a href=#470 id=470 data-nosnippet>470</a>        )
-<a href=#471 id=471 data-nosnippet>471</a>        .<span class="kw">await
-<a href=#472 id=472 data-nosnippet>472</a>    </span>}
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>    <span class="doccomment">/// The run `run` as the memory tools see it. Blocking: it reads the
-<a href=#475 id=475 data-nosnippet>475</a>    /// session's project.
-<a href=#476 id=476 data-nosnippet>476</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>memory_caller(<span class="kw-2">&amp;</span><span class="self">self</span>, run: RunId) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryCaller, String&gt; {
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="kw">let </span>active = <span class="self">self
-<a href=#478 id=478 data-nosnippet>478</a>            </span>.inner
-<a href=#479 id=479 data-nosnippet>479</a>            .sessions
-<a href=#480 id=480 data-nosnippet>480</a>            .active
-<a href=#481 id=481 data-nosnippet>481</a>            .lock()
-<a href=#482 id=482 data-nosnippet>482</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#483 id=483 data-nosnippet>483</a>            .get(<span class="kw-2">&amp;</span>run)
-<a href=#484 id=484 data-nosnippet>484</a>            .cloned()
-<a href=#485 id=485 data-nosnippet>485</a>            .ok_or_else(|| <span class="string">"the calling run is not active"</span>.to_owned())<span class="question-mark">?</span>;
-<a href=#486 id=486 data-nosnippet>486</a>        <span class="kw">let </span>projection = <span class="self">self
-<a href=#487 id=487 data-nosnippet>487</a>            </span>.inner
-<a href=#488 id=488 data-nosnippet>488</a>            .store
-<a href=#489 id=489 data-nosnippet>489</a>            .get(active.session)
-<a href=#490 id=490 data-nosnippet>490</a>            .map_err(|error| error.to_string())<span class="question-mark">?</span>;
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>variables = <span class="self">self</span>.memory_variables(active.session);
-<a href=#492 id=492 data-nosnippet>492</a>        <span class="prelude-val">Ok</span>(MemoryCaller {
-<a href=#493 id=493 data-nosnippet>493</a>            agent: active.policy.agent.clone(),
-<a href=#494 id=494 data-nosnippet>494</a>            overlay: projection.permission_overlay.clone(),
-<a href=#495 id=495 data-nosnippet>495</a>            related: RelatedMemory {
-<a href=#496 id=496 data-nosnippet>496</a>                delegated: <span class="macro">matches!</span>(projection.meta.origin, SessionOrigin::Delegated { .. }),
-<a href=#497 id=497 data-nosnippet>497</a>                machines: variables
-<a href=#498 id=498 data-nosnippet>498</a>                    .machines
-<a href=#499 id=499 data-nosnippet>499</a>                    .iter()
-<a href=#500 id=500 data-nosnippet>500</a>                    .filter_map(|machine| MachineName::new(machine.as_str()).ok())
-<a href=#501 id=501 data-nosnippet>501</a>                    .collect(),
-<a href=#502 id=502 data-nosnippet>502</a>                project: variables.project,
-<a href=#503 id=503 data-nosnippet>503</a>            },
-<a href=#504 id=504 data-nosnippet>504</a>        })
-<a href=#505 id=505 data-nosnippet>505</a>    }
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a>    <span class="doccomment">/// Whether `agent` names an agent of the registry, so its memory file
-<a href=#508 id=508 data-nosnippet>508</a>    /// may be created.
-<a href=#509 id=509 data-nosnippet>509</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>agent_registered(<span class="kw-2">&amp;</span><span class="self">self</span>, agent: <span class="kw-2">&amp;</span>AgentId) -&gt; bool {
-<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
-<a href=#511 id=511 data-nosnippet>511</a>        runtime.agents.get(agent).is_some()
-<a href=#512 id=512 data-nosnippet>512</a>            || runtime
-<a href=#513 id=513 data-nosnippet>513</a>                .agent_presets
-<a href=#514 id=514 data-nosnippet>514</a>                .values()
-<a href=#515 id=515 data-nosnippet>515</a>                .any(|registry| registry.get(agent).is_some())
-<a href=#516 id=516 data-nosnippet>516</a>    }
-<a href=#517 id=517 data-nosnippet>517</a>}
-<a href=#518 id=518 data-nosnippet>518</a>
-<a href=#519 id=519 data-nosnippet>519</a><span class="attr">#[cfg(test)]
-<a href=#520 id=520 data-nosnippet>520</a></span><span class="kw">mod </span>tests;
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="comment">// An ACP agent's own subagent gets what its agent gives it, never a
+<a href=#387 id=387 data-nosnippet>387</a>        // snapshot of cookie's: none is recorded as though it had.
+<a href=#388 id=388 data-nosnippet>388</a>        </span><span class="kw">if </span><span class="kw">super</span>::acp::is_acp_subagent(<span class="kw-2">&amp;</span>projection.log.event_snapshot()) {
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#390 id=390 data-nosnippet>390</a>        }
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">let </span>delegated = <span class="macro">matches!</span>(projection.meta.origin, SessionOrigin::Delegated { .. });
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>access = memory_access(
+<a href=#393 id=393 data-nosnippet>393</a>            <span class="self">self</span>.global_attached(session),
+<a href=#394 id=394 data-nosnippet>394</a>            <span class="kw-2">&amp;</span>policy.agent,
+<a href=#395 id=395 data-nosnippet>395</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>projection.permission_overlay),
+<a href=#396 id=396 data-nosnippet>396</a>        );
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>machines = <span class="kw">if </span>access.available &amp;&amp; !delegated {
+<a href=#398 id=398 data-nosnippet>398</a>            <span class="self">self</span>.session_machines(session)
+<a href=#399 id=399 data-nosnippet>399</a>        } <span class="kw">else </span>{
+<a href=#400 id=400 data-nosnippet>400</a>            Vec::new()
+<a href=#401 id=401 data-nosnippet>401</a>        };
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>project = <span class="kw">if </span>access.available &amp;&amp; !delegated {
+<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">let </span>engine = <span class="self">self</span>.clone();
+<a href=#404 id=404 data-nosnippet>404</a>            tokio::task::spawn_blocking(<span class="kw">move </span>|| engine.session_project(session))
+<a href=#405 id=405 data-nosnippet>405</a>                .<span class="kw">await
+<a href=#406 id=406 data-nosnippet>406</a>                </span>.ok()
+<a href=#407 id=407 data-nosnippet>407</a>                .flatten()
+<a href=#408 id=408 data-nosnippet>408</a>                .map(|project| project.name)
+<a href=#409 id=409 data-nosnippet>409</a>        } <span class="kw">else </span>{
+<a href=#410 id=410 data-nosnippet>410</a>            <span class="prelude-val">None
+<a href=#411 id=411 data-nosnippet>411</a>        </span>};
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>facts = SnapshotFacts {
+<a href=#413 id=413 data-nosnippet>413</a>            access,
+<a href=#414 id=414 data-nosnippet>414</a>            agent: policy.agent.agent.clone(),
+<a href=#415 id=415 data-nosnippet>415</a>            delegated,
+<a href=#416 id=416 data-nosnippet>416</a>            machines: machines
+<a href=#417 id=417 data-nosnippet>417</a>                .iter()
+<a href=#418 id=418 data-nosnippet>418</a>                .map(|(machine, <span class="kw">_</span>)| machine.clone())
+<a href=#419 id=419 data-nosnippet>419</a>                .collect(),
+<a href=#420 id=420 data-nosnippet>420</a>            project,
+<a href=#421 id=421 data-nosnippet>421</a>            rules: memory_rules_fingerprint(<span class="kw-2">&amp;</span>policy.agent, <span class="kw-2">&amp;</span>projection.permission_overlay),
+<a href=#422 id=422 data-nosnippet>422</a>        };
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span>events = projection.log.event_snapshot();
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>snapshot = <span class="kw">match </span>snapshot_change(latest_snapshot(<span class="kw-2">&amp;</span>events), <span class="kw-2">&amp;</span>facts) {
+<a href=#425 id=425 data-nosnippet>425</a>            SnapshotChange::Keep =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
+<a href=#426 id=426 data-nosnippet>426</a>            SnapshotChange::Clear =&gt; MemorySnapshot::unavailable(),
+<a href=#427 id=427 data-nosnippet>427</a>            SnapshotChange::Take =&gt; {
+<a href=#428 id=428 data-nosnippet>428</a>                <span class="kw">let </span>caller = MemoryCaller {
+<a href=#429 id=429 data-nosnippet>429</a>                    agent: policy.agent.clone(),
+<a href=#430 id=430 data-nosnippet>430</a>                    overlay: projection.permission_overlay.clone(),
+<a href=#431 id=431 data-nosnippet>431</a>                    related: RelatedMemory::default(),
+<a href=#432 id=432 data-nosnippet>432</a>                };
+<a href=#433 id=433 data-nosnippet>433</a>                <span class="kw">let </span>request = SnapshotRequest {
+<a href=#434 id=434 data-nosnippet>434</a>                    agent: facts.agent,
+<a href=#435 id=435 data-nosnippet>435</a>                    delegated,
+<a href=#436 id=436 data-nosnippet>436</a>                    writable: access.writable,
+<a href=#437 id=437 data-nosnippet>437</a>                    machines,
+<a href=#438 id=438 data-nosnippet>438</a>                    project: facts.project,
+<a href=#439 id=439 data-nosnippet>439</a>                    limits: <span class="self">self</span>.memory_limits(),
+<a href=#440 id=440 data-nosnippet>440</a>                    now: jiff::Timestamp::now(),
+<a href=#441 id=441 data-nosnippet>441</a>                    read: ReadRules::new(<span class="kw">move </span>|url| caller.visibility(url)),
+<a href=#442 id=442 data-nosnippet>442</a>                    rules: <span class="prelude-val">Some</span>(facts.rules),
+<a href=#443 id=443 data-nosnippet>443</a>                };
+<a href=#444 id=444 data-nosnippet>444</a>                <span class="kw">let </span>root = <span class="self">self</span>.memory_root().clone();
+<a href=#445 id=445 data-nosnippet>445</a>                <span class="kw">let </span>now = request.now;
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">match </span>tokio::task::spawn_blocking(<span class="kw">move </span>|| {
+<a href=#447 id=447 data-nosnippet>447</a>                    <span class="kw">let </span>taken = root.snapshot(<span class="kw-2">&amp;</span>request)<span class="question-mark">?</span>;
+<a href=#448 id=448 data-nosnippet>448</a>                    root.record_reads(taken.shown.iter().map(|(url, <span class="kw">_</span>)| url), now);
+<a href=#449 id=449 data-nosnippet>449</a>                    <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, <span class="kw">crate</span>::memory::MemoryError&gt;(taken)
+<a href=#450 id=450 data-nosnippet>450</a>                })
+<a href=#451 id=451 data-nosnippet>451</a>                .<span class="kw">await
+<a href=#452 id=452 data-nosnippet>452</a>                </span>{
+<a href=#453 id=453 data-nosnippet>453</a>                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(taken)) =&gt; {
+<a href=#454 id=454 data-nosnippet>454</a>                        <span class="kw">for </span>(url, revision) <span class="kw">in </span>taken.shown {
+<a href=#455 id=455 data-nosnippet>455</a>                            <span class="self">self</span>.inner.memory_seen.saw(session, url, revision);
+<a href=#456 id=456 data-nosnippet>456</a>                        }
+<a href=#457 id=457 data-nosnippet>457</a>                        taken.snapshot
+<a href=#458 id=458 data-nosnippet>458</a>                    }
+<a href=#459 id=459 data-nosnippet>459</a>                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(error)) =&gt; {
+<a href=#460 id=460 data-nosnippet>460</a>                        <span class="macro">eprintln!</span>(<span class="string">"cookie-agent: memory snapshot of session {session}: {error}"</span>);
+<a href=#461 id=461 data-nosnippet>461</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#462 id=462 data-nosnippet>462</a>                    }
+<a href=#463 id=463 data-nosnippet>463</a>                    <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#464 id=464 data-nosnippet>464</a>                        <span class="macro">eprintln!</span>(<span class="string">"cookie-agent: memory snapshot of session {session}: {error}"</span>);
+<a href=#465 id=465 data-nosnippet>465</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#466 id=466 data-nosnippet>466</a>                    }
+<a href=#467 id=467 data-nosnippet>467</a>                }
+<a href=#468 id=468 data-nosnippet>468</a>            }
+<a href=#469 id=469 data-nosnippet>469</a>        };
+<a href=#470 id=470 data-nosnippet>470</a>        <span class="self">self</span>.append(
+<a href=#471 id=471 data-nosnippet>471</a>            session,
+<a href=#472 id=472 data-nosnippet>472</a>            <span class="prelude-val">Some</span>(run),
+<a href=#473 id=473 data-nosnippet>473</a>            event_origin(<span class="string">"engine:memory"</span>),
+<a href=#474 id=474 data-nosnippet>474</a>            Event::MemoryLoaded { snapshot },
+<a href=#475 id=475 data-nosnippet>475</a>        )
+<a href=#476 id=476 data-nosnippet>476</a>        .<span class="kw">await
+<a href=#477 id=477 data-nosnippet>477</a>    </span>}
+<a href=#478 id=478 data-nosnippet>478</a>
+<a href=#479 id=479 data-nosnippet>479</a>    <span class="doccomment">/// The run `run` as the memory tools see it. Blocking: it reads the
+<a href=#480 id=480 data-nosnippet>480</a>    /// session's project.
+<a href=#481 id=481 data-nosnippet>481</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>memory_caller(<span class="kw-2">&amp;</span><span class="self">self</span>, run: RunId) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryCaller, String&gt; {
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>active = <span class="self">self
+<a href=#483 id=483 data-nosnippet>483</a>            </span>.inner
+<a href=#484 id=484 data-nosnippet>484</a>            .sessions
+<a href=#485 id=485 data-nosnippet>485</a>            .active
+<a href=#486 id=486 data-nosnippet>486</a>            .lock()
+<a href=#487 id=487 data-nosnippet>487</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#488 id=488 data-nosnippet>488</a>            .get(<span class="kw-2">&amp;</span>run)
+<a href=#489 id=489 data-nosnippet>489</a>            .cloned()
+<a href=#490 id=490 data-nosnippet>490</a>            .ok_or_else(|| <span class="string">"the calling run is not active"</span>.to_owned())<span class="question-mark">?</span>;
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>projection = <span class="self">self
+<a href=#492 id=492 data-nosnippet>492</a>            </span>.inner
+<a href=#493 id=493 data-nosnippet>493</a>            .store
+<a href=#494 id=494 data-nosnippet>494</a>            .get(active.session)
+<a href=#495 id=495 data-nosnippet>495</a>            .map_err(|error| error.to_string())<span class="question-mark">?</span>;
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="kw">let </span>variables = <span class="self">self</span>.memory_variables(active.session);
+<a href=#497 id=497 data-nosnippet>497</a>        <span class="prelude-val">Ok</span>(MemoryCaller {
+<a href=#498 id=498 data-nosnippet>498</a>            agent: active.policy.agent.clone(),
+<a href=#499 id=499 data-nosnippet>499</a>            overlay: projection.permission_overlay.clone(),
+<a href=#500 id=500 data-nosnippet>500</a>            related: RelatedMemory {
+<a href=#501 id=501 data-nosnippet>501</a>                delegated: <span class="macro">matches!</span>(projection.meta.origin, SessionOrigin::Delegated { .. }),
+<a href=#502 id=502 data-nosnippet>502</a>                machines: variables
+<a href=#503 id=503 data-nosnippet>503</a>                    .machines
+<a href=#504 id=504 data-nosnippet>504</a>                    .iter()
+<a href=#505 id=505 data-nosnippet>505</a>                    .filter_map(|machine| MachineName::new(machine.as_str()).ok())
+<a href=#506 id=506 data-nosnippet>506</a>                    .collect(),
+<a href=#507 id=507 data-nosnippet>507</a>                project: variables.project,
+<a href=#508 id=508 data-nosnippet>508</a>            },
+<a href=#509 id=509 data-nosnippet>509</a>        })
+<a href=#510 id=510 data-nosnippet>510</a>    }
+<a href=#511 id=511 data-nosnippet>511</a>
+<a href=#512 id=512 data-nosnippet>512</a>    <span class="doccomment">/// Whether `agent` names an agent of the registry, so its memory file
+<a href=#513 id=513 data-nosnippet>513</a>    /// may be created.
+<a href=#514 id=514 data-nosnippet>514</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>agent_registered(<span class="kw-2">&amp;</span><span class="self">self</span>, agent: <span class="kw-2">&amp;</span>AgentId) -&gt; bool {
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="kw">let </span>runtime = <span class="self">self</span>.current_runtime();
+<a href=#516 id=516 data-nosnippet>516</a>        runtime.agents.get(agent).is_some()
+<a href=#517 id=517 data-nosnippet>517</a>            || runtime
+<a href=#518 id=518 data-nosnippet>518</a>                .agent_presets
+<a href=#519 id=519 data-nosnippet>519</a>                .values()
+<a href=#520 id=520 data-nosnippet>520</a>                .any(|registry| registry.get(agent).is_some())
+<a href=#521 id=521 data-nosnippet>521</a>    }
+<a href=#522 id=522 data-nosnippet>522</a>}
+<a href=#523 id=523 data-nosnippet>523</a>
+<a href=#524 id=524 data-nosnippet>524</a><span class="attr">#[cfg(test)]
+<a href=#525 id=525 data-nosnippet>525</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
