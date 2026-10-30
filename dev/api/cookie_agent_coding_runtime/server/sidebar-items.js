@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["default_transfer_journal","expand_home","in_process_connector","in_process_connector_with","in_process_connector_with_options","serve","serve_stdio"],"struct":["ServeOptions"]};
+window.SIDEBAR_ITEMS = {"fn":["default_transfer_journal","expand_home","in_process_connector","in_process_connector_with","in_process_connector_with_options","pin_executable","serve","serve_stdio"],"struct":["ServeOptions"]};

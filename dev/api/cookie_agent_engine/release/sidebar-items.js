@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["GIT_HASH","RELEASE_TAG","TARGET"],"enum":["Channel"],"fn":["channel","channel_of","long_version","version"],"struct":["ReleaseVersion"]};
