@@ -5006,8 +5006,8 @@ phones and browsers on two occasions:</p>
 <li><strong>Not armed</strong> by <code>cancelled</code> (someone stopped it, so someone is there) or
   <code>interrupted</code> (the daemon went down; the restart says nothing).</li>
 <li><strong>Disarmed</strong> when a run starts, when user input is admitted, when the
-  notification is sent (or suppressed, section 8), and when the session is
-  deleted.</li>
+  check after the run's end (section 3.3) is done, whether it notified
+  (or suppressed, section 8) or not, and when the session is deleted.</li>
 </ul>
 <p>A restart forgets every armed flag. Nothing is written to the session log;
 session history is unchanged.</p>
@@ -5040,11 +5040,15 @@ here and in every subagent below the root. So:</p>
 <td><code>background_call</code></td>
 </tr>
 <tr>
-<td>an ACP agent's own command still running after its call ended, or one that ended between runs less than 5 s ago (its wake grace: the agent's follow-up, such as Claude Code's, starts within it; a run starting ends it)</td>
+<td>an ACP agent's own command still running after its call ended</td>
 <td><code>background_call</code></td>
 </tr>
 <tr>
 <td>a subagent turn running, a background delegation queued or running, or a child that can still wake</td>
+<td><code>subagent</code></td>
+</tr>
+<tr>
+<td>a subagent of an ACP agent's own that its agent says works (<code>subagent_update</code> state <code>running</code> or <code>requires_action</code>), until its run of that work ends: its run can start seconds after the parent's turn ended (push only; <code>waiting_on</code> unchanged)</td>
 <td><code>subagent</code></td>
 </tr>
 <tr>
@@ -5076,15 +5080,19 @@ one-time job is aimed at <code>session</code>.</p>
 <ul>
 <li>after a run's <code>RunFinished</code> is committed <strong>and</strong> the actor has decided
   whether queued input or producer messages start the next run at once, so
-  a queued message never yields a notification for the turn before it;</li>
-<li>whenever <code>refresh_live_waiting</code> changes the root's <code>wakes_once</code>, so a
-  turn that ended while a subagent or external producer was still live
-  notifies when that producer goes away without sending (a producer that
-  does send starts a run, which disarms and re-arms the session);</li>
-<li>when a one-time job aimed at the session, or below it, is deleted,
-  disabled, or becomes recurring through <code>crons.update</code>.</li>
+  a queued message never yields a notification for the turn before it;
+That is the only check (user decision of 2026-10-30, replacing checks on
+every change of the root's <code>wakes_once</code>, and a 5 s wake grace after an ACP
+agent's command ended between runs). A turn that ends while anything but
+recurring jobs can still wake the session is never pushed: not when that
+producer goes away without sending, nor when a one-time job is deleted,
+disabled, or becomes recurring. A producer that does send starts a run,
+whose end is checked in turn, so the turn it wakes is pushed when it
+settles. Claude Code can take seconds to follow up on a command it ran in
+the background, and may not follow up at all; neither pushes the turn that
+left the command running.</li>
 </ul>
-<p>When the rule holds the engine disarms the session and publishes a
+<p>The check disarms the session; when the rule holds it also publishes a
 <code>SessionSettled</code> signal (section 5).</p>
 <h3 id="34-examples">3.4 Examples<a class="headerlink" href="#34-examples" title="Permanent link">&para;</a></h3>
 <ul>
@@ -5094,7 +5102,13 @@ one-time job is aimed at <code>session</code>.</p>
   with nothing waiting: <strong>notify once</strong>, for the final turn.</li>
 <li>The root ends its turn with a job <code>in 2h</code> aimed at it: no push. Two
   hours later the fire runs a turn; it ends with nothing waiting:
-  <strong>notify</strong>.</li>
+  <strong>notify</strong>. Had the user deleted the job instead: <strong>no push</strong>.</li>
+<li>An ACP agent ends its turn with a command running in the background: no
+  push, also once the command exits. When the agent follows up on its
+  own, that turn ends with nothing waiting: <strong>notify</strong>, for it.</li>
+<li>An ACP agent ends its turn waiting for subagents of its own: no push,
+  also once they finish. The turn in which it reads their results ends
+  with nothing waiting: <strong>notify</strong>, for it.</li>
 <li>The root ends its turn and has a nightly job with <code>max_runs =
   "unlimited"</code>: <strong>notify</strong> now, and after each nightly run that settles.
   A <code>cron</code> job with <code>max_runs = 3</code> behaves the same, its last run

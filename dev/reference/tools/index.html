@@ -6266,8 +6266,8 @@ previews), the model's output holds everything and <code>full</code> is absent.<
 The URL must start with a lowercase
 <code>http://</code> or <code>https://</code> prefix; any other scheme is rejected with <code>invalid_url</code>
 before a request is sent. One permission check uses the initial URL including
-its query string. Without a matching rule the call is denied. Explicit <code>ask</code>
-rules still use the normal approval flow.</p>
+its query string. Without a matching rule the call asks, through the normal
+approval flow.</p>
 <p>Output starts with four header lines (<code>final_url</code>, <code>status_code</code>, <code>content_type</code>,
 and <code>truncated</code>), followed by a blank line and the text body verbatim. Body
 newlines are physical newlines, not JSON escapes. Structured <code>url</code>, <code>final_url</code>,
@@ -7641,7 +7641,7 @@ tools run one at a time.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>Search memory: notes saved in earlier sessions about the user, agents, machines, and projects. Terms are matched case-insensitively against each memory's keywords, description, and URL segments (user, agent, machine, or project, then the names after it), never its body; results are ranked by keyword hits first. Each result shows a memory's URL and description, whether it is related to this session, whether you may change it, and its age, then its keywords; a result you need approval to read shows only its first two lines. `layer` narrows the search to `user`, `agent`, `machine`, or `project` memories.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>memory</code>. <code>memory_search</code> needs no rule of its own: each result is checked against the <code>memory</code> rules for its URL instead.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>memory</code> hides them (what no rule matches asks). <code>memory_search</code> needs no rule of its own: each result is checked against the <code>memory</code> rules for its URL instead.</p>
 <table>
 <thead>
 <tr>
@@ -7736,7 +7736,7 @@ tools run one at a time.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>Read one memory by its URL (user://&lt;category&gt;, agent://&lt;agent&gt;, machine://&lt;machine&gt;/&lt;name&gt;, or project://&lt;project&gt;/&lt;name&gt;). Returns whether it is related to this session and whether you may change it, when it was created and modified, its size and its size limit, its description and keywords, and then its body as numbered lines, `N: text`, counting from 1. `offset` is the 1-based body line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last body line is an error. The line numbers are not part of the memory.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>memory</code>. <code>memory_search</code> needs no rule of its own: each result is checked against the <code>memory</code> rules for its URL instead.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>memory</code> hides them (what no rule matches asks). <code>memory_search</code> needs no rule of its own: each result is checked against the <code>memory</code> rules for its URL instead.</p>
 <table>
 <thead>
 <tr>
@@ -7814,7 +7814,7 @@ tools run one at a time.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>Create or replace one memory, following the memory instructions in the system prompt. To replace a memory, read it first. A new memory like one that exists is refused with the near ones listed: edit one of those instead, or, if it is new, write it again with `new: true` and a one-line `reason`. Give each memory a one-line description that states its fact (agent:// memories and project overviews keep the daemon's: leave it out there) and the keywords a later search would use. A project:// memory needs a project that exists.
 </code></pre></div>
-<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable (an <code>allow</code> or <code>ask</code> <code>memory</code> rule matches it) and writable (an <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, by default.</p>
+<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable and writable (an <code>allow</code> or <code>ask</code> rule matches it, or no rule does, which asks). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, without asking by default.</p>
 <table>
 <thead>
 <tr>
@@ -7929,7 +7929,7 @@ tools run one at a time.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>Replace the one occurrence of `oldString` in a memory's body with `newString`, following the memory instructions in the system prompt. `oldString` is matched exactly against the body only, never the description or keywords, and must occur exactly once: when it occurs zero or several times the edit fails before it is approved and changes nothing, so include more surrounding text to make it unique. There is no replace-all. The line numbers memory_read shows are not part of the body.
 </code></pre></div>
-<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable (an <code>allow</code> or <code>ask</code> <code>memory</code> rule matches it) and writable (an <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, by default.</p>
+<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable and writable (an <code>allow</code> or <code>ask</code> rule matches it, or no rule does, which asks). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, without asking by default.</p>
 <table>
 <thead>
 <tr>
@@ -7999,7 +7999,7 @@ tools run one at a time.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>Delete one memory. Nothing is kept: the deletion is final.
 </code></pre></div>
-<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable (an <code>allow</code> or <code>ask</code> <code>memory</code> rule matches it) and writable (an <code>allow</code> or <code>ask</code> <code>memory_write</code> rule matches it). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, by default.</p>
+<p>Only when <code>memory_read</code> is sent too and some memory URL is both readable and writable (an <code>allow</code> or <code>ask</code> rule matches it, or no rule does, which asks). A delegated run whose agent document has no memory keys gets its own agent's memory, <code>agent://&lt;agent&gt;</code>, without asking by default.</p>
 <table>
 <thead>
 <tr>
@@ -8113,7 +8113,7 @@ on every save, as the memory editors show it.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>List the daemon's machines and runtimes, as they are now: each runtime's capabilities, whether it is connected or starts when used, its home directory, the ACP agents it offers (external agents such as Claude Code), and this session's own attachments on it. Name a runtime capability from here, as `&lt;runtime id&gt;/&lt;capability name&gt;`, in attach_machine to work on it in this session, or in delegate_subagent's `capabilities` to start a subagent there. A runtime that connects later shows up on the next call.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>list_runtimes</code>, which <code>primary</code> and <code>all</code> agents have by default.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>list_runtimes</code> hides it. <code>primary</code> and <code>all</code> agents are allowed it by default; any other agent asks.</p>
 <details class="note">
 <summary>Parameters JSON Schema</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="p">{</span>
@@ -8212,7 +8212,7 @@ line. After the agents comes the defaults section, once: what the defaults
 are for a root run and for a subagent (as the listed agents need them),
 which ones only some modes get, and what <code>${session_machine}</code>,
 <code>${session_project}</code>, and <code>${workspace_dir}</code> stand for. The result ends
-with <code>Actions not listed are denied.</code> (<a href="../../specs/cron/">cron spec</a>
+with <code>Whatever no rule matches asks.</code> (<a href="../../specs/cron/">cron spec</a>
 section 8.1).</p>
 <h2 id="machine-tools">Machine tools<a class="headerlink" href="#machine-tools" title="Permanent link">&para;</a></h2>
 <p>A session without a project starts on the <code>global</code> runtime alone and reaches
@@ -8229,7 +8229,7 @@ are <code>global</code> tools of the <code>machines</code> group, sent up front.
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>Attach a machine to this session: one runtime capability from list_runtimes, written `&lt;runtime id&gt;/&lt;capability name&gt;` (e.g. `labpc/coding`), at `workspace` when the capability takes one. Its tools join this session at once, and the result says where they run: the machine, its home, the workspace, and the workspace's AGENTS.md. A machine offers each tool once: a second directory on a machine already attached is reached by absolute path, or by detaching the first.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>attach</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it. Each call is checked as <code>attach@&lt;runtime&gt;</code>, with the workspace as resource.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>attach</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks. Each call is checked as <code>attach@&lt;runtime&gt;</code>, with the workspace as resource.</p>
 <table>
 <thead>
 <tr>
@@ -8299,7 +8299,7 @@ another attachment on the same machine is refused, naming both (see
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a>Detach a machine's runtime capability from this session, written `&lt;runtime id&gt;/&lt;capability name&gt;` as attach_machine took it. Its tools leave the session; refused while one of its background calls still runs.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>attach</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it. Each call is checked as <code>attach@&lt;runtime&gt;</code>, with the workspace as resource.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>attach</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks. Each call is checked as <code>attach@&lt;runtime&gt;</code>, with the workspace as resource.</p>
 <table>
 <thead>
 <tr>
@@ -8350,7 +8350,7 @@ on the attachment.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a>Copy a file or folder to a machine of this session: from another of its machines, or from an artifact of this session, such as a file the user sent, whose label names it (`[file report.zip, 3.2 MB, artifact 5f2c81d0]`). `from` is `{"machine": "labpc", "path": "~/data"}` or `{"artifact": "5f2c81d0"}` (with `stream` for one stream of retained tool output); `to` is `{"machine": "laptop", "path": "~/Downloads/data"}`, the path the copy will have, not a folder to put it in. Machines are named as the machines block and list_runtimes name them; a relative path resolves against that machine's working directory, and `~` against its home. A folder is copied with everything below it. An existing destination is an error unless `overwrite` is true, which replaces a file or merges into a folder. The daemon relays the bytes, so the machines need not reach each other. The source is checked as `read` on its machine and the destination as `write` on its own. The result gives the bytes and files copied and, for a file, its SHA-256.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime and a machine whose runtime takes transfers (runtime protocol 1.13.0) attached, and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>write</code>. The source is checked as <code>read@&lt;its runtime&gt;</code> on its path and the destination as <code>write@&lt;its runtime&gt;</code> on its own; an artifact source needs no rule. Both machines must be attached to the session.</p>
+<p>Only when the session has the <code>global</code> runtime and a machine whose runtime takes transfers (runtime protocol 1.13.0) attached, and no <code>"*": deny</code> for <code>write</code> hides it. The source is checked as <code>read@&lt;its runtime&gt;</code> on its path and the destination as <code>write@&lt;its runtime&gt;</code> on its own; an artifact source needs no rule. Both machines must be attached to the session.</p>
 <table>
 <thead>
 <tr>
@@ -8494,7 +8494,7 @@ Agents never set a job's permission mode or pin its model.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a>Schedule a prompt: once after a delay ({"in": "20m"}) or on a five-field cron schedule ({"cron": "0 3 * * *"}). `target`: "self" (the default) fires into this session; a subagent's handle (e.g. "explore_1a2b3c4d") fires into that subagent's session, which must be below this one; {"new": {...}} starts a new root session per fire, whose agent, runtimes, and project default to this session's. A new session's agent must be able to run as a root (call list_agents with for="cron"). `delivery` (in-session jobs): "queue" (default) waits for the current turn, "steer" joins it. Schedules are in the daemon host's local time. Each fire arrives marked as a &lt;scheduled_job&gt;, never as the user, and is not user consent. Prefer cron_update on an existing job to creating a near duplicate. max_runs defaults to 1, so a job fires once unless told otherwise; 0 runs until the job is deleted or disabled.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>cron</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>cron</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks.</p>
 <table>
 <thead>
 <tr>
@@ -8747,7 +8747,7 @@ Agents never set a job's permission mode or pin its model.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a>Change a cron job: any member of cron_create, and `enabled` to disable or re-enable it (enabling resets its failure count). A new schedule or target computes the next fire from now. Schedules are in the daemon host's local time. Each fire arrives marked as a &lt;scheduled_job&gt;, never as the user, and is not user consent. Prefer cron_update on an existing job to creating a near duplicate. max_runs defaults to 1, so a job fires once unless told otherwise; 0 runs until the job is deleted or disabled.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>cron</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>cron</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks.</p>
 <table>
 <thead>
 <tr>
@@ -8969,7 +8969,7 @@ Agents never set a job's permission mode or pin its model.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>Delete a cron job. Sessions its fires started stay.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>cron</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>cron</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks.</p>
 <table>
 <thead>
 <tr>
@@ -9015,7 +9015,7 @@ Agents never set a job's permission mode or pin its model.</p>
 <p>Description sent to the model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a>Run a cron job now. An in-session job fires into its session as a scheduled fire would. A new-session job runs as your subagent with the job's agent, rules, and runtimes and the prompt as its first input: in the foreground (default) the call waits for its first turn and returns the result; in the background it returns the subagent's handle at once and its turns arrive as &lt;subagent_report&gt;s. A run now counts toward neither max_runs nor the failure count.
 </code></pre></div>
-<p>Only when the session has the <code>global</code> runtime attached and the agent or the session overlay has an <code>allow</code> or <code>ask</code> rule for <code>cron</code>, which a root run of any agent but an internal one has by default; a delegated run has none unless its agent document grants it.</p>
+<p>Only when the session has the <code>global</code> runtime attached and no <code>"*": deny</code> for <code>cron</code> hides them. A root run of any agent but an internal one is allowed them by default; a delegated run asks.</p>
 <table>
 <thead>
 <tr>
