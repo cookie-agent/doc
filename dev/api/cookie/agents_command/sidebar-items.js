@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["COMPACTION_BODY"],"enum":["AgentsCommand"],"fn":["agents_with","check","index_problems","run_agents","run_check"]};
+window.SIDEBAR_ITEMS = {"enum":["AgentsCommand"],"fn":["agents_with","check","index_problems","run_agents","run_check"]};
