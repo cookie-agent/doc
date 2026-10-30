@@ -3963,6 +3963,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-30-the-bridge-announces-a-changed-tool-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-30): the bridge announces a changed tool list
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4419,6 +4428,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-30-the-bridge-announces-a-changed-tool-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-30): the bridge announces a changed tool list
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4751,6 +4769,10 @@ no <code>acp</code> action)</em>:</p>
   flow.</li>
 <li>Calls through the bridge appear in the session as calls of the ACP agent,
   linked to its turn.</li>
+<li><strong>A changed list is announced</strong> <em>(added 2026-10-30, see the addendum
+  below)</em>: the server advertises <code>tools.listChanged</code> and sends
+  <code>notifications/tools/list_changed</code> to a connection whose last fetched
+  list differs from the session's.</li>
 <li>The bridge needs <code>cookie</code> on the runtime's machine, which a runtime always
   has: it is <code>cookie runtime</code>.</li>
 </ul>
@@ -4915,7 +4937,10 @@ types).</p>
   A bridged call runs inside the agent's turn as a cookie tool call of the
   run (the runner commits the turn so far with the call in it), through
   preparation, the rules, approvals, and execution; outside a turn it is
-  refused. The agent usually reports the same call as its own tool call
+  refused. Its output is declared and captured as a model's call's is
+  <em>(fixed 2026-10-30: it ran as nested skill dispatch, which takes single
+  output only, so a streaming tool such as <code>bash</code> failed with "direct skill
+  dispatch requires terminal single output")</em>. The agent usually reports the same call as its own tool call
   too. On Windows the pipe has a random name and refuses remote clients but
   keeps the default security descriptor, not one limited to the user.</li>
 <li><strong>ACP client.</strong> Hand-written JSON-RPC types over the protocol crate's peer
@@ -5873,6 +5898,66 @@ between two templates starting a new ACP session, and a changed
   <code>a_turn_records_the_tools_the_bridge_offers_for_the_clients</code>, the config
   test <code>an_acp_document_names_the_declaration_it_runs</code>, and the client
   note and summary tests.</li>
+</ul>
+<h2 id="addendum-2026-10-30-the-bridge-announces-a-changed-tool-list">Addendum (2026-10-30): the bridge announces a changed tool list<a class="headerlink" href="#addendum-2026-10-30-the-bridge-announces-a-changed-tool-list" title="Permanent link">&para;</a></h2>
+<p>The session's tools change mid-session: <code>attach_machine</code> and
+<code>detach_machine</code> from the agent's own turn, a client attaching or detaching
+a runtime, an attached runtime's MCP server connecting or changing its
+tools, rule and plugin changes. An agent kept the list it fetched first, so
+after <code>attach_machine</code> it was told of tools it could not call.</p>
+<ul>
+<li><code>initialize</code> answers <code>capabilities: {"tools": {"listChanged": true}}</code>.</li>
+<li>The daemon keeps each bridge's open connections (the runtime connection,
+  and a fingerprint of the names, descriptions, and input schemas of the
+  list the connection last got from <code>tools/list</code>), forgotten on
+  <code>agent/mcp_closed</code> and with the bridge.</li>
+<li>At each check point it computes the list as <code>tools/list</code> would and sends
+  <code>{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}</code> on each
+  connection whose fingerprint differs, once until that connection fetches
+  the list again. Whole lists are compared; no cause is hooked.</li>
+<li>Check points: after each bridged <code>tools/call</code>, before its result is sent,
+  so the agent can fetch the new list before its next step; at the start of
+  each ACP turn, before the prompt; after a client's <code>attach_runtime</code> or
+  <code>detach_runtime</code>. A subagent's calls go over its parent's bridge, so the
+  parent's list is the one checked.</li>
+<li>No protocol change: the runtime already writes every <code>agent/mcp</code> from
+  the daemon to the connection it names.</li>
+</ul>
+<p><strong>Live check of the agents</strong> (2026-10-30, cheap models: <code>haiku</code>, and
+<code>gpt-6-luna</code>), with a stdio MCP fixture that advertises <code>listChanged</code>,
+serves one tool, and on the first call adds a second and sends the
+notification before the call's result. Each agent ran through the ACP
+adapter cookie launches (<code>npx @agentclientprotocol/claude-agent-acp</code>
+0.99.1, <code>npx @agentclientprotocol/codex-acp</code> 2.5.0):</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Refetches <code>tools/list</code> on the notification</th>
+<th>Second tool usable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code 2.1.312 (the adapter's bundled SDK binary) and 2.1.311 (<code>CLAUDE_CODE_EXECUTABLE</code>)</td>
+<td>yes, within milliseconds</td>
+<td>in the same turn (found through its <code>ToolSearch</code>, then called)</td>
+</tr>
+<tr>
+<td>Codex 0.165.0 (codex-acp's bundled <code>@openai/codex</code>) and 0.166.0 (<code>CODEX_PATH</code>)</td>
+<td>no, never during the session</td>
+<td>only in a new session, whose MCP server starts fresh</td>
+</tr>
+</tbody>
+</table>
+<p>What cookie does for agents that ignore the notification is open.</p>
+<p><strong>Implementation notes:</strong></p>
+<ul>
+<li><code>acp::mcp::Bridge</code> (the binding and its connections) is the value of
+  <code>Processes::bridges</code>; <code>announce_tool_changes(session)</code> is the check.</li>
+<li>Test: <code>the_bridge_tells_the_agent_once_when_its_tool_list_changes</code>
+  (<code>crates/engine/src/runtime/tests/acp.rs</code>), with the fixture agent's
+  <code>mcp notices</code>.</li>
 </ul>
 
 
