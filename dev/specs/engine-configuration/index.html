@@ -4853,6 +4853,21 @@ above:</p>
   <code>daemon.restarting</code> carry the count as <code>background_calls</code>. ACP agents'
   own background shells are not cookie background calls and stay
   invisible to the wait.</li>
+<li><strong>Runs start while it waits (2026-10-29).</strong> Refusing every new run while
+  an <code>idle</code> restart waited blocked the user from sending anything until the
+  last turn ended. Now runs start as usual while it waits (client starts,
+  queued input, producer wakes, cron fires, <code>crons.run</code>), the restart waits
+  for them too, and only a run asked for once it is due is refused with
+  <code>daemon_restarting</code>. A start counts itself and the restart decides it is
+  due under one lock, so a start is either waited for or refused. A run's
+  task holds the restart from its start until it has started its session's
+  queued input, and a producer wake from scheduling until its run starts, so
+  the restart does not fall between a run and the one it leads to. Once
+  due, the cron scheduler stops and leaves due fires unclaimed; the
+  restarted daemon runs them within <code>[cron] missed_grace</code> (cron spec
+  section 16). The skip reason <code>daemon_restarting</code> is no longer recorded.
+  No protocol change: the wire is the same and only when the error comes
+  differs.</li>
 <li><strong><code>scheduled</code></strong> is <code>false</code> when a restart was already scheduled and the
   call only changed its <code>when</code>.</li>
 <li><strong><code>daemon.restarting</code></strong> goes to every connection, a new one included,

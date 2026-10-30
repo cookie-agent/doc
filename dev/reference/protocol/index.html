@@ -6086,11 +6086,14 @@ upgraded on disk. Any client holding the token may call it.</p>
   session and no background call is pending: since 1.35.0 a call still
   running in the background, or one whose result is not yet committed,
   holds the restart too, since the shutdown would end it without a
-  report. Meanwhile a new run (<code>run.start</code>, <code>session.submit_input</code> on an
-  idle session, a producer's wake) is refused with <code>daemon_restarting</code>,
-  queued input and producers' messages wait, and a cron fire is recorded as
-  skipped with the reason <code>daemon_restarting</code>. A run's delegated children
-  still start, as part of the turn being waited for.</li>
+  report. Meanwhile runs start as usual (<code>run.start</code>,
+  <code>session.submit_input</code>, queued input, a producer's wake, a cron fire,
+  <code>crons.run</code>), and the restart waits for them too. Only once it is due is
+  a new run refused with <code>daemon_restarting</code>; queued input and producers'
+  messages then wait for the restarted daemon, and a cron fire due then is
+  left unclaimed for it (<code>[cron] missed_grace</code>). Daemons before 2026-10-29
+  refused every new run while waiting and recorded cron fires as skipped
+  with the reason <code>daemon_restarting</code>, which histories may still hold.</li>
 <li><strong><code>when: "now"</code></strong> interrupts the running turns as a stop does; they end
   as cancelled and the restarted daemon closes out anything left. Background
   calls end without a report.</li>

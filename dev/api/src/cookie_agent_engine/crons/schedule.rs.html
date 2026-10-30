@@ -278,38 +278,61 @@
 <a href=#278 id=278 data-nosnippet>278</a>        }
 <a href=#279 id=279 data-nosnippet>279</a>        count
 <a href=#280 id=280 data-nosnippet>280</a>    }
-<a href=#281 id=281 data-nosnippet>281</a>}
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a><span class="doccomment">/// Parses a one-shot delay: a whole number with `s`, `m`, `h`, or `d`, from
-<a href=#284 id=284 data-nosnippet>284</a>/// `1s` to `365d`.
-<a href=#285 id=285 data-nosnippet>285</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_delay(text: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Span, String&gt; {
-<a href=#286 id=286 data-nosnippet>286</a>    <span class="kw">let </span>refused = || {
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="macro">format!</span>(
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="string">"`{text}` is not a delay: write a whole number with s, m, h, or d, from 1s to {MAX_DELAY_DAYS}d"
-<a href=#289 id=289 data-nosnippet>289</a>        </span>)
-<a href=#290 id=290 data-nosnippet>290</a>    };
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">let </span>unit = text.chars().last().ok_or_else(refused)<span class="question-mark">?</span>;
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">let </span>number = <span class="kw-2">&amp;</span>text[..text.len() - unit.len_utf8()];
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">if </span>number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
-<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(refused());
-<a href=#295 id=295 data-nosnippet>295</a>    }
-<a href=#296 id=296 data-nosnippet>296</a>    <span class="kw">let </span>value = number.parse::&lt;i64&gt;().map_err(|<span class="kw">_</span>| refused())<span class="question-mark">?</span>;
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">let </span>seconds = <span class="kw">match </span>unit {
-<a href=#298 id=298 data-nosnippet>298</a>        <span class="string">'s' </span>=&gt; <span class="prelude-val">Some</span>(value),
-<a href=#299 id=299 data-nosnippet>299</a>        <span class="string">'m' </span>=&gt; value.checked_mul(<span class="number">60</span>),
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="string">'h' </span>=&gt; value.checked_mul(<span class="number">3600</span>),
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="string">'d' </span>=&gt; value.checked_mul(<span class="number">86_400</span>),
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>    <span class="doccomment">/// The last match after `after` up to and including `until`, looking at
+<a href=#283 id=283 data-nosnippet>283</a>    /// no more than `limit` matches.
+<a href=#284 id=284 data-nosnippet>284</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>latest_between(
+<a href=#285 id=285 data-nosnippet>285</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#286 id=286 data-nosnippet>286</a>        after: Timestamp,
+<a href=#287 id=287 data-nosnippet>287</a>        until: Timestamp,
+<a href=#288 id=288 data-nosnippet>288</a>        zone: <span class="kw-2">&amp;</span>TimeZone,
+<a href=#289 id=289 data-nosnippet>289</a>        limit: u64,
+<a href=#290 id=290 data-nosnippet>290</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Timestamp&gt; {
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span><span class="kw-2">mut </span>latest = <span class="prelude-val">None</span>;
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span><span class="kw-2">mut </span>cursor = after;
+<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">for _ in </span><span class="number">0</span>..limit {
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="kw">match </span><span class="self">self</span>.next_after(cursor, zone) {
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="prelude-val">Some</span>(next) <span class="kw">if </span>next &lt;= until =&gt; {
+<a href=#296 id=296 data-nosnippet>296</a>                    latest = <span class="prelude-val">Some</span>(next);
+<a href=#297 id=297 data-nosnippet>297</a>                    cursor = next;
+<a href=#298 id=298 data-nosnippet>298</a>                }
+<a href=#299 id=299 data-nosnippet>299</a>                <span class="kw">_ </span>=&gt; <span class="kw">break</span>,
+<a href=#300 id=300 data-nosnippet>300</a>            }
+<a href=#301 id=301 data-nosnippet>301</a>        }
+<a href=#302 id=302 data-nosnippet>302</a>        latest
 <a href=#303 id=303 data-nosnippet>303</a>    }
-<a href=#304 id=304 data-nosnippet>304</a>    .ok_or_else(refused)<span class="question-mark">?</span>;
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="kw">if </span>!(<span class="number">1</span>..=MAX_DELAY_DAYS * <span class="number">86_400</span>).contains(<span class="kw-2">&amp;</span>seconds) {
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(refused());
-<a href=#307 id=307 data-nosnippet>307</a>    }
-<a href=#308 id=308 data-nosnippet>308</a>    <span class="prelude-val">Ok</span>(seconds.seconds())
-<a href=#309 id=309 data-nosnippet>309</a>}
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a><span class="doccomment">/// The instant `delay` after `now`.
-<a href=#312 id=312 data-nosnippet>312</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>delay_after(now: Timestamp, delay: Span) -&gt; <span class="prelude-ty">Result</span>&lt;Timestamp, String&gt; {
-<a href=#313 id=313 data-nosnippet>313</a>    now.checked_add(delay).map_err(|error| error.to_string())
-<a href=#314 id=314 data-nosnippet>314</a>}
+<a href=#304 id=304 data-nosnippet>304</a>}
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a><span class="doccomment">/// Parses a one-shot delay: a whole number with `s`, `m`, `h`, or `d`, from
+<a href=#307 id=307 data-nosnippet>307</a>/// `1s` to `365d`.
+<a href=#308 id=308 data-nosnippet>308</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_delay(text: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Span, String&gt; {
+<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">let </span>refused = || {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="macro">format!</span>(
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="string">"`{text}` is not a delay: write a whole number with s, m, h, or d, from 1s to {MAX_DELAY_DAYS}d"
+<a href=#312 id=312 data-nosnippet>312</a>        </span>)
+<a href=#313 id=313 data-nosnippet>313</a>    };
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">let </span>unit = text.chars().last().ok_or_else(refused)<span class="question-mark">?</span>;
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">let </span>number = <span class="kw-2">&amp;</span>text[..text.len() - unit.len_utf8()];
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">if </span>number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(refused());
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">let </span>value = number.parse::&lt;i64&gt;().map_err(|<span class="kw">_</span>| refused())<span class="question-mark">?</span>;
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">let </span>seconds = <span class="kw">match </span>unit {
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="string">'s' </span>=&gt; <span class="prelude-val">Some</span>(value),
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="string">'m' </span>=&gt; value.checked_mul(<span class="number">60</span>),
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="string">'h' </span>=&gt; value.checked_mul(<span class="number">3600</span>),
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="string">'d' </span>=&gt; value.checked_mul(<span class="number">86_400</span>),
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#326 id=326 data-nosnippet>326</a>    }
+<a href=#327 id=327 data-nosnippet>327</a>    .ok_or_else(refused)<span class="question-mark">?</span>;
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">if </span>!(<span class="number">1</span>..=MAX_DELAY_DAYS * <span class="number">86_400</span>).contains(<span class="kw-2">&amp;</span>seconds) {
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(refused());
+<a href=#330 id=330 data-nosnippet>330</a>    }
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="prelude-val">Ok</span>(seconds.seconds())
+<a href=#332 id=332 data-nosnippet>332</a>}
+<a href=#333 id=333 data-nosnippet>333</a>
+<a href=#334 id=334 data-nosnippet>334</a><span class="doccomment">/// The instant `delay` after `now`.
+<a href=#335 id=335 data-nosnippet>335</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>delay_after(now: Timestamp, delay: Span) -&gt; <span class="prelude-ty">Result</span>&lt;Timestamp, String&gt; {
+<a href=#336 id=336 data-nosnippet>336</a>    now.checked_add(delay).map_err(|error| error.to_string())
+<a href=#337 id=337 data-nosnippet>337</a>}
 </code></pre></div></section></main></body></html>

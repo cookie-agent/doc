@@ -4714,7 +4714,8 @@ ones.</p>
   deleted or disabled. A job that reaches <code>max_runs</code> is deleted if an agent
   created it and kept, disabled as finished, if you did.</li>
 <li><strong>No catch-up:</strong> a fire missed while the daemon was down is recorded as
-  skipped and not run.</li>
+  skipped and not run. <em>Revised 2026-10-29:</em> the latest missed fire within
+  <code>[cron] missed_grace</code> runs; see section 16.</li>
 <li><strong>Failures:</strong> a job is disabled after <code>[cron] max_consecutive_failures</code>
   failures in a row (default 3), which a job can override. Skips do not
   count and do not reset the count.</li>
@@ -5311,7 +5312,17 @@ compile against it; their UI is phase 2.</p>
   under the memory lock makes each fire happen once. A daemon whose session
   store (working directory) lacks a target session fails that fire.</li>
 <li><strong>Missed fires</strong> are counted up to a million per entry; the entry's
-  <code>fired_at</code> is the daemon's start. A fire made late while the daemon runs
+  <code>fired_at</code> is the daemon's start.</li>
+<li><strong>Grace for missed fires (2026-10-29).</strong> The user asked that a fire
+  missed during a daemon restart still run. <code>[cron] missed_grace</code> (a
+  duration, <code>"10m"</code> by default, <code>"0s"</code> for none) is how late a missed fire
+  may run: at start, a job's latest missed fire no older than the grace
+  stays its <code>next_fire</code>, so the scheduler fires it at once like any due
+  fire (its entry's <code>scheduled_at</code> is the missed time, <code>fired_at</code> the
+  actual one), and the fires before it get the one <code>skipped (daemon was
+  down)</code> entry, counting only them. Only the latest fire is caught up,
+  never a backlog. A restart that is due leaves the fires due from then on
+  unclaimed, so they are caught up the same way. A fire made late while the daemon runs
   (a suspended host) fires once and moves to the next match after now, with
   no record of the matches in between.</li>
 <li><strong>The kill switch</strong> records each due fire as <code>skipped</code> with the reason
