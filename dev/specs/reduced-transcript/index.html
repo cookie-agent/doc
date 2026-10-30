@@ -4396,29 +4396,24 @@ its own.</p>
   its last child of any other kind; with no other kind, the whole block is
   reply;</li>
 <li><strong>work</strong>: every child before the reply: <code>Thinking</code>, <code>Tool</code>,
-  <code>CommittedTool</code>, <code>Attribution</code>, <code>Notice</code>, and any <code>Text</code> written between
-  tool calls ("I'll check the reducer next").</li>
+  <code>CommittedTool</code>, <code>Attribution</code>, <code>Notice</code>, and filler <code>Text</code> between tool
+  calls (below); any other text breaks the work.</li>
 </ul>
 <p>A block with no work renders exactly as in <code>full</code> mode: a plain reply
 gets no <code>Worked for</code> row. A block with work but no reply (the run ended on
 a tool call, failed, or was cancelled) is the work row alone.</p>
-<p>While a block streams, text after its newest tool call shows as reply as
-it arrives; if another thinking part or tool call follows, that text was
-not the reply after all and moves into the work. The reply that remains
-when the block seals is the one that stays below the row.</p>
 <p><code>Notice</code> children (<code>model interrupted</code>) stay in the work and also mark the
 work row (section 5).</p>
-<p><strong>A long text breaks the work</strong> (user decision of 2026-10-29). Text
-written between calls that runs over more than one line, or one line of
-700 characters or more (<code>long_text</code>), reads as an answer to the user: it
-shows as the reply does, and the work before and after it folds into rows
-of its own. Thinking never breaks the work. A model says what it does next
-in a line; an answer runs longer.</p>
-<p><strong>While a run works</strong> (user decision), the text after its last call is
-work too, since another call may follow: a line of it shows in the work
-row's text line (section 4), and once it runs over more lines it breaks
-out below the row and streams there. When the run's work ends, that text
-is the reply. Media the model sends always shows.</p>
+<p><strong>Any text breaks the work</strong> (user decision of 2026-10-30, replacing the
+long-text rule of 2026-10-29). Text the model writes between calls shows
+as the reply does, and the work before it folds into a row of its own,
+sealed as <code>Worked for</code> though the run goes on; the work after it starts
+a new row. This holds while a run works too: text after the last call
+breaks out below the row as it streams, and when the run's work ends,
+the text after its last call is the reply. Thinking never breaks the
+work. <strong>Filler</strong> does not either (<code>transcript_mode::filler</code>): blank text,
+or text of only <code>…</code> and <code>.</code>, which Kimi models write between calls; it
+folds into the work. Media the model sends always shows.</p>
 <p><strong>One run, one row</strong> (user decision of 2026-10-29). A run's blocks that
 only background rows came between fold together, from the run's first
 block to its last, into one work row on the first block above the reply of
@@ -4462,7 +4457,7 @@ shows its work as one row in place of the work children:</p>
 <li><strong>Two lines</strong> under the label (user decision of 2026-10-29), each cut
   with <code>…</code> to the width:</li>
 <li><strong>the latest text</strong>: the newest settled line of the work's newest
-    thinking or text. A thinking part's step, its newest Markdown heading
+    thinking (filler text says nothing). A thinking part's step, its newest Markdown heading
     or line bold alone (OpenAI's reasoning summaries start each step with
     <code>**Inspecting the reducer**</code>), wins over its other lines, so the line
     changes per step rather than per word. <code>Thinking…</code> while a thinking
@@ -4619,7 +4614,7 @@ thinking rows and the background sheet format durations
 <ol>
 <li><strong><code>reduced</code> is the default</strong> in both clients.</li>
 <li><strong>Text between tool calls folds into the work</strong> (section 2), so a
-   reduced block reads as one row and the reply.</li>
+   reduced block reads as one row and the reply. Replaced by decision 15.</li>
 <li><strong>The TUI saves the mode to <code>tui.toml</code></strong>: <code>/transcript</code> and Ctrl+O
    write the <code>transcript</code> key (section 8).</li>
 <li><strong>Ctrl+O toggles the mode</strong> in the TUI (Claude Code's key for its
@@ -4646,16 +4641,24 @@ thinking rows and the background sheet format durations
     small size, its tool call line kept at the note size.</li>
 <li><strong>A long text breaks the work</strong> (section 2): text over more than one
     line (the user's observation, adopted with leading and trailing breaks
-    ignored), or 700 characters or more on one line.</li>
+    ignored), or 700 characters or more on one line. Replaced by decision
+    15.</li>
 <li><strong>A working run's trailing text is work</strong> until it runs long (section
-    2).</li>
+    2). Replaced by decision 15.</li>
+</ol>
+<p>The user decided on 2026-10-30:</p>
+<ol>
+<li><strong>Any text between calls breaks the work</strong> (section 2), closing the
+    row before it as <code>Worked for</code>, but filler: blank text or only
+    ellipses, as Kimi models write between calls.</li>
 </ol>
 <h2 id="11-tests-and-phases">11. Tests and phases<a class="headerlink" href="#11-tests-and-phases" title="Permanent link">&para;</a></h2>
 <p>Tests (no tests pin the default mode):</p>
 <ul>
 <li>client state: the work and reply split for blocks with no work, no
-  reply, text between calls, trailing media, and notices; trailing text
-  moving into the work when a tool call follows; the working subtext for
+  reply, text between calls, trailing media, and notices; text between
+  calls breaking the work, live and sealed, and filler folding into it;
+  the working subtext for
   thinking with and without bold step lines, for a tool header, and for a
   call waiting on approval; <code>opened_at</code> and <code>sealed_at</code> from durable
   timestamps, equal live and on replay; the row labels for worked,
@@ -4723,7 +4726,7 @@ thinking rows and the background sheet format durations
     fold, so the first block draws again as the fold's time and counts
     change.</li>
 <li>A fold is keyed by where its work starts (<code>WorkKey</code>: the block and
-    the child), since a long text can start one mid-block; the TUI's
+    the child), since a text can start one mid-block; the TUI's
     <code>BlockId::Work</code> and the web's <code>work:&lt;item&gt;:&lt;child&gt;</code> block key carry it.</li>
 <li>The TUI remembers when each live line first drew in its layout cache
     and keys the row's layout on whether it is still fresh.</li>
