@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["too_large","upload","upload_refusal"],"struct":["AcceptedMedia","RefusedLimits","UploadFailure"]};
+window.SIDEBAR_ITEMS = {"fn":["attached_as_file","too_large","upload","upload_refusal"],"struct":["AcceptedMedia","RefusedLimits","UploadFailure"]};

@@ -2211,6 +2211,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transfers [transfer]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -2247,10 +2270,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_22" >
         
           
-          <label class="md-nav__link" for="__nav_9_21" id="__nav_9_21_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_22" id="__nav_9_22_label" tabindex="0">
             
   
   
@@ -2263,8 +2286,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_22">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -2876,6 +2899,15 @@
   <a href="#acp-agents" class="md-nav__link">
     <span class="md-ellipsis">
       ACP agents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transfers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfers
     </span>
   </a>
   
@@ -4597,6 +4629,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#transfers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfers
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4818,7 +4859,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.12.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.13.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -4903,7 +4944,10 @@ false</code>) and a <code>server_tools</code> entry's <code>always_load: true</c
 same order.
 1.12.0 added the <a href="#shell-environment">shell environment</a>: the optional
 <code>shell_environment</code> of the settings, <code>runtime/shell_environment_refresh</code>,
-and <code>runtime/shell_environment</code>.</p>
+and <code>runtime/shell_environment</code>.
+1.13.0 added <a href="#transfers">transfers</a>: the optional <code>files</code> of
+<code>runtime/initialize</code>'s result and the <code>fs/*</code> requests, with which the
+daemon copies files and folders between machines without storing them.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -5248,6 +5292,36 @@ that dials in after its instances failed reopens them. Calls are never retried t
 <td>notification</td>
 <td>A bridge connection ended; since 1.7.0</td>
 </tr>
+<tr>
+<td><code>fs/prepare</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Normalize a transfer's path and resolve its route once; since 1.13.0 (see <a href="#transfers">Transfers</a>)</td>
+</tr>
+<tr>
+<td><code>fs/read_open</code>, <code>fs/read_chunk</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Open a prepared route to read, and read it a chunk at a time; since 1.13.0</td>
+</tr>
+<tr>
+<td><code>fs/write_open</code>, <code>fs/write_chunk</code>, <code>fs/write_commit</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Open a prepared route to write, write it a chunk at a time, and put it in place; since 1.13.0</td>
+</tr>
+<tr>
+<td><code>fs/copy</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Copy one prepared route to another on the runtime's machine; since 1.13.0</td>
+</tr>
+<tr>
+<td><code>fs/close</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>Release a route or handle, removing an uncommitted copy; since 1.13.0</td>
+</tr>
 </tbody>
 </table>
 <p>An unknown request is answered with <code>-32601</code>; an unknown notification is
@@ -5338,6 +5412,10 @@ or enables OAuth, which stays with the daemon's global runtime.</p>
 <tr>
 <td><code>acp_agents</code></td>
 <td>Optional, since 1.7.0: the ACP agents the runtime hosts, <code>{ id, description, enabled }</code> each, in ID order. Absent when it hosts none.</td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td>Optional, default <code>false</code>, since 1.13.0: the runtime answers the <code>fs/*</code> requests of <a href="#transfers">transfers</a>. The coding runtime does.</td>
 </tr>
 <tr>
 <td><code>mcp_servers</code></td>
@@ -5776,6 +5854,88 @@ them; the daemon speaks ACP to them.</p>
 </ul>
 <p>These messages are information: the daemon reads the agent's messages
 tolerantly, and an <code>agent/*</code> message from a plugin is ignored.</p>
+<h3 id="transfers">Transfers<a class="headerlink" href="#transfers" title="Permanent link">&para;</a></h3>
+<p>Since 1.13.0 a runtime that reports <code>files: true</code> takes part in the
+<code>transfer</code> tool, which copies a file or a folder from one of a session's
+machines, or from an artifact of its tree, to another machine (see the
+<a href="../../specs/machines-on-demand/#6-transfers">machines on demand spec</a>). The
+daemon is the only party that reaches both runtimes, so it relays the bytes,
+a chunk at a time, and stores none of them. Every request is daemon →
+runtime.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Params</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fs/prepare</code></td>
+<td><code>instance</code>, <code>path</code>, <code>direction</code> (<code>read</code> or <code>write</code>)</td>
+<td><code>route</code>; <code>path</code>, the path made absolute lexically; <code>label</code>, the path as a <code>read</code> or <code>write</code> rule matches it; <code>binding</code>, the location the route led to; <code>kind</code> (<code>file</code> or <code>folder</code>) of what is there, absent for a destination that does not exist; <code>size</code> of a file</td>
+</tr>
+<tr>
+<td><code>fs/read_open</code></td>
+<td><code>route</code></td>
+<td><code>handle</code>, <code>kind</code>, and a file's <code>size</code></td>
+</tr>
+<tr>
+<td><code>fs/read_chunk</code></td>
+<td><code>handle</code>, <code>max_bytes</code> (at most 1 MiB)</td>
+<td><code>data</code> (base64), <code>eof</code>, and at the end <code>summary</code>: <code>sha256</code> of the stream, <code>bytes</code> and <code>files</code> of the content, and <code>skipped</code></td>
+</tr>
+<tr>
+<td><code>fs/write_open</code></td>
+<td><code>route</code>, <code>kind</code>, <code>overwrite</code>, <code>size</code> when known</td>
+<td><code>handle</code></td>
+</tr>
+<tr>
+<td><code>fs/write_chunk</code></td>
+<td><code>handle</code>, <code>offset</code> (the bytes before it), <code>data</code></td>
+<td><code>{}</code></td>
+</tr>
+<tr>
+<td><code>fs/write_commit</code></td>
+<td><code>handle</code>, the source's <code>sha256</code></td>
+<td><code>path</code>, <code>bytes</code>, <code>files</code>, <code>sha256</code>, <code>skipped</code></td>
+</tr>
+<tr>
+<td><code>fs/copy</code></td>
+<td><code>from</code> and <code>to</code>, two routes of the runtime, <code>overwrite</code></td>
+<td>as <code>fs/write_commit</code></td>
+</tr>
+<tr>
+<td><code>fs/close</code></td>
+<td><code>handle</code>, a route or handle</td>
+<td><code>{}</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Paths</strong> follow the file tools' contract: a leading <code>~</code> is the runtime's
+  home, a relative path resolves against the instance's workspace, and the
+  <code>label</code> is lexical, never resolved through symbolic links. The route is
+  resolved once, at <code>fs/prepare</code>, with every link expanded; opening uses it,
+  so a link retargeted after approval does not redirect the transfer.</li>
+<li><strong>A folder</strong> moves as a tar stream: regular files, folders, and links as
+  links, with mode bits and modification times and no owners. Devices,
+  sockets, and FIFOs are left out at the source and counted in <code>skipped</code>.
+  Unpacking refuses names that are absolute or climb with <code>..</code> and entries
+  below a link the stream made; a link that may lead outside the folder (an
+  absolute one, or one that climbs above it) is left out and counted.</li>
+<li><strong>A destination</strong> is written to a hidden sibling,
+  <code>.&lt;name&gt;.cookie-partial-&lt;id&gt;</code>, and put in place at <code>fs/write_commit</code> when
+  the digest of what arrived matches the source's. Without <code>overwrite</code> an
+  existing destination fails the open; with it a file is replaced and a
+  folder merged. A handle closed uncommitted, or dropped with the
+  connection, removes its partial copy, and <code>cookie runtime serve</code> removes
+  those a crash left behind once they are a day old.</li>
+<li><strong><code>fs/copy</code></strong> copies within one runtime, with the same partial-and-rename
+  rule; closing its <code>to</code> route stops it.</li>
+</ul>
+<p>Failures are <code>fs_failed</code>, with the reason in <code>detail</code>.</p>
 <h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
 <p>Errors follow the scheme of the <a href="../../specs/compatibility-v1/#6-errors">compatibility spec</a>,
 in both directions. A protocol error uses a standard JSON-RPC code; every
@@ -5846,7 +6006,12 @@ protocol crate's registry (<code>cookie_agent_protocol::errors</code>):</p>
 <tr>
 <td><code>-32000</code></td>
 <td><code>unknown_handle</code></td>
-<td>Unknown prepared call or instance.</td>
+<td>Unknown prepared call, instance, or transfer handle.</td>
+</tr>
+<tr>
+<td><code>-32000</code></td>
+<td><code>fs_failed</code></td>
+<td>An <code>fs/*</code> request failed: the path is missing or exists already, it could not be read or written, or the bytes written do not match the source (since 1.13.0).</td>
 </tr>
 <tr>
 <td><code>-32000</code></td>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Slot"],"fn":["choose_model","choose_variant","confirm","describe_status","list_models","print_kit","run_onboard","run_onboard_with"],"struct":["OnboardArgs"]};
+window.SIDEBAR_ITEMS = {"enum":["Slot"],"fn":["choose_model","choose_variant","confirm","describe_status","list_models","run_onboard","run_onboard_with"],"struct":["OnboardArgs"]};

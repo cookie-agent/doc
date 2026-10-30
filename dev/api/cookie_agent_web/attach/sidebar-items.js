@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Assessment","AttachButtons"],"fn":["accept_attribute","accepts_images","assess","attach_buttons","downscale_target","image_limits","shrink_again","tightened"],"struct":["ImageLimits"]};
+window.SIDEBAR_ITEMS = {"enum":["Assessment","AttachButtons"],"fn":["accept_attribute","accepts_images","assess","attach_buttons","camera_accept_attribute","downscale_target","image_limits","shrink_again","tightened"],"struct":["ImageLimits"]};

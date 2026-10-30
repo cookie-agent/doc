@@ -2211,6 +2211,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transfers [transfer]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -2247,10 +2270,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_22" >
         
           
-          <label class="md-nav__link" for="__nav_9_21" id="__nav_9_21_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_22" id="__nav_9_22_label" tabindex="0">
             
   
   
@@ -2263,8 +2286,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_22">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -3880,6 +3903,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-goal-and-scope" class="md-nav__link">
     <span class="md-ellipsis">
       1. Goal and scope
@@ -4365,6 +4397,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-goal-and-scope" class="md-nav__link">
     <span class="md-ellipsis">
       1. Goal and scope
@@ -4681,7 +4722,9 @@
 
 
 <h1 id="machines-on-demand-official-agents-model-tiers-attachments-from-tools-routed-tools-and-transfers">Machines on demand: official agents, model tiers, attachments from tools, routed tools, and transfers<a class="headerlink" href="#machines-on-demand-official-agents-model-tiers-attachments-from-tools-routed-tools-and-transfers" title="Permanent link">&para;</a></h1>
-<p>Approved draft, 2026-10-29. Every decision is made.</p>
+<p>Implemented, 2026-10-30 (client protocol 1.56.0, runtime protocol 1.13.0).
+Every decision is made; the <a href="#implementation-notes">implementation notes</a>
+list where the code departs from the text below.</p>
 <p><strong>Decided by the user, 2026-10-29:</strong></p>
 <ul>
 <li>Today's <code>small_model</code> is renamed <code>utility_model</code>. A new <code>small_model</code> is
@@ -4720,6 +4763,69 @@
 <li>Official agents' refreshes apply as they arrive, frontmatter and
   permissions included, as official skills' do (section 2.1).</li>
 </ul>
+<h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
+<p>What the implementation does differently from the sections below, or adds:</p>
+<ul>
+<li><strong><code>transfer</code> is offered only where it can run</strong> (section 6.1): when the
+  session has a machine attached whose runtime reports <code>files</code>, besides the
+  <code>write</code> rule its permission name needs. A session on <code>global</code> alone gets
+  it once <code>attach_machine</code> attaches a machine.</li>
+<li><strong>The relay pipeline</strong> (section 6.3, step 3) reads one chunk while the one
+  before it is written, rather than keeping up to 4 in flight: two chunks,
+  at most 2 MiB, per transfer.</li>
+<li><strong><code>fs/copy</code> takes two prepared routes</strong> (<code>from</code>, <code>to</code>) instead of paths:
+  both ends are prepared for the permission check anyway. Closing its <code>to</code>
+  route stops it. A folder copied within one runtime while <code>[transfer]
+  max_bytes</code> is set is relayed through the daemon instead, which counts it.</li>
+<li><strong><code>fs/prepare</code> answers more</strong> than a route: the lexical absolute <code>path</code>
+  results show, the permission <code>label</code>, and a <code>binding</code> of the resolved
+  location for the approval identity. The destination's existence is
+  checked there too, so an existing destination without <code>overwrite</code> is
+  refused before anyone is asked to approve.</li>
+<li><strong>Links that may lead outside a folder</strong> (section 6.3) are left out at
+  the destination and counted in <code>skipped</code>, as devices are at the source,
+  rather than failing the transfer: a virtual environment's absolute links
+  would otherwise make it impossible to copy. A link counts as inside when
+  it is relative and climbs (<code>..</code>) only before its first name and no higher
+  than the folder; names that climb and entries below a link the stream
+  made still fail it.</li>
+<li><strong>Permissions per resource</strong>: a prepared call can check each resource in
+  its own scope (<code>ResourceScope</code>: runtime, workspace, home), so the source is
+  checked as <code>read@&lt;source runtime&gt;</code> and the destination as
+  <code>write@&lt;destination runtime&gt;</code> only, not each under both runtimes.</li>
+<li><strong><code>kind: file</code> uploads</strong> are stored as <code>application/octet-stream</code>, the
+  type no model is sent as bytes; the label carries the name and size. The
+  clients upload as a file whatever the selected model does not take
+  inline, rather than refusing it, and offer attaching for any selected
+  model; only the 25 MiB upload limit refuses a file.</li>
+<li><strong>Labels in the clients</strong>: the label is model input the engine adds
+  while it builds the history; the clients show a file as before, by its
+  chip, not by the label.</li>
+<li><strong>Golden history</strong>: the frozen golden logs predate labels, so their
+  comparison ignores label text parts in the history views and nothing
+  else.</li>
+<li><strong>An internal agent without a document</strong> (<code>approval</code> or <code>title</code> before
+  the official agents were first fetched, or with <code>[agents] official =
+  false</code> and no document of the user's) is frozen disabled: its runs end
+  unavailable, so a review passes the call to the user and a title falls
+  back, instead of every run failing to start.</li>
+<li><strong>The web client's runtime cards</strong> take one workspace each, and the note
+  about prefixed tool names is gone; a second coding runtime on the same
+  machine is refused on its card with the daemon's reason.</li>
+<li><strong>ACP sessions</strong> keep the earlier runtimes block and are exempt from
+  section 4's one-name-per-machine rule: an ACP agent takes no routed
+  tools, and its extra directories are attachments of one capability.</li>
+<li><strong><code>[agents] default</code></strong> is diagnosed only when it is set and names no
+  runnable agent; without it the first runnable agent is the fallback.</li>
+<li><strong>Partial-copy cleanup after a crash</strong> uses a journal: each partial copy
+  is recorded under <code>~/.cookie-agent/transfers/</code> while it exists, and a
+  start of <code>cookie runtime serve</code> (or the daemon's own <code>local</code> runtime)
+  removes the ones recorded more than a day ago.</li>
+</ul>
+<p><strong>Not done yet</strong> (section 5.4, items 4 and 5): <code>list_runtimes</code> does not show
+each runtime's tool groups, and the clients show a routed call's machine
+only among its arguments, as the model sent <code>machine</code>, not as a badge in the
+tool header.</p>
 <h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
 <p>Cookie is meant to be an always-on agent platform that works across devices:
 every integration and context in one place, kept private, and still minimal

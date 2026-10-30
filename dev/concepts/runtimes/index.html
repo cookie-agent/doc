@@ -765,6 +765,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#attaching-from-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attaching from a session
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-files-between-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moving files between machines
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#workspaces-and-homes" class="md-nav__link">
     <span class="md-ellipsis">
       Workspaces and homes
@@ -2321,6 +2339,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transfers [transfer]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -2357,10 +2398,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_22" >
         
           
-          <label class="md-nav__link" for="__nav_9_21" id="__nav_9_21_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_22" id="__nav_9_22_label" tabindex="0">
             
   
   
@@ -2373,8 +2414,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_22">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -4141,6 +4182,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#attaching-from-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      Attaching from a session
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-files-between-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moving files between machines
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#workspaces-and-homes" class="md-nav__link">
     <span class="md-ellipsis">
       Workspaces and homes
@@ -4258,22 +4317,59 @@ can offer any tools; see <a href="../../development/runtimes/">Write a runtime</
 <h2 id="attachments-and-tool-names">Attachments and tool names<a class="headerlink" href="#attachments-and-tool-names" title="Permanent link">&para;</a></h2>
 <p>Each attachment has a session-unique name: <code>global</code> for the global runtime,
 and for a workspace the runtime ID and the directory's name, such as
-<code>local_web</code> or <code>labpc_api</code> (with <code>_2</code>, <code>_3</code>, … when taken). The model sees a
-tool by its bare name while one attachment offers it. When several do, each
-copy is published as <code>&lt;attachment&gt;_&lt;tool&gt;</code>, such as <code>local_web_bash</code> and
-<code>labpc_api_bash</code>, and the bare name disappears. A tool can instead declare
-that it overrides others of its name, or that it is only a fallback, like the
-<code>global</code> runtime's <code>webfetch</code>, which hides whenever <code>local</code> offers one. A
-runtime tool never takes the name of a built-in tool such as
-<code>delegate_subagent</code>.</p>
-<p>Names change only at a compaction, so the model's cached conversation
-stays valid. Attach <code>labpc_api</code> while the model works with <code>local_web</code>'s
-<code>bash</code>, and <code>bash</code> stays <code>local_web</code>'s while <code>labpc_api</code>'s arrives as
-<code>labpc_api_bash</code>; from the next compaction both are prefixed. A tool that
-leaves stays declared until then, and a call to it is refused. See
-<a href="../../runtimes/templates/#example-a-repository-on-another-machine-over-ssh">Example: a repository on another machine</a>.</p>
+<code>local_web</code> or <code>labpc_api</code> (with <code>_2</code>, <code>_3</code>, … when taken).</p>
+<p><strong>One machine offers each tool once.</strong> A session may not have two
+attachments on one machine that offer a tool of the same name: two
+<code>coding</code> attachments of one machine, such as <code>local_web</code> and <code>local_api</code>,
+or the daemon's <code>local</code> and a TUI's <code>client_&lt;host&gt;</code> on the same laptop,
+would give the model two spellings of one computer. The second is refused,
+with the attachment that holds the machine named; another directory there
+is reached by absolute path. Capabilities whose tools differ may share a
+machine. A container or WSL runtime the daemon groups with its host
+overlaps the host's <code>coding</code>; give it a machine of its own with
+<a href="../../clients/cli/#cookie-machine"><code>cookie machine unassign</code></a>.</p>
+<p><strong>Tools are routed by machine.</strong> A session that has <code>global</code>, or
+attachments on several machines, publishes each runtime tool once under its
+own name, with a <code>machine</code> argument choosing where it runs: <code>bash</code>,
+<code>read</code>, <code>write</code>, <code>edit</code>, a runtime's MCP tools, and any tool a runtime of
+your own offers. <code>machine</code> is optional; without it a call runs on the
+tool's default machine, the first attached machine that offers it, which
+the tool's definition and the system prompt name. A call that names a
+machine without the tool fails with where the tool is offered. The default
+stays put until the next compaction, so attaching another machine changes
+no tool definition, and the model's cached conversation stays valid. A
+session created without <code>global</code> on one machine publishes its tools as
+their runtime declares them, without <code>machine</code>.</p>
+<p>A tool can instead declare that it is only a fallback, like the <code>global</code>
+runtime's <code>webfetch</code>, which hides whenever an attachment offers one. A
+runtime tool never takes the name of a built-in or <code>global</code> tool such as
+<code>delegate_subagent</code>; one that would is left out with a configuration
+diagnostic, and so is one that declares its own <code>machine</code> argument.</p>
 <p>Permission rules can target one runtime's tools with <code>action@runtime</code>; see
-<a href="../permissions/#rules-for-one-runtime">Permissions</a>.</p>
+<a href="../permissions/#rules-for-one-runtime">Permissions</a>. A routed call is
+checked against the runtime of the machine it runs on.</p>
+<h2 id="attaching-from-a-session">Attaching from a session<a class="headerlink" href="#attaching-from-a-session" title="Permanent link">&para;</a></h2>
+<p>A run attaches a machine to its own session with <code>attach_machine</code>, naming a
+runtime capability from <code>list_runtimes</code> (<code>labpc/coding</code>) and the directory
+to work in, and detaches one with <code>detach_machine</code>. Its tools join the
+session at once, and the result says where they run and carries the
+workspace's <code>AGENTS.md</code>. Both are checked as the <code>attach</code> action on the
+target runtime, with the workspace as resource (<code>attach@labpc</code>): root runs
+are allowed by default and subagents denied, and an agent document's own
+<code>attach</code> key replaces that. <code>detach_machine</code> is refused while a background
+call runs on the attachment. Clients attach and detach between runs, as
+before.</p>
+<h2 id="moving-files-between-machines">Moving files between machines<a class="headerlink" href="#moving-files-between-machines" title="Permanent link">&para;</a></h2>
+<p><code>transfer</code> copies a file or a folder to one of the session's machines, from
+another of them or from an artifact of the session, such as a file the user
+sent: each user file reaches the model with a label naming its artifact,
+<code>[file report.zip, 3.2 MB, artifact 5f2c81d0]</code>. The machines need not reach
+each other: the daemon relays the bytes between their runtimes and keeps none
+of them, so a large copy adds only its summary to the session log. The source
+is checked as <code>read</code> on its machine and the destination as <code>write</code> on its
+own, with the paths as the file tools label them. The model never writes the
+artifact store; it only copies out of it. See
+<a href="../../reference/tools/#transfer"><code>transfer</code></a>.</p>
 <h2 id="workspaces-and-homes">Workspaces and homes<a class="headerlink" href="#workspaces-and-homes" title="Permanent link">&para;</a></h2>
 <p>A workspace is stored as the runtime reports it: canonical and absolute on the
 runtime's machine. A runtime may also report its home directory. Clients then
@@ -4308,9 +4404,11 @@ has <code>list_runtimes</code>, which lists every machine and runtime, and its
 <code>delegate_subagent</code> takes <code>capabilities</code>: the runtime capabilities the
 child works through, such as <code>labpc/coding</code> at <code>~/src/api</code>. The daemon starts
 those runtimes before it creates the child. Without <code>capabilities</code> a child
-inherits its parent's attachments, and only the root can choose. A root with
-only <code>global</code> has no workspace at all and must name one for each subagent,
-which lets it orchestrate work across machines. <code>delegate@&lt;runtime&gt;</code> rules
+inherits its parent's attachments, and only the root can choose (a subagent
+that may attach reaches another machine with <code>attach_machine</code>). A root with
+only <code>global</code> has no workspace at all until it attaches one, and names one
+for each subagent it delegates, which lets it orchestrate work across
+machines. <code>delegate@&lt;runtime&gt;</code> rules
 limit where it may delegate. See
 <a href="../../sessions/delegation/">Delegating to runtimes</a>.</p>
 <h2 id="machines">Machines<a class="headerlink" href="#machines" title="Permanent link">&para;</a></h2>

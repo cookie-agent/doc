@@ -1425,6 +1425,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#file-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      File labels
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#in-the-terminal-ui" class="md-nav__link">
     <span class="md-ellipsis">
       In the terminal UI
@@ -2303,6 +2312,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transfers [transfer]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/headers/" class="md-nav__link">
         
   
@@ -2339,10 +2371,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_22" >
         
           
-          <label class="md-nav__link" for="__nav_9_21" id="__nav_9_21_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_22" id="__nav_9_22_label" tabindex="0">
             
   
   
@@ -2355,8 +2387,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_22">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -4123,6 +4155,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#file-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      File labels
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#in-the-terminal-ui" class="md-nav__link">
     <span class="md-ellipsis">
       In the terminal UI
@@ -4169,17 +4210,19 @@
 
 
 <h1 id="attaching-media">Attaching Media<a class="headerlink" href="#attaching-media" title="Permanent link">&para;</a></h1>
-<p>A message can carry images, PDFs, audio, and video alongside its text, when
-the session's model accepts them. The daemon stores each attachment in the
-session's artifact store and sends it to the model as a file.</p>
+<p>A message can carry files alongside its text. The daemon stores each in the
+session's artifact store. Images, PDFs, audio, and video the session's model
+accepts are sent to it as files; any other file reaches the model as its
+label, which names it so the model can copy it to a machine with
+<a href="../../reference/tools/#transfer"><code>transfer</code></a>.</p>
 <h2 id="what-a-model-accepts">What a model accepts<a class="headerlink" href="#what-a-model-accepts" title="Permanent link">&para;</a></h2>
 <p>Every model in the catalog view states its <code>input_media</code>: the kinds it
 accepts in a message, the media types of each, and the limits that apply
 (see <a href="../../reference/protocol/#the-catalog-view">The catalog view</a>). The
 limits are the lowest of the model's own, its provider's for a message, and
 the daemon's caps: 20 MiB per file, 25 MiB for video, and at most 16384
-pixels a side and 16 Mi pixels for an image. A client offers attachments only
-for the kinds the selected model accepts and checks a file before sending it.</p>
+pixels a side and 16 Mi pixels for an image. A client checks a file against
+them before sending it, and uploads one that does not fit as a file.</p>
 <p>For example, an Anthropic model that accepts PNG and JPEG images and PDFs
 takes images of up to 7.5 MiB and PDFs of up to 20 MiB, and no video; a
 Gemini model takes each kind it accepts up to 14 MiB, which keeps the whole
@@ -4188,37 +4231,52 @@ request within the Gemini API's limit.</p>
 <p>A client uploads the file into the session first, then names it in the
 message:</p>
 <ol>
-<li><code>artifact.upload.begin</code> with the session, the file's size, and its name.</li>
+<li><code>artifact.upload.begin</code> with the session, the file's size, its name,
+   and its <code>kind</code>: <code>media</code> (the default) for a file the model may take, or
+   <code>file</code> for any other, up to 25 MiB.</li>
 <li><code>artifact.upload.chunk</code> for each piece of at most 1 MiB, in order.</li>
 <li><code>artifact.upload.finish</code> with the file's SHA-256. The daemon recognizes
-   the file by its content (the name never decides its type), checks it, and
-   returns the reference to send.</li>
+   media by its content (the name never decides its type), checks it, and
+   returns the reference to send; a <code>file</code> upload is stored as
+   <code>application/octet-stream</code> without checks.</li>
 <li><code>run.start</code>, <code>run.steer</code>, or <code>session.submit_input</code> with <code>content</code> holding
    the text and a <code>file</code> part with that reference.</li>
 </ol>
 <p>The <a href="../../reference/protocol/#media">protocol reference</a> lists every rule and
 error. An upload the connection leaves unfinished is dropped when it closes.</p>
 <p>The daemon checks every attachment again when the message arrives, against
-the model the message goes to. An attachment the model does not accept, one
-over its limits, or more of a kind than it takes refuses the message, and
-nothing of it is recorded; the error says which limit, so a client can offer
-to downscale an image that is too large.</p>
+the model the message goes to. One the model takes must be the media it says
+and within the model's image limits, and no more of a kind than the model
+takes; otherwise the message is refused and nothing of it is recorded, and
+the error says which limit, so a client can offer to downscale an image that
+is too large. An attachment the model does not take reaches it as its label.</p>
+<h2 id="file-labels">File labels<a class="headerlink" href="#file-labels" title="Permanent link">&para;</a></h2>
+<p>Each attached file reaches the model with a label just before it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[file report.zip, 3.2 MB, artifact 5f2c81d0]
+</code></pre></div>
+<p>The label names the artifact by the first 8 hex digits of its digest, which
+<code>transfer</code> takes, so "save this to labpc" from a phone is a single call. A
+<code>file</code> upload is its label alone.</p>
 <h2 id="in-the-terminal-ui">In the terminal UI<a class="headerlink" href="#in-the-terminal-ui" title="Permanent link">&para;</a></h2>
 <p><code>/attach</code> asks for a file's path and attaches the file to the next message,
 and pasting the path of one existing file (what a terminal pastes when a file
-is dropped on it) offers to attach it. Both appear only while the selected
-model accepts some kind of file. The TUI checks the file's kind, size, and an
-image's pixels against the model's limits before it uploads, and shows the
-limit when a file is refused, by the TUI or the daemon; it does not downscale.
+is dropped on it) offers to attach it, once a model is selected. The TUI
+checks the file's kind, size, and an image's pixels against the model's
+limits before it uploads, and uploads one that does not fit as a file,
+saying why; only a file over the daemon's 25 MiB limit is refused. It does
+not downscale.
 Attachments show on the composer's border as <code>📎 name · type · size</code>, and
 Backspace at the start of the draft removes the newest. See
 <a href="../../clients/tui/#attachments">Terminal UI</a>.</p>
 <h2 id="when-the-model-changes">When the model changes<a class="headerlink" href="#when-the-model-changes" title="Permanent link">&para;</a></h2>
 <p>A session can move to another model, or a run can fall back to one. A model
-that does not accept a file in the history is sent a short note in its place,
-such as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[image omitted: acme/text-model does not accept images (screenshot.png, 471 KB)]
+that does not accept a file in the history gets the reason in the file's
+label instead of the file, such as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>[file screenshot.png, 471 KB, artifact 5f2c81d0; not shown: acme/text-model does not accept images]
 </code></pre></div>
+<p>A file a tool returned has no label; a short note stands in for it, such as
+<code>[image omitted: acme/text-model does not accept images (screenshot.png, 471
+KB)]</code>.</p>
 <p>The saved history keeps the file, so a later model that accepts it sees it
 again. Compaction summaries never see media: the summarizer reads notes in
 place of every file.</p>
