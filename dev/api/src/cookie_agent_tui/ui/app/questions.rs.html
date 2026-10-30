@@ -623,239 +623,238 @@
 <a href=#623 id=623 data-nosnippet>623</a>            QuestionButton::Cancel | QuestionButton::CopyLink =&gt; (ElicitationAction::Cancel, <span class="prelude-val">None</span>),
 <a href=#624 id=624 data-nosnippet>624</a>        };
 <a href=#625 id=625 data-nosnippet>625</a>        <span class="self">self</span>.question_panel.sending = <span class="bool-val">true</span>;
-<a href=#626 id=626 data-nosnippet>626</a>        <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"answering {}…"</span>, question.heading());
-<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
-<a href=#628 id=628 data-nosnippet>628</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
-<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span>params = ElicitationRespondParams {
-<a href=#630 id=630 data-nosnippet>630</a>            session_id: question.session_id,
-<a href=#631 id=631 data-nosnippet>631</a>            elicitation_id: question.request.elicitation_id,
-<a href=#632 id=632 data-nosnippet>632</a>            action,
-<a href=#633 id=633 data-nosnippet>633</a>            content,
-<a href=#634 id=634 data-nosnippet>634</a>        };
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
-<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">let </span>session_id = params.session_id;
-<a href=#637 id=637 data-nosnippet>637</a>            <span class="kw">let </span>elicitation_id = params.elicitation_id;
-<a href=#638 id=638 data-nosnippet>638</a>            <span class="kw">let </span>result = client
-<a href=#639 id=639 data-nosnippet>639</a>                .respond_elicitation(params)
-<a href=#640 id=640 data-nosnippet>640</a>                .<span class="kw">await
-<a href=#641 id=641 data-nosnippet>641</a>                </span>.map(|<span class="kw">_</span>| ())
-<a href=#642 id=642 data-nosnippet>642</a>                .map_err(|error| (error.error_code().map(str::to_owned), error.to_string()));
-<a href=#643 id=643 data-nosnippet>643</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::QuestionAnswered {
-<a href=#644 id=644 data-nosnippet>644</a>                session_id,
-<a href=#645 id=645 data-nosnippet>645</a>                elicitation_id,
-<a href=#646 id=646 data-nosnippet>646</a>                result,
-<a href=#647 id=647 data-nosnippet>647</a>            });
-<a href=#648 id=648 data-nosnippet>648</a>        });
-<a href=#649 id=649 data-nosnippet>649</a>    }
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a>    <span class="doccomment">/// `elicitation.respond` answered. The question leaves when its
-<a href=#652 id=652 data-nosnippet>652</a>    /// `elicitation_resolved` arrives; one no longer waiting leaves now.
-<a href=#653 id=653 data-nosnippet>653</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish_question_answer(
-<a href=#654 id=654 data-nosnippet>654</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#655 id=655 data-nosnippet>655</a>        session_id: SessionId,
-<a href=#656 id=656 data-nosnippet>656</a>        elicitation_id: ElicitationId,
-<a href=#657 id=657 data-nosnippet>657</a>        result: <span class="prelude-ty">Result</span>&lt;(), (<span class="prelude-ty">Option</span>&lt;String&gt;, String)&gt;,
-<a href=#658 id=658 data-nosnippet>658</a>    ) {
-<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">if </span><span class="self">self</span>.question_panel.question == <span class="prelude-val">Some</span>(elicitation_id) {
-<a href=#660 id=660 data-nosnippet>660</a>            <span class="self">self</span>.question_panel.sending = <span class="bool-val">false</span>;
-<a href=#661 id=661 data-nosnippet>661</a>        }
-<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">match </span>result {
-<a href=#663 id=663 data-nosnippet>663</a>            <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.status = <span class="string">"answer sent"</span>.into(),
-<a href=#664 id=664 data-nosnippet>664</a>            <span class="prelude-val">Err</span>((code, message)) =&gt; {
-<a href=#665 id=665 data-nosnippet>665</a>                <span class="kw">if </span>code.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"elicitation_not_pending"</span>) {
-<a href=#666 id=666 data-nosnippet>666</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
-<a href=#667 id=667 data-nosnippet>667</a>                        state
-<a href=#668 id=668 data-nosnippet>668</a>                            .questions
-<a href=#669 id=669 data-nosnippet>669</a>                            .retain(|question| question.request.elicitation_id != elicitation_id);
-<a href=#670 id=670 data-nosnippet>670</a>                    }
-<a href=#671 id=671 data-nosnippet>671</a>                    <span class="self">self</span>.status = <span class="string">"the question is no longer waiting"</span>.into();
-<a href=#672 id=672 data-nosnippet>672</a>                } <span class="kw">else </span>{
-<a href=#673 id=673 data-nosnippet>673</a>                    <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"answer not sent: {message}"</span>);
-<a href=#674 id=674 data-nosnippet>674</a>                    <span class="kw">if </span><span class="self">self</span>.question_panel.question == <span class="prelude-val">Some</span>(elicitation_id) {
-<a href=#675 id=675 data-nosnippet>675</a>                        <span class="self">self</span>.question_panel.notice = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"not sent: {message}"</span>));
-<a href=#676 id=676 data-nosnippet>676</a>                    }
-<a href=#677 id=677 data-nosnippet>677</a>                }
-<a href=#678 id=678 data-nosnippet>678</a>            }
-<a href=#679 id=679 data-nosnippet>679</a>        }
-<a href=#680 id=680 data-nosnippet>680</a>    }
-<a href=#681 id=681 data-nosnippet>681</a>
-<a href=#682 id=682 data-nosnippet>682</a>    <span class="doccomment">/// Pastes `text`, on one line, into the question's focused text field.
-<a href=#683 id=683 data-nosnippet>683</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>paste_into_question(<span class="kw-2">&amp;mut </span><span class="self">self</span>, text: <span class="kw-2">&amp;</span>str) {
-<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(question) = <span class="self">self</span>.current_question().cloned() <span class="kw">else </span>{
-<a href=#685 id=685 data-nosnippet>685</a>            <span class="kw">return</span>;
-<a href=#686 id=686 data-nosnippet>686</a>        };
-<a href=#687 id=687 data-nosnippet>687</a>        <span class="self">self</span>.question_panel.sync(<span class="kw-2">&amp;</span>question);
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>QuestionKind::Form(form) = question.kind() <span class="kw">else </span>{
-<a href=#689 id=689 data-nosnippet>689</a>            <span class="kw">return</span>;
-<a href=#690 id=690 data-nosnippet>690</a>        };
-<a href=#691 id=691 data-nosnippet>691</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(QuestionFocus::Field(index)) = <span class="self">self</span>.question_panel.focus
-<a href=#692 id=692 data-nosnippet>692</a>            &amp;&amp; is_text_field(form, index)
-<a href=#693 id=693 data-nosnippet>693</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(input) = <span class="self">self</span>.question_panel.inputs.get_mut(index)
-<a href=#694 id=694 data-nosnippet>694</a>        {
-<a href=#695 id=695 data-nosnippet>695</a>            input.insert_text(<span class="kw-2">&amp;</span>text.replace([<span class="string">'\r'</span>, <span class="string">'\n'</span>], <span class="string">" "</span>));
-<a href=#696 id=696 data-nosnippet>696</a>        }
-<a href=#697 id=697 data-nosnippet>697</a>    }
-<a href=#698 id=698 data-nosnippet>698</a>
-<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>scroll_question(<span class="kw-2">&amp;mut </span><span class="self">self</span>, up: bool, lines: u16) {
-<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">let </span>panel = <span class="kw-2">&amp;mut </span><span class="self">self</span>.question_panel;
-<a href=#701 id=701 data-nosnippet>701</a>        panel.scroll = <span class="kw">if </span>up {
-<a href=#702 id=702 data-nosnippet>702</a>            panel.scroll.saturating_sub(lines)
-<a href=#703 id=703 data-nosnippet>703</a>        } <span class="kw">else </span>{
-<a href=#704 id=704 data-nosnippet>704</a>            panel.scroll.saturating_add(lines).min(panel.max_scroll)
-<a href=#705 id=705 data-nosnippet>705</a>        };
-<a href=#706 id=706 data-nosnippet>706</a>    }
-<a href=#707 id=707 data-nosnippet>707</a>
-<a href=#708 id=708 data-nosnippet>708</a>    <span class="doccomment">/// Draws the question panel docked with its bottom edge at
-<a href=#709 id=709 data-nosnippet>709</a>    /// `dock_bottom`, sized to its content and capped so a few
-<a href=#710 id=710 data-nosnippet>710</a>    /// conversation rows stay visible.
-<a href=#711 id=711 data-nosnippet>711</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>render_question(
-<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#713 id=713 data-nosnippet>713</a>        frame: <span class="kw-2">&amp;mut </span>ratatui::Frame,
-<a href=#714 id=714 data-nosnippet>714</a>        question: <span class="kw-2">&amp;</span>QuestionState,
-<a href=#715 id=715 data-nosnippet>715</a>        screen: Rect,
-<a href=#716 id=716 data-nosnippet>716</a>        dock_bottom: u16,
-<a href=#717 id=717 data-nosnippet>717</a>    ) {
-<a href=#718 id=718 data-nosnippet>718</a>        <span class="self">self</span>.question_panel.sync(question);
-<a href=#719 id=719 data-nosnippet>719</a>        <span class="self">self</span>.question_panel
-<a href=#720 id=720 data-nosnippet>720</a>            .shown_at
-<a href=#721 id=721 data-nosnippet>721</a>            .get_or_insert_with(Instant::now);
-<a href=#722 id=722 data-nosnippet>722</a>        <span class="kw">let </span>theme = <span class="kw-2">&amp;</span><span class="self">self</span>.theme;
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>kind = question.kind();
-<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw">let </span>text_width = screen.width.saturating_sub(<span class="number">4</span>).max(<span class="number">1</span>);
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">let </span>(rows, starts) = question_body(question, <span class="kw-2">&amp;</span><span class="self">self</span>.question_panel, text_width, theme);
-<a href=#726 id=726 data-nosnippet>726</a>        <span class="kw">let </span>footer_height = <span class="number">2</span>;
-<a href=#727 id=727 data-nosnippet>727</a>        <span class="kw">let </span>desired = u16::try_from(rows.len())
-<a href=#728 id=728 data-nosnippet>728</a>            .unwrap_or(u16::MAX)
-<a href=#729 id=729 data-nosnippet>729</a>            .saturating_add(<span class="number">3 </span>+ footer_height);
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>available = dock_bottom.saturating_sub(screen.y);
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>cap = available
-<a href=#732 id=732 data-nosnippet>732</a>            .saturating_sub(QUESTION_MIN_CONVERSATION_ROWS)
-<a href=#733 id=733 data-nosnippet>733</a>            .max(available.min(<span class="number">8 </span>+ footer_height));
-<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>height = desired.min(cap);
-<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>area = Rect::new(screen.x, dock_bottom - height, screen.width, height);
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="self">self</span>.hit_map.question = <span class="prelude-val">Some</span>(area);
-<a href=#737 id=737 data-nosnippet>737</a>        paint_panel(frame, area, theme);
-<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>inner = inner_rect(area);
-<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span>content = Rect::new(
-<a href=#740 id=740 data-nosnippet>740</a>            inner.x.saturating_add(<span class="number">1</span>),
-<a href=#741 id=741 data-nosnippet>741</a>            inner.y,
-<a href=#742 id=742 data-nosnippet>742</a>            inner.width.saturating_sub(<span class="number">2</span>),
-<a href=#743 id=743 data-nosnippet>743</a>            inner.height,
-<a href=#744 id=744 data-nosnippet>744</a>        );
-<a href=#745 id=745 data-nosnippet>745</a>        <span class="kw">let </span>body = Rect::new(
-<a href=#746 id=746 data-nosnippet>746</a>            content.x,
-<a href=#747 id=747 data-nosnippet>747</a>            content.y.saturating_add(<span class="number">1</span>).min(content.bottom()),
-<a href=#748 id=748 data-nosnippet>748</a>            content.width,
-<a href=#749 id=749 data-nosnippet>749</a>            content.height.saturating_sub(<span class="number">1 </span>+ footer_height),
-<a href=#750 id=750 data-nosnippet>750</a>        );
-<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">let </span>line_count = u16::try_from(rows.len()).unwrap_or(u16::MAX);
-<a href=#752 id=752 data-nosnippet>752</a>        <span class="kw">let </span>panel = <span class="kw-2">&amp;mut </span><span class="self">self</span>.question_panel;
-<a href=#753 id=753 data-nosnippet>753</a>        panel.max_scroll = line_count.saturating_sub(body.height);
-<a href=#754 id=754 data-nosnippet>754</a>        <span class="comment">// Keep the focused field in view.
-<a href=#755 id=755 data-nosnippet>755</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(QuestionFocus::Field(index)) = panel.focus
-<a href=#756 id=756 data-nosnippet>756</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(start) = starts.get(index)
-<a href=#757 id=757 data-nosnippet>757</a>        {
-<a href=#758 id=758 data-nosnippet>758</a>            <span class="kw">let </span>start = u16::try_from(<span class="kw-2">*</span>start).unwrap_or(u16::MAX);
-<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw">let </span>end = starts
-<a href=#760 id=760 data-nosnippet>760</a>                .get(index + <span class="number">1</span>)
-<a href=#761 id=761 data-nosnippet>761</a>                .map_or(line_count, |next| u16::try_from(<span class="kw-2">*</span>next).unwrap_or(u16::MAX));
-<a href=#762 id=762 data-nosnippet>762</a>            <span class="kw">if </span>start &lt; panel.scroll {
-<a href=#763 id=763 data-nosnippet>763</a>                panel.scroll = start;
-<a href=#764 id=764 data-nosnippet>764</a>            } <span class="kw">else if </span>end &gt; panel.scroll.saturating_add(body.height) {
-<a href=#765 id=765 data-nosnippet>765</a>                panel.scroll = end.saturating_sub(body.height).min(start);
-<a href=#766 id=766 data-nosnippet>766</a>            }
-<a href=#767 id=767 data-nosnippet>767</a>        }
-<a href=#768 id=768 data-nosnippet>768</a>        panel.scroll = panel.scroll.min(panel.max_scroll);
-<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>scroll = panel.scroll;
-<a href=#770 id=770 data-nosnippet>770</a>        <span class="kw">let </span>queued = <span class="self">self
-<a href=#771 id=771 data-nosnippet>771</a>            </span>.selected
-<a href=#772 id=772 data-nosnippet>772</a>            .and_then(|id| <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>id))
-<a href=#773 id=773 data-nosnippet>773</a>            .map_or(<span class="number">0</span>, |state| state.questions.len());
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">let </span><span class="kw-2">mut </span>block = <span class="kw">crate</span>::ui::panel_block()
-<a href=#775 id=775 data-nosnippet>775</a>            .border_style(theme.warning())
-<a href=#776 id=776 data-nosnippet>776</a>            .title(<span class="kw">crate</span>::ui::fitted_panel_title(
-<a href=#777 id=777 data-nosnippet>777</a>                Span::styled(
-<a href=#778 id=778 data-nosnippet>778</a>                    <span class="macro">format!</span>(<span class="string">"? {} · waiting on you"</span>, question.heading()),
-<a href=#779 id=779 data-nosnippet>779</a>                    theme.warning(),
-<a href=#780 id=780 data-nosnippet>780</a>                ),
-<a href=#781 id=781 data-nosnippet>781</a>                area.width,
-<a href=#782 id=782 data-nosnippet>782</a>            ))
-<a href=#783 id=783 data-nosnippet>783</a>            .style(theme.panel());
-<a href=#784 id=784 data-nosnippet>784</a>        <span class="kw">if </span>queued &gt; <span class="number">1 </span>{
-<a href=#785 id=785 data-nosnippet>785</a>            block = block.title(<span class="kw">crate</span>::ui::panel_title(
-<a href=#786 id=786 data-nosnippet>786</a>                Line::from(Span::styled(<span class="macro">format!</span>(<span class="string">"1 of {queued}"</span>), theme.muted())).right_aligned(),
-<a href=#787 id=787 data-nosnippet>787</a>            ));
-<a href=#788 id=788 data-nosnippet>788</a>        }
-<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">if </span>panel.max_scroll &gt; <span class="number">0 </span>{
-<a href=#790 id=790 data-nosnippet>790</a>            block = block.title_bottom(<span class="kw">crate</span>::ui::panel_title(Line::from(Span::styled(
-<a href=#791 id=791 data-nosnippet>791</a>                <span class="macro">format!</span>(
-<a href=#792 id=792 data-nosnippet>792</a>                    <span class="string">"{}–{}/{line_count}"</span>,
-<a href=#793 id=793 data-nosnippet>793</a>                    scroll.saturating_add(<span class="number">1</span>),
-<a href=#794 id=794 data-nosnippet>794</a>                    scroll.saturating_add(body.height).min(line_count)
-<a href=#795 id=795 data-nosnippet>795</a>                ),
-<a href=#796 id=796 data-nosnippet>796</a>                theme.internal(),
-<a href=#797 id=797 data-nosnippet>797</a>            ))));
-<a href=#798 id=798 data-nosnippet>798</a>        }
-<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">let </span>hints = question_hints(kind, area.width);
-<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">if </span>!hints.is_empty() {
-<a href=#801 id=801 data-nosnippet>801</a>            block = block.title_bottom(<span class="kw">crate</span>::ui::panel_title(
-<a href=#802 id=802 data-nosnippet>802</a>                Line::from(Span::styled(hints, theme.internal())).right_aligned(),
-<a href=#803 id=803 data-nosnippet>803</a>            ));
-<a href=#804 id=804 data-nosnippet>804</a>        }
-<a href=#805 id=805 data-nosnippet>805</a>        frame.render_widget(block, area);
-<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">for </span>(offset, row) <span class="kw">in </span>rows
-<a href=#807 id=807 data-nosnippet>807</a>            .into_iter()
-<a href=#808 id=808 data-nosnippet>808</a>            .skip(usize::from(scroll))
-<a href=#809 id=809 data-nosnippet>809</a>            .take(usize::from(body.height))
-<a href=#810 id=810 data-nosnippet>810</a>            .enumerate()
-<a href=#811 id=811 data-nosnippet>811</a>        {
-<a href=#812 id=812 data-nosnippet>812</a>            <span class="kw">let </span>y = body.y + offset <span class="kw">as </span>u16;
-<a href=#813 id=813 data-nosnippet>813</a>            frame.render_widget(Paragraph::new(row), Rect::new(body.x, y, body.width, <span class="number">1</span>));
-<a href=#814 id=814 data-nosnippet>814</a>        }
-<a href=#815 id=815 data-nosnippet>815</a>        <span class="kw">let </span>buttons_row = Rect::new(
-<a href=#816 id=816 data-nosnippet>816</a>            content.x,
-<a href=#817 id=817 data-nosnippet>817</a>            content.bottom().saturating_sub(<span class="number">1</span>),
-<a href=#818 id=818 data-nosnippet>818</a>            content.width,
-<a href=#819 id=819 data-nosnippet>819</a>            <span class="number">1</span>,
-<a href=#820 id=820 data-nosnippet>820</a>        );
-<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span><span class="kw-2">mut </span>x = buttons_row.x;
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw">for </span>(index, button) <span class="kw">in </span>question_buttons(kind).into_iter().enumerate() {
-<a href=#823 id=823 data-nosnippet>823</a>            <span class="kw">let </span>focused = <span class="self">self</span>.question_panel.focus == <span class="prelude-val">Some</span>(QuestionFocus::Button(index));
-<a href=#824 id=824 data-nosnippet>824</a>            <span class="kw">let </span>tone = theme.decision(button.tone(), focused);
-<a href=#825 id=825 data-nosnippet>825</a>            <span class="kw">let </span>style = <span class="kw">if </span>focused {
-<a href=#826 id=826 data-nosnippet>826</a>                tone
-<a href=#827 id=827 data-nosnippet>827</a>            } <span class="kw">else </span>{
-<a href=#828 id=828 data-nosnippet>828</a>                theme
-<a href=#829 id=829 data-nosnippet>829</a>                    .code_background()
-<a href=#830 id=830 data-nosnippet>830</a>                    .map_or_else(Style::default, |background| Style::default().bg(background))
-<a href=#831 id=831 data-nosnippet>831</a>                    .patch(tone)
-<a href=#832 id=832 data-nosnippet>832</a>            };
-<a href=#833 id=833 data-nosnippet>833</a>            <span class="kw">let </span>label = <span class="macro">format!</span>(<span class="string">" {} "</span>, button.label(kind));
-<a href=#834 id=834 data-nosnippet>834</a>            <span class="kw">let </span>width = u16::try_from(UnicodeWidthStr::width(label.as_str())).unwrap_or(u16::MAX);
-<a href=#835 id=835 data-nosnippet>835</a>            <span class="kw">let </span>visible = width.min(buttons_row.right().saturating_sub(x));
-<a href=#836 id=836 data-nosnippet>836</a>            <span class="kw">if </span>visible == <span class="number">0 </span>{
-<a href=#837 id=837 data-nosnippet>837</a>                <span class="kw">break</span>;
-<a href=#838 id=838 data-nosnippet>838</a>            }
-<a href=#839 id=839 data-nosnippet>839</a>            frame.render_widget(
-<a href=#840 id=840 data-nosnippet>840</a>                Paragraph::new(Span::styled(label, style)),
-<a href=#841 id=841 data-nosnippet>841</a>                Rect::new(x, buttons_row.y, visible, <span class="number">1</span>),
-<a href=#842 id=842 data-nosnippet>842</a>            );
-<a href=#843 id=843 data-nosnippet>843</a>            x = x.saturating_add(width).saturating_add(<span class="number">2</span>);
-<a href=#844 id=844 data-nosnippet>844</a>        }
-<a href=#845 id=845 data-nosnippet>845</a>        <span class="kw">let </span>notice = <span class="kw">if </span><span class="self">self</span>.question_panel.sending {
-<a href=#846 id=846 data-nosnippet>846</a>            <span class="prelude-val">Some</span>(<span class="string">"sending…"</span>.to_owned())
-<a href=#847 id=847 data-nosnippet>847</a>        } <span class="kw">else </span>{
-<a href=#848 id=848 data-nosnippet>848</a>            <span class="self">self</span>.question_panel.notice.clone()
-<a href=#849 id=849 data-nosnippet>849</a>        };
-<a href=#850 id=850 data-nosnippet>850</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(notice) = notice {
-<a href=#851 id=851 data-nosnippet>851</a>            <span class="kw">let </span>room = buttons_row.right().saturating_sub(x);
-<a href=#852 id=852 data-nosnippet>852</a>            <span class="kw">let </span>notice = truncate_with_ellipsis(<span class="kw-2">&amp;</span>notice, usize::from(room));
-<a href=#853 id=853 data-nosnippet>853</a>            <span class="kw">let </span>width = u16::try_from(UnicodeWidthStr::width(notice.as_str())).unwrap_or(room);
-<a href=#854 id=854 data-nosnippet>854</a>            frame.render_widget(
-<a href=#855 id=855 data-nosnippet>855</a>                Paragraph::new(Span::styled(notice, theme.warning())),
-<a href=#856 id=856 data-nosnippet>856</a>                Rect::new(buttons_row.right() - width, buttons_row.y, width, <span class="number">1</span>),
-<a href=#857 id=857 data-nosnippet>857</a>            );
-<a href=#858 id=858 data-nosnippet>858</a>        }
-<a href=#859 id=859 data-nosnippet>859</a>    }
-<a href=#860 id=860 data-nosnippet>860</a>}
+<a href=#626 id=626 data-nosnippet>626</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#628 id=628 data-nosnippet>628</a>        <span class="kw">let </span>params = ElicitationRespondParams {
+<a href=#629 id=629 data-nosnippet>629</a>            session_id: question.session_id,
+<a href=#630 id=630 data-nosnippet>630</a>            elicitation_id: question.request.elicitation_id,
+<a href=#631 id=631 data-nosnippet>631</a>            action,
+<a href=#632 id=632 data-nosnippet>632</a>            content,
+<a href=#633 id=633 data-nosnippet>633</a>        };
+<a href=#634 id=634 data-nosnippet>634</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#635 id=635 data-nosnippet>635</a>            <span class="kw">let </span>session_id = params.session_id;
+<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">let </span>elicitation_id = params.elicitation_id;
+<a href=#637 id=637 data-nosnippet>637</a>            <span class="kw">let </span>result = client
+<a href=#638 id=638 data-nosnippet>638</a>                .respond_elicitation(params)
+<a href=#639 id=639 data-nosnippet>639</a>                .<span class="kw">await
+<a href=#640 id=640 data-nosnippet>640</a>                </span>.map(|<span class="kw">_</span>| ())
+<a href=#641 id=641 data-nosnippet>641</a>                .map_err(|error| (error.error_code().map(str::to_owned), error.to_string()));
+<a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::QuestionAnswered {
+<a href=#643 id=643 data-nosnippet>643</a>                session_id,
+<a href=#644 id=644 data-nosnippet>644</a>                elicitation_id,
+<a href=#645 id=645 data-nosnippet>645</a>                result,
+<a href=#646 id=646 data-nosnippet>646</a>            });
+<a href=#647 id=647 data-nosnippet>647</a>        });
+<a href=#648 id=648 data-nosnippet>648</a>    }
+<a href=#649 id=649 data-nosnippet>649</a>
+<a href=#650 id=650 data-nosnippet>650</a>    <span class="doccomment">/// `elicitation.respond` answered. The question leaves when its
+<a href=#651 id=651 data-nosnippet>651</a>    /// `elicitation_resolved` arrives; one no longer waiting leaves now.
+<a href=#652 id=652 data-nosnippet>652</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish_question_answer(
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#654 id=654 data-nosnippet>654</a>        session_id: SessionId,
+<a href=#655 id=655 data-nosnippet>655</a>        elicitation_id: ElicitationId,
+<a href=#656 id=656 data-nosnippet>656</a>        result: <span class="prelude-ty">Result</span>&lt;(), (<span class="prelude-ty">Option</span>&lt;String&gt;, String)&gt;,
+<a href=#657 id=657 data-nosnippet>657</a>    ) {
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">if </span><span class="self">self</span>.question_panel.question == <span class="prelude-val">Some</span>(elicitation_id) {
+<a href=#659 id=659 data-nosnippet>659</a>            <span class="self">self</span>.question_panel.sending = <span class="bool-val">false</span>;
+<a href=#660 id=660 data-nosnippet>660</a>        }
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">match </span>result {
+<a href=#662 id=662 data-nosnippet>662</a>            <span class="prelude-val">Ok</span>(()) =&gt; {}
+<a href=#663 id=663 data-nosnippet>663</a>            <span class="prelude-val">Err</span>((code, message)) =&gt; {
+<a href=#664 id=664 data-nosnippet>664</a>                <span class="kw">if </span>code.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"elicitation_not_pending"</span>) {
+<a href=#665 id=665 data-nosnippet>665</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
+<a href=#666 id=666 data-nosnippet>666</a>                        state
+<a href=#667 id=667 data-nosnippet>667</a>                            .questions
+<a href=#668 id=668 data-nosnippet>668</a>                            .retain(|question| question.request.elicitation_id != elicitation_id);
+<a href=#669 id=669 data-nosnippet>669</a>                    }
+<a href=#670 id=670 data-nosnippet>670</a>                    <span class="self">self</span>.status = <span class="string">"the question is no longer waiting"</span>.into();
+<a href=#671 id=671 data-nosnippet>671</a>                } <span class="kw">else </span>{
+<a href=#672 id=672 data-nosnippet>672</a>                    <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"answer not sent: {message}"</span>);
+<a href=#673 id=673 data-nosnippet>673</a>                    <span class="kw">if </span><span class="self">self</span>.question_panel.question == <span class="prelude-val">Some</span>(elicitation_id) {
+<a href=#674 id=674 data-nosnippet>674</a>                        <span class="self">self</span>.question_panel.notice = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"not sent: {message}"</span>));
+<a href=#675 id=675 data-nosnippet>675</a>                    }
+<a href=#676 id=676 data-nosnippet>676</a>                }
+<a href=#677 id=677 data-nosnippet>677</a>            }
+<a href=#678 id=678 data-nosnippet>678</a>        }
+<a href=#679 id=679 data-nosnippet>679</a>    }
+<a href=#680 id=680 data-nosnippet>680</a>
+<a href=#681 id=681 data-nosnippet>681</a>    <span class="doccomment">/// Pastes `text`, on one line, into the question's focused text field.
+<a href=#682 id=682 data-nosnippet>682</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>paste_into_question(<span class="kw-2">&amp;mut </span><span class="self">self</span>, text: <span class="kw-2">&amp;</span>str) {
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(question) = <span class="self">self</span>.current_question().cloned() <span class="kw">else </span>{
+<a href=#684 id=684 data-nosnippet>684</a>            <span class="kw">return</span>;
+<a href=#685 id=685 data-nosnippet>685</a>        };
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="self">self</span>.question_panel.sync(<span class="kw-2">&amp;</span>question);
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>QuestionKind::Form(form) = question.kind() <span class="kw">else </span>{
+<a href=#688 id=688 data-nosnippet>688</a>            <span class="kw">return</span>;
+<a href=#689 id=689 data-nosnippet>689</a>        };
+<a href=#690 id=690 data-nosnippet>690</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(QuestionFocus::Field(index)) = <span class="self">self</span>.question_panel.focus
+<a href=#691 id=691 data-nosnippet>691</a>            &amp;&amp; is_text_field(form, index)
+<a href=#692 id=692 data-nosnippet>692</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(input) = <span class="self">self</span>.question_panel.inputs.get_mut(index)
+<a href=#693 id=693 data-nosnippet>693</a>        {
+<a href=#694 id=694 data-nosnippet>694</a>            input.insert_text(<span class="kw-2">&amp;</span>text.replace([<span class="string">'\r'</span>, <span class="string">'\n'</span>], <span class="string">" "</span>));
+<a href=#695 id=695 data-nosnippet>695</a>        }
+<a href=#696 id=696 data-nosnippet>696</a>    }
+<a href=#697 id=697 data-nosnippet>697</a>
+<a href=#698 id=698 data-nosnippet>698</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>scroll_question(<span class="kw-2">&amp;mut </span><span class="self">self</span>, up: bool, lines: u16) {
+<a href=#699 id=699 data-nosnippet>699</a>        <span class="kw">let </span>panel = <span class="kw-2">&amp;mut </span><span class="self">self</span>.question_panel;
+<a href=#700 id=700 data-nosnippet>700</a>        panel.scroll = <span class="kw">if </span>up {
+<a href=#701 id=701 data-nosnippet>701</a>            panel.scroll.saturating_sub(lines)
+<a href=#702 id=702 data-nosnippet>702</a>        } <span class="kw">else </span>{
+<a href=#703 id=703 data-nosnippet>703</a>            panel.scroll.saturating_add(lines).min(panel.max_scroll)
+<a href=#704 id=704 data-nosnippet>704</a>        };
+<a href=#705 id=705 data-nosnippet>705</a>    }
+<a href=#706 id=706 data-nosnippet>706</a>
+<a href=#707 id=707 data-nosnippet>707</a>    <span class="doccomment">/// Draws the question panel docked with its bottom edge at
+<a href=#708 id=708 data-nosnippet>708</a>    /// `dock_bottom`, sized to its content and capped so a few
+<a href=#709 id=709 data-nosnippet>709</a>    /// conversation rows stay visible.
+<a href=#710 id=710 data-nosnippet>710</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>render_question(
+<a href=#711 id=711 data-nosnippet>711</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#712 id=712 data-nosnippet>712</a>        frame: <span class="kw-2">&amp;mut </span>ratatui::Frame,
+<a href=#713 id=713 data-nosnippet>713</a>        question: <span class="kw-2">&amp;</span>QuestionState,
+<a href=#714 id=714 data-nosnippet>714</a>        screen: Rect,
+<a href=#715 id=715 data-nosnippet>715</a>        dock_bottom: u16,
+<a href=#716 id=716 data-nosnippet>716</a>    ) {
+<a href=#717 id=717 data-nosnippet>717</a>        <span class="self">self</span>.question_panel.sync(question);
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="self">self</span>.question_panel
+<a href=#719 id=719 data-nosnippet>719</a>            .shown_at
+<a href=#720 id=720 data-nosnippet>720</a>            .get_or_insert_with(Instant::now);
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>theme = <span class="kw-2">&amp;</span><span class="self">self</span>.theme;
+<a href=#722 id=722 data-nosnippet>722</a>        <span class="kw">let </span>kind = question.kind();
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>text_width = screen.width.saturating_sub(<span class="number">4</span>).max(<span class="number">1</span>);
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw">let </span>(rows, starts) = question_body(question, <span class="kw-2">&amp;</span><span class="self">self</span>.question_panel, text_width, theme);
+<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">let </span>footer_height = <span class="number">2</span>;
+<a href=#726 id=726 data-nosnippet>726</a>        <span class="kw">let </span>desired = u16::try_from(rows.len())
+<a href=#727 id=727 data-nosnippet>727</a>            .unwrap_or(u16::MAX)
+<a href=#728 id=728 data-nosnippet>728</a>            .saturating_add(<span class="number">3 </span>+ footer_height);
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw">let </span>available = dock_bottom.saturating_sub(screen.y);
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>cap = available
+<a href=#731 id=731 data-nosnippet>731</a>            .saturating_sub(QUESTION_MIN_CONVERSATION_ROWS)
+<a href=#732 id=732 data-nosnippet>732</a>            .max(available.min(<span class="number">8 </span>+ footer_height));
+<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>height = desired.min(cap);
+<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>area = Rect::new(screen.x, dock_bottom - height, screen.width, height);
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="self">self</span>.hit_map.question = <span class="prelude-val">Some</span>(area);
+<a href=#736 id=736 data-nosnippet>736</a>        paint_panel(frame, area, theme);
+<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">let </span>inner = inner_rect(area);
+<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>content = Rect::new(
+<a href=#739 id=739 data-nosnippet>739</a>            inner.x.saturating_add(<span class="number">1</span>),
+<a href=#740 id=740 data-nosnippet>740</a>            inner.y,
+<a href=#741 id=741 data-nosnippet>741</a>            inner.width.saturating_sub(<span class="number">2</span>),
+<a href=#742 id=742 data-nosnippet>742</a>            inner.height,
+<a href=#743 id=743 data-nosnippet>743</a>        );
+<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">let </span>body = Rect::new(
+<a href=#745 id=745 data-nosnippet>745</a>            content.x,
+<a href=#746 id=746 data-nosnippet>746</a>            content.y.saturating_add(<span class="number">1</span>).min(content.bottom()),
+<a href=#747 id=747 data-nosnippet>747</a>            content.width,
+<a href=#748 id=748 data-nosnippet>748</a>            content.height.saturating_sub(<span class="number">1 </span>+ footer_height),
+<a href=#749 id=749 data-nosnippet>749</a>        );
+<a href=#750 id=750 data-nosnippet>750</a>        <span class="kw">let </span>line_count = u16::try_from(rows.len()).unwrap_or(u16::MAX);
+<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">let </span>panel = <span class="kw-2">&amp;mut </span><span class="self">self</span>.question_panel;
+<a href=#752 id=752 data-nosnippet>752</a>        panel.max_scroll = line_count.saturating_sub(body.height);
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="comment">// Keep the focused field in view.
+<a href=#754 id=754 data-nosnippet>754</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(QuestionFocus::Field(index)) = panel.focus
+<a href=#755 id=755 data-nosnippet>755</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(start) = starts.get(index)
+<a href=#756 id=756 data-nosnippet>756</a>        {
+<a href=#757 id=757 data-nosnippet>757</a>            <span class="kw">let </span>start = u16::try_from(<span class="kw-2">*</span>start).unwrap_or(u16::MAX);
+<a href=#758 id=758 data-nosnippet>758</a>            <span class="kw">let </span>end = starts
+<a href=#759 id=759 data-nosnippet>759</a>                .get(index + <span class="number">1</span>)
+<a href=#760 id=760 data-nosnippet>760</a>                .map_or(line_count, |next| u16::try_from(<span class="kw-2">*</span>next).unwrap_or(u16::MAX));
+<a href=#761 id=761 data-nosnippet>761</a>            <span class="kw">if </span>start &lt; panel.scroll {
+<a href=#762 id=762 data-nosnippet>762</a>                panel.scroll = start;
+<a href=#763 id=763 data-nosnippet>763</a>            } <span class="kw">else if </span>end &gt; panel.scroll.saturating_add(body.height) {
+<a href=#764 id=764 data-nosnippet>764</a>                panel.scroll = end.saturating_sub(body.height).min(start);
+<a href=#765 id=765 data-nosnippet>765</a>            }
+<a href=#766 id=766 data-nosnippet>766</a>        }
+<a href=#767 id=767 data-nosnippet>767</a>        panel.scroll = panel.scroll.min(panel.max_scroll);
+<a href=#768 id=768 data-nosnippet>768</a>        <span class="kw">let </span>scroll = panel.scroll;
+<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>queued = <span class="self">self
+<a href=#770 id=770 data-nosnippet>770</a>            </span>.selected
+<a href=#771 id=771 data-nosnippet>771</a>            .and_then(|id| <span class="self">self</span>.store.sessions.get(<span class="kw-2">&amp;</span>id))
+<a href=#772 id=772 data-nosnippet>772</a>            .map_or(<span class="number">0</span>, |state| state.questions.len());
+<a href=#773 id=773 data-nosnippet>773</a>        <span class="kw">let </span><span class="kw-2">mut </span>block = <span class="kw">crate</span>::ui::panel_block()
+<a href=#774 id=774 data-nosnippet>774</a>            .border_style(theme.warning())
+<a href=#775 id=775 data-nosnippet>775</a>            .title(<span class="kw">crate</span>::ui::fitted_panel_title(
+<a href=#776 id=776 data-nosnippet>776</a>                Span::styled(
+<a href=#777 id=777 data-nosnippet>777</a>                    <span class="macro">format!</span>(<span class="string">"? {} · waiting on you"</span>, question.heading()),
+<a href=#778 id=778 data-nosnippet>778</a>                    theme.warning(),
+<a href=#779 id=779 data-nosnippet>779</a>                ),
+<a href=#780 id=780 data-nosnippet>780</a>                area.width,
+<a href=#781 id=781 data-nosnippet>781</a>            ))
+<a href=#782 id=782 data-nosnippet>782</a>            .style(theme.panel());
+<a href=#783 id=783 data-nosnippet>783</a>        <span class="kw">if </span>queued &gt; <span class="number">1 </span>{
+<a href=#784 id=784 data-nosnippet>784</a>            block = block.title(<span class="kw">crate</span>::ui::panel_title(
+<a href=#785 id=785 data-nosnippet>785</a>                Line::from(Span::styled(<span class="macro">format!</span>(<span class="string">"1 of {queued}"</span>), theme.muted())).right_aligned(),
+<a href=#786 id=786 data-nosnippet>786</a>            ));
+<a href=#787 id=787 data-nosnippet>787</a>        }
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">if </span>panel.max_scroll &gt; <span class="number">0 </span>{
+<a href=#789 id=789 data-nosnippet>789</a>            block = block.title_bottom(<span class="kw">crate</span>::ui::panel_title(Line::from(Span::styled(
+<a href=#790 id=790 data-nosnippet>790</a>                <span class="macro">format!</span>(
+<a href=#791 id=791 data-nosnippet>791</a>                    <span class="string">"{}–{}/{line_count}"</span>,
+<a href=#792 id=792 data-nosnippet>792</a>                    scroll.saturating_add(<span class="number">1</span>),
+<a href=#793 id=793 data-nosnippet>793</a>                    scroll.saturating_add(body.height).min(line_count)
+<a href=#794 id=794 data-nosnippet>794</a>                ),
+<a href=#795 id=795 data-nosnippet>795</a>                theme.internal(),
+<a href=#796 id=796 data-nosnippet>796</a>            ))));
+<a href=#797 id=797 data-nosnippet>797</a>        }
+<a href=#798 id=798 data-nosnippet>798</a>        <span class="kw">let </span>hints = question_hints(kind, area.width);
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">if </span>!hints.is_empty() {
+<a href=#800 id=800 data-nosnippet>800</a>            block = block.title_bottom(<span class="kw">crate</span>::ui::panel_title(
+<a href=#801 id=801 data-nosnippet>801</a>                Line::from(Span::styled(hints, theme.internal())).right_aligned(),
+<a href=#802 id=802 data-nosnippet>802</a>            ));
+<a href=#803 id=803 data-nosnippet>803</a>        }
+<a href=#804 id=804 data-nosnippet>804</a>        frame.render_widget(block, area);
+<a href=#805 id=805 data-nosnippet>805</a>        <span class="kw">for </span>(offset, row) <span class="kw">in </span>rows
+<a href=#806 id=806 data-nosnippet>806</a>            .into_iter()
+<a href=#807 id=807 data-nosnippet>807</a>            .skip(usize::from(scroll))
+<a href=#808 id=808 data-nosnippet>808</a>            .take(usize::from(body.height))
+<a href=#809 id=809 data-nosnippet>809</a>            .enumerate()
+<a href=#810 id=810 data-nosnippet>810</a>        {
+<a href=#811 id=811 data-nosnippet>811</a>            <span class="kw">let </span>y = body.y + offset <span class="kw">as </span>u16;
+<a href=#812 id=812 data-nosnippet>812</a>            frame.render_widget(Paragraph::new(row), Rect::new(body.x, y, body.width, <span class="number">1</span>));
+<a href=#813 id=813 data-nosnippet>813</a>        }
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>buttons_row = Rect::new(
+<a href=#815 id=815 data-nosnippet>815</a>            content.x,
+<a href=#816 id=816 data-nosnippet>816</a>            content.bottom().saturating_sub(<span class="number">1</span>),
+<a href=#817 id=817 data-nosnippet>817</a>            content.width,
+<a href=#818 id=818 data-nosnippet>818</a>            <span class="number">1</span>,
+<a href=#819 id=819 data-nosnippet>819</a>        );
+<a href=#820 id=820 data-nosnippet>820</a>        <span class="kw">let </span><span class="kw-2">mut </span>x = buttons_row.x;
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">for </span>(index, button) <span class="kw">in </span>question_buttons(kind).into_iter().enumerate() {
+<a href=#822 id=822 data-nosnippet>822</a>            <span class="kw">let </span>focused = <span class="self">self</span>.question_panel.focus == <span class="prelude-val">Some</span>(QuestionFocus::Button(index));
+<a href=#823 id=823 data-nosnippet>823</a>            <span class="kw">let </span>tone = theme.decision(button.tone(), focused);
+<a href=#824 id=824 data-nosnippet>824</a>            <span class="kw">let </span>style = <span class="kw">if </span>focused {
+<a href=#825 id=825 data-nosnippet>825</a>                tone
+<a href=#826 id=826 data-nosnippet>826</a>            } <span class="kw">else </span>{
+<a href=#827 id=827 data-nosnippet>827</a>                theme
+<a href=#828 id=828 data-nosnippet>828</a>                    .code_background()
+<a href=#829 id=829 data-nosnippet>829</a>                    .map_or_else(Style::default, |background| Style::default().bg(background))
+<a href=#830 id=830 data-nosnippet>830</a>                    .patch(tone)
+<a href=#831 id=831 data-nosnippet>831</a>            };
+<a href=#832 id=832 data-nosnippet>832</a>            <span class="kw">let </span>label = <span class="macro">format!</span>(<span class="string">" {} "</span>, button.label(kind));
+<a href=#833 id=833 data-nosnippet>833</a>            <span class="kw">let </span>width = u16::try_from(UnicodeWidthStr::width(label.as_str())).unwrap_or(u16::MAX);
+<a href=#834 id=834 data-nosnippet>834</a>            <span class="kw">let </span>visible = width.min(buttons_row.right().saturating_sub(x));
+<a href=#835 id=835 data-nosnippet>835</a>            <span class="kw">if </span>visible == <span class="number">0 </span>{
+<a href=#836 id=836 data-nosnippet>836</a>                <span class="kw">break</span>;
+<a href=#837 id=837 data-nosnippet>837</a>            }
+<a href=#838 id=838 data-nosnippet>838</a>            frame.render_widget(
+<a href=#839 id=839 data-nosnippet>839</a>                Paragraph::new(Span::styled(label, style)),
+<a href=#840 id=840 data-nosnippet>840</a>                Rect::new(x, buttons_row.y, visible, <span class="number">1</span>),
+<a href=#841 id=841 data-nosnippet>841</a>            );
+<a href=#842 id=842 data-nosnippet>842</a>            x = x.saturating_add(width).saturating_add(<span class="number">2</span>);
+<a href=#843 id=843 data-nosnippet>843</a>        }
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw">let </span>notice = <span class="kw">if </span><span class="self">self</span>.question_panel.sending {
+<a href=#845 id=845 data-nosnippet>845</a>            <span class="prelude-val">Some</span>(<span class="string">"sending…"</span>.to_owned())
+<a href=#846 id=846 data-nosnippet>846</a>        } <span class="kw">else </span>{
+<a href=#847 id=847 data-nosnippet>847</a>            <span class="self">self</span>.question_panel.notice.clone()
+<a href=#848 id=848 data-nosnippet>848</a>        };
+<a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(notice) = notice {
+<a href=#850 id=850 data-nosnippet>850</a>            <span class="kw">let </span>room = buttons_row.right().saturating_sub(x);
+<a href=#851 id=851 data-nosnippet>851</a>            <span class="kw">let </span>notice = truncate_with_ellipsis(<span class="kw-2">&amp;</span>notice, usize::from(room));
+<a href=#852 id=852 data-nosnippet>852</a>            <span class="kw">let </span>width = u16::try_from(UnicodeWidthStr::width(notice.as_str())).unwrap_or(room);
+<a href=#853 id=853 data-nosnippet>853</a>            frame.render_widget(
+<a href=#854 id=854 data-nosnippet>854</a>                Paragraph::new(Span::styled(notice, theme.warning())),
+<a href=#855 id=855 data-nosnippet>855</a>                Rect::new(buttons_row.right() - width, buttons_row.y, width, <span class="number">1</span>),
+<a href=#856 id=856 data-nosnippet>856</a>            );
+<a href=#857 id=857 data-nosnippet>857</a>        }
+<a href=#858 id=858 data-nosnippet>858</a>    }
+<a href=#859 id=859 data-nosnippet>859</a>}
 </code></pre></div></section></main></body></html>

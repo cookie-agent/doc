@@ -98,105 +98,93 @@
 <a href=#98 id=98 data-nosnippet>98</a>    </span>}
 <a href=#99 id=99 data-nosnippet>99</a>
 <a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">fn </span>send_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, change: SessionRenameChange) {
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="self">self</span>.status = <span class="string">"Renaming the session…"</span>.into();
-<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">let </span>params = session_rename::rename_params(
-<a href=#103 id=103 data-nosnippet>103</a>            session_id,
-<a href=#104 id=104 data-nosnippet>104</a>            change.clone(),
-<a href=#105 id=105 data-nosnippet>105</a>            <span class="kw-2">&amp;</span>uuid::Uuid::now_v7().to_string(),
-<a href=#106 id=106 data-nosnippet>106</a>        );
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
-<a href=#110 id=110 data-nosnippet>110</a>            <span class="kw">let </span>result = session_rename::rename_session(<span class="kw-2">&amp;</span>client, params).<span class="kw">await</span>;
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::SessionRenamed {
-<a href=#112 id=112 data-nosnippet>112</a>                change,
-<a href=#113 id=113 data-nosnippet>113</a>                result: Box::new(result),
-<a href=#114 id=114 data-nosnippet>114</a>            });
-<a href=#115 id=115 data-nosnippet>115</a>        });
-<a href=#116 id=116 data-nosnippet>116</a>    }
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Shows how a rename ended, and the title it left in the session list
-<a href=#119 id=119 data-nosnippet>119</a>    /// at once; `sessions.changed` tells every other client.
-<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish_session_rename(
-<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#122 id=122 data-nosnippet>122</a>        change: SessionRenameChange,
-<a href=#123 id=123 data-nosnippet>123</a>        result: <span class="prelude-ty">Result</span>&lt;SessionMeta, ClientError&gt;,
-<a href=#124 id=124 data-nosnippet>124</a>    ) {
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">match </span>result {
-<a href=#126 id=126 data-nosnippet>126</a>            <span class="prelude-val">Ok</span>(session) =&gt; {
-<a href=#127 id=127 data-nosnippet>127</a>                <span class="kw">let </span>session = <span class="self">self</span>.merge_session_meta(session);
-<a href=#128 id=128 data-nosnippet>128</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self
-<a href=#129 id=129 data-nosnippet>129</a>                    </span>.sessions
-<a href=#130 id=130 data-nosnippet>130</a>                    .iter_mut()
-<a href=#131 id=131 data-nosnippet>131</a>                    .find(|existing| existing.session_id == session.session_id)
-<a href=#132 id=132 data-nosnippet>132</a>                {
-<a href=#133 id=133 data-nosnippet>133</a>                    <span class="kw-2">*</span>existing = session;
-<a href=#134 id=134 data-nosnippet>134</a>                    <span class="self">self</span>.note_sessions_changed();
-<a href=#135 id=135 data-nosnippet>135</a>                }
-<a href=#136 id=136 data-nosnippet>136</a>                <span class="self">self</span>.status = session_rename::renamed_status(<span class="kw-2">&amp;</span>change);
-<a href=#137 id=137 data-nosnippet>137</a>            }
-<a href=#138 id=138 data-nosnippet>138</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="self">self</span>.handle_rpc_update(RpcUpdate::failure(<span class="kw-2">&amp;</span>error)),
-<a href=#139 id=139 data-nosnippet>139</a>        }
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>params =
+<a href=#102 id=102 data-nosnippet>102</a>            session_rename::rename_params(session_id, change, <span class="kw-2">&amp;</span>uuid::Uuid::now_v7().to_string());
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#104 id=104 data-nosnippet>104</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#106 id=106 data-nosnippet>106</a>            <span class="kw">let </span>result = session_rename::rename_session(<span class="kw-2">&amp;</span>client, params).<span class="kw">await</span>;
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::SessionRenamed(Box::new(result)));
+<a href=#108 id=108 data-nosnippet>108</a>        });
+<a href=#109 id=109 data-nosnippet>109</a>    }
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// Shows the title a rename left in the session list at once, or why
+<a href=#112 id=112 data-nosnippet>112</a>    /// it failed; `sessions.changed` tells every other client.
+<a href=#113 id=113 data-nosnippet>113</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: <span class="prelude-ty">Result</span>&lt;SessionMeta, ClientError&gt;) {
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="kw">match </span>result {
+<a href=#115 id=115 data-nosnippet>115</a>            <span class="prelude-val">Ok</span>(session) =&gt; {
+<a href=#116 id=116 data-nosnippet>116</a>                <span class="kw">let </span>session = <span class="self">self</span>.merge_session_meta(session);
+<a href=#117 id=117 data-nosnippet>117</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self
+<a href=#118 id=118 data-nosnippet>118</a>                    </span>.sessions
+<a href=#119 id=119 data-nosnippet>119</a>                    .iter_mut()
+<a href=#120 id=120 data-nosnippet>120</a>                    .find(|existing| existing.session_id == session.session_id)
+<a href=#121 id=121 data-nosnippet>121</a>                {
+<a href=#122 id=122 data-nosnippet>122</a>                    <span class="kw-2">*</span>existing = session;
+<a href=#123 id=123 data-nosnippet>123</a>                    <span class="self">self</span>.note_sessions_changed();
+<a href=#124 id=124 data-nosnippet>124</a>                }
+<a href=#125 id=125 data-nosnippet>125</a>            }
+<a href=#126 id=126 data-nosnippet>126</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="self">self</span>.handle_rpc_update(RpcUpdate::failure(<span class="kw-2">&amp;</span>error)),
+<a href=#127 id=127 data-nosnippet>127</a>        }
+<a href=#128 id=128 data-nosnippet>128</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// Ctrl+R or the Rename button in the picker: a title field for the
+<a href=#131 id=131 data-nosnippet>131</a>    /// highlighted session, over the picker's search.
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>begin_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">let </span>index = <span class="self">self</span>.picker_state.selected().unwrap_or(<span class="number">0</span>);
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.session_search_ids().get(index).copied() <span class="kw">else </span>{
+<a href=#135 id=135 data-nosnippet>135</a>            <span class="self">self</span>.status = <span class="string">"There is no session to rename."</span>.into();
+<a href=#136 id=136 data-nosnippet>136</a>            <span class="kw">return</span>;
+<a href=#137 id=137 data-nosnippet>137</a>        };
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="kw">let </span>input = <span class="self">self</span>.title_input(session_id);
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="self">self</span>.session_rename = <span class="prelude-val">Some</span>(SessionRenamePrompt { session_id, input });
 <a href=#140 id=140 data-nosnippet>140</a>    }
 <a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Ctrl+R or the Rename button in the picker: a title field for the
-<a href=#143 id=143 data-nosnippet>143</a>    /// highlighted session, over the picker's search.
-<a href=#144 id=144 data-nosnippet>144</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>begin_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#145 id=145 data-nosnippet>145</a>        <span class="kw">let </span>index = <span class="self">self</span>.picker_state.selected().unwrap_or(<span class="number">0</span>);
-<a href=#146 id=146 data-nosnippet>146</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.session_search_ids().get(index).copied() <span class="kw">else </span>{
-<a href=#147 id=147 data-nosnippet>147</a>            <span class="self">self</span>.status = <span class="string">"There is no session to rename."</span>.into();
-<a href=#148 id=148 data-nosnippet>148</a>            <span class="kw">return</span>;
-<a href=#149 id=149 data-nosnippet>149</a>        };
-<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span>input = <span class="self">self</span>.title_input(session_id);
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="self">self</span>.session_rename = <span class="prelude-val">Some</span>(SessionRenamePrompt { session_id, input });
-<a href=#152 id=152 data-nosnippet>152</a>    }
-<a href=#153 id=153 data-nosnippet>153</a>
-<a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// Keys while the picker's title field is open: Enter renames, Esc
-<a href=#155 id=155 data-nosnippet>155</a>    /// goes back to the picker, and the rest edit the title. Returns
-<a href=#156 id=156 data-nosnippet>156</a>    /// whether the field took the key.
-<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>handle_session_rename_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: KeyEvent) -&gt; bool {
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(prompt) = <span class="self">self</span>.session_rename.as_mut() <span class="kw">else </span>{
-<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#160 id=160 data-nosnippet>160</a>        };
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">match </span>key.code {
-<a href=#162 id=162 data-nosnippet>162</a>            KeyCode::Esc =&gt; <span class="self">self</span>.session_rename = <span class="prelude-val">None</span>,
-<a href=#163 id=163 data-nosnippet>163</a>            KeyCode::Enter =&gt; {
-<a href=#164 id=164 data-nosnippet>164</a>                <span class="kw">let </span>(session_id, text) = (prompt.session_id, prompt.input.as_str().to_owned());
-<a href=#165 id=165 data-nosnippet>165</a>                <span class="kw">if </span><span class="self">self</span>.submit_session_title(session_id, <span class="kw-2">&amp;</span>text) {
-<a href=#166 id=166 data-nosnippet>166</a>                    <span class="self">self</span>.session_rename = <span class="prelude-val">None</span>;
-<a href=#167 id=167 data-nosnippet>167</a>                }
-<a href=#168 id=168 data-nosnippet>168</a>            }
-<a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">_ </span>=&gt; keys::edit_plain_input(<span class="kw-2">&amp;mut </span>prompt.input, key),
-<a href=#170 id=170 data-nosnippet>170</a>        }
-<a href=#171 id=171 data-nosnippet>171</a>        <span class="bool-val">true
-<a href=#172 id=172 data-nosnippet>172</a>    </span>}
-<a href=#173 id=173 data-nosnippet>173</a>
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="doccomment">/// Paste into the picker's title field as one line.
-<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>paste_into_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, text: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Keys while the picker's title field is open: Enter renames, Esc
+<a href=#143 id=143 data-nosnippet>143</a>    /// goes back to the picker, and the rest edit the title. Returns
+<a href=#144 id=144 data-nosnippet>144</a>    /// whether the field took the key.
+<a href=#145 id=145 data-nosnippet>145</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>handle_session_rename_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: KeyEvent) -&gt; bool {
+<a href=#146 id=146 data-nosnippet>146</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(prompt) = <span class="self">self</span>.session_rename.as_mut() <span class="kw">else </span>{
+<a href=#147 id=147 data-nosnippet>147</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#148 id=148 data-nosnippet>148</a>        };
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">match </span>key.code {
+<a href=#150 id=150 data-nosnippet>150</a>            KeyCode::Esc =&gt; <span class="self">self</span>.session_rename = <span class="prelude-val">None</span>,
+<a href=#151 id=151 data-nosnippet>151</a>            KeyCode::Enter =&gt; {
+<a href=#152 id=152 data-nosnippet>152</a>                <span class="kw">let </span>(session_id, text) = (prompt.session_id, prompt.input.as_str().to_owned());
+<a href=#153 id=153 data-nosnippet>153</a>                <span class="kw">if </span><span class="self">self</span>.submit_session_title(session_id, <span class="kw-2">&amp;</span>text) {
+<a href=#154 id=154 data-nosnippet>154</a>                    <span class="self">self</span>.session_rename = <span class="prelude-val">None</span>;
+<a href=#155 id=155 data-nosnippet>155</a>                }
+<a href=#156 id=156 data-nosnippet>156</a>            }
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">_ </span>=&gt; keys::edit_plain_input(<span class="kw-2">&amp;mut </span>prompt.input, key),
+<a href=#158 id=158 data-nosnippet>158</a>        }
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="bool-val">true
+<a href=#160 id=160 data-nosnippet>160</a>    </span>}
+<a href=#161 id=161 data-nosnippet>161</a>
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="doccomment">/// Paste into the picker's title field as one line.
+<a href=#163 id=163 data-nosnippet>163</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>paste_into_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, text: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(prompt) = <span class="self">self</span>.session_rename.as_mut() <span class="kw">else </span>{
+<a href=#165 id=165 data-nosnippet>165</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#166 id=166 data-nosnippet>166</a>        };
+<a href=#167 id=167 data-nosnippet>167</a>        prompt
+<a href=#168 id=168 data-nosnippet>168</a>            .input
+<a href=#169 id=169 data-nosnippet>169</a>            .insert_text(<span class="kw-2">&amp;</span>text.replace(<span class="string">"\r\n"</span>, <span class="string">" "</span>).replace([<span class="string">'\r'</span>, <span class="string">'\n'</span>], <span class="string">" "</span>));
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="bool-val">true
+<a href=#171 id=171 data-nosnippet>171</a>    </span>}
+<a href=#172 id=172 data-nosnippet>172</a>
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// The picker's title field over its search, at the top of `area`.
+<a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, frame: <span class="kw-2">&amp;mut </span>ratatui::Frame, area: Rect) {
+<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">let </span>theme = <span class="self">self</span>.theme.clone();
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(prompt) = <span class="self">self</span>.session_rename.as_mut() <span class="kw">else </span>{
-<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">return</span>;
 <a href=#178 id=178 data-nosnippet>178</a>        };
-<a href=#179 id=179 data-nosnippet>179</a>        prompt
-<a href=#180 id=180 data-nosnippet>180</a>            .input
-<a href=#181 id=181 data-nosnippet>181</a>            .insert_text(<span class="kw-2">&amp;</span>text.replace(<span class="string">"\r\n"</span>, <span class="string">" "</span>).replace([<span class="string">'\r'</span>, <span class="string">'\n'</span>], <span class="string">" "</span>));
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="bool-val">true
-<a href=#183 id=183 data-nosnippet>183</a>    </span>}
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="doccomment">/// The picker's title field over its search, at the top of `area`.
-<a href=#186 id=186 data-nosnippet>186</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_session_rename(<span class="kw-2">&amp;mut </span><span class="self">self</span>, frame: <span class="kw-2">&amp;mut </span>ratatui::Frame, area: Rect) {
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>theme = <span class="self">self</span>.theme.clone();
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(prompt) = <span class="self">self</span>.session_rename.as_mut() <span class="kw">else </span>{
-<a href=#189 id=189 data-nosnippet>189</a>            <span class="kw">return</span>;
-<a href=#190 id=190 data-nosnippet>190</a>        };
-<a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">crate</span>::ui::slash::render_text(
-<a href=#192 id=192 data-nosnippet>192</a>            frame,
-<a href=#193 id=193 data-nosnippet>193</a>            area,
-<a href=#194 id=194 data-nosnippet>194</a>            <span class="string">"Rename session"</span>,
-<a href=#195 id=195 data-nosnippet>195</a>            <span class="string">"The session's title; empty for the automatic one"</span>,
-<a href=#196 id=196 data-nosnippet>196</a>            TITLE_HINT,
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="kw-2">&amp;mut </span>prompt.input,
-<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw-2">&amp;</span>theme,
-<a href=#199 id=199 data-nosnippet>199</a>        );
-<a href=#200 id=200 data-nosnippet>200</a>    }
-<a href=#201 id=201 data-nosnippet>201</a>}
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">crate</span>::ui::slash::render_text(
+<a href=#180 id=180 data-nosnippet>180</a>            frame,
+<a href=#181 id=181 data-nosnippet>181</a>            area,
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="string">"Rename session"</span>,
+<a href=#183 id=183 data-nosnippet>183</a>            <span class="string">"The session's title; empty for the automatic one"</span>,
+<a href=#184 id=184 data-nosnippet>184</a>            TITLE_HINT,
+<a href=#185 id=185 data-nosnippet>185</a>            <span class="kw-2">&amp;mut </span>prompt.input,
+<a href=#186 id=186 data-nosnippet>186</a>            <span class="kw-2">&amp;</span>theme,
+<a href=#187 id=187 data-nosnippet>187</a>        );
+<a href=#188 id=188 data-nosnippet>188</a>    }
+<a href=#189 id=189 data-nosnippet>189</a>}
 </code></pre></div></section></main></body></html>
