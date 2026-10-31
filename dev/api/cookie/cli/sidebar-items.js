@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Command"],"fn":["client_identity","daemon_target","data_dir","dispatch","host_name","init_logging","local_workspace","resolve_daemon_target"],"mod":["agents","compose","config","connect","cron","daemon","frontend","headless","machine","mcp","memory","onboard","project","runtime","sessions","skills","update","web"],"struct":["Cli","DaemonTarget"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["McpCommand"],"fn":["authorize_mcp_server","complete_mcp_auth","ended_mcp_auth","run_mcp"]};

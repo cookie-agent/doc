@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["open_in_browser","run_web","web_link"]};

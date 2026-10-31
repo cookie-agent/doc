@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["cookie",[["impl ValueEnum for <a class=\"enum\" href=\"cookie/update_command/enum.ChannelArg.html\" title=\"enum cookie::update_command::ChannelArg\">ChannelArg</a>",0],["impl ValueEnum for <a class=\"enum\" href=\"cookie/cron_command/enum.DeliveryArg.html\" title=\"enum cookie::cron_command::DeliveryArg\">DeliveryArg</a>",0]]],["cookie_agent",[["impl ValueEnum for <a class=\"enum\" href=\"cookie_agent/run/enum.OutputMode.html\" title=\"enum cookie_agent::run::OutputMode\">OutputMode</a>",0],["impl ValueEnum for <a class=\"enum\" href=\"cookie_agent/run/enum.PermissionModeArg.html\" title=\"enum cookie_agent::run::PermissionModeArg\">PermissionModeArg</a>",0]]]]);
+    const implementors = Object.fromEntries([["cookie",[["impl ValueEnum for <a class=\"enum\" href=\"cookie/cli/update/enum.ChannelArg.html\" title=\"enum cookie::cli::update::ChannelArg\">ChannelArg</a>",0],["impl ValueEnum for <a class=\"enum\" href=\"cookie/cli/cron/enum.DeliveryArg.html\" title=\"enum cookie::cli::cron::DeliveryArg\">DeliveryArg</a>",0]]],["cookie_agent",[["impl ValueEnum for <a class=\"enum\" href=\"cookie_agent/run/enum.OutputMode.html\" title=\"enum cookie_agent::run::OutputMode\">OutputMode</a>",0],["impl ValueEnum for <a class=\"enum\" href=\"cookie_agent/run/enum.PermissionModeArg.html\" title=\"enum cookie_agent::run::PermissionModeArg\">PermissionModeArg</a>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[331,340]}
+//{"start":59,"fragment_lengths":[317,340]}

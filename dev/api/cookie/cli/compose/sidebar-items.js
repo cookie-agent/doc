@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CATALOG_REFRESH_INTERVAL"],"enum":["RunCatalogTransport"],"fn":["catalog_publication_changed","compose","compose_loaded","compose_with","compose_with_configuration","run_catalog_refresh_loop","run_catalog_transport","run_official_skills_loop"],"struct":["Runtime"]};
