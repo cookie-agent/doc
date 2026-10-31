@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["provider_entry"],"struct":["ChatGptModel"]};
+window.SIDEBAR_ITEMS = {"fn":["provider_entry"],"struct":["ChatGptModel","ChatGptModelList"]};

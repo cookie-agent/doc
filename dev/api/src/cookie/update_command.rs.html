@@ -658,7 +658,7 @@
 <a href=#658 id=658 data-nosnippet>658</a>    })<span class="question-mark">?
 <a href=#659 id=659 data-nosnippet>659</a>    </span>.with_context(|| <span class="string">"run the downloaded binary; nothing was replaced"</span>)<span class="question-mark">?</span>;
 <a href=#660 id=660 data-nosnippet>660</a>    <span class="kw">let </span>stdout = String::from_utf8_lossy(<span class="kw-2">&amp;</span>output.stdout);
-<a href=#661 id=661 data-nosnippet>661</a>    <span class="kw">if </span>!output.status.success() || !stdout.starts_with(<span class="string">"cookie "</span>) || !stdout.contains(<span class="kw-2">&amp;</span>core) {
+<a href=#661 id=661 data-nosnippet>661</a>    <span class="kw">if </span>!output.status.success() || !prints_version(<span class="kw-2">&amp;</span>stdout, <span class="kw-2">&amp;</span>core) {
 <a href=#662 id=662 data-nosnippet>662</a>        <span class="macro">bail!</span>(
 <a href=#663 id=663 data-nosnippet>663</a>            <span class="string">"the downloaded binary does not run here ({}{}); nothing was replaced"</span>,
 <a href=#664 id=664 data-nosnippet>664</a>            output.status,
@@ -672,138 +672,154 @@
 <a href=#672 id=672 data-nosnippet>672</a>    <span class="prelude-val">Ok</span>(())
 <a href=#673 id=673 data-nosnippet>673</a>}
 <a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a><span class="doccomment">/// Moves `binary` over `executable` in one rename. Processes running the
-<a href=#676 id=676 data-nosnippet>676</a>/// old binary keep it.
-<a href=#677 id=677 data-nosnippet>677</a></span><span class="attr">#[cfg(unix)]
-<a href=#678 id=678 data-nosnippet>678</a></span><span class="kw">fn </span>replace(binary: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#679 id=679 data-nosnippet>679</a>    fs::rename(binary, executable).with_context(|| <span class="macro">format!</span>(<span class="string">"replace {}"</span>, executable.display()))<span class="question-mark">?</span>;
-<a href=#680 id=680 data-nosnippet>680</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(directory) = executable.parent()
-<a href=#681 id=681 data-nosnippet>681</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(directory) = fs::File::open(directory)
-<a href=#682 id=682 data-nosnippet>682</a>    {
-<a href=#683 id=683 data-nosnippet>683</a>        directory.sync_all().ok();
-<a href=#684 id=684 data-nosnippet>684</a>    }
-<a href=#685 id=685 data-nosnippet>685</a>    <span class="prelude-val">Ok</span>(())
-<a href=#686 id=686 data-nosnippet>686</a>}
-<a href=#687 id=687 data-nosnippet>687</a>
-<a href=#688 id=688 data-nosnippet>688</a><span class="doccomment">/// Moves `binary` over `executable`. A running `.exe` cannot be replaced
-<a href=#689 id=689 data-nosnippet>689</a>/// but can be renamed: it moves aside under a name
-<a href=#690 id=690 data-nosnippet>690</a>/// [`remove_replaced_binaries`] deletes once nothing runs it.
-<a href=#691 id=691 data-nosnippet>691</a></span><span class="attr">#[cfg(windows)]
-<a href=#692 id=692 data-nosnippet>692</a></span><span class="kw">fn </span>replace(binary: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#693 id=693 data-nosnippet>693</a>    <span class="kw">let </span>aside = executable.with_file_name(<span class="macro">format!</span>(
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="string">"{}.{}.old"</span>,
-<a href=#695 id=695 data-nosnippet>695</a>        executable_name(executable),
-<a href=#696 id=696 data-nosnippet>696</a>        uuid::Uuid::now_v7().simple()
-<a href=#697 id=697 data-nosnippet>697</a>    ));
-<a href=#698 id=698 data-nosnippet>698</a>    fs::rename(executable, <span class="kw-2">&amp;</span>aside)
-<a href=#699 id=699 data-nosnippet>699</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"move {} aside"</span>, executable.display()))<span class="question-mark">?</span>;
-<a href=#700 id=700 data-nosnippet>700</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = fs::rename(binary, executable) {
-<a href=#701 id=701 data-nosnippet>701</a>        fs::rename(<span class="kw-2">&amp;</span>aside, executable).ok();
-<a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(error).with_context(|| <span class="macro">format!</span>(<span class="string">"replace {}"</span>, executable.display()));
-<a href=#703 id=703 data-nosnippet>703</a>    }
-<a href=#704 id=704 data-nosnippet>704</a>    fs::remove_file(<span class="kw-2">&amp;</span>aside).ok();
-<a href=#705 id=705 data-nosnippet>705</a>    <span class="prelude-val">Ok</span>(())
-<a href=#706 id=706 data-nosnippet>706</a>}
-<a href=#707 id=707 data-nosnippet>707</a>
-<a href=#708 id=708 data-nosnippet>708</a><span class="attr">#[cfg(windows)]
-<a href=#709 id=709 data-nosnippet>709</a></span><span class="kw">fn </span>executable_name(executable: <span class="kw-2">&amp;</span>Path) -&gt; String {
-<a href=#710 id=710 data-nosnippet>710</a>    executable
-<a href=#711 id=711 data-nosnippet>711</a>        .file_name()
-<a href=#712 id=712 data-nosnippet>712</a>        .map(|name| name.to_string_lossy().into_owned())
-<a href=#713 id=713 data-nosnippet>713</a>        .unwrap_or_else(|| BINARY.to_owned())
-<a href=#714 id=714 data-nosnippet>714</a>}
-<a href=#715 id=715 data-nosnippet>715</a>
-<a href=#716 id=716 data-nosnippet>716</a><span class="doccomment">/// Deletes binaries an update moved aside, now that the processes that ran
-<a href=#717 id=717 data-nosnippet>717</a>/// them may have exited; one still running stays until a later start.
-<a href=#718 id=718 data-nosnippet>718</a></span><span class="attr">#[cfg(windows)]
-<a href=#719 id=719 data-nosnippet>719</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_replaced_binaries() {
-<a href=#720 id=720 data-nosnippet>720</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(executable) = std::env::current_exe() <span class="kw">else </span>{
-<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">return</span>;
-<a href=#722 id=722 data-nosnippet>722</a>    };
-<a href=#723 id=723 data-nosnippet>723</a>    <span class="kw">let </span>(<span class="prelude-val">Some</span>(directory), prefix) = (
-<a href=#724 id=724 data-nosnippet>724</a>        executable.parent(),
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="macro">format!</span>(<span class="string">"{}."</span>, executable_name(<span class="kw-2">&amp;</span>executable)),
-<a href=#726 id=726 data-nosnippet>726</a>    ) <span class="kw">else </span>{
-<a href=#727 id=727 data-nosnippet>727</a>        <span class="kw">return</span>;
-<a href=#728 id=728 data-nosnippet>728</a>    };
-<a href=#729 id=729 data-nosnippet>729</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(entries) = fs::read_dir(directory) <span class="kw">else </span>{
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">return</span>;
-<a href=#731 id=731 data-nosnippet>731</a>    };
-<a href=#732 id=732 data-nosnippet>732</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries.flatten() {
-<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>name = entry.file_name().to_string_lossy().into_owned();
-<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">if </span>name.starts_with(<span class="kw-2">&amp;</span>prefix) &amp;&amp; name.ends_with(<span class="string">".old"</span>) {
-<a href=#735 id=735 data-nosnippet>735</a>            fs::remove_file(entry.path()).ok();
-<a href=#736 id=736 data-nosnippet>736</a>        }
-<a href=#737 id=737 data-nosnippet>737</a>    }
-<a href=#738 id=738 data-nosnippet>738</a>}
-<a href=#739 id=739 data-nosnippet>739</a>
-<a href=#740 id=740 data-nosnippet>740</a><span class="doccomment">/// Where the installers write their receipt.
-<a href=#741 id=741 data-nosnippet>741</a></span><span class="kw">fn </span>receipt_path() -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
-<a href=#742 id=742 data-nosnippet>742</a>    <span class="kw">let </span>directory = <span class="kw">if </span><span class="macro">cfg!</span>(windows) {
-<a href=#743 id=743 data-nosnippet>743</a>        PathBuf::from(std::env::var_os(<span class="string">"LOCALAPPDATA"</span>)<span class="question-mark">?</span>)
-<a href=#744 id=744 data-nosnippet>744</a>    } <span class="kw">else </span>{
-<a href=#745 id=745 data-nosnippet>745</a>        <span class="kw">match </span>std::env::var_os(<span class="string">"XDG_CONFIG_HOME"</span>).filter(|value| !value.is_empty()) {
-<a href=#746 id=746 data-nosnippet>746</a>            <span class="prelude-val">Some</span>(config) =&gt; PathBuf::from(config),
-<a href=#747 id=747 data-nosnippet>747</a>            <span class="prelude-val">None </span>=&gt; PathBuf::from(std::env::var_os(<span class="string">"HOME"</span>)<span class="question-mark">?</span>).join(<span class="string">".config"</span>),
-<a href=#748 id=748 data-nosnippet>748</a>        }
-<a href=#749 id=749 data-nosnippet>749</a>    };
-<a href=#750 id=750 data-nosnippet>750</a>    <span class="prelude-val">Some</span>(directory.join(<span class="string">"cookie_agent/cookie_agent-receipt.json"</span>))
-<a href=#751 id=751 data-nosnippet>751</a>}
-<a href=#752 id=752 data-nosnippet>752</a>
-<a href=#753 id=753 data-nosnippet>753</a><span class="doccomment">/// Sets the receipt's `version` when the receipt at `path` is for the
-<a href=#754 id=754 data-nosnippet>754</a>/// binary at `executable`; `Ok(false)` when there is none or it is for
-<a href=#755 id=755 data-nosnippet>755</a>/// another install.
-<a href=#756 id=756 data-nosnippet>756</a></span><span class="kw">fn </span>update_receipt(path: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path, version: <span class="kw-2">&amp;</span>str) -&gt; io::Result&lt;bool&gt; {
-<a href=#757 id=757 data-nosnippet>757</a>    <span class="kw">let </span>text = <span class="kw">match </span>fs::read_to_string(path) {
-<a href=#758 id=758 data-nosnippet>758</a>        <span class="prelude-val">Ok</span>(text) =&gt; text,
-<a href=#759 id=759 data-nosnippet>759</a>        <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.kind() == io::ErrorKind::NotFound =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
-<a href=#760 id=760 data-nosnippet>760</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(error),
-<a href=#761 id=761 data-nosnippet>761</a>    };
-<a href=#762 id=762 data-nosnippet>762</a>    <span class="kw">let </span><span class="kw-2">mut </span>receipt: serde_json::Value = serde_json::from_str(<span class="kw-2">&amp;</span>text).map_err(io::Error::other)<span class="question-mark">?</span>;
-<a href=#763 id=763 data-nosnippet>763</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(prefix) = receipt
-<a href=#764 id=764 data-nosnippet>764</a>        .get(<span class="string">"install_prefix"</span>)
-<a href=#765 id=765 data-nosnippet>765</a>        .and_then(serde_json::Value::as_str)
-<a href=#766 id=766 data-nosnippet>766</a>    <span class="kw">else </span>{
-<a href=#767 id=767 data-nosnippet>767</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
-<a href=#768 id=768 data-nosnippet>768</a>    };
-<a href=#769 id=769 data-nosnippet>769</a>    <span class="kw">let </span>prefix = fs::canonicalize(prefix).unwrap_or_else(|<span class="kw">_</span>| PathBuf::from(prefix));
-<a href=#770 id=770 data-nosnippet>770</a>    <span class="kw">if </span>!executable.starts_with(<span class="kw-2">&amp;</span>prefix) {
-<a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
-<a href=#772 id=772 data-nosnippet>772</a>    }
-<a href=#773 id=773 data-nosnippet>773</a>    receipt[<span class="string">"version"</span>] = serde_json::Value::String(version.to_owned());
-<a href=#774 id=774 data-nosnippet>774</a>    <span class="kw">let </span>directory = path.parent().unwrap_or(Path::new(<span class="string">"."</span>));
-<a href=#775 id=775 data-nosnippet>775</a>    <span class="kw">let </span><span class="kw-2">mut </span>file = tempfile::NamedTempFile::new_in(directory)<span class="question-mark">?</span>;
-<a href=#776 id=776 data-nosnippet>776</a>    file.write_all(serde_json::to_string(<span class="kw-2">&amp;</span>receipt)<span class="question-mark">?</span>.as_bytes())<span class="question-mark">?</span>;
-<a href=#777 id=777 data-nosnippet>777</a>    file.as_file().sync_all()<span class="question-mark">?</span>;
-<a href=#778 id=778 data-nosnippet>778</a>    file.persist(path).map_err(|error| error.error)<span class="question-mark">?</span>;
-<a href=#779 id=779 data-nosnippet>779</a>    <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
-<a href=#780 id=780 data-nosnippet>780</a>}
-<a href=#781 id=781 data-nosnippet>781</a>
-<a href=#782 id=782 data-nosnippet>782</a><span class="doccomment">/// Says when the local daemon still runs another version. It is never
-<a href=#783 id=783 data-nosnippet>783</a>/// restarted here: the user restarts it when nothing they care about runs.
-<a href=#784 id=784 data-nosnippet>784</a></span><span class="kw">async fn </span>report_daemon(version: <span class="kw-2">&amp;</span>str) {
-<a href=#785 id=785 data-nosnippet>785</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(configuration) = cookie_agent_config::load() <span class="kw">else </span>{
-<a href=#786 id=786 data-nosnippet>786</a>        <span class="kw">return</span>;
-<a href=#787 id=787 data-nosnippet>787</a>    };
-<a href=#788 id=788 data-nosnippet>788</a>    <span class="kw">let </span>probe =
-<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">crate</span>::local_daemon::probe(<span class="kw-2">&amp;</span>configuration.runtime.server, <span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>))
-<a href=#790 id=790 data-nosnippet>790</a>            .<span class="kw">await</span>;
-<a href=#791 id=791 data-nosnippet>791</a>    <span class="kw">if let </span><span class="kw">crate</span>::local_daemon::Probe::Connected(daemon) = probe
-<a href=#792 id=792 data-nosnippet>792</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(hint) = daemon_hint(<span class="kw-2">&amp;</span>daemon.hello.engine_version, version)
-<a href=#793 id=793 data-nosnippet>793</a>    {
-<a href=#794 id=794 data-nosnippet>794</a>        <span class="macro">println!</span>(<span class="string">"{hint}"</span>);
-<a href=#795 id=795 data-nosnippet>795</a>    }
+<a href=#675 id=675 data-nosnippet>675</a><span class="doccomment">/// Whether `stdout` of `cookie --version` names release `core`
+<a href=#676 id=676 data-nosnippet>676</a>/// (major.minor.patch) as its version: `cookie &lt;version&gt; (...)`, where the
+<a href=#677 id=677 data-nosnippet>677</a>/// version is `core` itself or `core` with a prerelease or build suffix.
+<a href=#678 id=678 data-nosnippet>678</a>/// `1.2.3` does not match `1.2.30` or `11.2.3`.
+<a href=#679 id=679 data-nosnippet>679</a></span><span class="kw">fn </span>prints_version(stdout: <span class="kw-2">&amp;</span>str, core: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#680 id=680 data-nosnippet>680</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(version) = stdout
+<a href=#681 id=681 data-nosnippet>681</a>        .strip_prefix(<span class="string">"cookie "</span>)
+<a href=#682 id=682 data-nosnippet>682</a>        .and_then(|rest| rest.split_whitespace().next())
+<a href=#683 id=683 data-nosnippet>683</a>    <span class="kw">else </span>{
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#685 id=685 data-nosnippet>685</a>    };
+<a href=#686 id=686 data-nosnippet>686</a>    version
+<a href=#687 id=687 data-nosnippet>687</a>        .strip_prefix(core)
+<a href=#688 id=688 data-nosnippet>688</a>        .is_some_and(|suffix| suffix.is_empty() || suffix.starts_with([<span class="string">'-'</span>, <span class="string">'+'</span>]))
+<a href=#689 id=689 data-nosnippet>689</a>}
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a><span class="doccomment">/// Moves `binary` over `executable` in one rename. Processes running the
+<a href=#692 id=692 data-nosnippet>692</a>/// old binary keep it.
+<a href=#693 id=693 data-nosnippet>693</a></span><span class="attr">#[cfg(unix)]
+<a href=#694 id=694 data-nosnippet>694</a></span><span class="kw">fn </span>replace(binary: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#695 id=695 data-nosnippet>695</a>    fs::rename(binary, executable).with_context(|| <span class="macro">format!</span>(<span class="string">"replace {}"</span>, executable.display()))<span class="question-mark">?</span>;
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(directory) = executable.parent()
+<a href=#697 id=697 data-nosnippet>697</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(directory) = fs::File::open(directory)
+<a href=#698 id=698 data-nosnippet>698</a>    {
+<a href=#699 id=699 data-nosnippet>699</a>        directory.sync_all().ok();
+<a href=#700 id=700 data-nosnippet>700</a>    }
+<a href=#701 id=701 data-nosnippet>701</a>    <span class="prelude-val">Ok</span>(())
+<a href=#702 id=702 data-nosnippet>702</a>}
+<a href=#703 id=703 data-nosnippet>703</a>
+<a href=#704 id=704 data-nosnippet>704</a><span class="doccomment">/// Moves `binary` over `executable`. A running `.exe` cannot be replaced
+<a href=#705 id=705 data-nosnippet>705</a>/// but can be renamed: it moves aside under a name
+<a href=#706 id=706 data-nosnippet>706</a>/// [`remove_replaced_binaries`] deletes once nothing runs it.
+<a href=#707 id=707 data-nosnippet>707</a></span><span class="attr">#[cfg(windows)]
+<a href=#708 id=708 data-nosnippet>708</a></span><span class="kw">fn </span>replace(binary: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#709 id=709 data-nosnippet>709</a>    <span class="kw">let </span>aside = executable.with_file_name(<span class="macro">format!</span>(
+<a href=#710 id=710 data-nosnippet>710</a>        <span class="string">"{}.{}.old"</span>,
+<a href=#711 id=711 data-nosnippet>711</a>        executable_name(executable),
+<a href=#712 id=712 data-nosnippet>712</a>        uuid::Uuid::now_v7().simple()
+<a href=#713 id=713 data-nosnippet>713</a>    ));
+<a href=#714 id=714 data-nosnippet>714</a>    fs::rename(executable, <span class="kw-2">&amp;</span>aside)
+<a href=#715 id=715 data-nosnippet>715</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"move {} aside"</span>, executable.display()))<span class="question-mark">?</span>;
+<a href=#716 id=716 data-nosnippet>716</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = fs::rename(binary, executable) {
+<a href=#717 id=717 data-nosnippet>717</a>        fs::rename(<span class="kw-2">&amp;</span>aside, executable).ok();
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(error).with_context(|| <span class="macro">format!</span>(<span class="string">"replace {}"</span>, executable.display()));
+<a href=#719 id=719 data-nosnippet>719</a>    }
+<a href=#720 id=720 data-nosnippet>720</a>    fs::remove_file(<span class="kw-2">&amp;</span>aside).ok();
+<a href=#721 id=721 data-nosnippet>721</a>    <span class="prelude-val">Ok</span>(())
+<a href=#722 id=722 data-nosnippet>722</a>}
+<a href=#723 id=723 data-nosnippet>723</a>
+<a href=#724 id=724 data-nosnippet>724</a><span class="attr">#[cfg(windows)]
+<a href=#725 id=725 data-nosnippet>725</a></span><span class="kw">fn </span>executable_name(executable: <span class="kw-2">&amp;</span>Path) -&gt; String {
+<a href=#726 id=726 data-nosnippet>726</a>    executable
+<a href=#727 id=727 data-nosnippet>727</a>        .file_name()
+<a href=#728 id=728 data-nosnippet>728</a>        .map(|name| name.to_string_lossy().into_owned())
+<a href=#729 id=729 data-nosnippet>729</a>        .unwrap_or_else(|| BINARY.to_owned())
+<a href=#730 id=730 data-nosnippet>730</a>}
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a><span class="doccomment">/// Deletes binaries an update moved aside, now that the processes that ran
+<a href=#733 id=733 data-nosnippet>733</a>/// them may have exited; one still running stays until a later start.
+<a href=#734 id=734 data-nosnippet>734</a></span><span class="attr">#[cfg(windows)]
+<a href=#735 id=735 data-nosnippet>735</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_replaced_binaries() {
+<a href=#736 id=736 data-nosnippet>736</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(executable) = std::env::current_exe() <span class="kw">else </span>{
+<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">return</span>;
+<a href=#738 id=738 data-nosnippet>738</a>    };
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="kw">let </span>(<span class="prelude-val">Some</span>(directory), prefix) = (
+<a href=#740 id=740 data-nosnippet>740</a>        executable.parent(),
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="macro">format!</span>(<span class="string">"{}."</span>, executable_name(<span class="kw-2">&amp;</span>executable)),
+<a href=#742 id=742 data-nosnippet>742</a>    ) <span class="kw">else </span>{
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">return</span>;
+<a href=#744 id=744 data-nosnippet>744</a>    };
+<a href=#745 id=745 data-nosnippet>745</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(entries) = fs::read_dir(directory) <span class="kw">else </span>{
+<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">return</span>;
+<a href=#747 id=747 data-nosnippet>747</a>    };
+<a href=#748 id=748 data-nosnippet>748</a>    <span class="kw">for </span>entry <span class="kw">in </span>entries.flatten() {
+<a href=#749 id=749 data-nosnippet>749</a>        <span class="kw">let </span>name = entry.file_name().to_string_lossy().into_owned();
+<a href=#750 id=750 data-nosnippet>750</a>        <span class="kw">if </span>name.starts_with(<span class="kw-2">&amp;</span>prefix) &amp;&amp; name.ends_with(<span class="string">".old"</span>) {
+<a href=#751 id=751 data-nosnippet>751</a>            fs::remove_file(entry.path()).ok();
+<a href=#752 id=752 data-nosnippet>752</a>        }
+<a href=#753 id=753 data-nosnippet>753</a>    }
+<a href=#754 id=754 data-nosnippet>754</a>}
+<a href=#755 id=755 data-nosnippet>755</a>
+<a href=#756 id=756 data-nosnippet>756</a><span class="doccomment">/// Where the installers write their receipt.
+<a href=#757 id=757 data-nosnippet>757</a></span><span class="kw">fn </span>receipt_path() -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
+<a href=#758 id=758 data-nosnippet>758</a>    <span class="kw">let </span>directory = <span class="kw">if </span><span class="macro">cfg!</span>(windows) {
+<a href=#759 id=759 data-nosnippet>759</a>        PathBuf::from(std::env::var_os(<span class="string">"LOCALAPPDATA"</span>)<span class="question-mark">?</span>)
+<a href=#760 id=760 data-nosnippet>760</a>    } <span class="kw">else </span>{
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">match </span>std::env::var_os(<span class="string">"XDG_CONFIG_HOME"</span>).filter(|value| !value.is_empty()) {
+<a href=#762 id=762 data-nosnippet>762</a>            <span class="prelude-val">Some</span>(config) =&gt; PathBuf::from(config),
+<a href=#763 id=763 data-nosnippet>763</a>            <span class="prelude-val">None </span>=&gt; PathBuf::from(std::env::var_os(<span class="string">"HOME"</span>)<span class="question-mark">?</span>).join(<span class="string">".config"</span>),
+<a href=#764 id=764 data-nosnippet>764</a>        }
+<a href=#765 id=765 data-nosnippet>765</a>    };
+<a href=#766 id=766 data-nosnippet>766</a>    <span class="prelude-val">Some</span>(directory.join(<span class="string">"cookie_agent/cookie_agent-receipt.json"</span>))
+<a href=#767 id=767 data-nosnippet>767</a>}
+<a href=#768 id=768 data-nosnippet>768</a>
+<a href=#769 id=769 data-nosnippet>769</a><span class="doccomment">/// Sets the receipt's `version` when the receipt at `path` is for the
+<a href=#770 id=770 data-nosnippet>770</a>/// binary at `executable`; `Ok(false)` when there is none or it is for
+<a href=#771 id=771 data-nosnippet>771</a>/// another install.
+<a href=#772 id=772 data-nosnippet>772</a></span><span class="kw">fn </span>update_receipt(path: <span class="kw-2">&amp;</span>Path, executable: <span class="kw-2">&amp;</span>Path, version: <span class="kw-2">&amp;</span>str) -&gt; io::Result&lt;bool&gt; {
+<a href=#773 id=773 data-nosnippet>773</a>    <span class="kw">let </span>text = <span class="kw">match </span>fs::read_to_string(path) {
+<a href=#774 id=774 data-nosnippet>774</a>        <span class="prelude-val">Ok</span>(text) =&gt; text,
+<a href=#775 id=775 data-nosnippet>775</a>        <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.kind() == io::ErrorKind::NotFound =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
+<a href=#776 id=776 data-nosnippet>776</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(error),
+<a href=#777 id=777 data-nosnippet>777</a>    };
+<a href=#778 id=778 data-nosnippet>778</a>    <span class="kw">let </span><span class="kw-2">mut </span>receipt: serde_json::Value = serde_json::from_str(<span class="kw-2">&amp;</span>text).map_err(io::Error::other)<span class="question-mark">?</span>;
+<a href=#779 id=779 data-nosnippet>779</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(prefix) = receipt
+<a href=#780 id=780 data-nosnippet>780</a>        .get(<span class="string">"install_prefix"</span>)
+<a href=#781 id=781 data-nosnippet>781</a>        .and_then(serde_json::Value::as_str)
+<a href=#782 id=782 data-nosnippet>782</a>    <span class="kw">else </span>{
+<a href=#783 id=783 data-nosnippet>783</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
+<a href=#784 id=784 data-nosnippet>784</a>    };
+<a href=#785 id=785 data-nosnippet>785</a>    <span class="kw">let </span>prefix = fs::canonicalize(prefix).unwrap_or_else(|<span class="kw">_</span>| PathBuf::from(prefix));
+<a href=#786 id=786 data-nosnippet>786</a>    <span class="kw">if </span>!executable.starts_with(<span class="kw-2">&amp;</span>prefix) {
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
+<a href=#788 id=788 data-nosnippet>788</a>    }
+<a href=#789 id=789 data-nosnippet>789</a>    receipt[<span class="string">"version"</span>] = serde_json::Value::String(version.to_owned());
+<a href=#790 id=790 data-nosnippet>790</a>    <span class="kw">let </span>directory = path.parent().unwrap_or(Path::new(<span class="string">"."</span>));
+<a href=#791 id=791 data-nosnippet>791</a>    <span class="kw">let </span><span class="kw-2">mut </span>file = tempfile::NamedTempFile::new_in(directory)<span class="question-mark">?</span>;
+<a href=#792 id=792 data-nosnippet>792</a>    file.write_all(serde_json::to_string(<span class="kw-2">&amp;</span>receipt)<span class="question-mark">?</span>.as_bytes())<span class="question-mark">?</span>;
+<a href=#793 id=793 data-nosnippet>793</a>    file.as_file().sync_all()<span class="question-mark">?</span>;
+<a href=#794 id=794 data-nosnippet>794</a>    file.persist(path).map_err(|error| error.error)<span class="question-mark">?</span>;
+<a href=#795 id=795 data-nosnippet>795</a>    <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
 <a href=#796 id=796 data-nosnippet>796</a>}
 <a href=#797 id=797 data-nosnippet>797</a>
-<a href=#798 id=798 data-nosnippet>798</a><span class="kw">fn </span>daemon_hint(daemon_version: <span class="kw-2">&amp;</span>str, installed: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#799 id=799 data-nosnippet>799</a>    (daemon_version != installed).then(|| {
-<a href=#800 id=800 data-nosnippet>800</a>        <span class="macro">format!</span>(
-<a href=#801 id=801 data-nosnippet>801</a>            <span class="string">"the local daemon still runs {daemon_version}; restart it when convenient:\n  \
-<a href=#802 id=802 data-nosnippet>802</a>             cookie daemon restart"
-<a href=#803 id=803 data-nosnippet>803</a>        </span>)
-<a href=#804 id=804 data-nosnippet>804</a>    })
-<a href=#805 id=805 data-nosnippet>805</a>}
-<a href=#806 id=806 data-nosnippet>806</a>
-<a href=#807 id=807 data-nosnippet>807</a><span class="attr">#[cfg(test)]
-<a href=#808 id=808 data-nosnippet>808</a></span><span class="kw">mod </span>tests;
+<a href=#798 id=798 data-nosnippet>798</a><span class="doccomment">/// Says when the local daemon still runs another version. It is never
+<a href=#799 id=799 data-nosnippet>799</a>/// restarted here: the user restarts it when nothing they care about runs.
+<a href=#800 id=800 data-nosnippet>800</a></span><span class="kw">async fn </span>report_daemon(version: <span class="kw-2">&amp;</span>str) {
+<a href=#801 id=801 data-nosnippet>801</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(configuration) = cookie_agent_config::load() <span class="kw">else </span>{
+<a href=#802 id=802 data-nosnippet>802</a>        <span class="kw">return</span>;
+<a href=#803 id=803 data-nosnippet>803</a>    };
+<a href=#804 id=804 data-nosnippet>804</a>    <span class="kw">let </span>probe =
+<a href=#805 id=805 data-nosnippet>805</a>        <span class="kw">crate</span>::local_daemon::probe(<span class="kw-2">&amp;</span>configuration.runtime.server, <span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>))
+<a href=#806 id=806 data-nosnippet>806</a>            .<span class="kw">await</span>;
+<a href=#807 id=807 data-nosnippet>807</a>    <span class="kw">if let </span><span class="kw">crate</span>::local_daemon::Probe::Connected(daemon) = probe
+<a href=#808 id=808 data-nosnippet>808</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(hint) = daemon_hint(<span class="kw-2">&amp;</span>daemon.hello.engine_version, version)
+<a href=#809 id=809 data-nosnippet>809</a>    {
+<a href=#810 id=810 data-nosnippet>810</a>        <span class="macro">println!</span>(<span class="string">"{hint}"</span>);
+<a href=#811 id=811 data-nosnippet>811</a>    }
+<a href=#812 id=812 data-nosnippet>812</a>}
+<a href=#813 id=813 data-nosnippet>813</a>
+<a href=#814 id=814 data-nosnippet>814</a><span class="kw">fn </span>daemon_hint(daemon_version: <span class="kw-2">&amp;</span>str, installed: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#815 id=815 data-nosnippet>815</a>    (daemon_version != installed).then(|| {
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="macro">format!</span>(
+<a href=#817 id=817 data-nosnippet>817</a>            <span class="string">"the local daemon still runs {daemon_version}; restart it when convenient:\n  \
+<a href=#818 id=818 data-nosnippet>818</a>             cookie daemon restart"
+<a href=#819 id=819 data-nosnippet>819</a>        </span>)
+<a href=#820 id=820 data-nosnippet>820</a>    })
+<a href=#821 id=821 data-nosnippet>821</a>}
+<a href=#822 id=822 data-nosnippet>822</a>
+<a href=#823 id=823 data-nosnippet>823</a><span class="attr">#[cfg(test)]
+<a href=#824 id=824 data-nosnippet>824</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

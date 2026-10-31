@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["apply_change"],"struct":["ListReads"]};
+window.SIDEBAR_ITEMS = {"fn":["apply_change"],"struct":["Applied","ListReads"]};

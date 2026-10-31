@@ -2445,249 +2445,251 @@
 <a href=#2445 id=2445 data-nosnippet>2445</a>/// connecting again after every drop or refusal for now with a growing
 <a href=#2446 id=2446 data-nosnippet>2446</a>/// wait, until stopped. A connection that has carried nothing, not even a
 <a href=#2447 id=2447 data-nosnippet>2447</a>/// pong to its keepalive pings, for `DIAL_IN_DEAD_AFTER` counts as a drop,
-<a href=#2448 id=2448 data-nosnippet>2448</a>/// so one that died without a close is noticed. A refusal for good, such as
-<a href=#2449 id=2449 data-nosnippet>2449</a>/// a configured or reserved ID or a wrong token, ends it with the daemon's
-<a href=#2450 id=2450 data-nosnippet>2450</a>/// reason.
-<a href=#2451 id=2451 data-nosnippet>2451</a></span><span class="kw">async fn </span>dial_in(
-<a href=#2452 id=2452 data-nosnippet>2452</a>    daemon: <span class="kw-2">&amp;</span>str,
-<a href=#2453 id=2453 data-nosnippet>2453</a>    token: <span class="kw-2">&amp;</span>str,
-<a href=#2454 id=2454 data-nosnippet>2454</a>    id: <span class="kw-2">&amp;</span>str,
-<a href=#2455 id=2455 data-nosnippet>2455</a>    options: cookie_agent_coding_runtime::server::ServeOptions,
-<a href=#2456 id=2456 data-nosnippet>2456</a>) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#2457 id=2457 data-nosnippet>2457</a>    <span class="kw">const </span>LONGEST_WAIT: Duration = Duration::from_secs(<span class="number">30</span>);
-<a href=#2458 id=2458 data-nosnippet>2458</a>    <span class="kw">let </span>stop = options.stop.clone();
-<a href=#2459 id=2459 data-nosnippet>2459</a>    <span class="kw">let </span><span class="kw-2">mut </span>wait = Duration::from_secs(<span class="number">1</span>);
-<a href=#2460 id=2460 data-nosnippet>2460</a>    <span class="kw">loop </span>{
-<a href=#2461 id=2461 data-nosnippet>2461</a>        <span class="kw">let </span>connected = <span class="macro">tokio::select!</span> {
-<a href=#2462 id=2462 data-nosnippet>2462</a>            () = stop.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-<a href=#2463 id=2463 data-nosnippet>2463</a>            connected = cookie_agent_protocol::WebSocketTransport::connect_runtime(daemon, token, id) =&gt; connected,
-<a href=#2464 id=2464 data-nosnippet>2464</a>        };
-<a href=#2465 id=2465 data-nosnippet>2465</a>        <span class="kw">match </span>connected {
-<a href=#2466 id=2466 data-nosnippet>2466</a>            <span class="prelude-val">Ok</span>(transport) =&gt; {
-<a href=#2467 id=2467 data-nosnippet>2467</a>                <span class="macro">eprintln!</span>(<span class="string">"cookie runtime: connected to {daemon} as `{id}`"</span>);
-<a href=#2468 id=2468 data-nosnippet>2468</a>                <span class="kw">let </span>started = std::time::Instant::now();
-<a href=#2469 id=2469 data-nosnippet>2469</a>                <span class="kw">let </span>reason = cookie_agent_coding_runtime::server::serve(
-<a href=#2470 id=2470 data-nosnippet>2470</a>                    Box::new(transport),
-<a href=#2471 id=2471 data-nosnippet>2471</a>                    options.clone(),
-<a href=#2472 id=2472 data-nosnippet>2472</a>                )
-<a href=#2473 id=2473 data-nosnippet>2473</a>                .<span class="kw">await</span>;
-<a href=#2474 id=2474 data-nosnippet>2474</a>                <span class="kw">if </span>stop.is_cancelled() {
-<a href=#2475 id=2475 data-nosnippet>2475</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#2476 id=2476 data-nosnippet>2476</a>                }
-<a href=#2477 id=2477 data-nosnippet>2477</a>                <span class="macro">eprintln!</span>(<span class="string">"cookie runtime: disconnected from {daemon}: {reason}"</span>);
-<a href=#2478 id=2478 data-nosnippet>2478</a>                <span class="kw">if </span>started.elapsed() &gt; LONGEST_WAIT {
-<a href=#2479 id=2479 data-nosnippet>2479</a>                    wait = Duration::from_secs(<span class="number">1</span>);
-<a href=#2480 id=2480 data-nosnippet>2480</a>                }
-<a href=#2481 id=2481 data-nosnippet>2481</a>            }
-<a href=#2482 id=2482 data-nosnippet>2482</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.is_permanent() =&gt; {
-<a href=#2483 id=2483 data-nosnippet>2483</a>                <span class="macro">anyhow::bail!</span>(<span class="string">"cannot dial in to {daemon} as `{id}`: {error}"</span>);
-<a href=#2484 id=2484 data-nosnippet>2484</a>            }
-<a href=#2485 id=2485 data-nosnippet>2485</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">eprintln!</span>(
-<a href=#2486 id=2486 data-nosnippet>2486</a>                <span class="string">"cookie runtime: cannot dial in to {daemon} as `{id}`: {error}; retrying in {} s"</span>,
-<a href=#2487 id=2487 data-nosnippet>2487</a>                wait.as_secs()
-<a href=#2488 id=2488 data-nosnippet>2488</a>            ),
-<a href=#2489 id=2489 data-nosnippet>2489</a>        }
-<a href=#2490 id=2490 data-nosnippet>2490</a>        <span class="macro">tokio::select!</span> {
-<a href=#2491 id=2491 data-nosnippet>2491</a>            () = tokio::time::sleep(wait) =&gt; {}
-<a href=#2492 id=2492 data-nosnippet>2492</a>            () = stop.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-<a href=#2493 id=2493 data-nosnippet>2493</a>        }
-<a href=#2494 id=2494 data-nosnippet>2494</a>        wait = (wait * <span class="number">2</span>).min(LONGEST_WAIT);
-<a href=#2495 id=2495 data-nosnippet>2495</a>    }
-<a href=#2496 id=2496 data-nosnippet>2496</a>}
-<a href=#2497 id=2497 data-nosnippet>2497</a>
-<a href=#2498 id=2498 data-nosnippet>2498</a><span class="doccomment">/// The daemon's web page with `token` in its fragment, for the daemon whose
-<a href=#2499 id=2499 data-nosnippet>2499</a>/// client endpoint is `url`: `ws`→`http`, `wss`→`https`, the endpoint's
-<a href=#2500 id=2500 data-nosnippet>2500</a>/// `ws` dropped. The fragment never reaches a server or its logs.
-<a href=#2501 id=2501 data-nosnippet>2501</a></span><span class="kw">fn </span>web_link(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
-<a href=#2502 id=2502 data-nosnippet>2502</a>    <span class="kw">let </span>page = cookie_agent_server::page_url(url)
-<a href=#2503 id=2503 data-nosnippet>2503</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"{url} is not a daemon client URL ending in /ws"</span>))<span class="question-mark">?</span>;
-<a href=#2504 id=2504 data-nosnippet>2504</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(<span class="macro">format!</span>(<span class="string">"{page}#token={token}"</span>)))
-<a href=#2505 id=2505 data-nosnippet>2505</a>}
-<a href=#2506 id=2506 data-nosnippet>2506</a>
-<a href=#2507 id=2507 data-nosnippet>2507</a><span class="doccomment">/// Opens `link` in the system browser.
-<a href=#2508 id=2508 data-nosnippet>2508</a></span><span class="kw">fn </span>open_in_browser(link: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#2509 id=2509 data-nosnippet>2509</a>    <span class="kw">let </span><span class="kw-2">mut </span>command = <span class="kw">if </span><span class="macro">cfg!</span>(target_os = <span class="string">"macos"</span>) {
-<a href=#2510 id=2510 data-nosnippet>2510</a>        std::process::Command::new(<span class="string">"open"</span>)
-<a href=#2511 id=2511 data-nosnippet>2511</a>    } <span class="kw">else if </span><span class="macro">cfg!</span>(windows) {
-<a href=#2512 id=2512 data-nosnippet>2512</a>        <span class="kw">let </span><span class="kw-2">mut </span>command = std::process::Command::new(<span class="string">"cmd"</span>);
-<a href=#2513 id=2513 data-nosnippet>2513</a>        command.args([<span class="string">"/C"</span>, <span class="string">"start"</span>, <span class="string">""</span>]);
-<a href=#2514 id=2514 data-nosnippet>2514</a>        command
-<a href=#2515 id=2515 data-nosnippet>2515</a>    } <span class="kw">else </span>{
-<a href=#2516 id=2516 data-nosnippet>2516</a>        std::process::Command::new(<span class="string">"xdg-open"</span>)
-<a href=#2517 id=2517 data-nosnippet>2517</a>    };
-<a href=#2518 id=2518 data-nosnippet>2518</a>    <span class="kw">let </span>status = command
-<a href=#2519 id=2519 data-nosnippet>2519</a>        .arg(link)
-<a href=#2520 id=2520 data-nosnippet>2520</a>        .stdin(std::process::Stdio::null())
-<a href=#2521 id=2521 data-nosnippet>2521</a>        .stdout(std::process::Stdio::null())
-<a href=#2522 id=2522 data-nosnippet>2522</a>        .stderr(std::process::Stdio::null())
-<a href=#2523 id=2523 data-nosnippet>2523</a>        .status()
-<a href=#2524 id=2524 data-nosnippet>2524</a>        .context(<span class="string">"open the system browser"</span>)<span class="question-mark">?</span>;
-<a href=#2525 id=2525 data-nosnippet>2525</a>    <span class="macro">anyhow::ensure!</span>(
-<a href=#2526 id=2526 data-nosnippet>2526</a>        status.success(),
-<a href=#2527 id=2527 data-nosnippet>2527</a>        <span class="string">"the system browser did not open ({status})"
-<a href=#2528 id=2528 data-nosnippet>2528</a>    </span>);
-<a href=#2529 id=2529 data-nosnippet>2529</a>    <span class="prelude-val">Ok</span>(())
-<a href=#2530 id=2530 data-nosnippet>2530</a>}
-<a href=#2531 id=2531 data-nosnippet>2531</a>
-<a href=#2532 id=2532 data-nosnippet>2532</a><span class="doccomment">/// What the daemon prints after its ready line about its web page: where
-<a href=#2533 id=2533 data-nosnippet>2533</a>/// it is.
-<a href=#2534 id=2534 data-nosnippet>2534</a></span><span class="kw">fn </span>web_page_line(client_url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#2535 id=2535 data-nosnippet>2535</a>    cookie_agent_server::page_url(client_url)
-<a href=#2536 id=2536 data-nosnippet>2536</a>        .map(|page| <span class="macro">format!</span>(<span class="string">"web page at {page} (`cookie web` prints it with the token)"</span>))
-<a href=#2537 id=2537 data-nosnippet>2537</a>}
-<a href=#2538 id=2538 data-nosnippet>2538</a>
-<a href=#2539 id=2539 data-nosnippet>2539</a><span class="doccomment">/// Where and how `cookie daemon` listens.
-<a href=#2540 id=2540 data-nosnippet>2540</a></span><span class="kw">struct </span>DaemonListen {
-<a href=#2541 id=2541 data-nosnippet>2541</a>    port: <span class="prelude-ty">Option</span>&lt;u16&gt;,
-<a href=#2542 id=2542 data-nosnippet>2542</a>    listen: <span class="prelude-ty">Option</span>&lt;std::net::SocketAddr&gt;,
-<a href=#2543 id=2543 data-nosnippet>2543</a>    tls: <span class="prelude-ty">Option</span>&lt;cookie_agent_server::TlsConfig&gt;,
-<a href=#2544 id=2544 data-nosnippet>2544</a>    token: Zeroizing&lt;String&gt;,
-<a href=#2545 id=2545 data-nosnippet>2545</a>}
-<a href=#2546 id=2546 data-nosnippet>2546</a>
-<a href=#2547 id=2547 data-nosnippet>2547</a><span class="doccomment">/// Why the daemon stopped.
-<a href=#2548 id=2548 data-nosnippet>2548</a></span><span class="kw">enum </span>DaemonExit {
-<a href=#2549 id=2549 data-nosnippet>2549</a>    <span class="doccomment">/// A stop signal.
-<a href=#2550 id=2550 data-nosnippet>2550</a>    </span>Stopped,
-<a href=#2551 id=2551 data-nosnippet>2551</a>    <span class="doccomment">/// A client's `daemon.restart`: relaunch.
-<a href=#2552 id=2552 data-nosnippet>2552</a>    </span>Restart,
-<a href=#2553 id=2553 data-nosnippet>2553</a>}
-<a href=#2554 id=2554 data-nosnippet>2554</a>
-<a href=#2555 id=2555 data-nosnippet>2555</a><span class="kw">async fn </span>run_daemon(
-<a href=#2556 id=2556 data-nosnippet>2556</a>    <span class="kw-2">mut </span>runtime: Runtime,
-<a href=#2557 id=2557 data-nosnippet>2557</a>    options: DaemonListen,
-<a href=#2558 id=2558 data-nosnippet>2558</a>    launch: <span class="kw-2">&amp;</span>Launch,
-<a href=#2559 id=2559 data-nosnippet>2559</a>) -&gt; anyhow::Result&lt;DaemonExit&gt; {
-<a href=#2560 id=2560 data-nosnippet>2560</a>    <span class="kw">let </span>DaemonListen {
-<a href=#2561 id=2561 data-nosnippet>2561</a>        port,
-<a href=#2562 id=2562 data-nosnippet>2562</a>        listen,
-<a href=#2563 id=2563 data-nosnippet>2563</a>        tls,
-<a href=#2564 id=2564 data-nosnippet>2564</a>        token,
-<a href=#2565 id=2565 data-nosnippet>2565</a>    } = options;
-<a href=#2566 id=2566 data-nosnippet>2566</a>    <span class="kw">let </span>address = listen.unwrap_or_else(|| {
-<a href=#2567 id=2567 data-nosnippet>2567</a>        std::net::SocketAddr::from(([<span class="number">127</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>], port.unwrap_or(runtime.port)))
-<a href=#2568 id=2568 data-nosnippet>2568</a>    });
-<a href=#2569 id=2569 data-nosnippet>2569</a>    <span class="kw">let </span>scheme = <span class="kw">if </span>tls.is_some() { <span class="string">"wss" </span>} <span class="kw">else </span>{ <span class="string">"ws" </span>};
-<a href=#2570 id=2570 data-nosnippet>2570</a>    <span class="comment">// A restarted daemon waits for the process it replaces to let go of the
-<a href=#2571 id=2571 data-nosnippet>2571</a>    // port.
-<a href=#2572 id=2572 data-nosnippet>2572</a>    </span><span class="kw">let </span>bind_wait = <span class="kw">if </span>launch.restarted {
-<a href=#2573 id=2573 data-nosnippet>2573</a>        daemon_restart::RESTART_BIND_WAIT
-<a href=#2574 id=2574 data-nosnippet>2574</a>    } <span class="kw">else </span>{
-<a href=#2575 id=2575 data-nosnippet>2575</a>        Duration::ZERO
-<a href=#2576 id=2576 data-nosnippet>2576</a>    };
-<a href=#2577 id=2577 data-nosnippet>2577</a>    <span class="kw">let </span>started = <span class="kw">match </span>cookie_agent_protocol::StopSignals::new() {
-<a href=#2578 id=2578 data-nosnippet>2578</a>        <span class="prelude-val">Ok</span>(signals) =&gt; daemon_restart::bind_retrying(bind_wait, || {
-<a href=#2579 id=2579 data-nosnippet>2579</a>            runtime
-<a href=#2580 id=2580 data-nosnippet>2580</a>                .server
-<a href=#2581 id=2581 data-nosnippet>2581</a>                .clone()
-<a href=#2582 id=2582 data-nosnippet>2582</a>                .serve_on(address, token.clone(), tls.clone())
-<a href=#2583 id=2583 data-nosnippet>2583</a>        })
-<a href=#2584 id=2584 data-nosnippet>2584</a>        .<span class="kw">await
-<a href=#2585 id=2585 data-nosnippet>2585</a>        </span>.map(|listener| (signals, listener))
-<a href=#2586 id=2586 data-nosnippet>2586</a>        .map_err(|error| anyhow::Error::new(error).context(<span class="string">"start WebSocket daemon"</span>)),
-<a href=#2587 id=2587 data-nosnippet>2587</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(anyhow::Error::new(error).context(<span class="string">"listen for stop signals"</span>)),
-<a href=#2588 id=2588 data-nosnippet>2588</a>    };
-<a href=#2589 id=2589 data-nosnippet>2589</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>signals, listener) = <span class="kw">match </span>started {
-<a href=#2590 id=2590 data-nosnippet>2590</a>        <span class="prelude-val">Ok</span>(started) =&gt; started,
-<a href=#2591 id=2591 data-nosnippet>2591</a>        <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#2592 id=2592 data-nosnippet>2592</a>            runtime.server.shutdown();
-<a href=#2593 id=2593 data-nosnippet>2593</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#2594 id=2594 data-nosnippet>2594</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#2595 id=2595 data-nosnippet>2595</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(error);
-<a href=#2596 id=2596 data-nosnippet>2596</a>        }
-<a href=#2597 id=2597 data-nosnippet>2597</a>    };
-<a href=#2598 id=2598 data-nosnippet>2598</a>    <span class="comment">// Only a daemon that knows how it was started can start itself again.
-<a href=#2599 id=2599 data-nosnippet>2599</a>    </span><span class="kw">let </span>restart = CancellationToken::new();
-<a href=#2600 id=2600 data-nosnippet>2600</a>    <span class="kw">if </span>launch.relaunch.is_some() {
-<a href=#2601 id=2601 data-nosnippet>2601</a>        <span class="kw">let </span>restart = restart.clone();
-<a href=#2602 id=2602 data-nosnippet>2602</a>        runtime
-<a href=#2603 id=2603 data-nosnippet>2603</a>            .engine
-<a href=#2604 id=2604 data-nosnippet>2604</a>            .set_restart_hook(Box::new(<span class="kw">move </span>|| restart.cancel()));
-<a href=#2605 id=2605 data-nosnippet>2605</a>    }
-<a href=#2606 id=2606 data-nosnippet>2606</a>    <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"{scheme}://{}/ws"</span>, listener.address());
-<a href=#2607 id=2607 data-nosnippet>2607</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, ready_line(<span class="kw-2">&amp;</span>url, token.as_str()));
-<a href=#2608 id=2608 data-nosnippet>2608</a>    drop(token);
-<a href=#2609 id=2609 data-nosnippet>2609</a>    <span class="macro">println!</span>(
-<a href=#2610 id=2610 data-nosnippet>2610</a>        <span class="string">"cookie daemon listening on {url} (client protocol {}, process {})"</span>,
-<a href=#2611 id=2611 data-nosnippet>2611</a>        cookie_agent_protocol::CLIENT_PROTOCOL_VERSION,
-<a href=#2612 id=2612 data-nosnippet>2612</a>        std::process::id()
-<a href=#2613 id=2613 data-nosnippet>2613</a>    );
-<a href=#2614 id=2614 data-nosnippet>2614</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(line) = web_page_line(<span class="kw-2">&amp;</span>url) {
-<a href=#2615 id=2615 data-nosnippet>2615</a>        <span class="macro">println!</span>(<span class="string">"{line}"</span>);
-<a href=#2616 id=2616 data-nosnippet>2616</a>    }
-<a href=#2617 id=2617 data-nosnippet>2617</a>    <span class="comment">// Phones with push notifications hear the daemon is up again.
-<a href=#2618 id=2618 data-nosnippet>2618</a>    </span>runtime.server.announce_started();
-<a href=#2619 id=2619 data-nosnippet>2619</a>    <span class="kw">let </span>exit = <span class="macro">tokio::select!</span> {
-<a href=#2620 id=2620 data-nosnippet>2620</a>        () = signals.recv() =&gt; DaemonExit::Stopped,
-<a href=#2621 id=2621 data-nosnippet>2621</a>        () = restart.cancelled() =&gt; DaemonExit::Restart,
-<a href=#2622 id=2622 data-nosnippet>2622</a>    };
-<a href=#2623 id=2623 data-nosnippet>2623</a>    exit_on_next_stop(signals);
-<a href=#2624 id=2624 data-nosnippet>2624</a>    <span class="kw">match </span>exit {
-<a href=#2625 id=2625 data-nosnippet>2625</a>        DaemonExit::Stopped =&gt; {
-<a href=#2626 id=2626 data-nosnippet>2626</a>            runtime.server.shutdown();
-<a href=#2627 id=2627 data-nosnippet>2627</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#2628 id=2628 data-nosnippet>2628</a>            listener.wait().<span class="kw">await</span>;
-<a href=#2629 id=2629 data-nosnippet>2629</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#2630 id=2630 data-nosnippet>2630</a>        }
-<a href=#2631 id=2631 data-nosnippet>2631</a>        DaemonExit::Restart =&gt; {
-<a href=#2632 id=2632 data-nosnippet>2632</a>            <span class="macro">println!</span>(<span class="string">"cookie daemon restarting"</span>);
-<a href=#2633 id=2633 data-nosnippet>2633</a>            <span class="comment">// Before anything stops: phones with push notifications hear it,
-<a href=#2634 id=2634 data-nosnippet>2634</a>            // but the one whose page asked.
-<a href=#2635 id=2635 data-nosnippet>2635</a>            </span>runtime.server.announce_restarting().<span class="kw">await</span>;
-<a href=#2636 id=2636 data-nosnippet>2636</a>            <span class="comment">// The engine stops first, while clients are still connected:
-<a href=#2637 id=2637 data-nosnippet>2637</a>            // they see the interrupted turns end, then the connection close
-<a href=#2638 id=2638 data-nosnippet>2638</a>            // saying the daemon is restarting.
-<a href=#2639 id=2639 data-nosnippet>2639</a>            </span>runtime.stop_catalog_refresh().<span class="kw">await</span>;
-<a href=#2640 id=2640 data-nosnippet>2640</a>            runtime.engine.shutdown().<span class="kw">await</span>;
-<a href=#2641 id=2641 data-nosnippet>2641</a>            runtime.server.shutdown_for_restart();
-<a href=#2642 id=2642 data-nosnippet>2642</a>            <span class="comment">// Returns once every client connection sent that close frame
-<a href=#2643 id=2643 data-nosnippet>2643</a>            // (bounded), so the relaunch does not cut it off.
-<a href=#2644 id=2644 data-nosnippet>2644</a>            </span>listener.wait().<span class="kw">await</span>;
-<a href=#2645 id=2645 data-nosnippet>2645</a>        }
-<a href=#2646 id=2646 data-nosnippet>2646</a>    }
-<a href=#2647 id=2647 data-nosnippet>2647</a>    <span class="prelude-val">Ok</span>(exit)
-<a href=#2648 id=2648 data-nosnippet>2648</a>}
-<a href=#2649 id=2649 data-nosnippet>2649</a>
-<a href=#2650 id=2650 data-nosnippet>2650</a><span class="doccomment">/// Exits at once on the next stop signal, for a graceful stop that hangs.
-<a href=#2651 id=2651 data-nosnippet>2651</a></span><span class="kw">fn </span>exit_on_next_stop(<span class="kw-2">mut </span>signals: cookie_agent_protocol::StopSignals) {
-<a href=#2652 id=2652 data-nosnippet>2652</a>    tokio::spawn(<span class="kw">async move </span>{
-<a href=#2653 id=2653 data-nosnippet>2653</a>        signals.recv().<span class="kw">await</span>;
-<a href=#2654 id=2654 data-nosnippet>2654</a>        <span class="macro">eprintln!</span>(<span class="string">"cookie: stopping at once"</span>);
-<a href=#2655 id=2655 data-nosnippet>2655</a>        std::process::exit(<span class="number">1</span>);
-<a href=#2656 id=2656 data-nosnippet>2656</a>    });
-<a href=#2657 id=2657 data-nosnippet>2657</a>}
-<a href=#2658 id=2658 data-nosnippet>2658</a>
-<a href=#2659 id=2659 data-nosnippet>2659</a><span class="doccomment">/// Cancels `stop` on the first stop signal; see [`exit_on_next_stop`] for
-<a href=#2660 id=2660 data-nosnippet>2660</a>/// the second.
-<a href=#2661 id=2661 data-nosnippet>2661</a></span><span class="kw">fn </span>stop_on_signal(stop: CancellationToken) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#2662 id=2662 data-nosnippet>2662</a>    <span class="kw">let </span><span class="kw-2">mut </span>signals =
-<a href=#2663 id=2663 data-nosnippet>2663</a>        cookie_agent_protocol::StopSignals::new().context(<span class="string">"listen for stop signals"</span>)<span class="question-mark">?</span>;
-<a href=#2664 id=2664 data-nosnippet>2664</a>    tokio::spawn(<span class="kw">async move </span>{
-<a href=#2665 id=2665 data-nosnippet>2665</a>        signals.recv().<span class="kw">await</span>;
-<a href=#2666 id=2666 data-nosnippet>2666</a>        stop.cancel();
-<a href=#2667 id=2667 data-nosnippet>2667</a>        exit_on_next_stop(signals);
-<a href=#2668 id=2668 data-nosnippet>2668</a>    });
-<a href=#2669 id=2669 data-nosnippet>2669</a>    <span class="prelude-val">Ok</span>(())
-<a href=#2670 id=2670 data-nosnippet>2670</a>}
-<a href=#2671 id=2671 data-nosnippet>2671</a>
-<a href=#2672 id=2672 data-nosnippet>2672</a><span class="kw">mod </span>agents_command;
-<a href=#2673 id=2673 data-nosnippet>2673</a><span class="kw">mod </span>config_command;
-<a href=#2674 id=2674 data-nosnippet>2674</a><span class="kw">mod </span>cron_command;
-<a href=#2675 id=2675 data-nosnippet>2675</a><span class="kw">mod </span>daemon_restart;
-<a href=#2676 id=2676 data-nosnippet>2676</a><span class="kw">mod </span>local_daemon;
-<a href=#2677 id=2677 data-nosnippet>2677</a><span class="kw">mod </span>machine_command;
-<a href=#2678 id=2678 data-nosnippet>2678</a><span class="kw">mod </span>memory_command;
-<a href=#2679 id=2679 data-nosnippet>2679</a><span class="kw">mod </span>onboard_command;
-<a href=#2680 id=2680 data-nosnippet>2680</a><span class="kw">mod </span>project_command;
-<a href=#2681 id=2681 data-nosnippet>2681</a><span class="kw">mod </span>skills_command;
-<a href=#2682 id=2682 data-nosnippet>2682</a><span class="kw">mod </span>update_command;
-<a href=#2683 id=2683 data-nosnippet>2683</a>
-<a href=#2684 id=2684 data-nosnippet>2684</a><span class="attr">#[cfg(test)]
-<a href=#2685 id=2685 data-nosnippet>2685</a></span><span class="kw">mod </span>cli_reference;
-<a href=#2686 id=2686 data-nosnippet>2686</a>
-<a href=#2687 id=2687 data-nosnippet>2687</a><span class="attr">#[cfg(test)]
-<a href=#2688 id=2688 data-nosnippet>2688</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
-<a href=#2689 id=2689 data-nosnippet>2689</a></span><span class="kw">mod </span>config_harness;
-<a href=#2690 id=2690 data-nosnippet>2690</a>
-<a href=#2691 id=2691 data-nosnippet>2691</a><span class="attr">#[cfg(all(test, unix))]
-<a href=#2692 id=2692 data-nosnippet>2692</a></span><span class="kw">mod </span>tests;
+<a href=#2448 id=2448 data-nosnippet>2448</a>/// so one that died without a close is noticed, and so does a connect that
+<a href=#2449 id=2449 data-nosnippet>2449</a>/// the daemon has not answered within `CONNECT_TIMEOUT` (a peer that takes
+<a href=#2450 id=2450 data-nosnippet>2450</a>/// the TCP connection and never upgrades it). A refusal for good, such as
+<a href=#2451 id=2451 data-nosnippet>2451</a>/// a configured or reserved ID or a wrong token, ends it with the daemon's
+<a href=#2452 id=2452 data-nosnippet>2452</a>/// reason.
+<a href=#2453 id=2453 data-nosnippet>2453</a></span><span class="kw">async fn </span>dial_in(
+<a href=#2454 id=2454 data-nosnippet>2454</a>    daemon: <span class="kw-2">&amp;</span>str,
+<a href=#2455 id=2455 data-nosnippet>2455</a>    token: <span class="kw-2">&amp;</span>str,
+<a href=#2456 id=2456 data-nosnippet>2456</a>    id: <span class="kw-2">&amp;</span>str,
+<a href=#2457 id=2457 data-nosnippet>2457</a>    options: cookie_agent_coding_runtime::server::ServeOptions,
+<a href=#2458 id=2458 data-nosnippet>2458</a>) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#2459 id=2459 data-nosnippet>2459</a>    <span class="kw">const </span>LONGEST_WAIT: Duration = Duration::from_secs(<span class="number">30</span>);
+<a href=#2460 id=2460 data-nosnippet>2460</a>    <span class="kw">let </span>stop = options.stop.clone();
+<a href=#2461 id=2461 data-nosnippet>2461</a>    <span class="kw">let </span><span class="kw-2">mut </span>wait = Duration::from_secs(<span class="number">1</span>);
+<a href=#2462 id=2462 data-nosnippet>2462</a>    <span class="kw">loop </span>{
+<a href=#2463 id=2463 data-nosnippet>2463</a>        <span class="kw">let </span>connected = <span class="macro">tokio::select!</span> {
+<a href=#2464 id=2464 data-nosnippet>2464</a>            () = stop.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
+<a href=#2465 id=2465 data-nosnippet>2465</a>            connected = cookie_agent_protocol::WebSocketTransport::connect_runtime(daemon, token, id) =&gt; connected,
+<a href=#2466 id=2466 data-nosnippet>2466</a>        };
+<a href=#2467 id=2467 data-nosnippet>2467</a>        <span class="kw">match </span>connected {
+<a href=#2468 id=2468 data-nosnippet>2468</a>            <span class="prelude-val">Ok</span>(transport) =&gt; {
+<a href=#2469 id=2469 data-nosnippet>2469</a>                <span class="macro">eprintln!</span>(<span class="string">"cookie runtime: connected to {daemon} as `{id}`"</span>);
+<a href=#2470 id=2470 data-nosnippet>2470</a>                <span class="kw">let </span>started = std::time::Instant::now();
+<a href=#2471 id=2471 data-nosnippet>2471</a>                <span class="kw">let </span>reason = cookie_agent_coding_runtime::server::serve(
+<a href=#2472 id=2472 data-nosnippet>2472</a>                    Box::new(transport),
+<a href=#2473 id=2473 data-nosnippet>2473</a>                    options.clone(),
+<a href=#2474 id=2474 data-nosnippet>2474</a>                )
+<a href=#2475 id=2475 data-nosnippet>2475</a>                .<span class="kw">await</span>;
+<a href=#2476 id=2476 data-nosnippet>2476</a>                <span class="kw">if </span>stop.is_cancelled() {
+<a href=#2477 id=2477 data-nosnippet>2477</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#2478 id=2478 data-nosnippet>2478</a>                }
+<a href=#2479 id=2479 data-nosnippet>2479</a>                <span class="macro">eprintln!</span>(<span class="string">"cookie runtime: disconnected from {daemon}: {reason}"</span>);
+<a href=#2480 id=2480 data-nosnippet>2480</a>                <span class="kw">if </span>started.elapsed() &gt; LONGEST_WAIT {
+<a href=#2481 id=2481 data-nosnippet>2481</a>                    wait = Duration::from_secs(<span class="number">1</span>);
+<a href=#2482 id=2482 data-nosnippet>2482</a>                }
+<a href=#2483 id=2483 data-nosnippet>2483</a>            }
+<a href=#2484 id=2484 data-nosnippet>2484</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.is_permanent() =&gt; {
+<a href=#2485 id=2485 data-nosnippet>2485</a>                <span class="macro">anyhow::bail!</span>(<span class="string">"cannot dial in to {daemon} as `{id}`: {error}"</span>);
+<a href=#2486 id=2486 data-nosnippet>2486</a>            }
+<a href=#2487 id=2487 data-nosnippet>2487</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">eprintln!</span>(
+<a href=#2488 id=2488 data-nosnippet>2488</a>                <span class="string">"cookie runtime: cannot dial in to {daemon} as `{id}`: {error}; retrying in {} s"</span>,
+<a href=#2489 id=2489 data-nosnippet>2489</a>                wait.as_secs()
+<a href=#2490 id=2490 data-nosnippet>2490</a>            ),
+<a href=#2491 id=2491 data-nosnippet>2491</a>        }
+<a href=#2492 id=2492 data-nosnippet>2492</a>        <span class="macro">tokio::select!</span> {
+<a href=#2493 id=2493 data-nosnippet>2493</a>            () = tokio::time::sleep(wait) =&gt; {}
+<a href=#2494 id=2494 data-nosnippet>2494</a>            () = stop.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
+<a href=#2495 id=2495 data-nosnippet>2495</a>        }
+<a href=#2496 id=2496 data-nosnippet>2496</a>        wait = (wait * <span class="number">2</span>).min(LONGEST_WAIT);
+<a href=#2497 id=2497 data-nosnippet>2497</a>    }
+<a href=#2498 id=2498 data-nosnippet>2498</a>}
+<a href=#2499 id=2499 data-nosnippet>2499</a>
+<a href=#2500 id=2500 data-nosnippet>2500</a><span class="doccomment">/// The daemon's web page with `token` in its fragment, for the daemon whose
+<a href=#2501 id=2501 data-nosnippet>2501</a>/// client endpoint is `url`: `ws`→`http`, `wss`→`https`, the endpoint's
+<a href=#2502 id=2502 data-nosnippet>2502</a>/// `ws` dropped. The fragment never reaches a server or its logs.
+<a href=#2503 id=2503 data-nosnippet>2503</a></span><span class="kw">fn </span>web_link(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Zeroizing&lt;String&gt;&gt; {
+<a href=#2504 id=2504 data-nosnippet>2504</a>    <span class="kw">let </span>page = cookie_agent_server::page_url(url)
+<a href=#2505 id=2505 data-nosnippet>2505</a>        .with_context(|| <span class="macro">format!</span>(<span class="string">"{url} is not a daemon client URL ending in /ws"</span>))<span class="question-mark">?</span>;
+<a href=#2506 id=2506 data-nosnippet>2506</a>    <span class="prelude-val">Ok</span>(Zeroizing::new(<span class="macro">format!</span>(<span class="string">"{page}#token={token}"</span>)))
+<a href=#2507 id=2507 data-nosnippet>2507</a>}
+<a href=#2508 id=2508 data-nosnippet>2508</a>
+<a href=#2509 id=2509 data-nosnippet>2509</a><span class="doccomment">/// Opens `link` in the system browser.
+<a href=#2510 id=2510 data-nosnippet>2510</a></span><span class="kw">fn </span>open_in_browser(link: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#2511 id=2511 data-nosnippet>2511</a>    <span class="kw">let </span><span class="kw-2">mut </span>command = <span class="kw">if </span><span class="macro">cfg!</span>(target_os = <span class="string">"macos"</span>) {
+<a href=#2512 id=2512 data-nosnippet>2512</a>        std::process::Command::new(<span class="string">"open"</span>)
+<a href=#2513 id=2513 data-nosnippet>2513</a>    } <span class="kw">else if </span><span class="macro">cfg!</span>(windows) {
+<a href=#2514 id=2514 data-nosnippet>2514</a>        <span class="kw">let </span><span class="kw-2">mut </span>command = std::process::Command::new(<span class="string">"cmd"</span>);
+<a href=#2515 id=2515 data-nosnippet>2515</a>        command.args([<span class="string">"/C"</span>, <span class="string">"start"</span>, <span class="string">""</span>]);
+<a href=#2516 id=2516 data-nosnippet>2516</a>        command
+<a href=#2517 id=2517 data-nosnippet>2517</a>    } <span class="kw">else </span>{
+<a href=#2518 id=2518 data-nosnippet>2518</a>        std::process::Command::new(<span class="string">"xdg-open"</span>)
+<a href=#2519 id=2519 data-nosnippet>2519</a>    };
+<a href=#2520 id=2520 data-nosnippet>2520</a>    <span class="kw">let </span>status = command
+<a href=#2521 id=2521 data-nosnippet>2521</a>        .arg(link)
+<a href=#2522 id=2522 data-nosnippet>2522</a>        .stdin(std::process::Stdio::null())
+<a href=#2523 id=2523 data-nosnippet>2523</a>        .stdout(std::process::Stdio::null())
+<a href=#2524 id=2524 data-nosnippet>2524</a>        .stderr(std::process::Stdio::null())
+<a href=#2525 id=2525 data-nosnippet>2525</a>        .status()
+<a href=#2526 id=2526 data-nosnippet>2526</a>        .context(<span class="string">"open the system browser"</span>)<span class="question-mark">?</span>;
+<a href=#2527 id=2527 data-nosnippet>2527</a>    <span class="macro">anyhow::ensure!</span>(
+<a href=#2528 id=2528 data-nosnippet>2528</a>        status.success(),
+<a href=#2529 id=2529 data-nosnippet>2529</a>        <span class="string">"the system browser did not open ({status})"
+<a href=#2530 id=2530 data-nosnippet>2530</a>    </span>);
+<a href=#2531 id=2531 data-nosnippet>2531</a>    <span class="prelude-val">Ok</span>(())
+<a href=#2532 id=2532 data-nosnippet>2532</a>}
+<a href=#2533 id=2533 data-nosnippet>2533</a>
+<a href=#2534 id=2534 data-nosnippet>2534</a><span class="doccomment">/// What the daemon prints after its ready line about its web page: where
+<a href=#2535 id=2535 data-nosnippet>2535</a>/// it is.
+<a href=#2536 id=2536 data-nosnippet>2536</a></span><span class="kw">fn </span>web_page_line(client_url: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#2537 id=2537 data-nosnippet>2537</a>    cookie_agent_server::page_url(client_url)
+<a href=#2538 id=2538 data-nosnippet>2538</a>        .map(|page| <span class="macro">format!</span>(<span class="string">"web page at {page} (`cookie web` prints it with the token)"</span>))
+<a href=#2539 id=2539 data-nosnippet>2539</a>}
+<a href=#2540 id=2540 data-nosnippet>2540</a>
+<a href=#2541 id=2541 data-nosnippet>2541</a><span class="doccomment">/// Where and how `cookie daemon` listens.
+<a href=#2542 id=2542 data-nosnippet>2542</a></span><span class="kw">struct </span>DaemonListen {
+<a href=#2543 id=2543 data-nosnippet>2543</a>    port: <span class="prelude-ty">Option</span>&lt;u16&gt;,
+<a href=#2544 id=2544 data-nosnippet>2544</a>    listen: <span class="prelude-ty">Option</span>&lt;std::net::SocketAddr&gt;,
+<a href=#2545 id=2545 data-nosnippet>2545</a>    tls: <span class="prelude-ty">Option</span>&lt;cookie_agent_server::TlsConfig&gt;,
+<a href=#2546 id=2546 data-nosnippet>2546</a>    token: Zeroizing&lt;String&gt;,
+<a href=#2547 id=2547 data-nosnippet>2547</a>}
+<a href=#2548 id=2548 data-nosnippet>2548</a>
+<a href=#2549 id=2549 data-nosnippet>2549</a><span class="doccomment">/// Why the daemon stopped.
+<a href=#2550 id=2550 data-nosnippet>2550</a></span><span class="kw">enum </span>DaemonExit {
+<a href=#2551 id=2551 data-nosnippet>2551</a>    <span class="doccomment">/// A stop signal.
+<a href=#2552 id=2552 data-nosnippet>2552</a>    </span>Stopped,
+<a href=#2553 id=2553 data-nosnippet>2553</a>    <span class="doccomment">/// A client's `daemon.restart`: relaunch.
+<a href=#2554 id=2554 data-nosnippet>2554</a>    </span>Restart,
+<a href=#2555 id=2555 data-nosnippet>2555</a>}
+<a href=#2556 id=2556 data-nosnippet>2556</a>
+<a href=#2557 id=2557 data-nosnippet>2557</a><span class="kw">async fn </span>run_daemon(
+<a href=#2558 id=2558 data-nosnippet>2558</a>    <span class="kw-2">mut </span>runtime: Runtime,
+<a href=#2559 id=2559 data-nosnippet>2559</a>    options: DaemonListen,
+<a href=#2560 id=2560 data-nosnippet>2560</a>    launch: <span class="kw-2">&amp;</span>Launch,
+<a href=#2561 id=2561 data-nosnippet>2561</a>) -&gt; anyhow::Result&lt;DaemonExit&gt; {
+<a href=#2562 id=2562 data-nosnippet>2562</a>    <span class="kw">let </span>DaemonListen {
+<a href=#2563 id=2563 data-nosnippet>2563</a>        port,
+<a href=#2564 id=2564 data-nosnippet>2564</a>        listen,
+<a href=#2565 id=2565 data-nosnippet>2565</a>        tls,
+<a href=#2566 id=2566 data-nosnippet>2566</a>        token,
+<a href=#2567 id=2567 data-nosnippet>2567</a>    } = options;
+<a href=#2568 id=2568 data-nosnippet>2568</a>    <span class="kw">let </span>address = listen.unwrap_or_else(|| {
+<a href=#2569 id=2569 data-nosnippet>2569</a>        std::net::SocketAddr::from(([<span class="number">127</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>], port.unwrap_or(runtime.port)))
+<a href=#2570 id=2570 data-nosnippet>2570</a>    });
+<a href=#2571 id=2571 data-nosnippet>2571</a>    <span class="kw">let </span>scheme = <span class="kw">if </span>tls.is_some() { <span class="string">"wss" </span>} <span class="kw">else </span>{ <span class="string">"ws" </span>};
+<a href=#2572 id=2572 data-nosnippet>2572</a>    <span class="comment">// A restarted daemon waits for the process it replaces to let go of the
+<a href=#2573 id=2573 data-nosnippet>2573</a>    // port.
+<a href=#2574 id=2574 data-nosnippet>2574</a>    </span><span class="kw">let </span>bind_wait = <span class="kw">if </span>launch.restarted {
+<a href=#2575 id=2575 data-nosnippet>2575</a>        daemon_restart::RESTART_BIND_WAIT
+<a href=#2576 id=2576 data-nosnippet>2576</a>    } <span class="kw">else </span>{
+<a href=#2577 id=2577 data-nosnippet>2577</a>        Duration::ZERO
+<a href=#2578 id=2578 data-nosnippet>2578</a>    };
+<a href=#2579 id=2579 data-nosnippet>2579</a>    <span class="kw">let </span>started = <span class="kw">match </span>cookie_agent_protocol::StopSignals::new() {
+<a href=#2580 id=2580 data-nosnippet>2580</a>        <span class="prelude-val">Ok</span>(signals) =&gt; daemon_restart::bind_retrying(bind_wait, || {
+<a href=#2581 id=2581 data-nosnippet>2581</a>            runtime
+<a href=#2582 id=2582 data-nosnippet>2582</a>                .server
+<a href=#2583 id=2583 data-nosnippet>2583</a>                .clone()
+<a href=#2584 id=2584 data-nosnippet>2584</a>                .serve_on(address, token.clone(), tls.clone())
+<a href=#2585 id=2585 data-nosnippet>2585</a>        })
+<a href=#2586 id=2586 data-nosnippet>2586</a>        .<span class="kw">await
+<a href=#2587 id=2587 data-nosnippet>2587</a>        </span>.map(|listener| (signals, listener))
+<a href=#2588 id=2588 data-nosnippet>2588</a>        .map_err(|error| anyhow::Error::new(error).context(<span class="string">"start WebSocket daemon"</span>)),
+<a href=#2589 id=2589 data-nosnippet>2589</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(anyhow::Error::new(error).context(<span class="string">"listen for stop signals"</span>)),
+<a href=#2590 id=2590 data-nosnippet>2590</a>    };
+<a href=#2591 id=2591 data-nosnippet>2591</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>signals, listener) = <span class="kw">match </span>started {
+<a href=#2592 id=2592 data-nosnippet>2592</a>        <span class="prelude-val">Ok</span>(started) =&gt; started,
+<a href=#2593 id=2593 data-nosnippet>2593</a>        <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#2594 id=2594 data-nosnippet>2594</a>            runtime.server.shutdown();
+<a href=#2595 id=2595 data-nosnippet>2595</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#2596 id=2596 data-nosnippet>2596</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#2597 id=2597 data-nosnippet>2597</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(error);
+<a href=#2598 id=2598 data-nosnippet>2598</a>        }
+<a href=#2599 id=2599 data-nosnippet>2599</a>    };
+<a href=#2600 id=2600 data-nosnippet>2600</a>    <span class="comment">// Only a daemon that knows how it was started can start itself again.
+<a href=#2601 id=2601 data-nosnippet>2601</a>    </span><span class="kw">let </span>restart = CancellationToken::new();
+<a href=#2602 id=2602 data-nosnippet>2602</a>    <span class="kw">if </span>launch.relaunch.is_some() {
+<a href=#2603 id=2603 data-nosnippet>2603</a>        <span class="kw">let </span>restart = restart.clone();
+<a href=#2604 id=2604 data-nosnippet>2604</a>        runtime
+<a href=#2605 id=2605 data-nosnippet>2605</a>            .engine
+<a href=#2606 id=2606 data-nosnippet>2606</a>            .set_restart_hook(Box::new(<span class="kw">move </span>|| restart.cancel()));
+<a href=#2607 id=2607 data-nosnippet>2607</a>    }
+<a href=#2608 id=2608 data-nosnippet>2608</a>    <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"{scheme}://{}/ws"</span>, listener.address());
+<a href=#2609 id=2609 data-nosnippet>2609</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, ready_line(<span class="kw-2">&amp;</span>url));
+<a href=#2610 id=2610 data-nosnippet>2610</a>    drop(token);
+<a href=#2611 id=2611 data-nosnippet>2611</a>    <span class="macro">println!</span>(
+<a href=#2612 id=2612 data-nosnippet>2612</a>        <span class="string">"cookie daemon listening on {url} (client protocol {}, process {})"</span>,
+<a href=#2613 id=2613 data-nosnippet>2613</a>        cookie_agent_protocol::CLIENT_PROTOCOL_VERSION,
+<a href=#2614 id=2614 data-nosnippet>2614</a>        std::process::id()
+<a href=#2615 id=2615 data-nosnippet>2615</a>    );
+<a href=#2616 id=2616 data-nosnippet>2616</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(line) = web_page_line(<span class="kw-2">&amp;</span>url) {
+<a href=#2617 id=2617 data-nosnippet>2617</a>        <span class="macro">println!</span>(<span class="string">"{line}"</span>);
+<a href=#2618 id=2618 data-nosnippet>2618</a>    }
+<a href=#2619 id=2619 data-nosnippet>2619</a>    <span class="comment">// Phones with push notifications hear the daemon is up again.
+<a href=#2620 id=2620 data-nosnippet>2620</a>    </span>runtime.server.announce_started();
+<a href=#2621 id=2621 data-nosnippet>2621</a>    <span class="kw">let </span>exit = <span class="macro">tokio::select!</span> {
+<a href=#2622 id=2622 data-nosnippet>2622</a>        () = signals.recv() =&gt; DaemonExit::Stopped,
+<a href=#2623 id=2623 data-nosnippet>2623</a>        () = restart.cancelled() =&gt; DaemonExit::Restart,
+<a href=#2624 id=2624 data-nosnippet>2624</a>    };
+<a href=#2625 id=2625 data-nosnippet>2625</a>    exit_on_next_stop(signals);
+<a href=#2626 id=2626 data-nosnippet>2626</a>    <span class="kw">match </span>exit {
+<a href=#2627 id=2627 data-nosnippet>2627</a>        DaemonExit::Stopped =&gt; {
+<a href=#2628 id=2628 data-nosnippet>2628</a>            runtime.server.shutdown();
+<a href=#2629 id=2629 data-nosnippet>2629</a>            runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#2630 id=2630 data-nosnippet>2630</a>            listener.wait().<span class="kw">await</span>;
+<a href=#2631 id=2631 data-nosnippet>2631</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#2632 id=2632 data-nosnippet>2632</a>        }
+<a href=#2633 id=2633 data-nosnippet>2633</a>        DaemonExit::Restart =&gt; {
+<a href=#2634 id=2634 data-nosnippet>2634</a>            <span class="macro">println!</span>(<span class="string">"cookie daemon restarting"</span>);
+<a href=#2635 id=2635 data-nosnippet>2635</a>            <span class="comment">// Before anything stops: phones with push notifications hear it,
+<a href=#2636 id=2636 data-nosnippet>2636</a>            // but the one whose page asked.
+<a href=#2637 id=2637 data-nosnippet>2637</a>            </span>runtime.server.announce_restarting().<span class="kw">await</span>;
+<a href=#2638 id=2638 data-nosnippet>2638</a>            <span class="comment">// The engine stops first, while clients are still connected:
+<a href=#2639 id=2639 data-nosnippet>2639</a>            // they see the interrupted turns end, then the connection close
+<a href=#2640 id=2640 data-nosnippet>2640</a>            // saying the daemon is restarting.
+<a href=#2641 id=2641 data-nosnippet>2641</a>            </span>runtime.stop_catalog_refresh().<span class="kw">await</span>;
+<a href=#2642 id=2642 data-nosnippet>2642</a>            runtime.engine.shutdown().<span class="kw">await</span>;
+<a href=#2643 id=2643 data-nosnippet>2643</a>            runtime.server.shutdown_for_restart();
+<a href=#2644 id=2644 data-nosnippet>2644</a>            <span class="comment">// Returns once every client connection sent that close frame
+<a href=#2645 id=2645 data-nosnippet>2645</a>            // (bounded), so the relaunch does not cut it off.
+<a href=#2646 id=2646 data-nosnippet>2646</a>            </span>listener.wait().<span class="kw">await</span>;
+<a href=#2647 id=2647 data-nosnippet>2647</a>        }
+<a href=#2648 id=2648 data-nosnippet>2648</a>    }
+<a href=#2649 id=2649 data-nosnippet>2649</a>    <span class="prelude-val">Ok</span>(exit)
+<a href=#2650 id=2650 data-nosnippet>2650</a>}
+<a href=#2651 id=2651 data-nosnippet>2651</a>
+<a href=#2652 id=2652 data-nosnippet>2652</a><span class="doccomment">/// Exits at once on the next stop signal, for a graceful stop that hangs.
+<a href=#2653 id=2653 data-nosnippet>2653</a></span><span class="kw">fn </span>exit_on_next_stop(<span class="kw-2">mut </span>signals: cookie_agent_protocol::StopSignals) {
+<a href=#2654 id=2654 data-nosnippet>2654</a>    tokio::spawn(<span class="kw">async move </span>{
+<a href=#2655 id=2655 data-nosnippet>2655</a>        signals.recv().<span class="kw">await</span>;
+<a href=#2656 id=2656 data-nosnippet>2656</a>        <span class="macro">eprintln!</span>(<span class="string">"cookie: stopping at once"</span>);
+<a href=#2657 id=2657 data-nosnippet>2657</a>        std::process::exit(<span class="number">1</span>);
+<a href=#2658 id=2658 data-nosnippet>2658</a>    });
+<a href=#2659 id=2659 data-nosnippet>2659</a>}
+<a href=#2660 id=2660 data-nosnippet>2660</a>
+<a href=#2661 id=2661 data-nosnippet>2661</a><span class="doccomment">/// Cancels `stop` on the first stop signal; see [`exit_on_next_stop`] for
+<a href=#2662 id=2662 data-nosnippet>2662</a>/// the second.
+<a href=#2663 id=2663 data-nosnippet>2663</a></span><span class="kw">fn </span>stop_on_signal(stop: CancellationToken) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#2664 id=2664 data-nosnippet>2664</a>    <span class="kw">let </span><span class="kw-2">mut </span>signals =
+<a href=#2665 id=2665 data-nosnippet>2665</a>        cookie_agent_protocol::StopSignals::new().context(<span class="string">"listen for stop signals"</span>)<span class="question-mark">?</span>;
+<a href=#2666 id=2666 data-nosnippet>2666</a>    tokio::spawn(<span class="kw">async move </span>{
+<a href=#2667 id=2667 data-nosnippet>2667</a>        signals.recv().<span class="kw">await</span>;
+<a href=#2668 id=2668 data-nosnippet>2668</a>        stop.cancel();
+<a href=#2669 id=2669 data-nosnippet>2669</a>        exit_on_next_stop(signals);
+<a href=#2670 id=2670 data-nosnippet>2670</a>    });
+<a href=#2671 id=2671 data-nosnippet>2671</a>    <span class="prelude-val">Ok</span>(())
+<a href=#2672 id=2672 data-nosnippet>2672</a>}
+<a href=#2673 id=2673 data-nosnippet>2673</a>
+<a href=#2674 id=2674 data-nosnippet>2674</a><span class="kw">mod </span>agents_command;
+<a href=#2675 id=2675 data-nosnippet>2675</a><span class="kw">mod </span>config_command;
+<a href=#2676 id=2676 data-nosnippet>2676</a><span class="kw">mod </span>cron_command;
+<a href=#2677 id=2677 data-nosnippet>2677</a><span class="kw">mod </span>daemon_restart;
+<a href=#2678 id=2678 data-nosnippet>2678</a><span class="kw">mod </span>local_daemon;
+<a href=#2679 id=2679 data-nosnippet>2679</a><span class="kw">mod </span>machine_command;
+<a href=#2680 id=2680 data-nosnippet>2680</a><span class="kw">mod </span>memory_command;
+<a href=#2681 id=2681 data-nosnippet>2681</a><span class="kw">mod </span>onboard_command;
+<a href=#2682 id=2682 data-nosnippet>2682</a><span class="kw">mod </span>project_command;
+<a href=#2683 id=2683 data-nosnippet>2683</a><span class="kw">mod </span>skills_command;
+<a href=#2684 id=2684 data-nosnippet>2684</a><span class="kw">mod </span>update_command;
+<a href=#2685 id=2685 data-nosnippet>2685</a>
+<a href=#2686 id=2686 data-nosnippet>2686</a><span class="attr">#[cfg(test)]
+<a href=#2687 id=2687 data-nosnippet>2687</a></span><span class="kw">mod </span>cli_reference;
+<a href=#2688 id=2688 data-nosnippet>2688</a>
+<a href=#2689 id=2689 data-nosnippet>2689</a><span class="attr">#[cfg(test)]
+<a href=#2690 id=2690 data-nosnippet>2690</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
+<a href=#2691 id=2691 data-nosnippet>2691</a></span><span class="kw">mod </span>config_harness;
+<a href=#2692 id=2692 data-nosnippet>2692</a>
+<a href=#2693 id=2693 data-nosnippet>2693</a><span class="attr">#[cfg(all(test, unix))]
+<a href=#2694 id=2694 data-nosnippet>2694</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

@@ -660,7 +660,7 @@
 <a href=#660 id=660 data-nosnippet>660</a>                        .and_then(|value| value.trim().parse::&lt;u64&gt;().ok())
 <a href=#661 id=661 data-nosnippet>661</a>                        .map(Duration::from_secs);
 <a href=#662 id=662 data-nosnippet>662</a>                    <span class="kw">let </span>retryable = status.as_u16() == <span class="number">429 </span>|| status.is_server_error();
-<a href=#663 id=663 data-nosnippet>663</a>                    <span class="kw">let </span>text = response.text().<span class="kw">await</span>.unwrap_or_default();
+<a href=#663 id=663 data-nosnippet>663</a>                    <span class="kw">let </span>text = error_text(response).<span class="kw">await</span>;
 <a href=#664 id=664 data-nosnippet>664</a>                    <span class="kw">let </span>detail =
 <a href=#665 id=665 data-nosnippet>665</a>                        <span class="macro">format!</span>(<span class="string">"{status}: {}"</span>, text.chars().take(<span class="number">200</span>).collect::&lt;String&gt;());
 <a href=#666 id=666 data-nosnippet>666</a>                    <span class="kw">if </span>!retryable {
@@ -731,6 +731,24 @@
 <a href=#731 id=731 data-nosnippet>731</a>    }
 <a href=#732 id=732 data-nosnippet>732</a>}
 <a href=#733 id=733 data-nosnippet>733</a>
-<a href=#734 id=734 data-nosnippet>734</a><span class="attr">#[cfg(test)]
-<a href=#735 id=735 data-nosnippet>735</a></span><span class="kw">mod </span>tests;
+<a href=#734 id=734 data-nosnippet>734</a><span class="doccomment">/// The most of a push service's error body the daemon reads.
+<a href=#735 id=735 data-nosnippet>735</a></span><span class="kw">const </span>ERROR_BODY_LIMIT: usize = <span class="number">4 </span>* <span class="number">1024</span>;
+<a href=#736 id=736 data-nosnippet>736</a>
+<a href=#737 id=737 data-nosnippet>737</a><span class="doccomment">/// The start of an error answer's body, for its detail: at most
+<a href=#738 id=738 data-nosnippet>738</a>/// [`ERROR_BODY_LIMIT`] bytes, so a push service that answers with a huge or
+<a href=#739 id=739 data-nosnippet>739</a>/// endless body cannot hold the delivery or its memory.
+<a href=#740 id=740 data-nosnippet>740</a></span><span class="kw">async fn </span>error_text(<span class="kw-2">mut </span>response: reqwest::Response) -&gt; String {
+<a href=#741 id=741 data-nosnippet>741</a>    <span class="kw">let </span><span class="kw-2">mut </span>body = Vec::new();
+<a href=#742 id=742 data-nosnippet>742</a>    <span class="kw">while </span>body.len() &lt; ERROR_BODY_LIMIT {
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">match </span>response.chunk().<span class="kw">await </span>{
+<a href=#744 id=744 data-nosnippet>744</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(chunk)) =&gt; body.extend_from_slice(<span class="kw-2">&amp;</span>chunk),
+<a href=#745 id=745 data-nosnippet>745</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) | <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
+<a href=#746 id=746 data-nosnippet>746</a>        }
+<a href=#747 id=747 data-nosnippet>747</a>    }
+<a href=#748 id=748 data-nosnippet>748</a>    body.truncate(ERROR_BODY_LIMIT);
+<a href=#749 id=749 data-nosnippet>749</a>    String::from_utf8_lossy(<span class="kw-2">&amp;</span>body).into_owned()
+<a href=#750 id=750 data-nosnippet>750</a>}
+<a href=#751 id=751 data-nosnippet>751</a>
+<a href=#752 id=752 data-nosnippet>752</a><span class="attr">#[cfg(test)]
+<a href=#753 id=753 data-nosnippet>753</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
