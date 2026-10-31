@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ListScope","StoreError","WriteMode"],"struct":["Edited","IgnoredEntry","KeptMetadata","MemoryEntry","MemoryListing","MemoryRead","Written"],"trait":["MemoryOwners"]};

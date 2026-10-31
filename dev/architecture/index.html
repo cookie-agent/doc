@@ -4589,12 +4589,14 @@ after a short pause.</p>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       ├─ runtime_api   (tool contract + runtime protocol; never on the engine)
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       ├─ models
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │    ├─ engine_store  (also on config: sessions, event logs, projections)
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       │    └─ config
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       │         └─ mcp     (also on runtime_api; never on the engine)
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>       │              ├─ coding_runtime  (never on the engine)
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>       │              └─ engine  (also on engine_store; enables mcp's `oauth` feature)
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>       │                   └─ server  (also on web_assets, the built page)
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>       └─ cookie_agent (binary: composes every layer)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       │    │    └─ engine_permissions  (also on config, runtime_api: the rules)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       │    ├─ engine_memory  (also on config, runtime_api: the memory folder)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>       │    └─ config
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>       │         └─ mcp     (also on runtime_api; never on the engine)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>       │              ├─ coding_runtime  (never on the engine)
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>       │              └─ engine  (also on the engine_* crates; enables mcp's `oauth` feature)
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>       │                   └─ server  (also on web_assets, the built page)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>       └─ cookie_agent (binary: composes every layer)
 </code></pre></div>
 <p>The TUI deliberately sits beside the engine rather than above it: it speaks
 only the protocol, receives an already-connected <code>Client</code>, and the
@@ -4648,6 +4650,14 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
 <tr>
 <td><code>engine_store</code></td>
 <td>The engine's storage layer (<code>cookie_agent_engine_store</code>): session directories and their <code>events.jsonl</code> logs, the projections folded from them (sessions, goals and producer messages, delegations, usage and pricing), lazy tree loads, the session-log converters (<code>events/convert</code>), and tree ownership locks. It knows nothing of runs or runtimes; where it needs the engine (a tree load's products, the ACP sessions a fork leaves behind) the engine passes a hook. Depends on <code>protocol</code>, <code>models</code>, <code>config</code>, and <code>identity</code>.</td>
+</tr>
+<tr>
+<td><code>engine_permissions</code></td>
+<td>Permission evaluation (<code>cookie_agent_engine_permissions</code>): agent and session rules, mode and memory defaults, their merge into one ordered list, runtime selectors, the approval store of tree grants, and prepared-operation identities. Pure rules over protocol types and session projections; the engine's <code>runtime/permission_api.rs</code> serves them to clients. Depends on <code>engine_store</code>, <code>runtime_api</code>, <code>config</code>, and <code>protocol</code>.</td>
+</tr>
+<tr>
+<td><code>engine_memory</code></td>
+<td>The memory folder (<code>cookie_agent_engine_memory</code>): its advisory lock and first-start defaults, memory URLs, the file format and revisions, limits, reads, listings and changes, search, the similar-memory check, and the snapshot a session's model sees. The engine's memory tools and runtime glue use it. Depends on <code>protocol</code>, <code>models</code>, <code>config</code>, <code>identity</code>, and <code>runtime_api</code>.</td>
 </tr>
 <tr>
 <td><code>engine</code></td>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AGENTS_DIR","LOCK_FILE","MACHINES_DIR","MEMORY_DIR","MEMORY_EXTENSION","PROJECTS_DIR","READS_FILE","USER_DIR"],"enum":["MemoryError"],"mod":["agents","file","format","limits","projects","reads","render","search","similar","snapshot","store","url"],"struct":["FolderMoves","MemoryLock","MemoryRoot"]};

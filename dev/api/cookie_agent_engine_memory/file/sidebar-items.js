@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_DESCRIPTION_CHARS","MAX_FILE_BYTES","MAX_KEYWORDS","MAX_KEYWORD_CHARS"],"fn":["to_second","too_large"],"struct":["InvalidMemory","MemoryDocument","MemoryRevision"]};

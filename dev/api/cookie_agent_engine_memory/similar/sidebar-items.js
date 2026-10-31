@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_NEAR"],"enum":["Similarity"],"fn":["compare"],"struct":["NearMemory"]};
