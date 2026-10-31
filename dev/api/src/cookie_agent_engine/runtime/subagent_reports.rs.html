@@ -37,7 +37,7 @@
 <a href=#37 id=37 data-nosnippet>37</a>        };
 <a href=#38 id=38 data-nosnippet>38</a>        <span class="comment">// An ACP agent's own subagent reports nothing: its parent agent gets
 <a href=#39 id=39 data-nosnippet>39</a>        // the child's result itself.
-<a href=#40 id=40 data-nosnippet>40</a>        </span><span class="kw">if </span><span class="kw">super</span>::acp::is_acp_subagent(<span class="kw-2">&amp;</span>projection.log.event_snapshot()) {
+<a href=#40 id=40 data-nosnippet>40</a>        </span><span class="kw">if </span>projection.log.is_acp_subagent() {
 <a href=#41 id=41 data-nosnippet>41</a>            <span class="self">self</span>.notify_background_changed(parent_session_id);
 <a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">return</span>;
 <a href=#43 id=43 data-nosnippet>43</a>        }
@@ -188,36 +188,116 @@
 <a href=#188 id=188 data-nosnippet>188</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
 <a href=#189 id=189 data-nosnippet>189</a>        }
 <a href=#190 id=190 data-nosnippet>190</a>        <span class="comment">// A foreground call that got the child's result reported it already.
-<a href=#191 id=191 data-nosnippet>191</a>        </span><span class="kw">let </span>parent = <span class="self">self</span>.inner.store.get(parent)<span class="question-mark">?</span>;
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>reported = parent.log.event_snapshot().iter().rev().any(|event| {
-<a href=#193 id=193 data-nosnippet>193</a>            <span class="macro">matches!</span>(
-<a href=#194 id=194 data-nosnippet>194</a>                <span class="kw-2">&amp;</span>event.payload,
-<a href=#195 id=195 data-nosnippet>195</a>                Event::ToolCallTerminated { termination }
-<a href=#196 id=196 data-nosnippet>196</a>                    <span class="kw">if </span>termination.tool_call_id == entry.reservation.parent_tool_call_id
-<a href=#197 id=197 data-nosnippet>197</a>                        &amp;&amp; termination.result.as_ref().is_some_and(|result| {
-<a href=#198 id=198 data-nosnippet>198</a>                            result.background.is_none()
-<a href=#199 id=199 data-nosnippet>199</a>                                &amp;&amp; <span class="kw">crate</span>::delegation_api::delegate_result_matches_child(
-<a href=#200 id=200 data-nosnippet>200</a>                                    result, child,
-<a href=#201 id=201 data-nosnippet>201</a>                                )
-<a href=#202 id=202 data-nosnippet>202</a>                        })
-<a href=#203 id=203 data-nosnippet>203</a>            )
-<a href=#204 id=204 data-nosnippet>204</a>        });
-<a href=#205 id=205 data-nosnippet>205</a>        <span class="prelude-val">Ok</span>(!reported)
-<a href=#206 id=206 data-nosnippet>206</a>    }
-<a href=#207 id=207 data-nosnippet>207</a>}
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a><span class="doccomment">/// The `&lt;subagent_report&gt;` element a subagent's finished turn reports.
-<a href=#210 id=210 data-nosnippet>210</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_subagent_report(teaser: <span class="kw-2">&amp;</span><span class="kw">super</span>::delegation::DelegateTeaser) -&gt; String {
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="macro">format!</span>(
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="string">"&lt;subagent_report handle=\"{}\" status=\"{}\"&gt;\n{}\n&lt;/subagent_report&gt;"</span>,
-<a href=#213 id=213 data-nosnippet>213</a>        teaser.short_id.replace(<span class="string">'"'</span>, <span class="string">"&amp;quot;"</span>),
-<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">super</span>::delegation::session_status_name(teaser.status),
-<a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">super</span>::delegation::render_delegate_teaser_body(
-<a href=#216 id=216 data-nosnippet>216</a>            <span class="kw-2">&amp;</span>teaser.preview,
-<a href=#217 id=217 data-nosnippet>217</a>            teaser.status,
-<a href=#218 id=218 data-nosnippet>218</a>            teaser.total_lines,
-<a href=#219 id=219 data-nosnippet>219</a>            <span class="kw-2">&amp;</span>teaser.short_id,
-<a href=#220 id=220 data-nosnippet>220</a>        )
-<a href=#221 id=221 data-nosnippet>221</a>    )
-<a href=#222 id=222 data-nosnippet>222</a>}
+<a href=#191 id=191 data-nosnippet>191</a>        </span><span class="kw">let </span>call = entry.reservation.parent_tool_call_id;
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>parent = <span class="self">self</span>.inner.store.get(parent)<span class="question-mark">?</span>;
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>ended =
+<a href=#194 id=194 data-nosnippet>194</a>            parent
+<a href=#195 id=195 data-nosnippet>195</a>                .log
+<a href=#196 id=196 data-nosnippet>196</a>                .event_snapshot()
+<a href=#197 id=197 data-nosnippet>197</a>                .iter()
+<a href=#198 id=198 data-nosnippet>198</a>                .rev()
+<a href=#199 id=199 data-nosnippet>199</a>                .find_map(|event| <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#200 id=200 data-nosnippet>200</a>                    Event::ToolCallTerminated { termination }
+<a href=#201 id=201 data-nosnippet>201</a>                        <span class="kw">if </span>termination.tool_call_id == call =&gt;
+<a href=#202 id=202 data-nosnippet>202</a>                    {
+<a href=#203 id=203 data-nosnippet>203</a>                        <span class="prelude-val">Some</span>(termination.result.as_ref().is_some_and(|result| {
+<a href=#204 id=204 data-nosnippet>204</a>                            result.background.is_none()
+<a href=#205 id=205 data-nosnippet>205</a>                                &amp;&amp; <span class="kw">crate</span>::delegation_api::delegate_result_matches_child(
+<a href=#206 id=206 data-nosnippet>206</a>                                    result, child,
+<a href=#207 id=207 data-nosnippet>207</a>                                )
+<a href=#208 id=208 data-nosnippet>208</a>                        }))
+<a href=#209 id=209 data-nosnippet>209</a>                    }
+<a href=#210 id=210 data-nosnippet>210</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#211 id=211 data-nosnippet>211</a>                });
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">match </span>ended {
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="prelude-val">Some</span>(reported) =&gt; <span class="prelude-val">Ok</span>(!reported),
+<a href=#214 id=214 data-nosnippet>214</a>            <span class="comment">// Nothing waits on the call, which has not ended either, as after
+<a href=#215 id=215 data-nosnippet>215</a>            // a restart: whether its result carries the child's comes out
+<a href=#216 id=216 data-nosnippet>216</a>            // when it ends, which delivers the report then if it is owed
+<a href=#217 id=217 data-nosnippet>217</a>            // ([`Self::observe_delegate_call_ended`]).
+<a href=#218 id=218 data-nosnippet>218</a>            </span><span class="prelude-val">None </span><span class="kw">if </span>parent
+<a href=#219 id=219 data-nosnippet>219</a>                .runs
+<a href=#220 id=220 data-nosnippet>220</a>                .get(<span class="kw-2">&amp;</span>entry.reservation.parent_run_id)
+<a href=#221 id=221 data-nosnippet>221</a>                .is_some_and(|parent_run| parent_run.pending_calls.contains_key(<span class="kw-2">&amp;</span>call)) =&gt;
+<a href=#222 id=222 data-nosnippet>222</a>            {
+<a href=#223 id=223 data-nosnippet>223</a>                <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
+<a href=#224 id=224 data-nosnippet>224</a>            }
+<a href=#225 id=225 data-nosnippet>225</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>),
+<a href=#226 id=226 data-nosnippet>226</a>        }
+<a href=#227 id=227 data-nosnippet>227</a>    }
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="doccomment">/// Called once `call` of `run` of `parent` ended: a foreground
+<a href=#230 id=230 data-nosnippet>230</a>    /// delegation's report undecided while the call was pending is decided
+<a href=#231 id=231 data-nosnippet>231</a>    /// now, and delivered if the call's result does not carry the child's.
+<a href=#232 id=232 data-nosnippet>232</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>observe_delegate_call_ended(
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#234 id=234 data-nosnippet>234</a>        parent: SessionId,
+<a href=#235 id=235 data-nosnippet>235</a>        run: RunId,
+<a href=#236 id=236 data-nosnippet>236</a>        call: cookie_agent_protocol::ToolCallId,
+<a href=#237 id=237 data-nosnippet>237</a>    ) {
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(entry) = <span class="self">self
+<a href=#239 id=239 data-nosnippet>239</a>            </span>.inner
+<a href=#240 id=240 data-nosnippet>240</a>            .delegation_events
+<a href=#241 id=241 data-nosnippet>241</a>            .get(<span class="kw">super</span>::helpers::invocation_id(parent, run, call))
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">else </span>{
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">return</span>;
+<a href=#244 id=244 data-nosnippet>244</a>        };
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">if </span>entry.request.background {
+<a href=#246 id=246 data-nosnippet>246</a>            <span class="kw">return</span>;
+<a href=#247 id=247 data-nosnippet>247</a>        }
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>(child, <span class="prelude-val">Some</span>(child_run)) = (entry.reservation.child_session_id, entry.child_run_id)
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">else </span>{
+<a href=#250 id=250 data-nosnippet>250</a>            <span class="kw">return</span>;
+<a href=#251 id=251 data-nosnippet>251</a>        };
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="comment">// A run still going reports when it ends.
+<a href=#253 id=253 data-nosnippet>253</a>        </span><span class="kw">let </span>ended = <span class="self">self</span>.inner.store.get(child).is_ok_and(|projection| {
+<a href=#254 id=254 data-nosnippet>254</a>            projection.runs.get(<span class="kw-2">&amp;</span>child_run).is_some_and(|run| {
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="macro">matches!</span>(
+<a href=#256 id=256 data-nosnippet>256</a>                    run.status,
+<a href=#257 id=257 data-nosnippet>257</a>                    SessionStatus::Completed
+<a href=#258 id=258 data-nosnippet>258</a>                        | SessionStatus::Failed
+<a href=#259 id=259 data-nosnippet>259</a>                        | SessionStatus::Cancelled
+<a href=#260 id=260 data-nosnippet>260</a>                        | SessionStatus::Interrupted
+<a href=#261 id=261 data-nosnippet>261</a>                )
+<a href=#262 id=262 data-nosnippet>262</a>            })
+<a href=#263 id=263 data-nosnippet>263</a>        });
+<a href=#264 id=264 data-nosnippet>264</a>        <span class="kw">if </span>!ended {
+<a href=#265 id=265 data-nosnippet>265</a>            <span class="kw">return</span>;
+<a href=#266 id=266 data-nosnippet>266</a>        }
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(runtime) = <span class="self">self
+<a href=#268 id=268 data-nosnippet>268</a>            </span>.inner
+<a href=#269 id=269 data-nosnippet>269</a>            .runtime
+<a href=#270 id=270 data-nosnippet>270</a>            .clone()
+<a href=#271 id=271 data-nosnippet>271</a>            .or_else(|| tokio::runtime::Handle::try_current().ok())
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">else </span>{
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">return</span>;
+<a href=#274 id=274 data-nosnippet>274</a>        };
+<a href=#275 id=275 data-nosnippet>275</a>        <span class="self">self</span>.report_in_flight(child, child_run, parent, <span class="bool-val">true</span>);
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span>engine = <span class="self">self</span>.clone();
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">if </span>!<span class="self">self</span>.spawn_admission_task(<span class="kw-2">&amp;</span>runtime, <span class="kw">async move </span>{
+<a href=#278 id=278 data-nosnippet>278</a>            engine
+<a href=#279 id=279 data-nosnippet>279</a>                .deliver_subagent_report_until_done(child, child_run)
+<a href=#280 id=280 data-nosnippet>280</a>                .<span class="kw">await</span>;
+<a href=#281 id=281 data-nosnippet>281</a>            engine.report_in_flight(child, child_run, parent, <span class="bool-val">false</span>);
+<a href=#282 id=282 data-nosnippet>282</a>            engine.refresh_live_waiting(parent);
+<a href=#283 id=283 data-nosnippet>283</a>        }) {
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="self">self</span>.report_in_flight(child, child_run, parent, <span class="bool-val">false</span>);
+<a href=#285 id=285 data-nosnippet>285</a>        }
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>}
+<a href=#288 id=288 data-nosnippet>288</a>
+<a href=#289 id=289 data-nosnippet>289</a><span class="doccomment">/// The `&lt;subagent_report&gt;` element a subagent's finished turn reports.
+<a href=#290 id=290 data-nosnippet>290</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_subagent_report(teaser: <span class="kw-2">&amp;</span><span class="kw">super</span>::delegation::DelegateTeaser) -&gt; String {
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="macro">format!</span>(
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="string">"&lt;subagent_report handle=\"{}\" status=\"{}\"&gt;\n{}\n&lt;/subagent_report&gt;"</span>,
+<a href=#293 id=293 data-nosnippet>293</a>        teaser.short_id.replace(<span class="string">'"'</span>, <span class="string">"&amp;quot;"</span>),
+<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">super</span>::delegation::session_status_name(teaser.status),
+<a href=#295 id=295 data-nosnippet>295</a>        <span class="kw">super</span>::delegation::render_delegate_teaser_body(
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="kw-2">&amp;</span>teaser.preview,
+<a href=#297 id=297 data-nosnippet>297</a>            teaser.status,
+<a href=#298 id=298 data-nosnippet>298</a>            teaser.total_lines,
+<a href=#299 id=299 data-nosnippet>299</a>            <span class="kw-2">&amp;</span>teaser.short_id,
+<a href=#300 id=300 data-nosnippet>300</a>        )
+<a href=#301 id=301 data-nosnippet>301</a>    )
+<a href=#302 id=302 data-nosnippet>302</a>}
 </code></pre></div></section></main></body></html>

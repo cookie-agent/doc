@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ChildFold","ItemFold","TranscriptMode"],"fn":["filler","needs_user","reply_start","thinking_step","work_lines","work_summary"],"struct":["BlockFold","FoldPlan","WorkKey","WorkLines","WorkRow","WorkSummary"]};
+window.SIDEBAR_ITEMS = {"enum":["ChildFold","ItemFold","TranscriptMode"],"fn":["filler","needs_user","reply_start","thinking_step","work_lines","work_summary"],"struct":["BlockFold","FoldCache","FoldPlan","WorkKey","WorkLines","WorkRow","WorkSummary"]};

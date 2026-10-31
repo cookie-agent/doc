@@ -1717,290 +1717,302 @@
 <a href=#1717 id=1717 data-nosnippet>1717</a>            .collect()
 <a href=#1718 id=1718 data-nosnippet>1718</a>    }
 <a href=#1719 id=1719 data-nosnippet>1719</a>
-<a href=#1720 id=1720 data-nosnippet>1720</a>    <span class="doccomment">/// Gives every runtime its settings from `config`, as applied now: a
-<a href=#1721 id=1721 data-nosnippet>1721</a>    /// connected runtime that takes them gets the ones that changed.
-<a href=#1722 id=1722 data-nosnippet>1722</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>update_settings(<span class="kw-2">&amp;</span><span class="self">self</span>, config: <span class="kw-2">&amp;</span>cookie_agent_config::LoadedConfiguration) {
-<a href=#1723 id=1723 data-nosnippet>1723</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self</span>.every_template() {
-<a href=#1724 id=1724 data-nosnippet>1724</a>            template.update_settings(<span class="kw-2">&amp;</span><span class="kw">super</span>::runtime_settings(config, template.runtime_id()));
-<a href=#1725 id=1725 data-nosnippet>1725</a>        }
-<a href=#1726 id=1726 data-nosnippet>1726</a>    }
-<a href=#1727 id=1727 data-nosnippet>1727</a>
-<a href=#1728 id=1728 data-nosnippet>1728</a>    <span class="doccomment">/// Every registered runtime, dial-in ones included.
-<a href=#1729 id=1729 data-nosnippet>1729</a>    </span><span class="kw">fn </span>every_template(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;&gt; {
-<a href=#1730 id=1730 data-nosnippet>1730</a>        <span class="kw">let </span><span class="kw-2">mut </span>templates = <span class="self">self
-<a href=#1731 id=1731 data-nosnippet>1731</a>            </span>.templates
-<a href=#1732 id=1732 data-nosnippet>1732</a>            .lock()
-<a href=#1733 id=1733 data-nosnippet>1733</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1734 id=1734 data-nosnippet>1734</a>            .values()
-<a href=#1735 id=1735 data-nosnippet>1735</a>            .cloned()
-<a href=#1736 id=1736 data-nosnippet>1736</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1737 id=1737 data-nosnippet>1737</a>        templates.extend(
-<a href=#1738 id=1738 data-nosnippet>1738</a>            <span class="self">self</span>.dial_ins
-<a href=#1739 id=1739 data-nosnippet>1739</a>                .lock()
-<a href=#1740 id=1740 data-nosnippet>1740</a>                .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1741 id=1741 data-nosnippet>1741</a>                .values()
-<a href=#1742 id=1742 data-nosnippet>1742</a>                .map(|template| Arc::clone(template) <span class="kw">as </span>Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;),
-<a href=#1743 id=1743 data-nosnippet>1743</a>        );
-<a href=#1744 id=1744 data-nosnippet>1744</a>        templates
-<a href=#1745 id=1745 data-nosnippet>1745</a>    }
-<a href=#1746 id=1746 data-nosnippet>1746</a>
-<a href=#1747 id=1747 data-nosnippet>1747</a>    <span class="doccomment">/// What the daemon knows of the shell environment of every connected
-<a href=#1748 id=1748 data-nosnippet>1748</a>    /// runtime, by runtime ID.
-<a href=#1749 id=1749 data-nosnippet>1749</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>shell_environments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;String, RuntimeShellEnvironment&gt; {
-<a href=#1750 id=1750 data-nosnippet>1750</a>        <span class="self">self</span>.every_template()
-<a href=#1751 id=1751 data-nosnippet>1751</a>            .into_iter()
-<a href=#1752 id=1752 data-nosnippet>1752</a>            .filter_map(|template| {
-<a href=#1753 id=1753 data-nosnippet>1753</a>                <span class="kw">let </span>shell_environment = template.shell_environment()<span class="question-mark">?</span>;
-<a href=#1754 id=1754 data-nosnippet>1754</a>                <span class="prelude-val">Some</span>((template.runtime_id().to_owned(), shell_environment))
-<a href=#1755 id=1755 data-nosnippet>1755</a>            })
-<a href=#1756 id=1756 data-nosnippet>1756</a>            .collect()
+<a href=#1720 id=1720 data-nosnippet>1720</a>    <span class="doccomment">/// The listing of the registered runtime `runtime_id`, without the
+<a href=#1721 id=1721 data-nosnippet>1721</a>    /// others'.
+<a href=#1722 id=1722 data-nosnippet>1722</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>template_listing(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;RuntimeListingState&gt; {
+<a href=#1723 id=1723 data-nosnippet>1723</a>        <span class="kw">let </span>template = <span class="self">self
+<a href=#1724 id=1724 data-nosnippet>1724</a>            </span>.templates
+<a href=#1725 id=1725 data-nosnippet>1725</a>            .lock()
+<a href=#1726 id=1726 data-nosnippet>1726</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1727 id=1727 data-nosnippet>1727</a>            .get(runtime_id)
+<a href=#1728 id=1728 data-nosnippet>1728</a>            .cloned()<span class="question-mark">?</span>;
+<a href=#1729 id=1729 data-nosnippet>1729</a>        <span class="prelude-val">Some</span>(template.listing())
+<a href=#1730 id=1730 data-nosnippet>1730</a>    }
+<a href=#1731 id=1731 data-nosnippet>1731</a>
+<a href=#1732 id=1732 data-nosnippet>1732</a>    <span class="doccomment">/// Gives every runtime its settings from `config`, as applied now: a
+<a href=#1733 id=1733 data-nosnippet>1733</a>    /// connected runtime that takes them gets the ones that changed.
+<a href=#1734 id=1734 data-nosnippet>1734</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>update_settings(<span class="kw-2">&amp;</span><span class="self">self</span>, config: <span class="kw-2">&amp;</span>cookie_agent_config::LoadedConfiguration) {
+<a href=#1735 id=1735 data-nosnippet>1735</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self</span>.every_template() {
+<a href=#1736 id=1736 data-nosnippet>1736</a>            template.update_settings(<span class="kw-2">&amp;</span><span class="kw">super</span>::runtime_settings(config, template.runtime_id()));
+<a href=#1737 id=1737 data-nosnippet>1737</a>        }
+<a href=#1738 id=1738 data-nosnippet>1738</a>    }
+<a href=#1739 id=1739 data-nosnippet>1739</a>
+<a href=#1740 id=1740 data-nosnippet>1740</a>    <span class="doccomment">/// Every registered runtime, dial-in ones included.
+<a href=#1741 id=1741 data-nosnippet>1741</a>    </span><span class="kw">fn </span>every_template(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;&gt; {
+<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="kw">let </span><span class="kw-2">mut </span>templates = <span class="self">self
+<a href=#1743 id=1743 data-nosnippet>1743</a>            </span>.templates
+<a href=#1744 id=1744 data-nosnippet>1744</a>            .lock()
+<a href=#1745 id=1745 data-nosnippet>1745</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1746 id=1746 data-nosnippet>1746</a>            .values()
+<a href=#1747 id=1747 data-nosnippet>1747</a>            .cloned()
+<a href=#1748 id=1748 data-nosnippet>1748</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#1749 id=1749 data-nosnippet>1749</a>        templates.extend(
+<a href=#1750 id=1750 data-nosnippet>1750</a>            <span class="self">self</span>.dial_ins
+<a href=#1751 id=1751 data-nosnippet>1751</a>                .lock()
+<a href=#1752 id=1752 data-nosnippet>1752</a>                .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1753 id=1753 data-nosnippet>1753</a>                .values()
+<a href=#1754 id=1754 data-nosnippet>1754</a>                .map(|template| Arc::clone(template) <span class="kw">as </span>Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;),
+<a href=#1755 id=1755 data-nosnippet>1755</a>        );
+<a href=#1756 id=1756 data-nosnippet>1756</a>        templates
 <a href=#1757 id=1757 data-nosnippet>1757</a>    }
 <a href=#1758 id=1758 data-nosnippet>1758</a>
-<a href=#1759 id=1759 data-nosnippet>1759</a>    <span class="doccomment">/// Asks every connected runtime to capture the user's shell
-<a href=#1760 id=1760 data-nosnippet>1760</a>    /// environment again.
-<a href=#1761 id=1761 data-nosnippet>1761</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>refresh_shell_environments(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#1762 id=1762 data-nosnippet>1762</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self</span>.every_template() {
-<a href=#1763 id=1763 data-nosnippet>1763</a>            template.refresh_shell_environment();
-<a href=#1764 id=1764 data-nosnippet>1764</a>        }
-<a href=#1765 id=1765 data-nosnippet>1765</a>    }
-<a href=#1766 id=1766 data-nosnippet>1766</a>
-<a href=#1767 id=1767 data-nosnippet>1767</a>    <span class="doccomment">/// The ACP agents of every registered runtime, by runtime ID.
-<a href=#1768 id=1768 data-nosnippet>1768</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>acp_agents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;String, RuntimeAcpAgents&gt; {
-<a href=#1769 id=1769 data-nosnippet>1769</a>        <span class="kw">let </span>templates = <span class="self">self
-<a href=#1770 id=1770 data-nosnippet>1770</a>            </span>.templates
-<a href=#1771 id=1771 data-nosnippet>1771</a>            .lock()
-<a href=#1772 id=1772 data-nosnippet>1772</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1773 id=1773 data-nosnippet>1773</a>            .values()
-<a href=#1774 id=1774 data-nosnippet>1774</a>            .cloned()
-<a href=#1775 id=1775 data-nosnippet>1775</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1776 id=1776 data-nosnippet>1776</a>        templates
-<a href=#1777 id=1777 data-nosnippet>1777</a>            .into_iter()
-<a href=#1778 id=1778 data-nosnippet>1778</a>            .map(|template| (template.runtime_id().to_owned(), template.acp_agents()))
-<a href=#1779 id=1779 data-nosnippet>1779</a>            .filter(|(<span class="kw">_</span>, agents)| !agents.agents.is_empty())
-<a href=#1780 id=1780 data-nosnippet>1780</a>            .collect()
-<a href=#1781 id=1781 data-nosnippet>1781</a>    }
-<a href=#1782 id=1782 data-nosnippet>1782</a>
-<a href=#1783 id=1783 data-nosnippet>1783</a>    <span class="doccomment">/// Runtime `runtime_id`'s connection, for its ACP agents.
-<a href=#1784 id=1784 data-nosnippet>1784</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>agent_connection(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeLink, String&gt; {
-<a href=#1785 id=1785 data-nosnippet>1785</a>        <span class="kw">let </span>template = <span class="self">self
-<a href=#1786 id=1786 data-nosnippet>1786</a>            </span>.template(runtime_id)
-<a href=#1787 id=1787 data-nosnippet>1787</a>            .ok_or_else(|| <span class="macro">format!</span>(<span class="string">"runtime `{runtime_id}` is not registered"</span>))<span class="question-mark">?</span>;
-<a href=#1788 id=1788 data-nosnippet>1788</a>        <span class="self">self</span>.unpark(runtime_id);
-<a href=#1789 id=1789 data-nosnippet>1789</a>        template.agent_connection().<span class="kw">await
-<a href=#1790 id=1790 data-nosnippet>1790</a>    </span>}
-<a href=#1791 id=1791 data-nosnippet>1791</a>
-<a href=#1792 id=1792 data-nosnippet>1792</a>    <span class="doccomment">/// Whether a client disconnected `runtime_id` and nothing has used it
-<a href=#1793 id=1793 data-nosnippet>1793</a>    /// since.
-<a href=#1794 id=1794 data-nosnippet>1794</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_parked(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#1795 id=1795 data-nosnippet>1795</a>        <span class="self">self</span>.parked
-<a href=#1796 id=1796 data-nosnippet>1796</a>            .lock()
-<a href=#1797 id=1797 data-nosnippet>1797</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1798 id=1798 data-nosnippet>1798</a>            .contains(runtime_id)
-<a href=#1799 id=1799 data-nosnippet>1799</a>    }
-<a href=#1800 id=1800 data-nosnippet>1800</a>
-<a href=#1801 id=1801 data-nosnippet>1801</a>    <span class="kw">fn </span>unpark(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) {
-<a href=#1802 id=1802 data-nosnippet>1802</a>        <span class="self">self</span>.parked
-<a href=#1803 id=1803 data-nosnippet>1803</a>            .lock()
-<a href=#1804 id=1804 data-nosnippet>1804</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1805 id=1805 data-nosnippet>1805</a>            .remove(runtime_id);
-<a href=#1806 id=1806 data-nosnippet>1806</a>    }
-<a href=#1807 id=1807 data-nosnippet>1807</a>
-<a href=#1808 id=1808 data-nosnippet>1808</a>    <span class="doccomment">/// A runtime the daemon starts from a template, which clients may
-<a href=#1809 id=1809 data-nosnippet>1809</a>    /// connect and disconnect by hand; the error says why `runtime_id` is
-<a href=#1810 id=1810 data-nosnippet>1810</a>    /// not one.
-<a href=#1811 id=1811 data-nosnippet>1811</a>    </span><span class="kw">fn </span>startable(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;, EngineError&gt; {
-<a href=#1812 id=1812 data-nosnippet>1812</a>        <span class="kw">let </span>template = <span class="self">self
-<a href=#1813 id=1813 data-nosnippet>1813</a>            </span>.template(runtime_id)
-<a href=#1814 id=1814 data-nosnippet>1814</a>            .ok_or_else(|| EngineError::Runtime(<span class="macro">format!</span>(<span class="string">"unknown runtime `{runtime_id}`"</span>)))<span class="question-mark">?</span>;
-<a href=#1815 id=1815 data-nosnippet>1815</a>        <span class="kw">match </span>template.lifetime() {
-<a href=#1816 id=1816 data-nosnippet>1816</a>            RuntimeLifetime::Spawned =&gt; <span class="prelude-val">Ok</span>(template),
-<a href=#1817 id=1817 data-nosnippet>1817</a>            RuntimeLifetime::Builtin =&gt; <span class="prelude-val">Err</span>(EngineError::Runtime(<span class="macro">format!</span>(
-<a href=#1818 id=1818 data-nosnippet>1818</a>                <span class="string">"runtime `{runtime_id}` is built into the daemon and is always connected"
-<a href=#1819 id=1819 data-nosnippet>1819</a>            </span>))),
-<a href=#1820 id=1820 data-nosnippet>1820</a>            RuntimeLifetime::DialIn =&gt; <span class="prelude-val">Err</span>(EngineError::Runtime(<span class="macro">format!</span>(
-<a href=#1821 id=1821 data-nosnippet>1821</a>                <span class="string">"runtime `{runtime_id}` dials in to the daemon: it connects and disconnects on its own"
-<a href=#1822 id=1822 data-nosnippet>1822</a>            </span>))),
-<a href=#1823 id=1823 data-nosnippet>1823</a>        }
-<a href=#1824 id=1824 data-nosnippet>1824</a>    }
-<a href=#1825 id=1825 data-nosnippet>1825</a>
-<a href=#1826 id=1826 data-nosnippet>1826</a>    <span class="doccomment">/// Connects template runtime `runtime_id` without opening an instance,
-<a href=#1827 id=1827 data-nosnippet>1827</a>    /// as `runtimes.connect` does: its process starts and answers
-<a href=#1828 id=1828 data-nosnippet>1828</a>    /// `runtime/initialize`. A connected runtime is left as it is.
-<a href=#1829 id=1829 data-nosnippet>1829</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>connect(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#1830 id=1830 data-nosnippet>1830</a>        <span class="kw">let </span>template = <span class="self">self</span>.startable(runtime_id)<span class="question-mark">?</span>;
-<a href=#1831 id=1831 data-nosnippet>1831</a>        <span class="self">self</span>.unpark(runtime_id);
-<a href=#1832 id=1832 data-nosnippet>1832</a>        <span class="kw">let </span>result = template.capabilities().<span class="kw">await</span>;
-<a href=#1833 id=1833 data-nosnippet>1833</a>        <span class="self">self</span>.notify();
-<a href=#1834 id=1834 data-nosnippet>1834</a>        result.map(drop).map_err(EngineError::Runtime)
-<a href=#1835 id=1835 data-nosnippet>1835</a>    }
-<a href=#1836 id=1836 data-nosnippet>1836</a>
-<a href=#1837 id=1837 data-nosnippet>1837</a>    <span class="doccomment">/// Disconnects template runtime `runtime_id`, as `runtimes.disconnect`
-<a href=#1838 id=1838 data-nosnippet>1838</a>    /// does: its instances stop, with no reconnect, and opening a session
-<a href=#1839 id=1839 data-nosnippet>1839</a>    /// leaves it down until a run, attachment, new session, or delegation
-<a href=#1840 id=1840 data-nosnippet>1840</a>    /// uses it. Returns the connections for the caller to shut down.
-<a href=#1841 id=1841 data-nosnippet>1841</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>disconnect(
-<a href=#1842 id=1842 data-nosnippet>1842</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1843 id=1843 data-nosnippet>1843</a>        runtime_id: <span class="kw-2">&amp;</span>str,
-<a href=#1844 id=1844 data-nosnippet>1844</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">super</span>::remote::RuntimeClient&gt;, EngineError&gt; {
-<a href=#1845 id=1845 data-nosnippet>1845</a>        <span class="kw">let </span>template = <span class="self">self</span>.startable(runtime_id)<span class="question-mark">?</span>;
-<a href=#1846 id=1846 data-nosnippet>1846</a>        <span class="self">self</span>.parked
-<a href=#1847 id=1847 data-nosnippet>1847</a>            .lock()
-<a href=#1848 id=1848 data-nosnippet>1848</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1849 id=1849 data-nosnippet>1849</a>            .insert(runtime_id.to_owned());
-<a href=#1850 id=1850 data-nosnippet>1850</a>        <span class="comment">// Ends reconnect loops and keeps starts in flight from installing,
-<a href=#1851 id=1851 data-nosnippet>1851</a>        // before the slots are stopped (see `install`).
-<a href=#1852 id=1852 data-nosnippet>1852</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(stop) = <span class="self">self
-<a href=#1853 id=1853 data-nosnippet>1853</a>            </span>.stops
-<a href=#1854 id=1854 data-nosnippet>1854</a>            .lock()
-<a href=#1855 id=1855 data-nosnippet>1855</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1856 id=1856 data-nosnippet>1856</a>            .remove(runtime_id)
-<a href=#1857 id=1857 data-nosnippet>1857</a>        {
-<a href=#1858 id=1858 data-nosnippet>1858</a>            stop.cancel();
-<a href=#1859 id=1859 data-nosnippet>1859</a>        }
-<a href=#1860 id=1860 data-nosnippet>1860</a>        <span class="kw">let </span><span class="kw-2">mut </span>connections = Vec::new();
-<a href=#1861 id=1861 data-nosnippet>1861</a>        {
-<a href=#1862 id=1862 data-nosnippet>1862</a>            <span class="kw">let </span><span class="kw-2">mut </span>slots = <span class="self">self
-<a href=#1863 id=1863 data-nosnippet>1863</a>                </span>.slots
-<a href=#1864 id=1864 data-nosnippet>1864</a>                .lock()
-<a href=#1865 id=1865 data-nosnippet>1865</a>                .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#1866 id=1866 data-nosnippet>1866</a>            <span class="kw">for </span>(key, slot) <span class="kw">in </span>slots.iter_mut() {
-<a href=#1867 id=1867 data-nosnippet>1867</a>                <span class="kw">if </span>key.runtime_id != runtime_id {
-<a href=#1868 id=1868 data-nosnippet>1868</a>                    <span class="kw">continue</span>;
-<a href=#1869 id=1869 data-nosnippet>1869</a>                }
-<a href=#1870 id=1870 data-nosnippet>1870</a>                <span class="kw">match </span>slot {
-<a href=#1871 id=1871 data-nosnippet>1871</a>                    InstanceSlot::Ready(instance) | InstanceSlot::Reconnecting(instance) =&gt; {
-<a href=#1872 id=1872 data-nosnippet>1872</a>                        connections.extend(instance.clear());
-<a href=#1873 id=1873 data-nosnippet>1873</a>                        <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
-<a href=#1874 id=1874 data-nosnippet>1874</a>                    }
-<a href=#1875 id=1875 data-nosnippet>1875</a>                    InstanceSlot::Failed {
-<a href=#1876 id=1876 data-nosnippet>1876</a>                        instance: <span class="prelude-val">Some</span>(instance),
-<a href=#1877 id=1877 data-nosnippet>1877</a>                        ..
-<a href=#1878 id=1878 data-nosnippet>1878</a>                    } =&gt; {
-<a href=#1879 id=1879 data-nosnippet>1879</a>                        connections.extend(instance.clear());
-<a href=#1880 id=1880 data-nosnippet>1880</a>                        <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
-<a href=#1881 id=1881 data-nosnippet>1881</a>                    }
-<a href=#1882 id=1882 data-nosnippet>1882</a>                    InstanceSlot::Starting
-<a href=#1883 id=1883 data-nosnippet>1883</a>                    | InstanceSlot::Failed { instance: <span class="prelude-val">None</span>, .. }
-<a href=#1884 id=1884 data-nosnippet>1884</a>                    | InstanceSlot::Stopped(<span class="kw">_</span>) =&gt; {}
-<a href=#1885 id=1885 data-nosnippet>1885</a>                }
-<a href=#1886 id=1886 data-nosnippet>1886</a>            }
-<a href=#1887 id=1887 data-nosnippet>1887</a>            <span class="comment">// Instances that never opened have nothing to show.
-<a href=#1888 id=1888 data-nosnippet>1888</a>            </span>slots.retain(|key, slot| {
-<a href=#1889 id=1889 data-nosnippet>1889</a>                key.runtime_id != runtime_id || !<span class="macro">matches!</span>(slot, InstanceSlot::Failed { .. })
-<a href=#1890 id=1890 data-nosnippet>1890</a>            });
-<a href=#1891 id=1891 data-nosnippet>1891</a>        }
-<a href=#1892 id=1892 data-nosnippet>1892</a>        connections.extend(template.disconnect().map(|connection| connection.<span class="number">0</span>));
-<a href=#1893 id=1893 data-nosnippet>1893</a>        <span class="kw">let </span><span class="kw-2">mut </span>epochs = std::collections::HashSet::new();
-<a href=#1894 id=1894 data-nosnippet>1894</a>        connections.retain(|connection| epochs.insert(connection.epoch()));
-<a href=#1895 id=1895 data-nosnippet>1895</a>        <span class="self">self</span>.notify();
-<a href=#1896 id=1896 data-nosnippet>1896</a>        <span class="prelude-val">Ok</span>(connections)
-<a href=#1897 id=1897 data-nosnippet>1897</a>    }
-<a href=#1898 id=1898 data-nosnippet>1898</a>
-<a href=#1899 id=1899 data-nosnippet>1899</a>    <span class="doccomment">/// How `runtimes.list` reports `instance`.
-<a href=#1900 id=1900 data-nosnippet>1900</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>summary(<span class="kw-2">&amp;</span><span class="self">self</span>, instance: <span class="kw-2">&amp;</span>RuntimeInstance) -&gt; <span class="prelude-ty">Option</span>&lt;RuntimeInstanceSummary&gt; {
-<a href=#1901 id=1901 data-nosnippet>1901</a>        <span class="kw">let </span>key = InstanceKey::of(<span class="kw-2">&amp;</span>instance.info);
-<a href=#1902 id=1902 data-nosnippet>1902</a>        <span class="kw">let </span>workspace = key
-<a href=#1903 id=1903 data-nosnippet>1903</a>            .workspace
-<a href=#1904 id=1904 data-nosnippet>1904</a>            .as_ref()
-<a href=#1905 id=1905 data-nosnippet>1905</a>            .map(|workspace| workspace.to_string_lossy().into_owned());
-<a href=#1906 id=1906 data-nosnippet>1906</a>        <span class="self">self</span>.instances().into_iter().find(|summary| {
-<a href=#1907 id=1907 data-nosnippet>1907</a>            summary.runtime_id == key.runtime_id
-<a href=#1908 id=1908 data-nosnippet>1908</a>                &amp;&amp; summary.capability == key.capability
-<a href=#1909 id=1909 data-nosnippet>1909</a>                &amp;&amp; summary.workspace == workspace
-<a href=#1910 id=1910 data-nosnippet>1910</a>        })
-<a href=#1911 id=1911 data-nosnippet>1911</a>    }
-<a href=#1912 id=1912 data-nosnippet>1912</a>
-<a href=#1913 id=1913 data-nosnippet>1913</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instances(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;RuntimeInstanceSummary&gt; {
-<a href=#1914 id=1914 data-nosnippet>1914</a>        <span class="self">self</span>.slots
-<a href=#1915 id=1915 data-nosnippet>1915</a>            .lock()
-<a href=#1916 id=1916 data-nosnippet>1916</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1917 id=1917 data-nosnippet>1917</a>            .iter()
-<a href=#1918 id=1918 data-nosnippet>1918</a>            .map(|(key, slot)| {
-<a href=#1919 id=1919 data-nosnippet>1919</a>                <span class="kw">let </span>(instance, status, message) = <span class="kw">match </span>slot {
-<a href=#1920 id=1920 data-nosnippet>1920</a>                    InstanceSlot::Starting =&gt; (<span class="prelude-val">None</span>, RuntimeInstanceStatus::Starting, <span class="prelude-val">None</span>),
-<a href=#1921 id=1921 data-nosnippet>1921</a>                    InstanceSlot::Ready(instance) =&gt; {
-<a href=#1922 id=1922 data-nosnippet>1922</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Ready, <span class="prelude-val">None</span>)
-<a href=#1923 id=1923 data-nosnippet>1923</a>                    }
-<a href=#1924 id=1924 data-nosnippet>1924</a>                    InstanceSlot::Reconnecting(instance) =&gt; {
-<a href=#1925 id=1925 data-nosnippet>1925</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Reconnecting, <span class="prelude-val">None</span>)
-<a href=#1926 id=1926 data-nosnippet>1926</a>                    }
-<a href=#1927 id=1927 data-nosnippet>1927</a>                    InstanceSlot::Failed { reason, instance } =&gt; (
-<a href=#1928 id=1928 data-nosnippet>1928</a>                        instance.as_ref(),
-<a href=#1929 id=1929 data-nosnippet>1929</a>                        RuntimeInstanceStatus::Failed,
-<a href=#1930 id=1930 data-nosnippet>1930</a>                        <span class="prelude-val">Some</span>(reason.clone()),
-<a href=#1931 id=1931 data-nosnippet>1931</a>                    ),
-<a href=#1932 id=1932 data-nosnippet>1932</a>                    InstanceSlot::Stopped(instance) =&gt; {
-<a href=#1933 id=1933 data-nosnippet>1933</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Stopped, <span class="prelude-val">None</span>)
-<a href=#1934 id=1934 data-nosnippet>1934</a>                    }
-<a href=#1935 id=1935 data-nosnippet>1935</a>                };
-<a href=#1936 id=1936 data-nosnippet>1936</a>                RuntimeInstanceSummary {
-<a href=#1937 id=1937 data-nosnippet>1937</a>                    runtime_id: key.runtime_id.clone(),
-<a href=#1938 id=1938 data-nosnippet>1938</a>                    capability: key.capability.clone(),
-<a href=#1939 id=1939 data-nosnippet>1939</a>                    attachment_name: instance
-<a href=#1940 id=1940 data-nosnippet>1940</a>                        .map(|instance| instance.info.attachment_name().to_owned()),
-<a href=#1941 id=1941 data-nosnippet>1941</a>                    kind: instance.map(|instance| instance.info.kind().clone()),
-<a href=#1942 id=1942 data-nosnippet>1942</a>                    workspace: key
-<a href=#1943 id=1943 data-nosnippet>1943</a>                        .workspace
-<a href=#1944 id=1944 data-nosnippet>1944</a>                        .as_ref()
-<a href=#1945 id=1945 data-nosnippet>1945</a>                        .map(|workspace| workspace.to_string_lossy().into_owned()),
-<a href=#1946 id=1946 data-nosnippet>1946</a>                    platform: instance.and_then(|instance| {
-<a href=#1947 id=1947 data-nosnippet>1947</a>                        instance
-<a href=#1948 id=1948 data-nosnippet>1948</a>                            .info
-<a href=#1949 id=1949 data-nosnippet>1949</a>                            .workspace()
-<a href=#1950 id=1950 data-nosnippet>1950</a>                            .and_then(|workspace| workspace.platform().map(str::to_owned))
-<a href=#1951 id=1951 data-nosnippet>1951</a>                    }),
-<a href=#1952 id=1952 data-nosnippet>1952</a>                    status,
-<a href=#1953 id=1953 data-nosnippet>1953</a>                    message,
-<a href=#1954 id=1954 data-nosnippet>1954</a>                }
-<a href=#1955 id=1955 data-nosnippet>1955</a>            })
-<a href=#1956 id=1956 data-nosnippet>1956</a>            .collect()
-<a href=#1957 id=1957 data-nosnippet>1957</a>    }
-<a href=#1958 id=1958 data-nosnippet>1958</a>
-<a href=#1959 id=1959 data-nosnippet>1959</a>    <span class="doccomment">/// Drops every provider (they may hold the engine) and marks the
-<a href=#1960 id=1960 data-nosnippet>1960</a>    /// instances stopped. Returns the runtime protocol connections, for the
-<a href=#1961 id=1961 data-nosnippet>1961</a>    /// caller to shut down; dropping them closes them.
-<a href=#1962 id=1962 data-nosnippet>1962</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>clear(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw">super</span>::remote::RuntimeClient&gt; {
-<a href=#1963 id=1963 data-nosnippet>1963</a>        <span class="self">self</span>.shutdown.cancel();
-<a href=#1964 id=1964 data-nosnippet>1964</a>        <span class="self">self</span>.base
-<a href=#1965 id=1965 data-nosnippet>1965</a>            .lock()
-<a href=#1966 id=1966 data-nosnippet>1966</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1967 id=1967 data-nosnippet>1967</a>            .clear();
-<a href=#1968 id=1968 data-nosnippet>1968</a>        <span class="kw">let </span><span class="kw-2">mut </span>connections = Vec::new();
-<a href=#1969 id=1969 data-nosnippet>1969</a>        <span class="kw">let </span><span class="kw-2">mut </span>slots = <span class="self">self
-<a href=#1970 id=1970 data-nosnippet>1970</a>            </span>.slots
-<a href=#1971 id=1971 data-nosnippet>1971</a>            .lock()
-<a href=#1972 id=1972 data-nosnippet>1972</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#1973 id=1973 data-nosnippet>1973</a>        <span class="kw">for </span>slot <span class="kw">in </span>slots.values_mut() {
-<a href=#1974 id=1974 data-nosnippet>1974</a>            <span class="kw">match </span>slot {
-<a href=#1975 id=1975 data-nosnippet>1975</a>                InstanceSlot::Ready(instance) | InstanceSlot::Reconnecting(instance) =&gt; {
-<a href=#1976 id=1976 data-nosnippet>1976</a>                    connections.extend(instance.clear());
-<a href=#1977 id=1977 data-nosnippet>1977</a>                    <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
-<a href=#1978 id=1978 data-nosnippet>1978</a>                }
-<a href=#1979 id=1979 data-nosnippet>1979</a>                InstanceSlot::Failed {
-<a href=#1980 id=1980 data-nosnippet>1980</a>                    instance: <span class="prelude-val">Some</span>(instance),
-<a href=#1981 id=1981 data-nosnippet>1981</a>                    ..
-<a href=#1982 id=1982 data-nosnippet>1982</a>                } =&gt; connections.extend(instance.clear()),
-<a href=#1983 id=1983 data-nosnippet>1983</a>                InstanceSlot::Starting
-<a href=#1984 id=1984 data-nosnippet>1984</a>                | InstanceSlot::Failed { instance: <span class="prelude-val">None</span>, .. }
-<a href=#1985 id=1985 data-nosnippet>1985</a>                | InstanceSlot::Stopped(<span class="kw">_</span>) =&gt; {}
-<a href=#1986 id=1986 data-nosnippet>1986</a>            }
-<a href=#1987 id=1987 data-nosnippet>1987</a>        }
-<a href=#1988 id=1988 data-nosnippet>1988</a>        drop(slots);
-<a href=#1989 id=1989 data-nosnippet>1989</a>        connections.extend(<span class="self">self</span>.global.clear());
-<a href=#1990 id=1990 data-nosnippet>1990</a>        connections.extend(<span class="self">self</span>.local.clear());
-<a href=#1991 id=1991 data-nosnippet>1991</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self
-<a href=#1992 id=1992 data-nosnippet>1992</a>            </span>.templates
-<a href=#1993 id=1993 data-nosnippet>1993</a>            .lock()
-<a href=#1994 id=1994 data-nosnippet>1994</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#1995 id=1995 data-nosnippet>1995</a>            .values()
-<a href=#1996 id=1996 data-nosnippet>1996</a>        {
-<a href=#1997 id=1997 data-nosnippet>1997</a>            connections.extend(template.disconnect().map(|connection| connection.<span class="number">0</span>));
-<a href=#1998 id=1998 data-nosnippet>1998</a>        }
-<a href=#1999 id=1999 data-nosnippet>1999</a>        <span class="comment">// Instances of one runtime share its connection: shut each down once.
-<a href=#2000 id=2000 data-nosnippet>2000</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>epochs = std::collections::HashSet::new();
-<a href=#2001 id=2001 data-nosnippet>2001</a>        connections.retain(|connection| epochs.insert(connection.epoch()));
-<a href=#2002 id=2002 data-nosnippet>2002</a>        <span class="self">self</span>.notify();
-<a href=#2003 id=2003 data-nosnippet>2003</a>        connections
-<a href=#2004 id=2004 data-nosnippet>2004</a>    }
-<a href=#2005 id=2005 data-nosnippet>2005</a>}
+<a href=#1759 id=1759 data-nosnippet>1759</a>    <span class="doccomment">/// What the daemon knows of the shell environment of every connected
+<a href=#1760 id=1760 data-nosnippet>1760</a>    /// runtime, by runtime ID.
+<a href=#1761 id=1761 data-nosnippet>1761</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>shell_environments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;String, RuntimeShellEnvironment&gt; {
+<a href=#1762 id=1762 data-nosnippet>1762</a>        <span class="self">self</span>.every_template()
+<a href=#1763 id=1763 data-nosnippet>1763</a>            .into_iter()
+<a href=#1764 id=1764 data-nosnippet>1764</a>            .filter_map(|template| {
+<a href=#1765 id=1765 data-nosnippet>1765</a>                <span class="kw">let </span>shell_environment = template.shell_environment()<span class="question-mark">?</span>;
+<a href=#1766 id=1766 data-nosnippet>1766</a>                <span class="prelude-val">Some</span>((template.runtime_id().to_owned(), shell_environment))
+<a href=#1767 id=1767 data-nosnippet>1767</a>            })
+<a href=#1768 id=1768 data-nosnippet>1768</a>            .collect()
+<a href=#1769 id=1769 data-nosnippet>1769</a>    }
+<a href=#1770 id=1770 data-nosnippet>1770</a>
+<a href=#1771 id=1771 data-nosnippet>1771</a>    <span class="doccomment">/// Asks every connected runtime to capture the user's shell
+<a href=#1772 id=1772 data-nosnippet>1772</a>    /// environment again.
+<a href=#1773 id=1773 data-nosnippet>1773</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>refresh_shell_environments(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#1774 id=1774 data-nosnippet>1774</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self</span>.every_template() {
+<a href=#1775 id=1775 data-nosnippet>1775</a>            template.refresh_shell_environment();
+<a href=#1776 id=1776 data-nosnippet>1776</a>        }
+<a href=#1777 id=1777 data-nosnippet>1777</a>    }
+<a href=#1778 id=1778 data-nosnippet>1778</a>
+<a href=#1779 id=1779 data-nosnippet>1779</a>    <span class="doccomment">/// The ACP agents of every registered runtime, by runtime ID.
+<a href=#1780 id=1780 data-nosnippet>1780</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>acp_agents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;String, RuntimeAcpAgents&gt; {
+<a href=#1781 id=1781 data-nosnippet>1781</a>        <span class="kw">let </span>templates = <span class="self">self
+<a href=#1782 id=1782 data-nosnippet>1782</a>            </span>.templates
+<a href=#1783 id=1783 data-nosnippet>1783</a>            .lock()
+<a href=#1784 id=1784 data-nosnippet>1784</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1785 id=1785 data-nosnippet>1785</a>            .values()
+<a href=#1786 id=1786 data-nosnippet>1786</a>            .cloned()
+<a href=#1787 id=1787 data-nosnippet>1787</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#1788 id=1788 data-nosnippet>1788</a>        templates
+<a href=#1789 id=1789 data-nosnippet>1789</a>            .into_iter()
+<a href=#1790 id=1790 data-nosnippet>1790</a>            .map(|template| (template.runtime_id().to_owned(), template.acp_agents()))
+<a href=#1791 id=1791 data-nosnippet>1791</a>            .filter(|(<span class="kw">_</span>, agents)| !agents.agents.is_empty())
+<a href=#1792 id=1792 data-nosnippet>1792</a>            .collect()
+<a href=#1793 id=1793 data-nosnippet>1793</a>    }
+<a href=#1794 id=1794 data-nosnippet>1794</a>
+<a href=#1795 id=1795 data-nosnippet>1795</a>    <span class="doccomment">/// Runtime `runtime_id`'s connection, for its ACP agents.
+<a href=#1796 id=1796 data-nosnippet>1796</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>agent_connection(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;RuntimeLink, String&gt; {
+<a href=#1797 id=1797 data-nosnippet>1797</a>        <span class="kw">let </span>template = <span class="self">self
+<a href=#1798 id=1798 data-nosnippet>1798</a>            </span>.template(runtime_id)
+<a href=#1799 id=1799 data-nosnippet>1799</a>            .ok_or_else(|| <span class="macro">format!</span>(<span class="string">"runtime `{runtime_id}` is not registered"</span>))<span class="question-mark">?</span>;
+<a href=#1800 id=1800 data-nosnippet>1800</a>        <span class="self">self</span>.unpark(runtime_id);
+<a href=#1801 id=1801 data-nosnippet>1801</a>        template.agent_connection().<span class="kw">await
+<a href=#1802 id=1802 data-nosnippet>1802</a>    </span>}
+<a href=#1803 id=1803 data-nosnippet>1803</a>
+<a href=#1804 id=1804 data-nosnippet>1804</a>    <span class="doccomment">/// Whether a client disconnected `runtime_id` and nothing has used it
+<a href=#1805 id=1805 data-nosnippet>1805</a>    /// since.
+<a href=#1806 id=1806 data-nosnippet>1806</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_parked(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#1807 id=1807 data-nosnippet>1807</a>        <span class="self">self</span>.parked
+<a href=#1808 id=1808 data-nosnippet>1808</a>            .lock()
+<a href=#1809 id=1809 data-nosnippet>1809</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1810 id=1810 data-nosnippet>1810</a>            .contains(runtime_id)
+<a href=#1811 id=1811 data-nosnippet>1811</a>    }
+<a href=#1812 id=1812 data-nosnippet>1812</a>
+<a href=#1813 id=1813 data-nosnippet>1813</a>    <span class="kw">fn </span>unpark(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) {
+<a href=#1814 id=1814 data-nosnippet>1814</a>        <span class="self">self</span>.parked
+<a href=#1815 id=1815 data-nosnippet>1815</a>            .lock()
+<a href=#1816 id=1816 data-nosnippet>1816</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1817 id=1817 data-nosnippet>1817</a>            .remove(runtime_id);
+<a href=#1818 id=1818 data-nosnippet>1818</a>    }
+<a href=#1819 id=1819 data-nosnippet>1819</a>
+<a href=#1820 id=1820 data-nosnippet>1820</a>    <span class="doccomment">/// A runtime the daemon starts from a template, which clients may
+<a href=#1821 id=1821 data-nosnippet>1821</a>    /// connect and disconnect by hand; the error says why `runtime_id` is
+<a href=#1822 id=1822 data-nosnippet>1822</a>    /// not one.
+<a href=#1823 id=1823 data-nosnippet>1823</a>    </span><span class="kw">fn </span>startable(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;<span class="kw">dyn </span>RuntimeTemplate&gt;, EngineError&gt; {
+<a href=#1824 id=1824 data-nosnippet>1824</a>        <span class="kw">let </span>template = <span class="self">self
+<a href=#1825 id=1825 data-nosnippet>1825</a>            </span>.template(runtime_id)
+<a href=#1826 id=1826 data-nosnippet>1826</a>            .ok_or_else(|| EngineError::Runtime(<span class="macro">format!</span>(<span class="string">"unknown runtime `{runtime_id}`"</span>)))<span class="question-mark">?</span>;
+<a href=#1827 id=1827 data-nosnippet>1827</a>        <span class="kw">match </span>template.lifetime() {
+<a href=#1828 id=1828 data-nosnippet>1828</a>            RuntimeLifetime::Spawned =&gt; <span class="prelude-val">Ok</span>(template),
+<a href=#1829 id=1829 data-nosnippet>1829</a>            RuntimeLifetime::Builtin =&gt; <span class="prelude-val">Err</span>(EngineError::Runtime(<span class="macro">format!</span>(
+<a href=#1830 id=1830 data-nosnippet>1830</a>                <span class="string">"runtime `{runtime_id}` is built into the daemon and is always connected"
+<a href=#1831 id=1831 data-nosnippet>1831</a>            </span>))),
+<a href=#1832 id=1832 data-nosnippet>1832</a>            RuntimeLifetime::DialIn =&gt; <span class="prelude-val">Err</span>(EngineError::Runtime(<span class="macro">format!</span>(
+<a href=#1833 id=1833 data-nosnippet>1833</a>                <span class="string">"runtime `{runtime_id}` dials in to the daemon: it connects and disconnects on its own"
+<a href=#1834 id=1834 data-nosnippet>1834</a>            </span>))),
+<a href=#1835 id=1835 data-nosnippet>1835</a>        }
+<a href=#1836 id=1836 data-nosnippet>1836</a>    }
+<a href=#1837 id=1837 data-nosnippet>1837</a>
+<a href=#1838 id=1838 data-nosnippet>1838</a>    <span class="doccomment">/// Connects template runtime `runtime_id` without opening an instance,
+<a href=#1839 id=1839 data-nosnippet>1839</a>    /// as `runtimes.connect` does: its process starts and answers
+<a href=#1840 id=1840 data-nosnippet>1840</a>    /// `runtime/initialize`. A connected runtime is left as it is.
+<a href=#1841 id=1841 data-nosnippet>1841</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>connect(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#1842 id=1842 data-nosnippet>1842</a>        <span class="kw">let </span>template = <span class="self">self</span>.startable(runtime_id)<span class="question-mark">?</span>;
+<a href=#1843 id=1843 data-nosnippet>1843</a>        <span class="self">self</span>.unpark(runtime_id);
+<a href=#1844 id=1844 data-nosnippet>1844</a>        <span class="kw">let </span>result = template.capabilities().<span class="kw">await</span>;
+<a href=#1845 id=1845 data-nosnippet>1845</a>        <span class="self">self</span>.notify();
+<a href=#1846 id=1846 data-nosnippet>1846</a>        result.map(drop).map_err(EngineError::Runtime)
+<a href=#1847 id=1847 data-nosnippet>1847</a>    }
+<a href=#1848 id=1848 data-nosnippet>1848</a>
+<a href=#1849 id=1849 data-nosnippet>1849</a>    <span class="doccomment">/// Disconnects template runtime `runtime_id`, as `runtimes.disconnect`
+<a href=#1850 id=1850 data-nosnippet>1850</a>    /// does: its instances stop, with no reconnect, and opening a session
+<a href=#1851 id=1851 data-nosnippet>1851</a>    /// leaves it down until a run, attachment, new session, or delegation
+<a href=#1852 id=1852 data-nosnippet>1852</a>    /// uses it. Returns the connections for the caller to shut down.
+<a href=#1853 id=1853 data-nosnippet>1853</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>disconnect(
+<a href=#1854 id=1854 data-nosnippet>1854</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#1855 id=1855 data-nosnippet>1855</a>        runtime_id: <span class="kw-2">&amp;</span>str,
+<a href=#1856 id=1856 data-nosnippet>1856</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">super</span>::remote::RuntimeClient&gt;, EngineError&gt; {
+<a href=#1857 id=1857 data-nosnippet>1857</a>        <span class="kw">let </span>template = <span class="self">self</span>.startable(runtime_id)<span class="question-mark">?</span>;
+<a href=#1858 id=1858 data-nosnippet>1858</a>        <span class="self">self</span>.parked
+<a href=#1859 id=1859 data-nosnippet>1859</a>            .lock()
+<a href=#1860 id=1860 data-nosnippet>1860</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1861 id=1861 data-nosnippet>1861</a>            .insert(runtime_id.to_owned());
+<a href=#1862 id=1862 data-nosnippet>1862</a>        <span class="comment">// Ends reconnect loops and keeps starts in flight from installing,
+<a href=#1863 id=1863 data-nosnippet>1863</a>        // before the slots are stopped (see `install`).
+<a href=#1864 id=1864 data-nosnippet>1864</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(stop) = <span class="self">self
+<a href=#1865 id=1865 data-nosnippet>1865</a>            </span>.stops
+<a href=#1866 id=1866 data-nosnippet>1866</a>            .lock()
+<a href=#1867 id=1867 data-nosnippet>1867</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1868 id=1868 data-nosnippet>1868</a>            .remove(runtime_id)
+<a href=#1869 id=1869 data-nosnippet>1869</a>        {
+<a href=#1870 id=1870 data-nosnippet>1870</a>            stop.cancel();
+<a href=#1871 id=1871 data-nosnippet>1871</a>        }
+<a href=#1872 id=1872 data-nosnippet>1872</a>        <span class="kw">let </span><span class="kw-2">mut </span>connections = Vec::new();
+<a href=#1873 id=1873 data-nosnippet>1873</a>        {
+<a href=#1874 id=1874 data-nosnippet>1874</a>            <span class="kw">let </span><span class="kw-2">mut </span>slots = <span class="self">self
+<a href=#1875 id=1875 data-nosnippet>1875</a>                </span>.slots
+<a href=#1876 id=1876 data-nosnippet>1876</a>                .lock()
+<a href=#1877 id=1877 data-nosnippet>1877</a>                .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#1878 id=1878 data-nosnippet>1878</a>            <span class="kw">for </span>(key, slot) <span class="kw">in </span>slots.iter_mut() {
+<a href=#1879 id=1879 data-nosnippet>1879</a>                <span class="kw">if </span>key.runtime_id != runtime_id {
+<a href=#1880 id=1880 data-nosnippet>1880</a>                    <span class="kw">continue</span>;
+<a href=#1881 id=1881 data-nosnippet>1881</a>                }
+<a href=#1882 id=1882 data-nosnippet>1882</a>                <span class="kw">match </span>slot {
+<a href=#1883 id=1883 data-nosnippet>1883</a>                    InstanceSlot::Ready(instance) | InstanceSlot::Reconnecting(instance) =&gt; {
+<a href=#1884 id=1884 data-nosnippet>1884</a>                        connections.extend(instance.clear());
+<a href=#1885 id=1885 data-nosnippet>1885</a>                        <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
+<a href=#1886 id=1886 data-nosnippet>1886</a>                    }
+<a href=#1887 id=1887 data-nosnippet>1887</a>                    InstanceSlot::Failed {
+<a href=#1888 id=1888 data-nosnippet>1888</a>                        instance: <span class="prelude-val">Some</span>(instance),
+<a href=#1889 id=1889 data-nosnippet>1889</a>                        ..
+<a href=#1890 id=1890 data-nosnippet>1890</a>                    } =&gt; {
+<a href=#1891 id=1891 data-nosnippet>1891</a>                        connections.extend(instance.clear());
+<a href=#1892 id=1892 data-nosnippet>1892</a>                        <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
+<a href=#1893 id=1893 data-nosnippet>1893</a>                    }
+<a href=#1894 id=1894 data-nosnippet>1894</a>                    InstanceSlot::Starting
+<a href=#1895 id=1895 data-nosnippet>1895</a>                    | InstanceSlot::Failed { instance: <span class="prelude-val">None</span>, .. }
+<a href=#1896 id=1896 data-nosnippet>1896</a>                    | InstanceSlot::Stopped(<span class="kw">_</span>) =&gt; {}
+<a href=#1897 id=1897 data-nosnippet>1897</a>                }
+<a href=#1898 id=1898 data-nosnippet>1898</a>            }
+<a href=#1899 id=1899 data-nosnippet>1899</a>            <span class="comment">// Instances that never opened have nothing to show.
+<a href=#1900 id=1900 data-nosnippet>1900</a>            </span>slots.retain(|key, slot| {
+<a href=#1901 id=1901 data-nosnippet>1901</a>                key.runtime_id != runtime_id || !<span class="macro">matches!</span>(slot, InstanceSlot::Failed { .. })
+<a href=#1902 id=1902 data-nosnippet>1902</a>            });
+<a href=#1903 id=1903 data-nosnippet>1903</a>        }
+<a href=#1904 id=1904 data-nosnippet>1904</a>        connections.extend(template.disconnect().map(|connection| connection.<span class="number">0</span>));
+<a href=#1905 id=1905 data-nosnippet>1905</a>        <span class="kw">let </span><span class="kw-2">mut </span>epochs = std::collections::HashSet::new();
+<a href=#1906 id=1906 data-nosnippet>1906</a>        connections.retain(|connection| epochs.insert(connection.epoch()));
+<a href=#1907 id=1907 data-nosnippet>1907</a>        <span class="self">self</span>.notify();
+<a href=#1908 id=1908 data-nosnippet>1908</a>        <span class="prelude-val">Ok</span>(connections)
+<a href=#1909 id=1909 data-nosnippet>1909</a>    }
+<a href=#1910 id=1910 data-nosnippet>1910</a>
+<a href=#1911 id=1911 data-nosnippet>1911</a>    <span class="doccomment">/// How `runtimes.list` reports `instance`.
+<a href=#1912 id=1912 data-nosnippet>1912</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>summary(<span class="kw-2">&amp;</span><span class="self">self</span>, instance: <span class="kw-2">&amp;</span>RuntimeInstance) -&gt; <span class="prelude-ty">Option</span>&lt;RuntimeInstanceSummary&gt; {
+<a href=#1913 id=1913 data-nosnippet>1913</a>        <span class="kw">let </span>key = InstanceKey::of(<span class="kw-2">&amp;</span>instance.info);
+<a href=#1914 id=1914 data-nosnippet>1914</a>        <span class="kw">let </span>workspace = key
+<a href=#1915 id=1915 data-nosnippet>1915</a>            .workspace
+<a href=#1916 id=1916 data-nosnippet>1916</a>            .as_ref()
+<a href=#1917 id=1917 data-nosnippet>1917</a>            .map(|workspace| workspace.to_string_lossy().into_owned());
+<a href=#1918 id=1918 data-nosnippet>1918</a>        <span class="self">self</span>.instances().into_iter().find(|summary| {
+<a href=#1919 id=1919 data-nosnippet>1919</a>            summary.runtime_id == key.runtime_id
+<a href=#1920 id=1920 data-nosnippet>1920</a>                &amp;&amp; summary.capability == key.capability
+<a href=#1921 id=1921 data-nosnippet>1921</a>                &amp;&amp; summary.workspace == workspace
+<a href=#1922 id=1922 data-nosnippet>1922</a>        })
+<a href=#1923 id=1923 data-nosnippet>1923</a>    }
+<a href=#1924 id=1924 data-nosnippet>1924</a>
+<a href=#1925 id=1925 data-nosnippet>1925</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instances(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;RuntimeInstanceSummary&gt; {
+<a href=#1926 id=1926 data-nosnippet>1926</a>        <span class="self">self</span>.slots
+<a href=#1927 id=1927 data-nosnippet>1927</a>            .lock()
+<a href=#1928 id=1928 data-nosnippet>1928</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1929 id=1929 data-nosnippet>1929</a>            .iter()
+<a href=#1930 id=1930 data-nosnippet>1930</a>            .map(|(key, slot)| {
+<a href=#1931 id=1931 data-nosnippet>1931</a>                <span class="kw">let </span>(instance, status, message) = <span class="kw">match </span>slot {
+<a href=#1932 id=1932 data-nosnippet>1932</a>                    InstanceSlot::Starting =&gt; (<span class="prelude-val">None</span>, RuntimeInstanceStatus::Starting, <span class="prelude-val">None</span>),
+<a href=#1933 id=1933 data-nosnippet>1933</a>                    InstanceSlot::Ready(instance) =&gt; {
+<a href=#1934 id=1934 data-nosnippet>1934</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Ready, <span class="prelude-val">None</span>)
+<a href=#1935 id=1935 data-nosnippet>1935</a>                    }
+<a href=#1936 id=1936 data-nosnippet>1936</a>                    InstanceSlot::Reconnecting(instance) =&gt; {
+<a href=#1937 id=1937 data-nosnippet>1937</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Reconnecting, <span class="prelude-val">None</span>)
+<a href=#1938 id=1938 data-nosnippet>1938</a>                    }
+<a href=#1939 id=1939 data-nosnippet>1939</a>                    InstanceSlot::Failed { reason, instance } =&gt; (
+<a href=#1940 id=1940 data-nosnippet>1940</a>                        instance.as_ref(),
+<a href=#1941 id=1941 data-nosnippet>1941</a>                        RuntimeInstanceStatus::Failed,
+<a href=#1942 id=1942 data-nosnippet>1942</a>                        <span class="prelude-val">Some</span>(reason.clone()),
+<a href=#1943 id=1943 data-nosnippet>1943</a>                    ),
+<a href=#1944 id=1944 data-nosnippet>1944</a>                    InstanceSlot::Stopped(instance) =&gt; {
+<a href=#1945 id=1945 data-nosnippet>1945</a>                        (<span class="prelude-val">Some</span>(instance), RuntimeInstanceStatus::Stopped, <span class="prelude-val">None</span>)
+<a href=#1946 id=1946 data-nosnippet>1946</a>                    }
+<a href=#1947 id=1947 data-nosnippet>1947</a>                };
+<a href=#1948 id=1948 data-nosnippet>1948</a>                RuntimeInstanceSummary {
+<a href=#1949 id=1949 data-nosnippet>1949</a>                    runtime_id: key.runtime_id.clone(),
+<a href=#1950 id=1950 data-nosnippet>1950</a>                    capability: key.capability.clone(),
+<a href=#1951 id=1951 data-nosnippet>1951</a>                    attachment_name: instance
+<a href=#1952 id=1952 data-nosnippet>1952</a>                        .map(|instance| instance.info.attachment_name().to_owned()),
+<a href=#1953 id=1953 data-nosnippet>1953</a>                    kind: instance.map(|instance| instance.info.kind().clone()),
+<a href=#1954 id=1954 data-nosnippet>1954</a>                    workspace: key
+<a href=#1955 id=1955 data-nosnippet>1955</a>                        .workspace
+<a href=#1956 id=1956 data-nosnippet>1956</a>                        .as_ref()
+<a href=#1957 id=1957 data-nosnippet>1957</a>                        .map(|workspace| workspace.to_string_lossy().into_owned()),
+<a href=#1958 id=1958 data-nosnippet>1958</a>                    platform: instance.and_then(|instance| {
+<a href=#1959 id=1959 data-nosnippet>1959</a>                        instance
+<a href=#1960 id=1960 data-nosnippet>1960</a>                            .info
+<a href=#1961 id=1961 data-nosnippet>1961</a>                            .workspace()
+<a href=#1962 id=1962 data-nosnippet>1962</a>                            .and_then(|workspace| workspace.platform().map(str::to_owned))
+<a href=#1963 id=1963 data-nosnippet>1963</a>                    }),
+<a href=#1964 id=1964 data-nosnippet>1964</a>                    status,
+<a href=#1965 id=1965 data-nosnippet>1965</a>                    message,
+<a href=#1966 id=1966 data-nosnippet>1966</a>                }
+<a href=#1967 id=1967 data-nosnippet>1967</a>            })
+<a href=#1968 id=1968 data-nosnippet>1968</a>            .collect()
+<a href=#1969 id=1969 data-nosnippet>1969</a>    }
+<a href=#1970 id=1970 data-nosnippet>1970</a>
+<a href=#1971 id=1971 data-nosnippet>1971</a>    <span class="doccomment">/// Drops every provider (they may hold the engine) and marks the
+<a href=#1972 id=1972 data-nosnippet>1972</a>    /// instances stopped. Returns the runtime protocol connections, for the
+<a href=#1973 id=1973 data-nosnippet>1973</a>    /// caller to shut down; dropping them closes them.
+<a href=#1974 id=1974 data-nosnippet>1974</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>clear(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw">super</span>::remote::RuntimeClient&gt; {
+<a href=#1975 id=1975 data-nosnippet>1975</a>        <span class="self">self</span>.shutdown.cancel();
+<a href=#1976 id=1976 data-nosnippet>1976</a>        <span class="self">self</span>.base
+<a href=#1977 id=1977 data-nosnippet>1977</a>            .lock()
+<a href=#1978 id=1978 data-nosnippet>1978</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#1979 id=1979 data-nosnippet>1979</a>            .clear();
+<a href=#1980 id=1980 data-nosnippet>1980</a>        <span class="kw">let </span><span class="kw-2">mut </span>connections = Vec::new();
+<a href=#1981 id=1981 data-nosnippet>1981</a>        <span class="kw">let </span><span class="kw-2">mut </span>slots = <span class="self">self
+<a href=#1982 id=1982 data-nosnippet>1982</a>            </span>.slots
+<a href=#1983 id=1983 data-nosnippet>1983</a>            .lock()
+<a href=#1984 id=1984 data-nosnippet>1984</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#1985 id=1985 data-nosnippet>1985</a>        <span class="kw">for </span>slot <span class="kw">in </span>slots.values_mut() {
+<a href=#1986 id=1986 data-nosnippet>1986</a>            <span class="kw">match </span>slot {
+<a href=#1987 id=1987 data-nosnippet>1987</a>                InstanceSlot::Ready(instance) | InstanceSlot::Reconnecting(instance) =&gt; {
+<a href=#1988 id=1988 data-nosnippet>1988</a>                    connections.extend(instance.clear());
+<a href=#1989 id=1989 data-nosnippet>1989</a>                    <span class="kw-2">*</span>slot = InstanceSlot::Stopped(Arc::clone(instance));
+<a href=#1990 id=1990 data-nosnippet>1990</a>                }
+<a href=#1991 id=1991 data-nosnippet>1991</a>                InstanceSlot::Failed {
+<a href=#1992 id=1992 data-nosnippet>1992</a>                    instance: <span class="prelude-val">Some</span>(instance),
+<a href=#1993 id=1993 data-nosnippet>1993</a>                    ..
+<a href=#1994 id=1994 data-nosnippet>1994</a>                } =&gt; connections.extend(instance.clear()),
+<a href=#1995 id=1995 data-nosnippet>1995</a>                InstanceSlot::Starting
+<a href=#1996 id=1996 data-nosnippet>1996</a>                | InstanceSlot::Failed { instance: <span class="prelude-val">None</span>, .. }
+<a href=#1997 id=1997 data-nosnippet>1997</a>                | InstanceSlot::Stopped(<span class="kw">_</span>) =&gt; {}
+<a href=#1998 id=1998 data-nosnippet>1998</a>            }
+<a href=#1999 id=1999 data-nosnippet>1999</a>        }
+<a href=#2000 id=2000 data-nosnippet>2000</a>        drop(slots);
+<a href=#2001 id=2001 data-nosnippet>2001</a>        connections.extend(<span class="self">self</span>.global.clear());
+<a href=#2002 id=2002 data-nosnippet>2002</a>        connections.extend(<span class="self">self</span>.local.clear());
+<a href=#2003 id=2003 data-nosnippet>2003</a>        <span class="kw">for </span>template <span class="kw">in </span><span class="self">self
+<a href=#2004 id=2004 data-nosnippet>2004</a>            </span>.templates
+<a href=#2005 id=2005 data-nosnippet>2005</a>            .lock()
+<a href=#2006 id=2006 data-nosnippet>2006</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#2007 id=2007 data-nosnippet>2007</a>            .values()
+<a href=#2008 id=2008 data-nosnippet>2008</a>        {
+<a href=#2009 id=2009 data-nosnippet>2009</a>            connections.extend(template.disconnect().map(|connection| connection.<span class="number">0</span>));
+<a href=#2010 id=2010 data-nosnippet>2010</a>        }
+<a href=#2011 id=2011 data-nosnippet>2011</a>        <span class="comment">// Instances of one runtime share its connection: shut each down once.
+<a href=#2012 id=2012 data-nosnippet>2012</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>epochs = std::collections::HashSet::new();
+<a href=#2013 id=2013 data-nosnippet>2013</a>        connections.retain(|connection| epochs.insert(connection.epoch()));
+<a href=#2014 id=2014 data-nosnippet>2014</a>        <span class="self">self</span>.notify();
+<a href=#2015 id=2015 data-nosnippet>2015</a>        connections
+<a href=#2016 id=2016 data-nosnippet>2016</a>    }
+<a href=#2017 id=2017 data-nosnippet>2017</a>}
 </code></pre></div></section></main></body></html>

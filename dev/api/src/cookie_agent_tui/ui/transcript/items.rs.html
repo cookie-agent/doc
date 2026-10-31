@@ -63,414 +63,431 @@
 <a href=#63 id=63 data-nosnippet>63</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
 <a href=#64 id=64 data-nosnippet>64</a>) -&gt; u64 {
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">use </span>std::hash::{Hash <span class="kw">as _</span>, Hasher <span class="kw">as _</span>};
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(fold) = folds.get(item.id()) <span class="kw">else </span>{
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((fold, placed)) = folds.placed(item.id()) <span class="kw">else </span>{
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">return </span><span class="number">0</span>;
 <a href=#68 id=68 data-nosnippet>68</a>    };
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::hash::DefaultHasher::new();
-<a href=#70 id=70 data-nosnippet>70</a>    fold.hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">let </span>keys = <span class="kw">match </span>fold {
-<a href=#72 id=72 data-nosnippet>72</a>        ItemFold::Row { key } =&gt; <span class="macro">vec!</span>[(<span class="kw-2">*</span>key, <span class="bool-val">false</span>)],
-<a href=#73 id=73 data-nosnippet>73</a>        ItemFold::Block(block) =&gt; block
-<a href=#74 id=74 data-nosnippet>74</a>            .children
-<a href=#75 id=75 data-nosnippet>75</a>            .iter()
-<a href=#76 id=76 data-nosnippet>76</a>            .filter_map(|child| <span class="kw">match </span>child {
-<a href=#77 id=77 data-nosnippet>77</a>                ChildFold::Work { key, starts } =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>key, <span class="kw-2">*</span>starts)),
-<a href=#78 id=78 data-nosnippet>78</a>                ChildFold::Shown =&gt; <span class="prelude-val">None</span>,
-<a href=#79 id=79 data-nosnippet>79</a>            })
-<a href=#80 id=80 data-nosnippet>80</a>            .collect(),
-<a href=#81 id=81 data-nosnippet>81</a>    };
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">for </span>(key, starts) <span class="kw">in </span>keys {
-<a href=#83 id=83 data-nosnippet>83</a>        expanded
-<a href=#84 id=84 data-nosnippet>84</a>            .is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>BlockId::work(key)))
-<a href=#85 id=85 data-nosnippet>85</a>            .hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#86 id=86 data-nosnippet>86</a>        <span class="kw">if </span>starts &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>((row, fresh)) = work_rows.get(<span class="kw-2">&amp;</span>key) {
-<a href=#87 id=87 data-nosnippet>87</a>            row.summary.label().hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#88 id=88 data-nosnippet>88</a>            row.summary.tool_calls.hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#89 id=89 data-nosnippet>89</a>            row.summary.failed.hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#90 id=90 data-nosnippet>90</a>            row.lines.hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#91 id=91 data-nosnippet>91</a>            fresh.hash(<span class="kw-2">&amp;mut </span>hasher);
-<a href=#92 id=92 data-nosnippet>92</a>        }
-<a href=#93 id=93 data-nosnippet>93</a>    }
-<a href=#94 id=94 data-nosnippet>94</a>    hasher.finish()
-<a href=#95 id=95 data-nosnippet>95</a>}
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// Only assistant items render model labels (their headers and "now using"
-<a href=#98 id=98 data-nosnippet>98</a>/// rows), so only they relayout when display names change; their cached
-<a href=#99 id=99 data-nosnippet>99</a>/// prose and thinking parts are reused.
-<a href=#100 id=100 data-nosnippet>100</a></span><span class="kw">fn </span>item_model_names_revision(item: <span class="kw-2">&amp;</span>TranscriptItem, model_names: <span class="kw-2">&amp;</span>ModelDisplayNames) -&gt; u64 {
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">if </span><span class="macro">matches!</span>(item, TranscriptItem::Assistant { .. }) {
-<a href=#102 id=102 data-nosnippet>102</a>        model_names.revision()
-<a href=#103 id=103 data-nosnippet>103</a>    } <span class="kw">else </span>{
-<a href=#104 id=104 data-nosnippet>104</a>        <span class="number">0
-<a href=#105 id=105 data-nosnippet>105</a>    </span>}
-<a href=#106 id=106 data-nosnippet>106</a>}
-<a href=#107 id=107 data-nosnippet>107</a>
-<a href=#108 id=108 data-nosnippet>108</a><span class="attr">#[derive(Clone, Copy)]
-<a href=#109 id=109 data-nosnippet>109</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>Role {
-<a href=#110 id=110 data-nosnippet>110</a>    User,
-<a href=#111 id=111 data-nosnippet>111</a>    Action,
-<a href=#112 id=112 data-nosnippet>112</a>    Goal,
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// An ACP agent's plan.
-<a href=#114 id=114 data-nosnippet>114</a>    </span>Plan,
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// An ACP agent's notice.
-<a href=#116 id=116 data-nosnippet>116</a>    </span>Notice,
-<a href=#117 id=117 data-nosnippet>117</a>    ToolRunning,
-<a href=#118 id=118 data-nosnippet>118</a>    ToolSuccess,
-<a href=#119 id=119 data-nosnippet>119</a>    ToolFailure,
-<a href=#120 id=120 data-nosnippet>120</a>    Debug,
-<a href=#121 id=121 data-nosnippet>121</a>    Warning,
-<a href=#122 id=122 data-nosnippet>122</a>    Error,
-<a href=#123 id=123 data-nosnippet>123</a>    Internal,
-<a href=#124 id=124 data-nosnippet>124</a>}
-<a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>for_each_item_block_id(
-<a href=#127 id=127 data-nosnippet>127</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw-2">mut </span>visit: <span class="kw">impl </span>FnMut(BlockId) -&gt; bool,
-<a href=#129 id=129 data-nosnippet>129</a>) -&gt; bool {
-<a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">match </span>item {
-<a href=#131 id=131 data-nosnippet>131</a>        TranscriptItem::Assistant { children, .. } =&gt; {
-<a href=#132 id=132 data-nosnippet>132</a>            <span class="kw">for </span>child <span class="kw">in </span>children {
-<a href=#133 id=133 data-nosnippet>133</a>                <span class="kw">let </span>id = <span class="kw">match </span>child {
-<a href=#134 id=134 data-nosnippet>134</a>                    AssistantChild::Thinking { id, .. } =&gt; <span class="prelude-val">Some</span>(BlockId::Thinking(<span class="kw-2">*</span>id)),
-<a href=#135 id=135 data-nosnippet>135</a>                    AssistantChild::Tool { call_id } =&gt; <span class="prelude-val">Some</span>(BlockId::Tool(<span class="kw-2">*</span>call_id)),
-<a href=#136 id=136 data-nosnippet>136</a>                    AssistantChild::MediaFile {
-<a href=#137 id=137 data-nosnippet>137</a>                        turn_seq,
-<a href=#138 id=138 data-nosnippet>138</a>                        content_index,
-<a href=#139 id=139 data-nosnippet>139</a>                        ..
-<a href=#140 id=140 data-nosnippet>140</a>                    } =&gt; <span class="prelude-val">Some</span>(BlockId::MediaFile {
-<a href=#141 id=141 data-nosnippet>141</a>                        turn_seq: <span class="kw-2">*</span>turn_seq,
-<a href=#142 id=142 data-nosnippet>142</a>                        content_index: <span class="kw-2">*</span>content_index,
-<a href=#143 id=143 data-nosnippet>143</a>                    }),
-<a href=#144 id=144 data-nosnippet>144</a>                    AssistantChild::Text { .. }
-<a href=#145 id=145 data-nosnippet>145</a>                    | AssistantChild::Attribution { .. }
-<a href=#146 id=146 data-nosnippet>146</a>                    | AssistantChild::CommittedTool { .. }
-<a href=#147 id=147 data-nosnippet>147</a>                    | AssistantChild::Notice { .. } =&gt; <span class="prelude-val">None</span>,
-<a href=#148 id=148 data-nosnippet>148</a>                };
-<a href=#149 id=149 data-nosnippet>149</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(id) = id <span class="kw">else </span>{
-<a href=#150 id=150 data-nosnippet>150</a>                    <span class="kw">continue</span>;
-<a href=#151 id=151 data-nosnippet>151</a>                };
-<a href=#152 id=152 data-nosnippet>152</a>                <span class="kw">if </span>!visit(id) {
-<a href=#153 id=153 data-nosnippet>153</a>                    <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#154 id=154 data-nosnippet>154</a>                }
-<a href=#155 id=155 data-nosnippet>155</a>                <span class="kw">if let </span>BlockId::Tool(call_id) = id {
-<a href=#156 id=156 data-nosnippet>156</a>                    <span class="kw">for </span>section <span class="kw">in </span>[
-<a href=#157 id=157 data-nosnippet>157</a>                        ToolOutputSection::Detail,
-<a href=#158 id=158 data-nosnippet>158</a>                        ToolOutputSection::Stdout,
-<a href=#159 id=159 data-nosnippet>159</a>                        ToolOutputSection::Stderr,
-<a href=#160 id=160 data-nosnippet>160</a>                    ] {
-<a href=#161 id=161 data-nosnippet>161</a>                        <span class="kw">if </span>!visit(BlockId::ToolOutput { call_id, section }) {
-<a href=#162 id=162 data-nosnippet>162</a>                            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#163 id=163 data-nosnippet>163</a>                        }
-<a href=#164 id=164 data-nosnippet>164</a>                    }
-<a href=#165 id=165 data-nosnippet>165</a>                }
-<a href=#166 id=166 data-nosnippet>166</a>            }
-<a href=#167 id=167 data-nosnippet>167</a>            <span class="bool-val">true
-<a href=#168 id=168 data-nosnippet>168</a>        </span>}
-<a href=#169 id=169 data-nosnippet>169</a>        TranscriptItem::Compacting { seq, .. } =&gt; visit(BlockId::Compacting(<span class="kw-2">*</span>seq)),
-<a href=#170 id=170 data-nosnippet>170</a>        TranscriptItem::Compaction { seq, .. } | TranscriptItem::AgentCompaction { seq, .. } =&gt; {
-<a href=#171 id=171 data-nosnippet>171</a>            visit(BlockId::Compaction(<span class="kw-2">*</span>seq))
-<a href=#172 id=172 data-nosnippet>172</a>        }
-<a href=#173 id=173 data-nosnippet>173</a>        TranscriptItem::AgentSessionMessage { seq, .. } =&gt; {
-<a href=#174 id=174 data-nosnippet>174</a>            visit(BlockId::AgentSessionMessage(<span class="kw-2">*</span>seq))
-<a href=#175 id=175 data-nosnippet>175</a>        }
-<a href=#176 id=176 data-nosnippet>176</a>        TranscriptItem::AgentBackgroundEnded { seq, .. } =&gt; {
-<a href=#177 id=177 data-nosnippet>177</a>            visit(BlockId::AgentBackgroundEnded(<span class="kw-2">*</span>seq))
-<a href=#178 id=178 data-nosnippet>178</a>        }
-<a href=#179 id=179 data-nosnippet>179</a>        TranscriptItem::PluginMessage { seq, .. } =&gt; visit(BlockId::PluginMessage(<span class="kw-2">*</span>seq)),
-<a href=#180 id=180 data-nosnippet>180</a>        TranscriptItem::AgentMd { seq, .. } =&gt; visit(BlockId::AgentMd(<span class="kw-2">*</span>seq)),
-<a href=#181 id=181 data-nosnippet>181</a>        TranscriptItem::SkillLoaded { seq, .. } =&gt; visit(BlockId::SkillLoaded(<span class="kw-2">*</span>seq)),
-<a href=#182 id=182 data-nosnippet>182</a>        TranscriptItem::ModelInput { seq, .. } =&gt; visit(BlockId::ModelInput(<span class="kw-2">*</span>seq)),
-<a href=#183 id=183 data-nosnippet>183</a>        TranscriptItem::MemoryChange { seq, .. } =&gt; visit(BlockId::MemoryChange(<span class="kw-2">*</span>seq)),
-<a href=#184 id=184 data-nosnippet>184</a>        TranscriptItem::ProducerMessage { message_id, .. } =&gt; {
-<a href=#185 id=185 data-nosnippet>185</a>            visit(BlockId::ProducerMessage(<span class="kw-2">*</span>message_id))
-<a href=#186 id=186 data-nosnippet>186</a>        }
-<a href=#187 id=187 data-nosnippet>187</a>        TranscriptItem::Event { id, .. } =&gt; visit(BlockId::Event(<span class="kw-2">*</span>id)),
-<a href=#188 id=188 data-nosnippet>188</a>        TranscriptItem::User { .. }
-<a href=#189 id=189 data-nosnippet>189</a>        | TranscriptItem::Goal { .. }
-<a href=#190 id=190 data-nosnippet>190</a>        | TranscriptItem::Plan { .. }
-<a href=#191 id=191 data-nosnippet>191</a>        | TranscriptItem::AcpNotice { .. } =&gt; <span class="bool-val">true</span>,
-<a href=#192 id=192 data-nosnippet>192</a>    }
-<a href=#193 id=193 data-nosnippet>193</a>}
-<a href=#194 id=194 data-nosnippet>194</a>
-<a href=#195 id=195 data-nosnippet>195</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_interaction_matches(
-<a href=#196 id=196 data-nosnippet>196</a>    expected: <span class="kw-2">&amp;</span>[(BlockId, bool)],
-<a href=#197 id=197 data-nosnippet>197</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#198 id=198 data-nosnippet>198</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#199 id=199 data-nosnippet>199</a>) -&gt; bool {
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
-<a href=#201 id=201 data-nosnippet>201</a>    <span class="kw">let </span>complete = for_each_item_block_id(item, |id| {
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="kw">let </span>matches = expected.get(index).is_some_and(|entry| {
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="kw-2">*</span>entry == (id, expanded.is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>id)))
-<a href=#204 id=204 data-nosnippet>204</a>        });
-<a href=#205 id=205 data-nosnippet>205</a>        index += <span class="number">1</span>;
-<a href=#206 id=206 data-nosnippet>206</a>        matches
-<a href=#207 id=207 data-nosnippet>207</a>    });
-<a href=#208 id=208 data-nosnippet>208</a>    complete &amp;&amp; index == expected.len()
-<a href=#209 id=209 data-nosnippet>209</a>}
-<a href=#210 id=210 data-nosnippet>210</a>
-<a href=#211 id=211 data-nosnippet>211</a><span class="attr">#[cfg(test)]
-<a href=#212 id=212 data-nosnippet>212</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_block_ids(item: <span class="kw-2">&amp;</span>TranscriptItem) -&gt; Vec&lt;BlockId&gt; {
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">let </span><span class="kw-2">mut </span>ids = Vec::new();
-<a href=#214 id=214 data-nosnippet>214</a>    for_each_item_block_id(item, |id| {
-<a href=#215 id=215 data-nosnippet>215</a>        ids.push(id);
-<a href=#216 id=216 data-nosnippet>216</a>        <span class="bool-val">true
-<a href=#217 id=217 data-nosnippet>217</a>    </span>});
-<a href=#218 id=218 data-nosnippet>218</a>    ids
-<a href=#219 id=219 data-nosnippet>219</a>}
-<a href=#220 id=220 data-nosnippet>220</a>
-<a href=#221 id=221 data-nosnippet>221</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_interaction(
-<a href=#222 id=222 data-nosnippet>222</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#223 id=223 data-nosnippet>223</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
-<a href=#224 id=224 data-nosnippet>224</a>) -&gt; Vec&lt;(BlockId, bool)&gt; {
-<a href=#225 id=225 data-nosnippet>225</a>    <span class="kw">let </span><span class="kw-2">mut </span>interaction = Vec::new();
-<a href=#226 id=226 data-nosnippet>226</a>    for_each_item_block_id(item, |id| {
-<a href=#227 id=227 data-nosnippet>227</a>        interaction.push((id, expanded.is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>id))));
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="bool-val">true
-<a href=#229 id=229 data-nosnippet>229</a>    </span>});
-<a href=#230 id=230 data-nosnippet>230</a>    interaction
-<a href=#231 id=231 data-nosnippet>231</a>}
-<a href=#232 id=232 data-nosnippet>232</a>
-<a href=#233 id=233 data-nosnippet>233</a><span class="doccomment">/// Whether one transcript item owns live content — a still-streaming
-<a href=#234 id=234 data-nosnippet>234</a>/// thinking part, a running tool row, or in the reduced mode a work row
-<a href=#235 id=235 data-nosnippet>235</a>/// whose time ticks — and so re-renders on each animation clock bucket.
-<a href=#236 id=236 data-nosnippet>236</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_is_live(
-<a href=#237 id=237 data-nosnippet>237</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#238 id=238 data-nosnippet>238</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#239 id=239 data-nosnippet>239</a>    transcript: TranscriptMode,
-<a href=#240 id=240 data-nosnippet>240</a>) -&gt; bool {
-<a href=#241 id=241 data-nosnippet>241</a>    <span class="kw">match </span>item {
-<a href=#242 id=242 data-nosnippet>242</a>        TranscriptItem::Assistant { id, .. }
-<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">if </span>transcript == TranscriptMode::Reduced &amp;&amp; state.assistant_live(<span class="kw-2">*</span>id) =&gt;
-<a href=#244 id=244 data-nosnippet>244</a>        {
-<a href=#245 id=245 data-nosnippet>245</a>            <span class="bool-val">true
-<a href=#246 id=246 data-nosnippet>246</a>        </span>}
-<a href=#247 id=247 data-nosnippet>247</a>        TranscriptItem::Assistant { id, children, .. } =&gt; {
-<a href=#248 id=248 data-nosnippet>248</a>            children.iter().any(|child| <span class="kw">match </span>child {
-<a href=#249 id=249 data-nosnippet>249</a>                AssistantChild::Thinking { id: part_id, .. } =&gt; {
-<a href=#250 id=250 data-nosnippet>250</a>                    state.is_open_thinking(<span class="kw-2">*</span>id, <span class="kw-2">*</span>part_id)
-<a href=#251 id=251 data-nosnippet>251</a>                }
-<a href=#252 id=252 data-nosnippet>252</a>                AssistantChild::Tool { call_id } =&gt; state
-<a href=#253 id=253 data-nosnippet>253</a>                    .tools
-<a href=#254 id=254 data-nosnippet>254</a>                    .get(call_id)
-<a href=#255 id=255 data-nosnippet>255</a>                    .is_some_and(|tool| tool.status == ToolStatus::Running),
-<a href=#256 id=256 data-nosnippet>256</a>                AssistantChild::Text { .. }
-<a href=#257 id=257 data-nosnippet>257</a>                | AssistantChild::Attribution { .. }
-<a href=#258 id=258 data-nosnippet>258</a>                | AssistantChild::CommittedTool { .. }
-<a href=#259 id=259 data-nosnippet>259</a>                | AssistantChild::MediaFile { .. }
-<a href=#260 id=260 data-nosnippet>260</a>                | AssistantChild::Notice { .. } =&gt; <span class="bool-val">false</span>,
-<a href=#261 id=261 data-nosnippet>261</a>            })
-<a href=#262 id=262 data-nosnippet>262</a>        }
-<a href=#263 id=263 data-nosnippet>263</a>        TranscriptItem::Compacting { .. } =&gt; <span class="bool-val">true</span>,
-<a href=#264 id=264 data-nosnippet>264</a>        TranscriptItem::User { .. }
-<a href=#265 id=265 data-nosnippet>265</a>        | TranscriptItem::Event { .. }
-<a href=#266 id=266 data-nosnippet>266</a>        | TranscriptItem::Compaction { .. }
-<a href=#267 id=267 data-nosnippet>267</a>        | TranscriptItem::PluginMessage { .. }
-<a href=#268 id=268 data-nosnippet>268</a>        | TranscriptItem::AgentMd { .. }
-<a href=#269 id=269 data-nosnippet>269</a>        | TranscriptItem::SkillLoaded { .. }
-<a href=#270 id=270 data-nosnippet>270</a>        | TranscriptItem::ModelInput { .. }
-<a href=#271 id=271 data-nosnippet>271</a>        | TranscriptItem::MemoryChange { .. }
-<a href=#272 id=272 data-nosnippet>272</a>        | TranscriptItem::Goal { .. }
-<a href=#273 id=273 data-nosnippet>273</a>        | TranscriptItem::Plan { .. }
-<a href=#274 id=274 data-nosnippet>274</a>        | TranscriptItem::AcpNotice { .. }
-<a href=#275 id=275 data-nosnippet>275</a>        | TranscriptItem::AgentCompaction { .. }
-<a href=#276 id=276 data-nosnippet>276</a>        | TranscriptItem::AgentSessionMessage { .. }
-<a href=#277 id=277 data-nosnippet>277</a>        | TranscriptItem::AgentBackgroundEnded { .. }
-<a href=#278 id=278 data-nosnippet>278</a>        | TranscriptItem::ProducerMessage { .. } =&gt; <span class="bool-val">false</span>,
-<a href=#279 id=279 data-nosnippet>279</a>    }
-<a href=#280 id=280 data-nosnippet>280</a>}
-<a href=#281 id=281 data-nosnippet>281</a>
-<a href=#282 id=282 data-nosnippet>282</a><span class="doccomment">/// One item's layout over shared chunks, for the layout cache: an assistant
-<a href=#283 id=283 data-nosnippet>283</a>/// item reuses its unchanged parts and tool rows by reference.
-<a href=#284 id=284 data-nosnippet>284</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>chunked_item_layout(
-<a href=#285 id=285 data-nosnippet>285</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#286 id=286 data-nosnippet>286</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#287 id=287 data-nosnippet>287</a>    context: <span class="kw-2">&amp;mut </span>TranscriptRenderContext&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#288 id=288 data-nosnippet>288</a>) -&gt; ChunkedItem {
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">match </span>item {
-<a href=#290 id=290 data-nosnippet>290</a>        TranscriptItem::Assistant {
-<a href=#291 id=291 data-nosnippet>291</a>            id,
-<a href=#292 id=292 data-nosnippet>292</a>            attribution,
-<a href=#293 id=293 data-nosnippet>293</a>            children,
-<a href=#294 id=294 data-nosnippet>294</a>            ..
-<a href=#295 id=295 data-nosnippet>295</a>        } =&gt; assistant_item_layout(state, <span class="kw-2">*</span>id, attribution, children, context),
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">_ </span>=&gt; {
-<a href=#297 id=297 data-nosnippet>297</a>            <span class="kw">let </span><span class="kw-2">mut </span>layout = transcript_item_layout(state, item, context);
-<a href=#298 id=298 data-nosnippet>298</a>            <span class="comment">// A background row an open fold shows is part of its work.
-<a href=#299 id=299 data-nosnippet>299</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ItemFold::Row { key }) = context.folds.get(item.id())
-<a href=#300 id=300 data-nosnippet>300</a>                &amp;&amp; !layout.lines.is_empty()
-<a href=#301 id=301 data-nosnippet>301</a>            {
-<a href=#302 id=302 data-nosnippet>302</a>                layout.regions.push(BlockRegion {
-<a href=#303 id=303 data-nosnippet>303</a>                    id: BlockId::work_span(<span class="kw-2">*</span>key),
-<a href=#304 id=304 data-nosnippet>304</a>                    start_line: <span class="number">0</span>,
-<a href=#305 id=305 data-nosnippet>305</a>                    end_line: layout.lines.len(),
-<a href=#306 id=306 data-nosnippet>306</a>                    header_lines: <span class="prelude-val">Some</span>(<span class="number">0</span>),
-<a href=#307 id=307 data-nosnippet>307</a>                    header_gutter: <span class="prelude-val">None</span>,
-<a href=#308 id=308 data-nosnippet>308</a>                });
-<a href=#309 id=309 data-nosnippet>309</a>            }
-<a href=#310 id=310 data-nosnippet>310</a>            layout.into()
-<a href=#311 id=311 data-nosnippet>311</a>        }
-<a href=#312 id=312 data-nosnippet>312</a>    }
-<a href=#313 id=313 data-nosnippet>313</a>}
-<a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transcript_item_layout(
-<a href=#316 id=316 data-nosnippet>316</a>    state: <span class="kw-2">&amp;</span>SessionState,
-<a href=#317 id=317 data-nosnippet>317</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
-<a href=#318 id=318 data-nosnippet>318</a>    context: <span class="kw-2">&amp;mut </span>TranscriptRenderContext&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#319 id=319 data-nosnippet>319</a>) -&gt; ItemLayout {
-<a href=#320 id=320 data-nosnippet>320</a>    <span class="comment">// A background row inside a folded run's work shows when it opens.
-<a href=#321 id=321 data-nosnippet>321</a>    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ItemFold::Row { key }) = context.folds.get(item.id())
-<a href=#322 id=322 data-nosnippet>322</a>        &amp;&amp; !context
-<a href=#323 id=323 data-nosnippet>323</a>            .expanded
-<a href=#324 id=324 data-nosnippet>324</a>            .is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>BlockId::work(<span class="kw-2">*</span>key)))
-<a href=#325 id=325 data-nosnippet>325</a>    {
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">return </span>ItemLayout::default();
-<a href=#327 id=327 data-nosnippet>327</a>    }
-<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">match </span>item {
-<a href=#329 id=329 data-nosnippet>329</a>        TranscriptItem::User { markdown, seq, .. } =&gt; ItemLayout {
-<a href=#330 id=330 data-nosnippet>330</a>            lines: {
-<a href=#331 id=331 data-nosnippet>331</a>                <span class="kw">let </span>width = context.width;
-<a href=#332 id=332 data-nosnippet>332</a>                <span class="kw">let </span>theme = context.theme;
-<a href=#333 id=333 data-nosnippet>333</a>                <span class="kw">let </span><span class="kw-2">mut </span>lines = role_block(Role::User, Vec::new(), width, theme);
-<a href=#334 id=334 data-nosnippet>334</a>                lines.extend(
-<a href=#335 id=335 data-nosnippet>335</a>                    <span class="kw">crate</span>::markdown::render_markdown_lines_width(
-<a href=#336 id=336 data-nosnippet>336</a>                        markdown,
-<a href=#337 id=337 data-nosnippet>337</a>                        theme,
-<a href=#338 id=338 data-nosnippet>338</a>                        context.highlighter,
-<a href=#339 id=339 data-nosnippet>339</a>                        markdown_body_width(width),
-<a href=#340 id=340 data-nosnippet>340</a>                    )
-<a href=#341 id=341 data-nosnippet>341</a>                    .into_iter()
-<a href=#342 id=342 data-nosnippet>342</a>                    .flat_map(|line| markdown_body_line(line, width, theme.user())),
-<a href=#343 id=343 data-nosnippet>343</a>                );
-<a href=#344 id=344 data-nosnippet>344</a>                lines
-<a href=#345 id=345 data-nosnippet>345</a>            },
-<a href=#346 id=346 data-nosnippet>346</a>            regions: Vec::new(),
-<a href=#347 id=347 data-nosnippet>347</a>            user_seq: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>seq),
-<a href=#348 id=348 data-nosnippet>348</a>        },
-<a href=#349 id=349 data-nosnippet>349</a>        TranscriptItem::Assistant {
-<a href=#350 id=350 data-nosnippet>350</a>            id,
-<a href=#351 id=351 data-nosnippet>351</a>            attribution,
-<a href=#352 id=352 data-nosnippet>352</a>            children,
-<a href=#353 id=353 data-nosnippet>353</a>            ..
-<a href=#354 id=354 data-nosnippet>354</a>        } =&gt; assistant_item_layout(state, <span class="kw-2">*</span>id, attribution, children, context).flatten(),
-<a href=#355 id=355 data-nosnippet>355</a>        TranscriptItem::Event {
-<a href=#356 id=356 data-nosnippet>356</a>            id,
-<a href=#357 id=357 data-nosnippet>357</a>            level,
-<a href=#358 id=358 data-nosnippet>358</a>            text,
-<a href=#359 id=359 data-nosnippet>359</a>            repeat,
-<a href=#360 id=360 data-nosnippet>360</a>            ..
-<a href=#361 id=361 data-nosnippet>361</a>        } =&gt; {
-<a href=#362 id=362 data-nosnippet>362</a>            <span class="comment">// Level filtering is a pure view concern: the row stays in the
-<a href=#363 id=363 data-nosnippet>363</a>            // session projection and reappears when the threshold is lowered.
-<a href=#364 id=364 data-nosnippet>364</a>            </span><span class="kw">if </span><span class="kw-2">*</span>level &lt; context.minimum_event_level {
-<a href=#365 id=365 data-nosnippet>365</a>                <span class="kw">return </span>ItemLayout::default();
-<a href=#366 id=366 data-nosnippet>366</a>            }
-<a href=#367 id=367 data-nosnippet>367</a>            event_row_layout(
-<a href=#368 id=368 data-nosnippet>368</a>                BlockId::Event(<span class="kw-2">*</span>id),
-<a href=#369 id=369 data-nosnippet>369</a>                <span class="kw-2">*</span>level,
-<a href=#370 id=370 data-nosnippet>370</a>                text,
-<a href=#371 id=371 data-nosnippet>371</a>                <span class="kw-2">*</span>repeat,
-<a href=#372 id=372 data-nosnippet>372</a>                context.expanded,
-<a href=#373 id=373 data-nosnippet>373</a>                context.width,
-<a href=#374 id=374 data-nosnippet>374</a>                context.theme,
-<a href=#375 id=375 data-nosnippet>375</a>            )
-<a href=#376 id=376 data-nosnippet>376</a>        }
-<a href=#377 id=377 data-nosnippet>377</a>        TranscriptItem::Compacting { seq, source, .. } =&gt; compacting_layout(<span class="kw-2">*</span>seq, source, context),
-<a href=#378 id=378 data-nosnippet>378</a>        TranscriptItem::Compaction { seq, commit, .. } =&gt; compaction_layout(<span class="kw-2">*</span>seq, commit, context),
-<a href=#379 id=379 data-nosnippet>379</a>        TranscriptItem::AgentCompaction { seq, summary, .. } =&gt; {
-<a href=#380 id=380 data-nosnippet>380</a>            agent_compaction_layout(<span class="kw-2">*</span>seq, summary.as_deref(), context)
-<a href=#381 id=381 data-nosnippet>381</a>        }
-<a href=#382 id=382 data-nosnippet>382</a>        TranscriptItem::AgentSessionMessage { seq, message, .. } =&gt; {
-<a href=#383 id=383 data-nosnippet>383</a>            agent_session_message_layout(<span class="kw-2">*</span>seq, message, context)
-<a href=#384 id=384 data-nosnippet>384</a>        }
-<a href=#385 id=385 data-nosnippet>385</a>        TranscriptItem::AgentBackgroundEnded {
-<a href=#386 id=386 data-nosnippet>386</a>            seq,
-<a href=#387 id=387 data-nosnippet>387</a>            ended_at,
-<a href=#388 id=388 data-nosnippet>388</a>            ended,
-<a href=#389 id=389 data-nosnippet>389</a>            ..
-<a href=#390 id=390 data-nosnippet>390</a>        } =&gt; agent_background_ended_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>ended_at, ended, context),
-<a href=#391 id=391 data-nosnippet>391</a>        TranscriptItem::PluginMessage {
-<a href=#392 id=392 data-nosnippet>392</a>            seq, role, input, ..
-<a href=#393 id=393 data-nosnippet>393</a>        } =&gt; plugin_message_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>role, input, context),
-<a href=#394 id=394 data-nosnippet>394</a>        TranscriptItem::AgentMd {
-<a href=#395 id=395 data-nosnippet>395</a>            seq, entries, text, ..
-<a href=#396 id=396 data-nosnippet>396</a>        } =&gt; agent_md_layout(<span class="kw-2">*</span>seq, entries, text, context),
-<a href=#397 id=397 data-nosnippet>397</a>        TranscriptItem::SkillLoaded {
-<a href=#398 id=398 data-nosnippet>398</a>            seq,
-<a href=#399 id=399 data-nosnippet>399</a>            name,
-<a href=#400 id=400 data-nosnippet>400</a>            source_path,
-<a href=#401 id=401 data-nosnippet>401</a>            args,
-<a href=#402 id=402 data-nosnippet>402</a>            rendered_body,
-<a href=#403 id=403 data-nosnippet>403</a>            ..
-<a href=#404 id=404 data-nosnippet>404</a>        } =&gt; skill_loaded_layout(<span class="kw-2">*</span>seq, name, source_path, args, rendered_body, context),
-<a href=#405 id=405 data-nosnippet>405</a>        TranscriptItem::ModelInput {
-<a href=#406 id=406 data-nosnippet>406</a>            seq,
-<a href=#407 id=407 data-nosnippet>407</a>            kind,
-<a href=#408 id=408 data-nosnippet>408</a>            header,
-<a href=#409 id=409 data-nosnippet>409</a>            text,
-<a href=#410 id=410 data-nosnippet>410</a>            ..
-<a href=#411 id=411 data-nosnippet>411</a>        } =&gt; model_input_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>kind, header, text, context),
-<a href=#412 id=412 data-nosnippet>412</a>        TranscriptItem::MemoryChange {
-<a href=#413 id=413 data-nosnippet>413</a>            seq, change, url, ..
-<a href=#414 id=414 data-nosnippet>414</a>        } =&gt; memory_change_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>change, url, context),
-<a href=#415 id=415 data-nosnippet>415</a>        TranscriptItem::Plan { entries, .. } =&gt; ItemLayout {
-<a href=#416 id=416 data-nosnippet>416</a>            lines: plan_layout(entries, context.width, context.theme),
-<a href=#417 id=417 data-nosnippet>417</a>            regions: Vec::new(),
-<a href=#418 id=418 data-nosnippet>418</a>            user_seq: <span class="prelude-val">None</span>,
-<a href=#419 id=419 data-nosnippet>419</a>        },
-<a href=#420 id=420 data-nosnippet>420</a>        TranscriptItem::AcpNotice { notice, .. } =&gt; ItemLayout {
-<a href=#421 id=421 data-nosnippet>421</a>            lines: acp_notice_layout(notice, context.width, context.theme),
-<a href=#422 id=422 data-nosnippet>422</a>            regions: Vec::new(),
-<a href=#423 id=423 data-nosnippet>423</a>            user_seq: <span class="prelude-val">None</span>,
-<a href=#424 id=424 data-nosnippet>424</a>        },
-<a href=#425 id=425 data-nosnippet>425</a>        TranscriptItem::Goal {
-<a href=#426 id=426 data-nosnippet>426</a>            goal, activation, ..
-<a href=#427 id=427 data-nosnippet>427</a>        } =&gt; ItemLayout {
-<a href=#428 id=428 data-nosnippet>428</a>            lines: <span class="kw">if </span><span class="kw-2">*</span>activation {
-<a href=#429 id=429 data-nosnippet>429</a>                goal_activation_layout(goal, context.width, context.theme)
-<a href=#430 id=430 data-nosnippet>430</a>            } <span class="kw">else </span>{
-<a href=#431 id=431 data-nosnippet>431</a>                goal_layout(goal, context.width, context.theme)
-<a href=#432 id=432 data-nosnippet>432</a>            },
-<a href=#433 id=433 data-nosnippet>433</a>            regions: Vec::new(),
-<a href=#434 id=434 data-nosnippet>434</a>            user_seq: <span class="prelude-val">None</span>,
-<a href=#435 id=435 data-nosnippet>435</a>        },
-<a href=#436 id=436 data-nosnippet>436</a>        TranscriptItem::ProducerMessage {
-<a href=#437 id=437 data-nosnippet>437</a>            message_id,
-<a href=#438 id=438 data-nosnippet>438</a>            producer_owner,
-<a href=#439 id=439 data-nosnippet>439</a>            mode,
-<a href=#440 id=440 data-nosnippet>440</a>            body,
-<a href=#441 id=441 data-nosnippet>441</a>            summary,
-<a href=#442 id=442 data-nosnippet>442</a>            status,
-<a href=#443 id=443 data-nosnippet>443</a>            ..
-<a href=#444 id=444 data-nosnippet>444</a>        } =&gt; <span class="kw">match </span>status {
-<a href=#445 id=445 data-nosnippet>445</a>            <span class="comment">// A claim means the running request already carries the message,
-<a href=#446 id=446 data-nosnippet>446</a>            // so it shows before the response streams in, not after the turn
-<a href=#447 id=447 data-nosnippet>447</a>            // commits. Claims leave the queue before the request starts, and
-<a href=#448 id=448 data-nosnippet>448</a>            // the reducer anchored the row at admission, so it lands above
-<a href=#449 id=449 data-nosnippet>449</a>            // the response and never shows twice.
-<a href=#450 id=450 data-nosnippet>450</a>            </span><span class="kw">crate</span>::state::ProducerMessageStatus::Pending
-<a href=#451 id=451 data-nosnippet>451</a>            | <span class="kw">crate</span>::state::ProducerMessageStatus::Admitted =&gt; ItemLayout::default(),
-<a href=#452 id=452 data-nosnippet>452</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Claimed
-<a href=#453 id=453 data-nosnippet>453</a>            | <span class="kw">crate</span>::state::ProducerMessageStatus::Consumed =&gt; producer_message_layout(
-<a href=#454 id=454 data-nosnippet>454</a>                <span class="kw-2">*</span>message_id,
-<a href=#455 id=455 data-nosnippet>455</a>                producer_owner,
-<a href=#456 id=456 data-nosnippet>456</a>                <span class="kw-2">*</span>mode,
-<a href=#457 id=457 data-nosnippet>457</a>                body,
-<a href=#458 id=458 data-nosnippet>458</a>                <span class="kw-2">&amp;</span>producer_summary(producer_owner, <span class="kw-2">*</span>mode, summary.as_deref()),
-<a href=#459 id=459 data-nosnippet>459</a>                <span class="kw-2">*</span>status,
-<a href=#460 id=460 data-nosnippet>460</a>                context,
-<a href=#461 id=461 data-nosnippet>461</a>            ),
-<a href=#462 id=462 data-nosnippet>462</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Discarded
-<a href=#463 id=463 data-nosnippet>463</a>                <span class="kw">if </span>context.minimum_event_level == <span class="kw">crate</span>::state::EventLevel::Debug =&gt;
-<a href=#464 id=464 data-nosnippet>464</a>            {
-<a href=#465 id=465 data-nosnippet>465</a>                discarded_producer_message_layout(
-<a href=#466 id=466 data-nosnippet>466</a>                    producer_owner,
-<a href=#467 id=467 data-nosnippet>467</a>                    <span class="kw-2">*</span>mode,
-<a href=#468 id=468 data-nosnippet>468</a>                    context.width,
-<a href=#469 id=469 data-nosnippet>469</a>                    context.theme,
-<a href=#470 id=470 data-nosnippet>470</a>                )
-<a href=#471 id=471 data-nosnippet>471</a>            }
-<a href=#472 id=472 data-nosnippet>472</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Discarded =&gt; ItemLayout::default(),
-<a href=#473 id=473 data-nosnippet>473</a>        },
-<a href=#474 id=474 data-nosnippet>474</a>    }
-<a href=#475 id=475 data-nosnippet>475</a>}
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="comment">// The plan hashed the place and its settled rows; what is left is
+<a href=#70 id=70 data-nosnippet>70</a>    // which folds are open and the rows still working, mixed in only where
+<a href=#71 id=71 data-nosnippet>71</a>    // there are any, so the key stands while there are none.
+<a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">let </span>expanded = expanded.filter(|blocks| !blocks.is_empty());
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">if </span>expanded.is_none() &amp;&amp; !work_rows.any_live() {
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw">return </span>placed;
+<a href=#75 id=75 data-nosnippet>75</a>    }
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::hash::DefaultHasher::new();
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">let </span><span class="kw-2">mut </span>mixed = <span class="bool-val">false</span>;
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">let </span><span class="kw-2">mut </span>hash_key = |key: WorkKey, starts: bool| {
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span>open = expanded.is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>BlockId::work(key)));
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span>live = starts.then(|| work_rows.live(<span class="kw-2">&amp;</span>key)).flatten();
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="kw">if </span>!open &amp;&amp; live.is_none() {
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">return</span>;
+<a href=#83 id=83 data-nosnippet>83</a>        }
+<a href=#84 id=84 data-nosnippet>84</a>        mixed = <span class="bool-val">true</span>;
+<a href=#85 id=85 data-nosnippet>85</a>        (key, open).hash(<span class="kw-2">&amp;mut </span>hasher);
+<a href=#86 id=86 data-nosnippet>86</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((row, fresh)) = live {
+<a href=#87 id=87 data-nosnippet>87</a>            row.hash_shown(<span class="kw-2">&amp;mut </span>hasher);
+<a href=#88 id=88 data-nosnippet>88</a>            fresh.hash(<span class="kw-2">&amp;mut </span>hasher);
+<a href=#89 id=89 data-nosnippet>89</a>        }
+<a href=#90 id=90 data-nosnippet>90</a>    };
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">match </span>fold {
+<a href=#92 id=92 data-nosnippet>92</a>        ItemFold::Row { key } =&gt; hash_key(<span class="kw-2">*</span>key, <span class="bool-val">false</span>),
+<a href=#93 id=93 data-nosnippet>93</a>        ItemFold::Block(block) =&gt; {
+<a href=#94 id=94 data-nosnippet>94</a>            <span class="comment">// A fold's children follow one another: each fold once.
+<a href=#95 id=95 data-nosnippet>95</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>last = <span class="prelude-val">None</span>;
+<a href=#96 id=96 data-nosnippet>96</a>            <span class="kw">for </span>child <span class="kw">in </span><span class="kw-2">&amp;</span>block.children {
+<a href=#97 id=97 data-nosnippet>97</a>                <span class="kw">if let </span>ChildFold::Work { key, starts } = child
+<a href=#98 id=98 data-nosnippet>98</a>                    &amp;&amp; (<span class="kw-2">*</span>starts || last != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>key))
+<a href=#99 id=99 data-nosnippet>99</a>                {
+<a href=#100 id=100 data-nosnippet>100</a>                    last = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>key);
+<a href=#101 id=101 data-nosnippet>101</a>                    hash_key(<span class="kw-2">*</span>key, <span class="kw-2">*</span>starts);
+<a href=#102 id=102 data-nosnippet>102</a>                }
+<a href=#103 id=103 data-nosnippet>103</a>            }
+<a href=#104 id=104 data-nosnippet>104</a>        }
+<a href=#105 id=105 data-nosnippet>105</a>    }
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">if </span>mixed {
+<a href=#107 id=107 data-nosnippet>107</a>        placed.hash(<span class="kw-2">&amp;mut </span>hasher);
+<a href=#108 id=108 data-nosnippet>108</a>        hasher.finish()
+<a href=#109 id=109 data-nosnippet>109</a>    } <span class="kw">else </span>{
+<a href=#110 id=110 data-nosnippet>110</a>        placed
+<a href=#111 id=111 data-nosnippet>111</a>    }
+<a href=#112 id=112 data-nosnippet>112</a>}
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a><span class="doccomment">/// Only assistant items render model labels (their headers and "now using"
+<a href=#115 id=115 data-nosnippet>115</a>/// rows), so only they relayout when display names change; their cached
+<a href=#116 id=116 data-nosnippet>116</a>/// prose and thinking parts are reused.
+<a href=#117 id=117 data-nosnippet>117</a></span><span class="kw">fn </span>item_model_names_revision(item: <span class="kw-2">&amp;</span>TranscriptItem, model_names: <span class="kw-2">&amp;</span>ModelDisplayNames) -&gt; u64 {
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">if </span><span class="macro">matches!</span>(item, TranscriptItem::Assistant { .. }) {
+<a href=#119 id=119 data-nosnippet>119</a>        model_names.revision()
+<a href=#120 id=120 data-nosnippet>120</a>    } <span class="kw">else </span>{
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="number">0
+<a href=#122 id=122 data-nosnippet>122</a>    </span>}
+<a href=#123 id=123 data-nosnippet>123</a>}
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a><span class="attr">#[derive(Clone, Copy)]
+<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>Role {
+<a href=#127 id=127 data-nosnippet>127</a>    User,
+<a href=#128 id=128 data-nosnippet>128</a>    Action,
+<a href=#129 id=129 data-nosnippet>129</a>    Goal,
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// An ACP agent's plan.
+<a href=#131 id=131 data-nosnippet>131</a>    </span>Plan,
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// An ACP agent's notice.
+<a href=#133 id=133 data-nosnippet>133</a>    </span>Notice,
+<a href=#134 id=134 data-nosnippet>134</a>    ToolRunning,
+<a href=#135 id=135 data-nosnippet>135</a>    ToolSuccess,
+<a href=#136 id=136 data-nosnippet>136</a>    ToolFailure,
+<a href=#137 id=137 data-nosnippet>137</a>    Debug,
+<a href=#138 id=138 data-nosnippet>138</a>    Warning,
+<a href=#139 id=139 data-nosnippet>139</a>    Error,
+<a href=#140 id=140 data-nosnippet>140</a>    Internal,
+<a href=#141 id=141 data-nosnippet>141</a>}
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>for_each_item_block_id(
+<a href=#144 id=144 data-nosnippet>144</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#145 id=145 data-nosnippet>145</a>    <span class="kw-2">mut </span>visit: <span class="kw">impl </span>FnMut(BlockId) -&gt; bool,
+<a href=#146 id=146 data-nosnippet>146</a>) -&gt; bool {
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">match </span>item {
+<a href=#148 id=148 data-nosnippet>148</a>        TranscriptItem::Assistant { children, .. } =&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>            <span class="kw">for </span>child <span class="kw">in </span>children {
+<a href=#150 id=150 data-nosnippet>150</a>                <span class="kw">let </span>id = <span class="kw">match </span>child {
+<a href=#151 id=151 data-nosnippet>151</a>                    AssistantChild::Thinking { id, .. } =&gt; <span class="prelude-val">Some</span>(BlockId::Thinking(<span class="kw-2">*</span>id)),
+<a href=#152 id=152 data-nosnippet>152</a>                    AssistantChild::Tool { call_id } =&gt; <span class="prelude-val">Some</span>(BlockId::Tool(<span class="kw-2">*</span>call_id)),
+<a href=#153 id=153 data-nosnippet>153</a>                    AssistantChild::MediaFile {
+<a href=#154 id=154 data-nosnippet>154</a>                        turn_seq,
+<a href=#155 id=155 data-nosnippet>155</a>                        content_index,
+<a href=#156 id=156 data-nosnippet>156</a>                        ..
+<a href=#157 id=157 data-nosnippet>157</a>                    } =&gt; <span class="prelude-val">Some</span>(BlockId::MediaFile {
+<a href=#158 id=158 data-nosnippet>158</a>                        turn_seq: <span class="kw-2">*</span>turn_seq,
+<a href=#159 id=159 data-nosnippet>159</a>                        content_index: <span class="kw-2">*</span>content_index,
+<a href=#160 id=160 data-nosnippet>160</a>                    }),
+<a href=#161 id=161 data-nosnippet>161</a>                    AssistantChild::Text { .. }
+<a href=#162 id=162 data-nosnippet>162</a>                    | AssistantChild::Attribution { .. }
+<a href=#163 id=163 data-nosnippet>163</a>                    | AssistantChild::CommittedTool { .. }
+<a href=#164 id=164 data-nosnippet>164</a>                    | AssistantChild::Notice { .. } =&gt; <span class="prelude-val">None</span>,
+<a href=#165 id=165 data-nosnippet>165</a>                };
+<a href=#166 id=166 data-nosnippet>166</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(id) = id <span class="kw">else </span>{
+<a href=#167 id=167 data-nosnippet>167</a>                    <span class="kw">continue</span>;
+<a href=#168 id=168 data-nosnippet>168</a>                };
+<a href=#169 id=169 data-nosnippet>169</a>                <span class="kw">if </span>!visit(id) {
+<a href=#170 id=170 data-nosnippet>170</a>                    <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#171 id=171 data-nosnippet>171</a>                }
+<a href=#172 id=172 data-nosnippet>172</a>                <span class="kw">if let </span>BlockId::Tool(call_id) = id {
+<a href=#173 id=173 data-nosnippet>173</a>                    <span class="kw">for </span>section <span class="kw">in </span>[
+<a href=#174 id=174 data-nosnippet>174</a>                        ToolOutputSection::Detail,
+<a href=#175 id=175 data-nosnippet>175</a>                        ToolOutputSection::Stdout,
+<a href=#176 id=176 data-nosnippet>176</a>                        ToolOutputSection::Stderr,
+<a href=#177 id=177 data-nosnippet>177</a>                    ] {
+<a href=#178 id=178 data-nosnippet>178</a>                        <span class="kw">if </span>!visit(BlockId::ToolOutput { call_id, section }) {
+<a href=#179 id=179 data-nosnippet>179</a>                            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#180 id=180 data-nosnippet>180</a>                        }
+<a href=#181 id=181 data-nosnippet>181</a>                    }
+<a href=#182 id=182 data-nosnippet>182</a>                }
+<a href=#183 id=183 data-nosnippet>183</a>            }
+<a href=#184 id=184 data-nosnippet>184</a>            <span class="bool-val">true
+<a href=#185 id=185 data-nosnippet>185</a>        </span>}
+<a href=#186 id=186 data-nosnippet>186</a>        TranscriptItem::Compacting { seq, .. } =&gt; visit(BlockId::Compacting(<span class="kw-2">*</span>seq)),
+<a href=#187 id=187 data-nosnippet>187</a>        TranscriptItem::Compaction { seq, .. } | TranscriptItem::AgentCompaction { seq, .. } =&gt; {
+<a href=#188 id=188 data-nosnippet>188</a>            visit(BlockId::Compaction(<span class="kw-2">*</span>seq))
+<a href=#189 id=189 data-nosnippet>189</a>        }
+<a href=#190 id=190 data-nosnippet>190</a>        TranscriptItem::AgentSessionMessage { seq, .. } =&gt; {
+<a href=#191 id=191 data-nosnippet>191</a>            visit(BlockId::AgentSessionMessage(<span class="kw-2">*</span>seq))
+<a href=#192 id=192 data-nosnippet>192</a>        }
+<a href=#193 id=193 data-nosnippet>193</a>        TranscriptItem::AgentBackgroundEnded { seq, .. } =&gt; {
+<a href=#194 id=194 data-nosnippet>194</a>            visit(BlockId::AgentBackgroundEnded(<span class="kw-2">*</span>seq))
+<a href=#195 id=195 data-nosnippet>195</a>        }
+<a href=#196 id=196 data-nosnippet>196</a>        TranscriptItem::PluginMessage { seq, .. } =&gt; visit(BlockId::PluginMessage(<span class="kw-2">*</span>seq)),
+<a href=#197 id=197 data-nosnippet>197</a>        TranscriptItem::AgentMd { seq, .. } =&gt; visit(BlockId::AgentMd(<span class="kw-2">*</span>seq)),
+<a href=#198 id=198 data-nosnippet>198</a>        TranscriptItem::SkillLoaded { seq, .. } =&gt; visit(BlockId::SkillLoaded(<span class="kw-2">*</span>seq)),
+<a href=#199 id=199 data-nosnippet>199</a>        TranscriptItem::ModelInput { seq, .. } =&gt; visit(BlockId::ModelInput(<span class="kw-2">*</span>seq)),
+<a href=#200 id=200 data-nosnippet>200</a>        TranscriptItem::MemoryChange { seq, .. } =&gt; visit(BlockId::MemoryChange(<span class="kw-2">*</span>seq)),
+<a href=#201 id=201 data-nosnippet>201</a>        TranscriptItem::ProducerMessage { message_id, .. } =&gt; {
+<a href=#202 id=202 data-nosnippet>202</a>            visit(BlockId::ProducerMessage(<span class="kw-2">*</span>message_id))
+<a href=#203 id=203 data-nosnippet>203</a>        }
+<a href=#204 id=204 data-nosnippet>204</a>        TranscriptItem::Event { id, .. } =&gt; visit(BlockId::Event(<span class="kw-2">*</span>id)),
+<a href=#205 id=205 data-nosnippet>205</a>        TranscriptItem::User { .. }
+<a href=#206 id=206 data-nosnippet>206</a>        | TranscriptItem::Goal { .. }
+<a href=#207 id=207 data-nosnippet>207</a>        | TranscriptItem::Plan { .. }
+<a href=#208 id=208 data-nosnippet>208</a>        | TranscriptItem::AcpNotice { .. } =&gt; <span class="bool-val">true</span>,
+<a href=#209 id=209 data-nosnippet>209</a>    }
+<a href=#210 id=210 data-nosnippet>210</a>}
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_interaction_matches(
+<a href=#213 id=213 data-nosnippet>213</a>    expected: <span class="kw-2">&amp;</span>[(BlockId, bool)],
+<a href=#214 id=214 data-nosnippet>214</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#215 id=215 data-nosnippet>215</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#216 id=216 data-nosnippet>216</a>) -&gt; bool {
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">let </span>complete = for_each_item_block_id(item, |id| {
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>matches = expected.get(index).is_some_and(|entry| {
+<a href=#220 id=220 data-nosnippet>220</a>            <span class="kw-2">*</span>entry == (id, expanded.is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>id)))
+<a href=#221 id=221 data-nosnippet>221</a>        });
+<a href=#222 id=222 data-nosnippet>222</a>        index += <span class="number">1</span>;
+<a href=#223 id=223 data-nosnippet>223</a>        matches
+<a href=#224 id=224 data-nosnippet>224</a>    });
+<a href=#225 id=225 data-nosnippet>225</a>    complete &amp;&amp; index == expected.len()
+<a href=#226 id=226 data-nosnippet>226</a>}
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a><span class="attr">#[cfg(test)]
+<a href=#229 id=229 data-nosnippet>229</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_block_ids(item: <span class="kw-2">&amp;</span>TranscriptItem) -&gt; Vec&lt;BlockId&gt; {
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">let </span><span class="kw-2">mut </span>ids = Vec::new();
+<a href=#231 id=231 data-nosnippet>231</a>    for_each_item_block_id(item, |id| {
+<a href=#232 id=232 data-nosnippet>232</a>        ids.push(id);
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="bool-val">true
+<a href=#234 id=234 data-nosnippet>234</a>    </span>});
+<a href=#235 id=235 data-nosnippet>235</a>    ids
+<a href=#236 id=236 data-nosnippet>236</a>}
+<a href=#237 id=237 data-nosnippet>237</a>
+<a href=#238 id=238 data-nosnippet>238</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_interaction(
+<a href=#239 id=239 data-nosnippet>239</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#240 id=240 data-nosnippet>240</a>    expanded: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashSet&lt;BlockId&gt;&gt;,
+<a href=#241 id=241 data-nosnippet>241</a>) -&gt; Vec&lt;(BlockId, bool)&gt; {
+<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">let </span><span class="kw-2">mut </span>interaction = Vec::new();
+<a href=#243 id=243 data-nosnippet>243</a>    for_each_item_block_id(item, |id| {
+<a href=#244 id=244 data-nosnippet>244</a>        interaction.push((id, expanded.is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>id))));
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="bool-val">true
+<a href=#246 id=246 data-nosnippet>246</a>    </span>});
+<a href=#247 id=247 data-nosnippet>247</a>    interaction
+<a href=#248 id=248 data-nosnippet>248</a>}
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a><span class="doccomment">/// Whether one transcript item owns live content — a still-streaming
+<a href=#251 id=251 data-nosnippet>251</a>/// thinking part, a running tool row, or in the reduced mode a work row
+<a href=#252 id=252 data-nosnippet>252</a>/// whose time ticks — and so re-renders on each animation clock bucket.
+<a href=#253 id=253 data-nosnippet>253</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>item_is_live(
+<a href=#254 id=254 data-nosnippet>254</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#255 id=255 data-nosnippet>255</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#256 id=256 data-nosnippet>256</a>    transcript: TranscriptMode,
+<a href=#257 id=257 data-nosnippet>257</a>) -&gt; bool {
+<a href=#258 id=258 data-nosnippet>258</a>    <span class="kw">match </span>item {
+<a href=#259 id=259 data-nosnippet>259</a>        TranscriptItem::Assistant { id, .. }
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw">if </span>transcript == TranscriptMode::Reduced &amp;&amp; state.assistant_live(<span class="kw-2">*</span>id) =&gt;
+<a href=#261 id=261 data-nosnippet>261</a>        {
+<a href=#262 id=262 data-nosnippet>262</a>            <span class="bool-val">true
+<a href=#263 id=263 data-nosnippet>263</a>        </span>}
+<a href=#264 id=264 data-nosnippet>264</a>        TranscriptItem::Assistant { id, children, .. } =&gt; {
+<a href=#265 id=265 data-nosnippet>265</a>            children.iter().any(|child| <span class="kw">match </span>child {
+<a href=#266 id=266 data-nosnippet>266</a>                AssistantChild::Thinking { id: part_id, .. } =&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>                    state.is_open_thinking(<span class="kw-2">*</span>id, <span class="kw-2">*</span>part_id)
+<a href=#268 id=268 data-nosnippet>268</a>                }
+<a href=#269 id=269 data-nosnippet>269</a>                AssistantChild::Tool { call_id } =&gt; state
+<a href=#270 id=270 data-nosnippet>270</a>                    .tools
+<a href=#271 id=271 data-nosnippet>271</a>                    .get(call_id)
+<a href=#272 id=272 data-nosnippet>272</a>                    .is_some_and(|tool| tool.status == ToolStatus::Running),
+<a href=#273 id=273 data-nosnippet>273</a>                AssistantChild::Text { .. }
+<a href=#274 id=274 data-nosnippet>274</a>                | AssistantChild::Attribution { .. }
+<a href=#275 id=275 data-nosnippet>275</a>                | AssistantChild::CommittedTool { .. }
+<a href=#276 id=276 data-nosnippet>276</a>                | AssistantChild::MediaFile { .. }
+<a href=#277 id=277 data-nosnippet>277</a>                | AssistantChild::Notice { .. } =&gt; <span class="bool-val">false</span>,
+<a href=#278 id=278 data-nosnippet>278</a>            })
+<a href=#279 id=279 data-nosnippet>279</a>        }
+<a href=#280 id=280 data-nosnippet>280</a>        TranscriptItem::Compacting { .. } =&gt; <span class="bool-val">true</span>,
+<a href=#281 id=281 data-nosnippet>281</a>        TranscriptItem::User { .. }
+<a href=#282 id=282 data-nosnippet>282</a>        | TranscriptItem::Event { .. }
+<a href=#283 id=283 data-nosnippet>283</a>        | TranscriptItem::Compaction { .. }
+<a href=#284 id=284 data-nosnippet>284</a>        | TranscriptItem::PluginMessage { .. }
+<a href=#285 id=285 data-nosnippet>285</a>        | TranscriptItem::AgentMd { .. }
+<a href=#286 id=286 data-nosnippet>286</a>        | TranscriptItem::SkillLoaded { .. }
+<a href=#287 id=287 data-nosnippet>287</a>        | TranscriptItem::ModelInput { .. }
+<a href=#288 id=288 data-nosnippet>288</a>        | TranscriptItem::MemoryChange { .. }
+<a href=#289 id=289 data-nosnippet>289</a>        | TranscriptItem::Goal { .. }
+<a href=#290 id=290 data-nosnippet>290</a>        | TranscriptItem::Plan { .. }
+<a href=#291 id=291 data-nosnippet>291</a>        | TranscriptItem::AcpNotice { .. }
+<a href=#292 id=292 data-nosnippet>292</a>        | TranscriptItem::AgentCompaction { .. }
+<a href=#293 id=293 data-nosnippet>293</a>        | TranscriptItem::AgentSessionMessage { .. }
+<a href=#294 id=294 data-nosnippet>294</a>        | TranscriptItem::AgentBackgroundEnded { .. }
+<a href=#295 id=295 data-nosnippet>295</a>        | TranscriptItem::ProducerMessage { .. } =&gt; <span class="bool-val">false</span>,
+<a href=#296 id=296 data-nosnippet>296</a>    }
+<a href=#297 id=297 data-nosnippet>297</a>}
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a><span class="doccomment">/// One item's layout over shared chunks, for the layout cache: an assistant
+<a href=#300 id=300 data-nosnippet>300</a>/// item reuses its unchanged parts and tool rows by reference.
+<a href=#301 id=301 data-nosnippet>301</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>chunked_item_layout(
+<a href=#302 id=302 data-nosnippet>302</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#303 id=303 data-nosnippet>303</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#304 id=304 data-nosnippet>304</a>    context: <span class="kw-2">&amp;mut </span>TranscriptRenderContext&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#305 id=305 data-nosnippet>305</a>) -&gt; ChunkedItem {
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">match </span>item {
+<a href=#307 id=307 data-nosnippet>307</a>        TranscriptItem::Assistant {
+<a href=#308 id=308 data-nosnippet>308</a>            id,
+<a href=#309 id=309 data-nosnippet>309</a>            attribution,
+<a href=#310 id=310 data-nosnippet>310</a>            children,
+<a href=#311 id=311 data-nosnippet>311</a>            ..
+<a href=#312 id=312 data-nosnippet>312</a>        } =&gt; assistant_item_layout(state, <span class="kw-2">*</span>id, attribution, children, context),
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">_ </span>=&gt; {
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="kw">let </span><span class="kw-2">mut </span>layout = transcript_item_layout(state, item, context);
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="comment">// A background row an open fold shows is part of its work.
+<a href=#316 id=316 data-nosnippet>316</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ItemFold::Row { key }) = context.folds.get(item.id())
+<a href=#317 id=317 data-nosnippet>317</a>                &amp;&amp; !layout.lines.is_empty()
+<a href=#318 id=318 data-nosnippet>318</a>            {
+<a href=#319 id=319 data-nosnippet>319</a>                layout.regions.push(BlockRegion {
+<a href=#320 id=320 data-nosnippet>320</a>                    id: BlockId::work_span(<span class="kw-2">*</span>key),
+<a href=#321 id=321 data-nosnippet>321</a>                    start_line: <span class="number">0</span>,
+<a href=#322 id=322 data-nosnippet>322</a>                    end_line: layout.lines.len(),
+<a href=#323 id=323 data-nosnippet>323</a>                    header_lines: <span class="prelude-val">Some</span>(<span class="number">0</span>),
+<a href=#324 id=324 data-nosnippet>324</a>                    header_gutter: <span class="prelude-val">None</span>,
+<a href=#325 id=325 data-nosnippet>325</a>                });
+<a href=#326 id=326 data-nosnippet>326</a>            }
+<a href=#327 id=327 data-nosnippet>327</a>            layout.into()
+<a href=#328 id=328 data-nosnippet>328</a>        }
+<a href=#329 id=329 data-nosnippet>329</a>    }
+<a href=#330 id=330 data-nosnippet>330</a>}
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transcript_item_layout(
+<a href=#333 id=333 data-nosnippet>333</a>    state: <span class="kw-2">&amp;</span>SessionState,
+<a href=#334 id=334 data-nosnippet>334</a>    item: <span class="kw-2">&amp;</span>TranscriptItem,
+<a href=#335 id=335 data-nosnippet>335</a>    context: <span class="kw-2">&amp;mut </span>TranscriptRenderContext&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#336 id=336 data-nosnippet>336</a>) -&gt; ItemLayout {
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="comment">// A background row inside a folded run's work shows when it opens.
+<a href=#338 id=338 data-nosnippet>338</a>    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ItemFold::Row { key }) = context.folds.get(item.id())
+<a href=#339 id=339 data-nosnippet>339</a>        &amp;&amp; !context
+<a href=#340 id=340 data-nosnippet>340</a>            .expanded
+<a href=#341 id=341 data-nosnippet>341</a>            .is_some_and(|blocks| blocks.contains(<span class="kw-2">&amp;</span>BlockId::work(<span class="kw-2">*</span>key)))
+<a href=#342 id=342 data-nosnippet>342</a>    {
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">return </span>ItemLayout::default();
+<a href=#344 id=344 data-nosnippet>344</a>    }
+<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">match </span>item {
+<a href=#346 id=346 data-nosnippet>346</a>        TranscriptItem::User { markdown, seq, .. } =&gt; ItemLayout {
+<a href=#347 id=347 data-nosnippet>347</a>            lines: {
+<a href=#348 id=348 data-nosnippet>348</a>                <span class="kw">let </span>width = context.width;
+<a href=#349 id=349 data-nosnippet>349</a>                <span class="kw">let </span>theme = context.theme;
+<a href=#350 id=350 data-nosnippet>350</a>                <span class="kw">let </span><span class="kw-2">mut </span>lines = role_block(Role::User, Vec::new(), width, theme);
+<a href=#351 id=351 data-nosnippet>351</a>                lines.extend(
+<a href=#352 id=352 data-nosnippet>352</a>                    <span class="kw">crate</span>::markdown::render_markdown_lines_width(
+<a href=#353 id=353 data-nosnippet>353</a>                        markdown,
+<a href=#354 id=354 data-nosnippet>354</a>                        theme,
+<a href=#355 id=355 data-nosnippet>355</a>                        context.highlighter,
+<a href=#356 id=356 data-nosnippet>356</a>                        markdown_body_width(width),
+<a href=#357 id=357 data-nosnippet>357</a>                    )
+<a href=#358 id=358 data-nosnippet>358</a>                    .into_iter()
+<a href=#359 id=359 data-nosnippet>359</a>                    .flat_map(|line| markdown_body_line(line, width, theme.user())),
+<a href=#360 id=360 data-nosnippet>360</a>                );
+<a href=#361 id=361 data-nosnippet>361</a>                lines
+<a href=#362 id=362 data-nosnippet>362</a>            },
+<a href=#363 id=363 data-nosnippet>363</a>            regions: Vec::new(),
+<a href=#364 id=364 data-nosnippet>364</a>            user_seq: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>seq),
+<a href=#365 id=365 data-nosnippet>365</a>        },
+<a href=#366 id=366 data-nosnippet>366</a>        TranscriptItem::Assistant {
+<a href=#367 id=367 data-nosnippet>367</a>            id,
+<a href=#368 id=368 data-nosnippet>368</a>            attribution,
+<a href=#369 id=369 data-nosnippet>369</a>            children,
+<a href=#370 id=370 data-nosnippet>370</a>            ..
+<a href=#371 id=371 data-nosnippet>371</a>        } =&gt; assistant_item_layout(state, <span class="kw-2">*</span>id, attribution, children, context).flatten(),
+<a href=#372 id=372 data-nosnippet>372</a>        TranscriptItem::Event {
+<a href=#373 id=373 data-nosnippet>373</a>            id,
+<a href=#374 id=374 data-nosnippet>374</a>            level,
+<a href=#375 id=375 data-nosnippet>375</a>            text,
+<a href=#376 id=376 data-nosnippet>376</a>            repeat,
+<a href=#377 id=377 data-nosnippet>377</a>            ..
+<a href=#378 id=378 data-nosnippet>378</a>        } =&gt; {
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="comment">// Level filtering is a pure view concern: the row stays in the
+<a href=#380 id=380 data-nosnippet>380</a>            // session projection and reappears when the threshold is lowered.
+<a href=#381 id=381 data-nosnippet>381</a>            </span><span class="kw">if </span><span class="kw-2">*</span>level &lt; context.minimum_event_level {
+<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">return </span>ItemLayout::default();
+<a href=#383 id=383 data-nosnippet>383</a>            }
+<a href=#384 id=384 data-nosnippet>384</a>            event_row_layout(
+<a href=#385 id=385 data-nosnippet>385</a>                BlockId::Event(<span class="kw-2">*</span>id),
+<a href=#386 id=386 data-nosnippet>386</a>                <span class="kw-2">*</span>level,
+<a href=#387 id=387 data-nosnippet>387</a>                text,
+<a href=#388 id=388 data-nosnippet>388</a>                <span class="kw-2">*</span>repeat,
+<a href=#389 id=389 data-nosnippet>389</a>                context.expanded,
+<a href=#390 id=390 data-nosnippet>390</a>                context.width,
+<a href=#391 id=391 data-nosnippet>391</a>                context.theme,
+<a href=#392 id=392 data-nosnippet>392</a>            )
+<a href=#393 id=393 data-nosnippet>393</a>        }
+<a href=#394 id=394 data-nosnippet>394</a>        TranscriptItem::Compacting { seq, source, .. } =&gt; compacting_layout(<span class="kw-2">*</span>seq, source, context),
+<a href=#395 id=395 data-nosnippet>395</a>        TranscriptItem::Compaction { seq, commit, .. } =&gt; compaction_layout(<span class="kw-2">*</span>seq, commit, context),
+<a href=#396 id=396 data-nosnippet>396</a>        TranscriptItem::AgentCompaction { seq, summary, .. } =&gt; {
+<a href=#397 id=397 data-nosnippet>397</a>            agent_compaction_layout(<span class="kw-2">*</span>seq, summary.as_deref(), context)
+<a href=#398 id=398 data-nosnippet>398</a>        }
+<a href=#399 id=399 data-nosnippet>399</a>        TranscriptItem::AgentSessionMessage { seq, message, .. } =&gt; {
+<a href=#400 id=400 data-nosnippet>400</a>            agent_session_message_layout(<span class="kw-2">*</span>seq, message, context)
+<a href=#401 id=401 data-nosnippet>401</a>        }
+<a href=#402 id=402 data-nosnippet>402</a>        TranscriptItem::AgentBackgroundEnded {
+<a href=#403 id=403 data-nosnippet>403</a>            seq,
+<a href=#404 id=404 data-nosnippet>404</a>            ended_at,
+<a href=#405 id=405 data-nosnippet>405</a>            ended,
+<a href=#406 id=406 data-nosnippet>406</a>            ..
+<a href=#407 id=407 data-nosnippet>407</a>        } =&gt; agent_background_ended_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>ended_at, ended, context),
+<a href=#408 id=408 data-nosnippet>408</a>        TranscriptItem::PluginMessage {
+<a href=#409 id=409 data-nosnippet>409</a>            seq, role, input, ..
+<a href=#410 id=410 data-nosnippet>410</a>        } =&gt; plugin_message_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>role, input, context),
+<a href=#411 id=411 data-nosnippet>411</a>        TranscriptItem::AgentMd {
+<a href=#412 id=412 data-nosnippet>412</a>            seq, entries, text, ..
+<a href=#413 id=413 data-nosnippet>413</a>        } =&gt; agent_md_layout(<span class="kw-2">*</span>seq, entries, text, context),
+<a href=#414 id=414 data-nosnippet>414</a>        TranscriptItem::SkillLoaded {
+<a href=#415 id=415 data-nosnippet>415</a>            seq,
+<a href=#416 id=416 data-nosnippet>416</a>            name,
+<a href=#417 id=417 data-nosnippet>417</a>            source_path,
+<a href=#418 id=418 data-nosnippet>418</a>            args,
+<a href=#419 id=419 data-nosnippet>419</a>            rendered_body,
+<a href=#420 id=420 data-nosnippet>420</a>            ..
+<a href=#421 id=421 data-nosnippet>421</a>        } =&gt; skill_loaded_layout(<span class="kw-2">*</span>seq, name, source_path, args, rendered_body, context),
+<a href=#422 id=422 data-nosnippet>422</a>        TranscriptItem::ModelInput {
+<a href=#423 id=423 data-nosnippet>423</a>            seq,
+<a href=#424 id=424 data-nosnippet>424</a>            kind,
+<a href=#425 id=425 data-nosnippet>425</a>            header,
+<a href=#426 id=426 data-nosnippet>426</a>            text,
+<a href=#427 id=427 data-nosnippet>427</a>            ..
+<a href=#428 id=428 data-nosnippet>428</a>        } =&gt; model_input_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>kind, header, text, context),
+<a href=#429 id=429 data-nosnippet>429</a>        TranscriptItem::MemoryChange {
+<a href=#430 id=430 data-nosnippet>430</a>            seq, change, url, ..
+<a href=#431 id=431 data-nosnippet>431</a>        } =&gt; memory_change_layout(<span class="kw-2">*</span>seq, <span class="kw-2">*</span>change, url, context),
+<a href=#432 id=432 data-nosnippet>432</a>        TranscriptItem::Plan { entries, .. } =&gt; ItemLayout {
+<a href=#433 id=433 data-nosnippet>433</a>            lines: plan_layout(entries, context.width, context.theme),
+<a href=#434 id=434 data-nosnippet>434</a>            regions: Vec::new(),
+<a href=#435 id=435 data-nosnippet>435</a>            user_seq: <span class="prelude-val">None</span>,
+<a href=#436 id=436 data-nosnippet>436</a>        },
+<a href=#437 id=437 data-nosnippet>437</a>        TranscriptItem::AcpNotice { notice, .. } =&gt; ItemLayout {
+<a href=#438 id=438 data-nosnippet>438</a>            lines: acp_notice_layout(notice, context.width, context.theme),
+<a href=#439 id=439 data-nosnippet>439</a>            regions: Vec::new(),
+<a href=#440 id=440 data-nosnippet>440</a>            user_seq: <span class="prelude-val">None</span>,
+<a href=#441 id=441 data-nosnippet>441</a>        },
+<a href=#442 id=442 data-nosnippet>442</a>        TranscriptItem::Goal {
+<a href=#443 id=443 data-nosnippet>443</a>            goal, activation, ..
+<a href=#444 id=444 data-nosnippet>444</a>        } =&gt; ItemLayout {
+<a href=#445 id=445 data-nosnippet>445</a>            lines: <span class="kw">if </span><span class="kw-2">*</span>activation {
+<a href=#446 id=446 data-nosnippet>446</a>                goal_activation_layout(goal, context.width, context.theme)
+<a href=#447 id=447 data-nosnippet>447</a>            } <span class="kw">else </span>{
+<a href=#448 id=448 data-nosnippet>448</a>                goal_layout(goal, context.width, context.theme)
+<a href=#449 id=449 data-nosnippet>449</a>            },
+<a href=#450 id=450 data-nosnippet>450</a>            regions: Vec::new(),
+<a href=#451 id=451 data-nosnippet>451</a>            user_seq: <span class="prelude-val">None</span>,
+<a href=#452 id=452 data-nosnippet>452</a>        },
+<a href=#453 id=453 data-nosnippet>453</a>        TranscriptItem::ProducerMessage {
+<a href=#454 id=454 data-nosnippet>454</a>            message_id,
+<a href=#455 id=455 data-nosnippet>455</a>            producer_owner,
+<a href=#456 id=456 data-nosnippet>456</a>            mode,
+<a href=#457 id=457 data-nosnippet>457</a>            body,
+<a href=#458 id=458 data-nosnippet>458</a>            summary,
+<a href=#459 id=459 data-nosnippet>459</a>            status,
+<a href=#460 id=460 data-nosnippet>460</a>            ..
+<a href=#461 id=461 data-nosnippet>461</a>        } =&gt; <span class="kw">match </span>status {
+<a href=#462 id=462 data-nosnippet>462</a>            <span class="comment">// A claim means the running request already carries the message,
+<a href=#463 id=463 data-nosnippet>463</a>            // so it shows before the response streams in, not after the turn
+<a href=#464 id=464 data-nosnippet>464</a>            // commits. Claims leave the queue before the request starts, and
+<a href=#465 id=465 data-nosnippet>465</a>            // the reducer anchored the row at admission, so it lands above
+<a href=#466 id=466 data-nosnippet>466</a>            // the response and never shows twice.
+<a href=#467 id=467 data-nosnippet>467</a>            </span><span class="kw">crate</span>::state::ProducerMessageStatus::Pending
+<a href=#468 id=468 data-nosnippet>468</a>            | <span class="kw">crate</span>::state::ProducerMessageStatus::Admitted =&gt; ItemLayout::default(),
+<a href=#469 id=469 data-nosnippet>469</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Claimed
+<a href=#470 id=470 data-nosnippet>470</a>            | <span class="kw">crate</span>::state::ProducerMessageStatus::Consumed =&gt; producer_message_layout(
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw-2">*</span>message_id,
+<a href=#472 id=472 data-nosnippet>472</a>                producer_owner,
+<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw-2">*</span>mode,
+<a href=#474 id=474 data-nosnippet>474</a>                body,
+<a href=#475 id=475 data-nosnippet>475</a>                <span class="kw-2">&amp;</span>producer_summary(producer_owner, <span class="kw-2">*</span>mode, summary.as_deref()),
+<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw-2">*</span>status,
+<a href=#477 id=477 data-nosnippet>477</a>                context,
+<a href=#478 id=478 data-nosnippet>478</a>            ),
+<a href=#479 id=479 data-nosnippet>479</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Discarded
+<a href=#480 id=480 data-nosnippet>480</a>                <span class="kw">if </span>context.minimum_event_level == <span class="kw">crate</span>::state::EventLevel::Debug =&gt;
+<a href=#481 id=481 data-nosnippet>481</a>            {
+<a href=#482 id=482 data-nosnippet>482</a>                discarded_producer_message_layout(
+<a href=#483 id=483 data-nosnippet>483</a>                    producer_owner,
+<a href=#484 id=484 data-nosnippet>484</a>                    <span class="kw-2">*</span>mode,
+<a href=#485 id=485 data-nosnippet>485</a>                    context.width,
+<a href=#486 id=486 data-nosnippet>486</a>                    context.theme,
+<a href=#487 id=487 data-nosnippet>487</a>                )
+<a href=#488 id=488 data-nosnippet>488</a>            }
+<a href=#489 id=489 data-nosnippet>489</a>            <span class="kw">crate</span>::state::ProducerMessageStatus::Discarded =&gt; ItemLayout::default(),
+<a href=#490 id=490 data-nosnippet>490</a>        },
+<a href=#491 id=491 data-nosnippet>491</a>    }
+<a href=#492 id=492 data-nosnippet>492</a>}
 </code></pre></div></section></main></body></html>

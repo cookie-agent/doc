@@ -2012,458 +2012,466 @@
 <a href=#2012 id=2012 data-nosnippet>2012</a>                    <span class="self">self</span>.server.name
 <a href=#2013 id=2013 data-nosnippet>2013</a>                )));
 <a href=#2014 id=2014 data-nosnippet>2014</a>            }
-<a href=#2015 id=2015 data-nosnippet>2015</a>            <span class="comment">// Another call may hold the connection; cancelling stops the wait.
-<a href=#2016 id=2016 data-nosnippet>2016</a>            </span><span class="kw">let </span>service = <span class="macro">tokio::select!</span> {
-<a href=#2017 id=2017 data-nosnippet>2017</a>                service = <span class="self">self</span>.server.service.lock() =&gt; service,
-<a href=#2018 id=2018 data-nosnippet>2018</a>                () = context.cancellation.cancelled() =&gt; {
-<a href=#2019 id=2019 data-nosnippet>2019</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call cancelled"</span>));
-<a href=#2020 id=2020 data-nosnippet>2020</a>                }
-<a href=#2021 id=2021 data-nosnippet>2021</a>            };
-<a href=#2022 id=2022 data-nosnippet>2022</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(service) = service.as_ref() <span class="kw">else </span>{
-<a href=#2023 id=2023 data-nosnippet>2023</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::runtime_unavailable(<span class="macro">format!</span>(
-<a href=#2024 id=2024 data-nosnippet>2024</a>                    <span class="string">"MCP server `{}` is not connected"</span>,
-<a href=#2025 id=2025 data-nosnippet>2025</a>                    <span class="self">self</span>.server.name
-<a href=#2026 id=2026 data-nosnippet>2026</a>                )));
-<a href=#2027 id=2027 data-nosnippet>2027</a>            };
-<a href=#2028 id=2028 data-nosnippet>2028</a>            <span class="self">self</span>.server
-<a href=#2029 id=2029 data-nosnippet>2029</a>                .progress
-<a href=#2030 id=2030 data-nosnippet>2030</a>                .lock()
-<a href=#2031 id=2031 data-nosnippet>2031</a>                .<span class="kw">await
-<a href=#2032 id=2032 data-nosnippet>2032</a>                </span>.insert(<span class="self">self</span>.call_id, context.progress.clone());
-<a href=#2033 id=2033 data-nosnippet>2033</a>            <span class="kw">let </span>result = <span class="self">self
-<a href=#2034 id=2034 data-nosnippet>2034</a>                </span>.call(service, params, timeout, <span class="kw-2">&amp;</span>context.cancellation)
-<a href=#2035 id=2035 data-nosnippet>2035</a>                .<span class="kw">await</span>;
-<a href=#2036 id=2036 data-nosnippet>2036</a>            <span class="self">self</span>.server.progress.lock().<span class="kw">await</span>.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.call_id);
-<a href=#2037 id=2037 data-nosnippet>2037</a>            map_tool_result(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span><span class="self">self</span>.generated_name, result<span class="question-mark">?</span>)
-<a href=#2038 id=2038 data-nosnippet>2038</a>        }
-<a href=#2039 id=2039 data-nosnippet>2039</a>        .<span class="kw">await</span>;
-<a href=#2040 id=2040 data-nosnippet>2040</a>        result.map(|result| {
-<a href=#2041 id=2041 data-nosnippet>2041</a>            <span class="kw">let </span>failed = result.metadata[<span class="string">"mcp"</span>][<span class="string">"is_error"</span>] == <span class="bool-val">true</span>;
-<a href=#2042 id=2042 data-nosnippet>2042</a>            <span class="kw">let </span><span class="kw-2">mut </span>completion = ToolCompletion::single(result);
-<a href=#2043 id=2043 data-nosnippet>2043</a>            completion.failed = failed;
-<a href=#2044 id=2044 data-nosnippet>2044</a>            completion
-<a href=#2045 id=2045 data-nosnippet>2045</a>        })
-<a href=#2046 id=2046 data-nosnippet>2046</a>    }
-<a href=#2047 id=2047 data-nosnippet>2047</a>}
-<a href=#2048 id=2048 data-nosnippet>2048</a>
-<a href=#2049 id=2049 data-nosnippet>2049</a><span class="kw">impl </span>McpExecutor {
-<a href=#2050 id=2050 data-nosnippet>2050</a>    <span class="doccomment">/// Sends the `tools/call` request and waits for its result. A call that
-<a href=#2051 id=2051 data-nosnippet>2051</a>    /// is cancelled or times out tells the server with
-<a href=#2052 id=2052 data-nosnippet>2052</a>    /// `notifications/cancelled` and stops waiting at once.
-<a href=#2053 id=2053 data-nosnippet>2053</a>    </span><span class="kw">async fn </span>call(
-<a href=#2054 id=2054 data-nosnippet>2054</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2055 id=2055 data-nosnippet>2055</a>        service: <span class="kw-2">&amp;</span>ClientService,
-<a href=#2056 id=2056 data-nosnippet>2056</a>        params: CallToolRequestParams,
-<a href=#2057 id=2057 data-nosnippet>2057</a>        timeout: Duration,
-<a href=#2058 id=2058 data-nosnippet>2058</a>        cancellation: <span class="kw-2">&amp;</span>tokio_util::sync::CancellationToken,
-<a href=#2059 id=2059 data-nosnippet>2059</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;CallToolResult, ToolError&gt; {
-<a href=#2060 id=2060 data-nosnippet>2060</a>        <span class="kw">let </span>request = ClientRequest::CallToolRequest(CallToolRequest::new(params));
-<a href=#2061 id=2061 data-nosnippet>2061</a>        <span class="kw">let </span>deadline = tokio::time::sleep(timeout);
-<a href=#2062 id=2062 data-nosnippet>2062</a>        <span class="macro">tokio::pin!</span>(deadline);
-<a href=#2063 id=2063 data-nosnippet>2063</a>        <span class="kw">let </span>sent = <span class="macro">tokio::select!</span> {
-<a href=#2064 id=2064 data-nosnippet>2064</a>            sent = service.send_cancellable_request(request, PeerRequestOptions::no_options()) =&gt; sent,
-<a href=#2065 id=2065 data-nosnippet>2065</a>            () = cancellation.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call cancelled"</span>)),
-<a href=#2066 id=2066 data-nosnippet>2066</a>            () = <span class="kw-2">&amp;mut </span>deadline =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call timed out"</span>)),
-<a href=#2067 id=2067 data-nosnippet>2067</a>        };
-<a href=#2068 id=2068 data-nosnippet>2068</a>        <span class="kw">let </span><span class="kw-2">mut </span>handle = sent.map_err(|error| <span class="self">self</span>.service_error(error))<span class="question-mark">?</span>;
-<a href=#2069 id=2069 data-nosnippet>2069</a>        <span class="kw">let </span>(reply, reason) = <span class="macro">tokio::select!</span> {
-<a href=#2070 id=2070 data-nosnippet>2070</a>            reply = <span class="kw-2">&amp;mut </span>handle.rx =&gt; (<span class="prelude-val">Some</span>(reply), <span class="prelude-val">None</span>),
-<a href=#2071 id=2071 data-nosnippet>2071</a>            () = cancellation.cancelled() =&gt; (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">"cancelled"</span>)),
-<a href=#2072 id=2072 data-nosnippet>2072</a>            () = <span class="kw-2">&amp;mut </span>deadline =&gt; (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">"timed out"</span>)),
-<a href=#2073 id=2073 data-nosnippet>2073</a>        };
-<a href=#2074 id=2074 data-nosnippet>2074</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(reply) = reply <span class="kw">else </span>{
-<a href=#2075 id=2075 data-nosnippet>2075</a>            <span class="kw">let </span>reason = reason.expect(<span class="string">"a call stops waiting for a reason"</span>);
-<a href=#2076 id=2076 data-nosnippet>2076</a>            <span class="comment">// Telling the server is best effort and must not hold the call.
-<a href=#2077 id=2077 data-nosnippet>2077</a>            </span><span class="kw">let _ </span>= tokio::time::timeout(
-<a href=#2078 id=2078 data-nosnippet>2078</a>                MCP_CANCEL_NOTIFICATION_TIMEOUT,
-<a href=#2079 id=2079 data-nosnippet>2079</a>                handle.cancel(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"tool call {reason}"</span>))),
-<a href=#2080 id=2080 data-nosnippet>2080</a>            )
-<a href=#2081 id=2081 data-nosnippet>2081</a>            .<span class="kw">await</span>;
-<a href=#2082 id=2082 data-nosnippet>2082</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="macro">format!</span>(<span class="string">"MCP tool call {reason}"</span>)));
-<a href=#2083 id=2083 data-nosnippet>2083</a>        };
-<a href=#2084 id=2084 data-nosnippet>2084</a>        <span class="kw">let </span>reply = reply
-<a href=#2085 id=2085 data-nosnippet>2085</a>            .unwrap_or(<span class="prelude-val">Err</span>(rmcp::ServiceError::TransportClosed))
-<a href=#2086 id=2086 data-nosnippet>2086</a>            .map_err(|error| <span class="self">self</span>.service_error(error))<span class="question-mark">?</span>;
-<a href=#2087 id=2087 data-nosnippet>2087</a>        <span class="kw">match </span>reply {
-<a href=#2088 id=2088 data-nosnippet>2088</a>            ServerResult::CallToolResult(result) =&gt; <span class="prelude-val">Ok</span>(result),
-<a href=#2089 id=2089 data-nosnippet>2089</a>            ServerResult::InputRequiredResult(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(ToolError::execution(
-<a href=#2090 id=2090 data-nosnippet>2090</a>                <span class="string">"MCP server asked for input during the call, which is not supported"</span>,
-<a href=#2091 id=2091 data-nosnippet>2091</a>            )),
-<a href=#2092 id=2092 data-nosnippet>2092</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.service_error(rmcp::ServiceError::UnexpectedResponse)),
-<a href=#2093 id=2093 data-nosnippet>2093</a>        }
-<a href=#2094 id=2094 data-nosnippet>2094</a>    }
-<a href=#2095 id=2095 data-nosnippet>2095</a>
-<a href=#2096 id=2096 data-nosnippet>2096</a>    <span class="kw">fn </span>service_error(<span class="kw-2">&amp;</span><span class="self">self</span>, error: rmcp::ServiceError) -&gt; ToolError {
-<a href=#2097 id=2097 data-nosnippet>2097</a>        <span class="kw">match </span><span class="self">self</span>.server.service_auth_failure(<span class="kw-2">&amp;</span>error) {
-<a href=#2098 id=2098 data-nosnippet>2098</a>            <span class="prelude-val">Some</span>(error) =&gt; error,
-<a href=#2099 id=2099 data-nosnippet>2099</a>            <span class="prelude-val">None </span><span class="kw">if </span><span class="macro">matches!</span>(error, rmcp::ServiceError::TransportClosed) =&gt; {
-<a href=#2100 id=2100 data-nosnippet>2100</a>                <span class="self">self</span>.server.signal_lost();
-<a href=#2101 id=2101 data-nosnippet>2101</a>                ToolError::runtime_unavailable(<span class="macro">format!</span>(
-<a href=#2102 id=2102 data-nosnippet>2102</a>                    <span class="string">"MCP server `{}` disconnected during the call"</span>,
-<a href=#2103 id=2103 data-nosnippet>2103</a>                    <span class="self">self</span>.server.name
-<a href=#2104 id=2104 data-nosnippet>2104</a>                ))
-<a href=#2105 id=2105 data-nosnippet>2105</a>            }
-<a href=#2106 id=2106 data-nosnippet>2106</a>            <span class="prelude-val">None </span>=&gt; ToolError::execution(error.to_string()),
-<a href=#2107 id=2107 data-nosnippet>2107</a>        }
-<a href=#2108 id=2108 data-nosnippet>2108</a>    }
-<a href=#2109 id=2109 data-nosnippet>2109</a>}
-<a href=#2110 id=2110 data-nosnippet>2110</a>
-<a href=#2111 id=2111 data-nosnippet>2111</a><span class="kw">fn </span>convert_tool(server: <span class="kw-2">&amp;</span>str, sanitized_server: <span class="kw-2">&amp;</span>str, tool: Tool) -&gt; <span class="prelude-ty">Result</span>&lt;CachedTool, ToolError&gt; {
-<a href=#2112 id=2112 data-nosnippet>2112</a>    <span class="kw">let </span>generated = <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, sanitized_server, sanitize_name(tool.name.as_ref()));
-<a href=#2113 id=2113 data-nosnippet>2113</a>    <span class="kw">let </span>description = <span class="macro">format!</span>(
-<a href=#2114 id=2114 data-nosnippet>2114</a>        <span class="string">"[{server}] {} (untrusted MCP output)"</span>,
-<a href=#2115 id=2115 data-nosnippet>2115</a>        tool.description.as_deref().unwrap_or(<span class="string">"MCP tool"</span>)
-<a href=#2116 id=2116 data-nosnippet>2116</a>    );
-<a href=#2117 id=2117 data-nosnippet>2117</a>    <span class="kw">let </span><span class="kw-2">mut </span>schema = tool.input_schema.as_ref().clone();
-<a href=#2118 id=2118 data-nosnippet>2118</a>    schema.insert(<span class="string">"type"</span>.into(), Value::String(<span class="string">"object"</span>.into()));
-<a href=#2119 id=2119 data-nosnippet>2119</a>    schema.insert(<span class="string">"additionalProperties"</span>.into(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#2120 id=2120 data-nosnippet>2120</a>    <span class="prelude-val">Ok</span>(CachedTool {
-<a href=#2121 id=2121 data-nosnippet>2121</a>        raw_name: tool.name.into_owned(),
-<a href=#2122 id=2122 data-nosnippet>2122</a>        spec: ToolSpec {
-<a href=#2123 id=2123 data-nosnippet>2123</a>            background: <span class="bool-val">false</span>,
-<a href=#2124 id=2124 data-nosnippet>2124</a>            background_default: <span class="bool-val">false</span>,
-<a href=#2125 id=2125 data-nosnippet>2125</a>            collision: Default::default(),
-<a href=#2126 id=2126 data-nosnippet>2126</a>            output: Default::default(),
-<a href=#2127 id=2127 data-nosnippet>2127</a>            concurrency: ToolConcurrency::Parallel,
-<a href=#2128 id=2128 data-nosnippet>2128</a>            <span class="comment">// External opt-out requires a future extension-protocol capability.
-<a href=#2129 id=2129 data-nosnippet>2129</a>            </span>result_truncation: Default::default(),
-<a href=#2130 id=2130 data-nosnippet>2130</a>            name: generated,
-<a href=#2131 id=2131 data-nosnippet>2131</a>            permission_name: <span class="prelude-val">Some</span>(<span class="string">"mcp"</span>.into()),
-<a href=#2132 id=2132 data-nosnippet>2132</a>            description,
-<a href=#2133 id=2133 data-nosnippet>2133</a>            parameters: Value::Object(schema),
-<a href=#2134 id=2134 data-nosnippet>2134</a>        },
-<a href=#2135 id=2135 data-nosnippet>2135</a>    })
-<a href=#2136 id=2136 data-nosnippet>2136</a>}
-<a href=#2137 id=2137 data-nosnippet>2137</a>
-<a href=#2138 id=2138 data-nosnippet>2138</a><span class="kw">fn </span>map_tool_result(
-<a href=#2139 id=2139 data-nosnippet>2139</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
-<a href=#2140 id=2140 data-nosnippet>2140</a>    tool_name: <span class="kw-2">&amp;</span>str,
-<a href=#2141 id=2141 data-nosnippet>2141</a>    result: rmcp::model::CallToolResult,
-<a href=#2142 id=2142 data-nosnippet>2142</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
-<a href=#2143 id=2143 data-nosnippet>2143</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
-<a href=#2144 id=2144 data-nosnippet>2144</a>    <span class="comment">// The retained attachment each placeholder in `output` stands for.
-<a href=#2145 id=2145 data-nosnippet>2145</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>media = HashMap::new();
-<a href=#2146 id=2146 data-nosnippet>2146</a>    <span class="kw">let </span><span class="kw-2">mut </span>attachments = Vec::new();
-<a href=#2147 id=2147 data-nosnippet>2147</a>    <span class="kw">let </span><span class="kw-2">mut </span>emitted_attachments = Vec::new();
-<a href=#2148 id=2148 data-nosnippet>2148</a>    <span class="kw">for </span>block <span class="kw">in </span>result.content {
-<a href=#2149 id=2149 data-nosnippet>2149</a>        <span class="kw">match </span>block {
-<a href=#2150 id=2150 data-nosnippet>2150</a>            ContentBlock::Text(text) =&gt; output.push(text.text),
-<a href=#2151 id=2151 data-nosnippet>2151</a>            ContentBlock::Image(image) =&gt; {
-<a href=#2152 id=2152 data-nosnippet>2152</a>                <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
-<a href=#2153 id=2153 data-nosnippet>2153</a>                    output.push(
-<a href=#2154 id=2154 data-nosnippet>2154</a>                        <span class="string">"[MCP image attachment omitted: combined attachment limit reached]"</span>.into(),
-<a href=#2155 id=2155 data-nosnippet>2155</a>                    );
-<a href=#2156 id=2156 data-nosnippet>2156</a>                    <span class="kw">continue</span>;
-<a href=#2157 id=2157 data-nosnippet>2157</a>                }
-<a href=#2158 id=2158 data-nosnippet>2158</a>                <span class="kw">match </span>retain_base64_attachment(context, image.mime_type, <span class="kw-2">&amp;</span>image.data) {
-<a href=#2159 id=2159 data-nosnippet>2159</a>                    <span class="prelude-val">Ok</span>(retained) =&gt; {
-<a href=#2160 id=2160 data-nosnippet>2160</a>                        <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
-<a href=#2161 id=2161 data-nosnippet>2161</a>                        <span class="kw">if </span>route_mcp_attachment(
-<a href=#2162 id=2162 data-nosnippet>2162</a>                            retained,
-<a href=#2163 id=2163 data-nosnippet>2163</a>                            <span class="kw-2">&amp;mut </span>attachments,
-<a href=#2164 id=2164 data-nosnippet>2164</a>                            <span class="kw-2">&amp;mut </span>emitted_attachments,
-<a href=#2165 id=2165 data-nosnippet>2165</a>                        ) {
-<a href=#2166 id=2166 data-nosnippet>2166</a>                            output.push(<span class="string">"[MCP image attachment]"</span>.into());
-<a href=#2167 id=2167 data-nosnippet>2167</a>                            media.insert(output.len() - <span class="number">1</span>, artifact);
-<a href=#2168 id=2168 data-nosnippet>2168</a>                        } <span class="kw">else </span>{
-<a href=#2169 id=2169 data-nosnippet>2169</a>                            output.push(
-<a href=#2170 id=2170 data-nosnippet>2170</a>                                <span class="string">"[MCP image attachment omitted: combined attachment limit reached]"
-<a href=#2171 id=2171 data-nosnippet>2171</a>                                    </span>.into(),
-<a href=#2172 id=2172 data-nosnippet>2172</a>                            );
-<a href=#2173 id=2173 data-nosnippet>2173</a>                        }
-<a href=#2174 id=2174 data-nosnippet>2174</a>                    }
-<a href=#2175 id=2175 data-nosnippet>2175</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; {
-<a href=#2176 id=2176 data-nosnippet>2176</a>                        output.push(<span class="macro">format!</span>(<span class="string">"[Invalid MCP image content: {error}]"</span>));
-<a href=#2177 id=2177 data-nosnippet>2177</a>                    }
-<a href=#2178 id=2178 data-nosnippet>2178</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
-<a href=#2179 id=2179 data-nosnippet>2179</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
-<a href=#2180 id=2180 data-nosnippet>2180</a>                    }
-<a href=#2181 id=2181 data-nosnippet>2181</a>                }
-<a href=#2182 id=2182 data-nosnippet>2182</a>            }
-<a href=#2183 id=2183 data-nosnippet>2183</a>            ContentBlock::Audio(audio) =&gt; {
-<a href=#2184 id=2184 data-nosnippet>2184</a>                <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
-<a href=#2185 id=2185 data-nosnippet>2185</a>                    output.push(
-<a href=#2186 id=2186 data-nosnippet>2186</a>                        <span class="string">"[MCP audio attachment omitted: combined attachment limit reached]"</span>.into(),
-<a href=#2187 id=2187 data-nosnippet>2187</a>                    );
-<a href=#2188 id=2188 data-nosnippet>2188</a>                    <span class="kw">continue</span>;
+<a href=#2015 id=2015 data-nosnippet>2015</a>            <span class="kw">let </span>deadline = tokio::time::Instant::now() + timeout;
+<a href=#2016 id=2016 data-nosnippet>2016</a>            <span class="comment">// A connect or a reconnect may hold the connection a moment; the
+<a href=#2017 id=2017 data-nosnippet>2017</a>            // call's timeout and its cancellation cover that wait. The lock is
+<a href=#2018 id=2018 data-nosnippet>2018</a>            // held only to copy the peer: calls share the connection.
+<a href=#2019 id=2019 data-nosnippet>2019</a>            </span><span class="kw">let </span>peer = <span class="macro">tokio::select!</span> {
+<a href=#2020 id=2020 data-nosnippet>2020</a>                service = <span class="self">self</span>.server.service.lock() =&gt; {
+<a href=#2021 id=2021 data-nosnippet>2021</a>                    service.as_ref().map(|service| service.peer().clone())
+<a href=#2022 id=2022 data-nosnippet>2022</a>                }
+<a href=#2023 id=2023 data-nosnippet>2023</a>                () = context.cancellation.cancelled() =&gt; {
+<a href=#2024 id=2024 data-nosnippet>2024</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call cancelled"</span>));
+<a href=#2025 id=2025 data-nosnippet>2025</a>                }
+<a href=#2026 id=2026 data-nosnippet>2026</a>                () = tokio::time::sleep_until(deadline) =&gt; {
+<a href=#2027 id=2027 data-nosnippet>2027</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call timed out"</span>));
+<a href=#2028 id=2028 data-nosnippet>2028</a>                }
+<a href=#2029 id=2029 data-nosnippet>2029</a>            };
+<a href=#2030 id=2030 data-nosnippet>2030</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(peer) = peer <span class="kw">else </span>{
+<a href=#2031 id=2031 data-nosnippet>2031</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::runtime_unavailable(<span class="macro">format!</span>(
+<a href=#2032 id=2032 data-nosnippet>2032</a>                    <span class="string">"MCP server `{}` is not connected"</span>,
+<a href=#2033 id=2033 data-nosnippet>2033</a>                    <span class="self">self</span>.server.name
+<a href=#2034 id=2034 data-nosnippet>2034</a>                )));
+<a href=#2035 id=2035 data-nosnippet>2035</a>            };
+<a href=#2036 id=2036 data-nosnippet>2036</a>            <span class="self">self</span>.server
+<a href=#2037 id=2037 data-nosnippet>2037</a>                .progress
+<a href=#2038 id=2038 data-nosnippet>2038</a>                .lock()
+<a href=#2039 id=2039 data-nosnippet>2039</a>                .<span class="kw">await
+<a href=#2040 id=2040 data-nosnippet>2040</a>                </span>.insert(<span class="self">self</span>.call_id, context.progress.clone());
+<a href=#2041 id=2041 data-nosnippet>2041</a>            <span class="kw">let </span>result = <span class="self">self
+<a href=#2042 id=2042 data-nosnippet>2042</a>                </span>.call(<span class="kw-2">&amp;</span>peer, params, deadline, <span class="kw-2">&amp;</span>context.cancellation)
+<a href=#2043 id=2043 data-nosnippet>2043</a>                .<span class="kw">await</span>;
+<a href=#2044 id=2044 data-nosnippet>2044</a>            <span class="self">self</span>.server.progress.lock().<span class="kw">await</span>.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.call_id);
+<a href=#2045 id=2045 data-nosnippet>2045</a>            map_tool_result(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span><span class="self">self</span>.generated_name, result<span class="question-mark">?</span>)
+<a href=#2046 id=2046 data-nosnippet>2046</a>        }
+<a href=#2047 id=2047 data-nosnippet>2047</a>        .<span class="kw">await</span>;
+<a href=#2048 id=2048 data-nosnippet>2048</a>        result.map(|result| {
+<a href=#2049 id=2049 data-nosnippet>2049</a>            <span class="kw">let </span>failed = result.metadata[<span class="string">"mcp"</span>][<span class="string">"is_error"</span>] == <span class="bool-val">true</span>;
+<a href=#2050 id=2050 data-nosnippet>2050</a>            <span class="kw">let </span><span class="kw-2">mut </span>completion = ToolCompletion::single(result);
+<a href=#2051 id=2051 data-nosnippet>2051</a>            completion.failed = failed;
+<a href=#2052 id=2052 data-nosnippet>2052</a>            completion
+<a href=#2053 id=2053 data-nosnippet>2053</a>        })
+<a href=#2054 id=2054 data-nosnippet>2054</a>    }
+<a href=#2055 id=2055 data-nosnippet>2055</a>}
+<a href=#2056 id=2056 data-nosnippet>2056</a>
+<a href=#2057 id=2057 data-nosnippet>2057</a><span class="kw">impl </span>McpExecutor {
+<a href=#2058 id=2058 data-nosnippet>2058</a>    <span class="doccomment">/// Sends the `tools/call` request over `peer` and waits for its result
+<a href=#2059 id=2059 data-nosnippet>2059</a>    /// until `deadline`. A call that is cancelled or times out tells the server with
+<a href=#2060 id=2060 data-nosnippet>2060</a>    /// `notifications/cancelled` and stops waiting at once.
+<a href=#2061 id=2061 data-nosnippet>2061</a>    </span><span class="kw">async fn </span>call(
+<a href=#2062 id=2062 data-nosnippet>2062</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2063 id=2063 data-nosnippet>2063</a>        peer: <span class="kw-2">&amp;</span>Peer&lt;RoleClient&gt;,
+<a href=#2064 id=2064 data-nosnippet>2064</a>        params: CallToolRequestParams,
+<a href=#2065 id=2065 data-nosnippet>2065</a>        deadline: tokio::time::Instant,
+<a href=#2066 id=2066 data-nosnippet>2066</a>        cancellation: <span class="kw-2">&amp;</span>tokio_util::sync::CancellationToken,
+<a href=#2067 id=2067 data-nosnippet>2067</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;CallToolResult, ToolError&gt; {
+<a href=#2068 id=2068 data-nosnippet>2068</a>        <span class="kw">let </span>request = ClientRequest::CallToolRequest(CallToolRequest::new(params));
+<a href=#2069 id=2069 data-nosnippet>2069</a>        <span class="kw">let </span>deadline = tokio::time::sleep_until(deadline);
+<a href=#2070 id=2070 data-nosnippet>2070</a>        <span class="macro">tokio::pin!</span>(deadline);
+<a href=#2071 id=2071 data-nosnippet>2071</a>        <span class="kw">let </span>sent = <span class="macro">tokio::select!</span> {
+<a href=#2072 id=2072 data-nosnippet>2072</a>            sent = peer.send_cancellable_request(request, PeerRequestOptions::no_options()) =&gt; sent,
+<a href=#2073 id=2073 data-nosnippet>2073</a>            () = cancellation.cancelled() =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call cancelled"</span>)),
+<a href=#2074 id=2074 data-nosnippet>2074</a>            () = <span class="kw-2">&amp;mut </span>deadline =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"MCP tool call timed out"</span>)),
+<a href=#2075 id=2075 data-nosnippet>2075</a>        };
+<a href=#2076 id=2076 data-nosnippet>2076</a>        <span class="kw">let </span><span class="kw-2">mut </span>handle = sent.map_err(|error| <span class="self">self</span>.service_error(error))<span class="question-mark">?</span>;
+<a href=#2077 id=2077 data-nosnippet>2077</a>        <span class="kw">let </span>(reply, reason) = <span class="macro">tokio::select!</span> {
+<a href=#2078 id=2078 data-nosnippet>2078</a>            reply = <span class="kw-2">&amp;mut </span>handle.rx =&gt; (<span class="prelude-val">Some</span>(reply), <span class="prelude-val">None</span>),
+<a href=#2079 id=2079 data-nosnippet>2079</a>            () = cancellation.cancelled() =&gt; (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">"cancelled"</span>)),
+<a href=#2080 id=2080 data-nosnippet>2080</a>            () = <span class="kw-2">&amp;mut </span>deadline =&gt; (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">"timed out"</span>)),
+<a href=#2081 id=2081 data-nosnippet>2081</a>        };
+<a href=#2082 id=2082 data-nosnippet>2082</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(reply) = reply <span class="kw">else </span>{
+<a href=#2083 id=2083 data-nosnippet>2083</a>            <span class="kw">let </span>reason = reason.expect(<span class="string">"a call stops waiting for a reason"</span>);
+<a href=#2084 id=2084 data-nosnippet>2084</a>            <span class="comment">// Telling the server is best effort and must not hold the call.
+<a href=#2085 id=2085 data-nosnippet>2085</a>            </span><span class="kw">let _ </span>= tokio::time::timeout(
+<a href=#2086 id=2086 data-nosnippet>2086</a>                MCP_CANCEL_NOTIFICATION_TIMEOUT,
+<a href=#2087 id=2087 data-nosnippet>2087</a>                handle.cancel(<span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"tool call {reason}"</span>))),
+<a href=#2088 id=2088 data-nosnippet>2088</a>            )
+<a href=#2089 id=2089 data-nosnippet>2089</a>            .<span class="kw">await</span>;
+<a href=#2090 id=2090 data-nosnippet>2090</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="macro">format!</span>(<span class="string">"MCP tool call {reason}"</span>)));
+<a href=#2091 id=2091 data-nosnippet>2091</a>        };
+<a href=#2092 id=2092 data-nosnippet>2092</a>        <span class="kw">let </span>reply = reply
+<a href=#2093 id=2093 data-nosnippet>2093</a>            .unwrap_or(<span class="prelude-val">Err</span>(rmcp::ServiceError::TransportClosed))
+<a href=#2094 id=2094 data-nosnippet>2094</a>            .map_err(|error| <span class="self">self</span>.service_error(error))<span class="question-mark">?</span>;
+<a href=#2095 id=2095 data-nosnippet>2095</a>        <span class="kw">match </span>reply {
+<a href=#2096 id=2096 data-nosnippet>2096</a>            ServerResult::CallToolResult(result) =&gt; <span class="prelude-val">Ok</span>(result),
+<a href=#2097 id=2097 data-nosnippet>2097</a>            ServerResult::InputRequiredResult(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(ToolError::execution(
+<a href=#2098 id=2098 data-nosnippet>2098</a>                <span class="string">"MCP server asked for input during the call, which is not supported"</span>,
+<a href=#2099 id=2099 data-nosnippet>2099</a>            )),
+<a href=#2100 id=2100 data-nosnippet>2100</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.service_error(rmcp::ServiceError::UnexpectedResponse)),
+<a href=#2101 id=2101 data-nosnippet>2101</a>        }
+<a href=#2102 id=2102 data-nosnippet>2102</a>    }
+<a href=#2103 id=2103 data-nosnippet>2103</a>
+<a href=#2104 id=2104 data-nosnippet>2104</a>    <span class="kw">fn </span>service_error(<span class="kw-2">&amp;</span><span class="self">self</span>, error: rmcp::ServiceError) -&gt; ToolError {
+<a href=#2105 id=2105 data-nosnippet>2105</a>        <span class="kw">match </span><span class="self">self</span>.server.service_auth_failure(<span class="kw-2">&amp;</span>error) {
+<a href=#2106 id=2106 data-nosnippet>2106</a>            <span class="prelude-val">Some</span>(error) =&gt; error,
+<a href=#2107 id=2107 data-nosnippet>2107</a>            <span class="prelude-val">None </span><span class="kw">if </span><span class="macro">matches!</span>(error, rmcp::ServiceError::TransportClosed) =&gt; {
+<a href=#2108 id=2108 data-nosnippet>2108</a>                <span class="self">self</span>.server.signal_lost();
+<a href=#2109 id=2109 data-nosnippet>2109</a>                ToolError::runtime_unavailable(<span class="macro">format!</span>(
+<a href=#2110 id=2110 data-nosnippet>2110</a>                    <span class="string">"MCP server `{}` disconnected during the call"</span>,
+<a href=#2111 id=2111 data-nosnippet>2111</a>                    <span class="self">self</span>.server.name
+<a href=#2112 id=2112 data-nosnippet>2112</a>                ))
+<a href=#2113 id=2113 data-nosnippet>2113</a>            }
+<a href=#2114 id=2114 data-nosnippet>2114</a>            <span class="prelude-val">None </span>=&gt; ToolError::execution(error.to_string()),
+<a href=#2115 id=2115 data-nosnippet>2115</a>        }
+<a href=#2116 id=2116 data-nosnippet>2116</a>    }
+<a href=#2117 id=2117 data-nosnippet>2117</a>}
+<a href=#2118 id=2118 data-nosnippet>2118</a>
+<a href=#2119 id=2119 data-nosnippet>2119</a><span class="kw">fn </span>convert_tool(server: <span class="kw-2">&amp;</span>str, sanitized_server: <span class="kw-2">&amp;</span>str, tool: Tool) -&gt; <span class="prelude-ty">Result</span>&lt;CachedTool, ToolError&gt; {
+<a href=#2120 id=2120 data-nosnippet>2120</a>    <span class="kw">let </span>generated = <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, sanitized_server, sanitize_name(tool.name.as_ref()));
+<a href=#2121 id=2121 data-nosnippet>2121</a>    <span class="kw">let </span>description = <span class="macro">format!</span>(
+<a href=#2122 id=2122 data-nosnippet>2122</a>        <span class="string">"[{server}] {} (untrusted MCP output)"</span>,
+<a href=#2123 id=2123 data-nosnippet>2123</a>        tool.description.as_deref().unwrap_or(<span class="string">"MCP tool"</span>)
+<a href=#2124 id=2124 data-nosnippet>2124</a>    );
+<a href=#2125 id=2125 data-nosnippet>2125</a>    <span class="kw">let </span><span class="kw-2">mut </span>schema = tool.input_schema.as_ref().clone();
+<a href=#2126 id=2126 data-nosnippet>2126</a>    schema.insert(<span class="string">"type"</span>.into(), Value::String(<span class="string">"object"</span>.into()));
+<a href=#2127 id=2127 data-nosnippet>2127</a>    schema.insert(<span class="string">"additionalProperties"</span>.into(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#2128 id=2128 data-nosnippet>2128</a>    <span class="prelude-val">Ok</span>(CachedTool {
+<a href=#2129 id=2129 data-nosnippet>2129</a>        raw_name: tool.name.into_owned(),
+<a href=#2130 id=2130 data-nosnippet>2130</a>        spec: ToolSpec {
+<a href=#2131 id=2131 data-nosnippet>2131</a>            background: <span class="bool-val">false</span>,
+<a href=#2132 id=2132 data-nosnippet>2132</a>            background_default: <span class="bool-val">false</span>,
+<a href=#2133 id=2133 data-nosnippet>2133</a>            collision: Default::default(),
+<a href=#2134 id=2134 data-nosnippet>2134</a>            output: Default::default(),
+<a href=#2135 id=2135 data-nosnippet>2135</a>            concurrency: ToolConcurrency::Parallel,
+<a href=#2136 id=2136 data-nosnippet>2136</a>            <span class="comment">// External opt-out requires a future extension-protocol capability.
+<a href=#2137 id=2137 data-nosnippet>2137</a>            </span>result_truncation: Default::default(),
+<a href=#2138 id=2138 data-nosnippet>2138</a>            name: generated,
+<a href=#2139 id=2139 data-nosnippet>2139</a>            permission_name: <span class="prelude-val">Some</span>(<span class="string">"mcp"</span>.into()),
+<a href=#2140 id=2140 data-nosnippet>2140</a>            description,
+<a href=#2141 id=2141 data-nosnippet>2141</a>            parameters: Value::Object(schema),
+<a href=#2142 id=2142 data-nosnippet>2142</a>        },
+<a href=#2143 id=2143 data-nosnippet>2143</a>    })
+<a href=#2144 id=2144 data-nosnippet>2144</a>}
+<a href=#2145 id=2145 data-nosnippet>2145</a>
+<a href=#2146 id=2146 data-nosnippet>2146</a><span class="kw">fn </span>map_tool_result(
+<a href=#2147 id=2147 data-nosnippet>2147</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
+<a href=#2148 id=2148 data-nosnippet>2148</a>    tool_name: <span class="kw-2">&amp;</span>str,
+<a href=#2149 id=2149 data-nosnippet>2149</a>    result: rmcp::model::CallToolResult,
+<a href=#2150 id=2150 data-nosnippet>2150</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
+<a href=#2151 id=2151 data-nosnippet>2151</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
+<a href=#2152 id=2152 data-nosnippet>2152</a>    <span class="comment">// The retained attachment each placeholder in `output` stands for.
+<a href=#2153 id=2153 data-nosnippet>2153</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>media = HashMap::new();
+<a href=#2154 id=2154 data-nosnippet>2154</a>    <span class="kw">let </span><span class="kw-2">mut </span>attachments = Vec::new();
+<a href=#2155 id=2155 data-nosnippet>2155</a>    <span class="kw">let </span><span class="kw-2">mut </span>emitted_attachments = Vec::new();
+<a href=#2156 id=2156 data-nosnippet>2156</a>    <span class="kw">for </span>block <span class="kw">in </span>result.content {
+<a href=#2157 id=2157 data-nosnippet>2157</a>        <span class="kw">match </span>block {
+<a href=#2158 id=2158 data-nosnippet>2158</a>            ContentBlock::Text(text) =&gt; output.push(text.text),
+<a href=#2159 id=2159 data-nosnippet>2159</a>            ContentBlock::Image(image) =&gt; {
+<a href=#2160 id=2160 data-nosnippet>2160</a>                <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
+<a href=#2161 id=2161 data-nosnippet>2161</a>                    output.push(
+<a href=#2162 id=2162 data-nosnippet>2162</a>                        <span class="string">"[MCP image attachment omitted: combined attachment limit reached]"</span>.into(),
+<a href=#2163 id=2163 data-nosnippet>2163</a>                    );
+<a href=#2164 id=2164 data-nosnippet>2164</a>                    <span class="kw">continue</span>;
+<a href=#2165 id=2165 data-nosnippet>2165</a>                }
+<a href=#2166 id=2166 data-nosnippet>2166</a>                <span class="kw">match </span>retain_base64_attachment(context, image.mime_type, <span class="kw-2">&amp;</span>image.data) {
+<a href=#2167 id=2167 data-nosnippet>2167</a>                    <span class="prelude-val">Ok</span>(retained) =&gt; {
+<a href=#2168 id=2168 data-nosnippet>2168</a>                        <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
+<a href=#2169 id=2169 data-nosnippet>2169</a>                        <span class="kw">if </span>route_mcp_attachment(
+<a href=#2170 id=2170 data-nosnippet>2170</a>                            retained,
+<a href=#2171 id=2171 data-nosnippet>2171</a>                            <span class="kw-2">&amp;mut </span>attachments,
+<a href=#2172 id=2172 data-nosnippet>2172</a>                            <span class="kw-2">&amp;mut </span>emitted_attachments,
+<a href=#2173 id=2173 data-nosnippet>2173</a>                        ) {
+<a href=#2174 id=2174 data-nosnippet>2174</a>                            output.push(<span class="string">"[MCP image attachment]"</span>.into());
+<a href=#2175 id=2175 data-nosnippet>2175</a>                            media.insert(output.len() - <span class="number">1</span>, artifact);
+<a href=#2176 id=2176 data-nosnippet>2176</a>                        } <span class="kw">else </span>{
+<a href=#2177 id=2177 data-nosnippet>2177</a>                            output.push(
+<a href=#2178 id=2178 data-nosnippet>2178</a>                                <span class="string">"[MCP image attachment omitted: combined attachment limit reached]"
+<a href=#2179 id=2179 data-nosnippet>2179</a>                                    </span>.into(),
+<a href=#2180 id=2180 data-nosnippet>2180</a>                            );
+<a href=#2181 id=2181 data-nosnippet>2181</a>                        }
+<a href=#2182 id=2182 data-nosnippet>2182</a>                    }
+<a href=#2183 id=2183 data-nosnippet>2183</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; {
+<a href=#2184 id=2184 data-nosnippet>2184</a>                        output.push(<span class="macro">format!</span>(<span class="string">"[Invalid MCP image content: {error}]"</span>));
+<a href=#2185 id=2185 data-nosnippet>2185</a>                    }
+<a href=#2186 id=2186 data-nosnippet>2186</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
+<a href=#2187 id=2187 data-nosnippet>2187</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
+<a href=#2188 id=2188 data-nosnippet>2188</a>                    }
 <a href=#2189 id=2189 data-nosnippet>2189</a>                }
-<a href=#2190 id=2190 data-nosnippet>2190</a>                <span class="kw">match </span>retain_base64_attachment(context, audio.mime_type, <span class="kw-2">&amp;</span>audio.data) {
-<a href=#2191 id=2191 data-nosnippet>2191</a>                    <span class="prelude-val">Ok</span>(retained) =&gt; {
-<a href=#2192 id=2192 data-nosnippet>2192</a>                        <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
-<a href=#2193 id=2193 data-nosnippet>2193</a>                        <span class="kw">if </span>route_mcp_attachment(
-<a href=#2194 id=2194 data-nosnippet>2194</a>                            retained,
-<a href=#2195 id=2195 data-nosnippet>2195</a>                            <span class="kw-2">&amp;mut </span>attachments,
-<a href=#2196 id=2196 data-nosnippet>2196</a>                            <span class="kw-2">&amp;mut </span>emitted_attachments,
-<a href=#2197 id=2197 data-nosnippet>2197</a>                        ) {
-<a href=#2198 id=2198 data-nosnippet>2198</a>                            output.push(<span class="string">"[MCP audio attachment]"</span>.into());
-<a href=#2199 id=2199 data-nosnippet>2199</a>                            media.insert(output.len() - <span class="number">1</span>, artifact);
-<a href=#2200 id=2200 data-nosnippet>2200</a>                        } <span class="kw">else </span>{
-<a href=#2201 id=2201 data-nosnippet>2201</a>                            output.push(
-<a href=#2202 id=2202 data-nosnippet>2202</a>                                <span class="string">"[MCP audio attachment omitted: combined attachment limit reached]"
-<a href=#2203 id=2203 data-nosnippet>2203</a>                                    </span>.into(),
-<a href=#2204 id=2204 data-nosnippet>2204</a>                            );
-<a href=#2205 id=2205 data-nosnippet>2205</a>                        }
-<a href=#2206 id=2206 data-nosnippet>2206</a>                    }
-<a href=#2207 id=2207 data-nosnippet>2207</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; {
-<a href=#2208 id=2208 data-nosnippet>2208</a>                        output.push(<span class="macro">format!</span>(<span class="string">"[Invalid MCP audio content: {error}]"</span>));
-<a href=#2209 id=2209 data-nosnippet>2209</a>                    }
-<a href=#2210 id=2210 data-nosnippet>2210</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
-<a href=#2211 id=2211 data-nosnippet>2211</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
-<a href=#2212 id=2212 data-nosnippet>2212</a>                    }
-<a href=#2213 id=2213 data-nosnippet>2213</a>                }
-<a href=#2214 id=2214 data-nosnippet>2214</a>            }
-<a href=#2215 id=2215 data-nosnippet>2215</a>            ContentBlock::Resource(resource) =&gt; <span class="kw">match </span>resource.resource {
-<a href=#2216 id=2216 data-nosnippet>2216</a>                ResourceContents::TextResourceContents { uri, text, .. } =&gt; {
-<a href=#2217 id=2217 data-nosnippet>2217</a>                    output.push(<span class="macro">format!</span>(<span class="string">"[{uri}]\n{text}"</span>));
-<a href=#2218 id=2218 data-nosnippet>2218</a>                }
-<a href=#2219 id=2219 data-nosnippet>2219</a>                ResourceContents::BlobResourceContents {
-<a href=#2220 id=2220 data-nosnippet>2220</a>                    uri,
-<a href=#2221 id=2221 data-nosnippet>2221</a>                    mime_type,
-<a href=#2222 id=2222 data-nosnippet>2222</a>                    blob,
-<a href=#2223 id=2223 data-nosnippet>2223</a>                    ..
-<a href=#2224 id=2224 data-nosnippet>2224</a>                } =&gt; {
-<a href=#2225 id=2225 data-nosnippet>2225</a>                    <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
-<a href=#2226 id=2226 data-nosnippet>2226</a>                        output.push(<span class="macro">format!</span>(
-<a href=#2227 id=2227 data-nosnippet>2227</a>                            <span class="string">"[MCP embedded resource unavailable: {uri}: combined attachment limit reached]"
-<a href=#2228 id=2228 data-nosnippet>2228</a>                        </span>));
-<a href=#2229 id=2229 data-nosnippet>2229</a>                        <span class="kw">continue</span>;
-<a href=#2230 id=2230 data-nosnippet>2230</a>                    }
-<a href=#2231 id=2231 data-nosnippet>2231</a>                    <span class="kw">match </span>retain_base64_attachment(
-<a href=#2232 id=2232 data-nosnippet>2232</a>                        context,
-<a href=#2233 id=2233 data-nosnippet>2233</a>                        mime_type.unwrap_or_else(|| <span class="string">"application/octet-stream"</span>.into()),
-<a href=#2234 id=2234 data-nosnippet>2234</a>                        <span class="kw-2">&amp;</span>blob,
-<a href=#2235 id=2235 data-nosnippet>2235</a>                    ) {
-<a href=#2236 id=2236 data-nosnippet>2236</a>                        <span class="prelude-val">Ok</span>(retained) =&gt; {
-<a href=#2237 id=2237 data-nosnippet>2237</a>                            <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
-<a href=#2238 id=2238 data-nosnippet>2238</a>                            <span class="kw">let </span>routed = route_mcp_attachment(
-<a href=#2239 id=2239 data-nosnippet>2239</a>                                retained,
-<a href=#2240 id=2240 data-nosnippet>2240</a>                                <span class="kw-2">&amp;mut </span>attachments,
-<a href=#2241 id=2241 data-nosnippet>2241</a>                                <span class="kw-2">&amp;mut </span>emitted_attachments,
-<a href=#2242 id=2242 data-nosnippet>2242</a>                            );
-<a href=#2243 id=2243 data-nosnippet>2243</a>                            output.push(<span class="kw">if </span>routed {
-<a href=#2244 id=2244 data-nosnippet>2244</a>                                <span class="macro">format!</span>(<span class="string">"[MCP embedded resource attachment: {uri}]"</span>)
-<a href=#2245 id=2245 data-nosnippet>2245</a>                            } <span class="kw">else </span>{
-<a href=#2246 id=2246 data-nosnippet>2246</a>                                <span class="macro">format!</span>(
-<a href=#2247 id=2247 data-nosnippet>2247</a>                                    <span class="string">"[MCP embedded resource unavailable: {uri}: combined attachment limit reached]"
-<a href=#2248 id=2248 data-nosnippet>2248</a>                                </span>)
-<a href=#2249 id=2249 data-nosnippet>2249</a>                            });
-<a href=#2250 id=2250 data-nosnippet>2250</a>                            <span class="kw">if </span>routed {
-<a href=#2251 id=2251 data-nosnippet>2251</a>                                media.insert(output.len() - <span class="number">1</span>, artifact);
-<a href=#2252 id=2252 data-nosnippet>2252</a>                            }
-<a href=#2253 id=2253 data-nosnippet>2253</a>                        }
-<a href=#2254 id=2254 data-nosnippet>2254</a>                        <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; output.push(<span class="macro">format!</span>(
-<a href=#2255 id=2255 data-nosnippet>2255</a>                            <span class="string">"[MCP embedded resource unavailable: {uri}: {error}]"
-<a href=#2256 id=2256 data-nosnippet>2256</a>                        </span>)),
-<a href=#2257 id=2257 data-nosnippet>2257</a>                        <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
-<a href=#2258 id=2258 data-nosnippet>2258</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
-<a href=#2259 id=2259 data-nosnippet>2259</a>                        }
-<a href=#2260 id=2260 data-nosnippet>2260</a>                    }
-<a href=#2261 id=2261 data-nosnippet>2261</a>                }
-<a href=#2262 id=2262 data-nosnippet>2262</a>                <span class="kw">_ </span>=&gt; output.push(<span class="string">"[Unsupported MCP embedded resource]"</span>.into()),
-<a href=#2263 id=2263 data-nosnippet>2263</a>            },
-<a href=#2264 id=2264 data-nosnippet>2264</a>            ContentBlock::ResourceLink(link) =&gt; {
-<a href=#2265 id=2265 data-nosnippet>2265</a>                output.push(<span class="macro">format!</span>(<span class="string">"[MCP resource link: {} ({})]"</span>, link.name, link.uri))
-<a href=#2266 id=2266 data-nosnippet>2266</a>            }
-<a href=#2267 id=2267 data-nosnippet>2267</a>            <span class="kw">_ </span>=&gt; output.push(<span class="string">"[Unsupported MCP content block]"</span>.into()),
-<a href=#2268 id=2268 data-nosnippet>2268</a>        }
-<a href=#2269 id=2269 data-nosnippet>2269</a>    }
-<a href=#2270 id=2270 data-nosnippet>2270</a>    <span class="kw">let </span>text_output = output.join(<span class="string">"\n"</span>);
-<a href=#2271 id=2271 data-nosnippet>2271</a>    <span class="kw">let </span>structured_content = result.structured_content.filter(|structured| {
-<a href=#2272 id=2272 data-nosnippet>2272</a>        !output
-<a href=#2273 id=2273 data-nosnippet>2273</a>            .iter()
-<a href=#2274 id=2274 data-nosnippet>2274</a>            .chain(std::iter::once(<span class="kw-2">&amp;</span>text_output))
-<a href=#2275 id=2275 data-nosnippet>2275</a>            .any(|text| serde_json::from_str::&lt;Value&gt;(text).ok().as_ref() == <span class="prelude-val">Some</span>(structured))
-<a href=#2276 id=2276 data-nosnippet>2276</a>    });
-<a href=#2277 id=2277 data-nosnippet>2277</a>    <span class="kw">let </span><span class="kw-2">mut </span>metadata = <span class="macro">serde_json::json!</span>({
-<a href=#2278 id=2278 data-nosnippet>2278</a>        <span class="string">"mcp"</span>: {
-<a href=#2279 id=2279 data-nosnippet>2279</a>            <span class="string">"is_error"</span>: result.is_error.unwrap_or(<span class="bool-val">false</span>),
-<a href=#2280 id=2280 data-nosnippet>2280</a>        }
-<a href=#2281 id=2281 data-nosnippet>2281</a>    });
-<a href=#2282 id=2282 data-nosnippet>2282</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = result_display(<span class="kw-2">&amp;</span>output, <span class="kw-2">&amp;mut </span>media);
-<a href=#2283 id=2283 data-nosnippet>2283</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(structured) = structured_content {
-<a href=#2284 id=2284 data-nosnippet>2284</a>        display.push(Open::Known(DisplayBlock::Json {
-<a href=#2285 id=2285 data-nosnippet>2285</a>            value: structured.clone(),
-<a href=#2286 id=2286 data-nosnippet>2286</a>        }));
-<a href=#2287 id=2287 data-nosnippet>2287</a>        metadata[<span class="string">"mcp"</span>][<span class="string">"structured_content"</span>] = structured;
-<a href=#2288 id=2288 data-nosnippet>2288</a>    }
-<a href=#2289 id=2289 data-nosnippet>2289</a>    <span class="kw">let </span>additional_messages = <span class="kw">if </span>emitted_attachments.is_empty() {
-<a href=#2290 id=2290 data-nosnippet>2290</a>        Vec::new()
-<a href=#2291 id=2291 data-nosnippet>2291</a>    } <span class="kw">else </span>{
-<a href=#2292 id=2292 data-nosnippet>2292</a>        <span class="macro">vec!</span>[
-<a href=#2293 id=2293 data-nosnippet>2293</a>            ToolEmittedMessage::new(
-<a href=#2294 id=2294 data-nosnippet>2294</a>                ToolEmittedMessageRole::User,
-<a href=#2295 id=2295 data-nosnippet>2295</a>                emitted_attachments
-<a href=#2296 id=2296 data-nosnippet>2296</a>                    .into_iter()
-<a href=#2297 id=2297 data-nosnippet>2297</a>                    .map(ToolEmittedContent::File)
-<a href=#2298 id=2298 data-nosnippet>2298</a>                    .collect(),
-<a href=#2299 id=2299 data-nosnippet>2299</a>            )
-<a href=#2300 id=2300 data-nosnippet>2300</a>            .map_err(|error| ToolError::execution(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2301 id=2301 data-nosnippet>2301</a>        ]
-<a href=#2302 id=2302 data-nosnippet>2302</a>    };
-<a href=#2303 id=2303 data-nosnippet>2303</a>    <span class="prelude-val">Ok</span>(ToolResult {
-<a href=#2304 id=2304 data-nosnippet>2304</a>        display: cookie_agent_protocol::fit_result_display(display),
-<a href=#2305 id=2305 data-nosnippet>2305</a>        background: <span class="prelude-val">None</span>,
-<a href=#2306 id=2306 data-nosnippet>2306</a>        retained_output: <span class="prelude-val">None</span>,
-<a href=#2307 id=2307 data-nosnippet>2307</a>        title: safe_title(tool_name),
-<a href=#2308 id=2308 data-nosnippet>2308</a>        output: text_output,
-<a href=#2309 id=2309 data-nosnippet>2309</a>        metadata,
-<a href=#2310 id=2310 data-nosnippet>2310</a>        attachments,
-<a href=#2311 id=2311 data-nosnippet>2311</a>        additional_messages,
-<a href=#2312 id=2312 data-nosnippet>2312</a>        loaded_tools: Vec::new(),
-<a href=#2313 id=2313 data-nosnippet>2313</a>    })
-<a href=#2314 id=2314 data-nosnippet>2314</a>}
-<a href=#2315 id=2315 data-nosnippet>2315</a>
-<a href=#2316 id=2316 data-nosnippet>2316</a><span class="doccomment">/// What clients see of a result's `output` parts: consecutive text as one
-<a href=#2317 id=2317 data-nosnippet>2317</a>/// `text` block, as the output joins it, and each retained attachment as the
-<a href=#2318 id=2318 data-nosnippet>2318</a>/// `media` it is instead of its placeholder.
-<a href=#2319 id=2319 data-nosnippet>2319</a></span><span class="kw">fn </span>result_display(
-<a href=#2320 id=2320 data-nosnippet>2320</a>    output: <span class="kw-2">&amp;</span>[String],
-<a href=#2321 id=2321 data-nosnippet>2321</a>    media: <span class="kw-2">&amp;mut </span>HashMap&lt;usize, cookie_agent_protocol::ArtifactRef&gt;,
-<a href=#2322 id=2322 data-nosnippet>2322</a>) -&gt; Vec&lt;Open&lt;DisplayBlock&gt;&gt; {
-<a href=#2323 id=2323 data-nosnippet>2323</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = Vec::new();
-<a href=#2324 id=2324 data-nosnippet>2324</a>    <span class="kw">for </span>(index, part) <span class="kw">in </span>output.iter().enumerate() {
-<a href=#2325 id=2325 data-nosnippet>2325</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(artifact) = media.remove(<span class="kw-2">&amp;</span>index) {
-<a href=#2326 id=2326 data-nosnippet>2326</a>            display.push(Open::Known(DisplayBlock::Media {
-<a href=#2327 id=2327 data-nosnippet>2327</a>                artifact,
-<a href=#2328 id=2328 data-nosnippet>2328</a>                alt: <span class="prelude-val">None</span>,
-<a href=#2329 id=2329 data-nosnippet>2329</a>            }));
-<a href=#2330 id=2330 data-nosnippet>2330</a>            <span class="kw">continue</span>;
-<a href=#2331 id=2331 data-nosnippet>2331</a>        }
-<a href=#2332 id=2332 data-nosnippet>2332</a>        <span class="kw">match </span>display.last_mut() {
-<a href=#2333 id=2333 data-nosnippet>2333</a>            <span class="prelude-val">Some</span>(Open::Known(DisplayBlock::Text { text, .. })) =&gt; {
-<a href=#2334 id=2334 data-nosnippet>2334</a>                text.push(<span class="string">'\n'</span>);
-<a href=#2335 id=2335 data-nosnippet>2335</a>                text.push_str(part);
-<a href=#2336 id=2336 data-nosnippet>2336</a>            }
-<a href=#2337 id=2337 data-nosnippet>2337</a>            <span class="kw">_ </span>=&gt; display.push(Open::Known(DisplayBlock::text(part.clone()))),
-<a href=#2338 id=2338 data-nosnippet>2338</a>        }
-<a href=#2339 id=2339 data-nosnippet>2339</a>    }
-<a href=#2340 id=2340 data-nosnippet>2340</a>    display
-<a href=#2341 id=2341 data-nosnippet>2341</a>}
-<a href=#2342 id=2342 data-nosnippet>2342</a>
-<a href=#2343 id=2343 data-nosnippet>2343</a><span class="attr">#[derive(Debug)]
-<a href=#2344 id=2344 data-nosnippet>2344</a></span><span class="kw">enum </span>McpAttachmentError {
-<a href=#2345 id=2345 data-nosnippet>2345</a>    <span class="doccomment">/// Malformed or undecodable content; reported inline, the call still succeeds.
-<a href=#2346 id=2346 data-nosnippet>2346</a>    </span>Invalid(String),
-<a href=#2347 id=2347 data-nosnippet>2347</a>    <span class="doccomment">/// Rejected by the media gate; fails the tool result like `read` does.
-<a href=#2348 id=2348 data-nosnippet>2348</a>    </span>Gated(String),
+<a href=#2190 id=2190 data-nosnippet>2190</a>            }
+<a href=#2191 id=2191 data-nosnippet>2191</a>            ContentBlock::Audio(audio) =&gt; {
+<a href=#2192 id=2192 data-nosnippet>2192</a>                <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
+<a href=#2193 id=2193 data-nosnippet>2193</a>                    output.push(
+<a href=#2194 id=2194 data-nosnippet>2194</a>                        <span class="string">"[MCP audio attachment omitted: combined attachment limit reached]"</span>.into(),
+<a href=#2195 id=2195 data-nosnippet>2195</a>                    );
+<a href=#2196 id=2196 data-nosnippet>2196</a>                    <span class="kw">continue</span>;
+<a href=#2197 id=2197 data-nosnippet>2197</a>                }
+<a href=#2198 id=2198 data-nosnippet>2198</a>                <span class="kw">match </span>retain_base64_attachment(context, audio.mime_type, <span class="kw-2">&amp;</span>audio.data) {
+<a href=#2199 id=2199 data-nosnippet>2199</a>                    <span class="prelude-val">Ok</span>(retained) =&gt; {
+<a href=#2200 id=2200 data-nosnippet>2200</a>                        <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
+<a href=#2201 id=2201 data-nosnippet>2201</a>                        <span class="kw">if </span>route_mcp_attachment(
+<a href=#2202 id=2202 data-nosnippet>2202</a>                            retained,
+<a href=#2203 id=2203 data-nosnippet>2203</a>                            <span class="kw-2">&amp;mut </span>attachments,
+<a href=#2204 id=2204 data-nosnippet>2204</a>                            <span class="kw-2">&amp;mut </span>emitted_attachments,
+<a href=#2205 id=2205 data-nosnippet>2205</a>                        ) {
+<a href=#2206 id=2206 data-nosnippet>2206</a>                            output.push(<span class="string">"[MCP audio attachment]"</span>.into());
+<a href=#2207 id=2207 data-nosnippet>2207</a>                            media.insert(output.len() - <span class="number">1</span>, artifact);
+<a href=#2208 id=2208 data-nosnippet>2208</a>                        } <span class="kw">else </span>{
+<a href=#2209 id=2209 data-nosnippet>2209</a>                            output.push(
+<a href=#2210 id=2210 data-nosnippet>2210</a>                                <span class="string">"[MCP audio attachment omitted: combined attachment limit reached]"
+<a href=#2211 id=2211 data-nosnippet>2211</a>                                    </span>.into(),
+<a href=#2212 id=2212 data-nosnippet>2212</a>                            );
+<a href=#2213 id=2213 data-nosnippet>2213</a>                        }
+<a href=#2214 id=2214 data-nosnippet>2214</a>                    }
+<a href=#2215 id=2215 data-nosnippet>2215</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; {
+<a href=#2216 id=2216 data-nosnippet>2216</a>                        output.push(<span class="macro">format!</span>(<span class="string">"[Invalid MCP audio content: {error}]"</span>));
+<a href=#2217 id=2217 data-nosnippet>2217</a>                    }
+<a href=#2218 id=2218 data-nosnippet>2218</a>                    <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
+<a href=#2219 id=2219 data-nosnippet>2219</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
+<a href=#2220 id=2220 data-nosnippet>2220</a>                    }
+<a href=#2221 id=2221 data-nosnippet>2221</a>                }
+<a href=#2222 id=2222 data-nosnippet>2222</a>            }
+<a href=#2223 id=2223 data-nosnippet>2223</a>            ContentBlock::Resource(resource) =&gt; <span class="kw">match </span>resource.resource {
+<a href=#2224 id=2224 data-nosnippet>2224</a>                ResourceContents::TextResourceContents { uri, text, .. } =&gt; {
+<a href=#2225 id=2225 data-nosnippet>2225</a>                    output.push(<span class="macro">format!</span>(<span class="string">"[{uri}]\n{text}"</span>));
+<a href=#2226 id=2226 data-nosnippet>2226</a>                }
+<a href=#2227 id=2227 data-nosnippet>2227</a>                ResourceContents::BlobResourceContents {
+<a href=#2228 id=2228 data-nosnippet>2228</a>                    uri,
+<a href=#2229 id=2229 data-nosnippet>2229</a>                    mime_type,
+<a href=#2230 id=2230 data-nosnippet>2230</a>                    blob,
+<a href=#2231 id=2231 data-nosnippet>2231</a>                    ..
+<a href=#2232 id=2232 data-nosnippet>2232</a>                } =&gt; {
+<a href=#2233 id=2233 data-nosnippet>2233</a>                    <span class="kw">if </span>!mcp_attachment_budget_remaining(<span class="kw-2">&amp;</span>attachments, <span class="kw-2">&amp;</span>emitted_attachments) {
+<a href=#2234 id=2234 data-nosnippet>2234</a>                        output.push(<span class="macro">format!</span>(
+<a href=#2235 id=2235 data-nosnippet>2235</a>                            <span class="string">"[MCP embedded resource unavailable: {uri}: combined attachment limit reached]"
+<a href=#2236 id=2236 data-nosnippet>2236</a>                        </span>));
+<a href=#2237 id=2237 data-nosnippet>2237</a>                        <span class="kw">continue</span>;
+<a href=#2238 id=2238 data-nosnippet>2238</a>                    }
+<a href=#2239 id=2239 data-nosnippet>2239</a>                    <span class="kw">match </span>retain_base64_attachment(
+<a href=#2240 id=2240 data-nosnippet>2240</a>                        context,
+<a href=#2241 id=2241 data-nosnippet>2241</a>                        mime_type.unwrap_or_else(|| <span class="string">"application/octet-stream"</span>.into()),
+<a href=#2242 id=2242 data-nosnippet>2242</a>                        <span class="kw-2">&amp;</span>blob,
+<a href=#2243 id=2243 data-nosnippet>2243</a>                    ) {
+<a href=#2244 id=2244 data-nosnippet>2244</a>                        <span class="prelude-val">Ok</span>(retained) =&gt; {
+<a href=#2245 id=2245 data-nosnippet>2245</a>                            <span class="kw">let </span>artifact = retained.attachment.artifact_ref();
+<a href=#2246 id=2246 data-nosnippet>2246</a>                            <span class="kw">let </span>routed = route_mcp_attachment(
+<a href=#2247 id=2247 data-nosnippet>2247</a>                                retained,
+<a href=#2248 id=2248 data-nosnippet>2248</a>                                <span class="kw-2">&amp;mut </span>attachments,
+<a href=#2249 id=2249 data-nosnippet>2249</a>                                <span class="kw-2">&amp;mut </span>emitted_attachments,
+<a href=#2250 id=2250 data-nosnippet>2250</a>                            );
+<a href=#2251 id=2251 data-nosnippet>2251</a>                            output.push(<span class="kw">if </span>routed {
+<a href=#2252 id=2252 data-nosnippet>2252</a>                                <span class="macro">format!</span>(<span class="string">"[MCP embedded resource attachment: {uri}]"</span>)
+<a href=#2253 id=2253 data-nosnippet>2253</a>                            } <span class="kw">else </span>{
+<a href=#2254 id=2254 data-nosnippet>2254</a>                                <span class="macro">format!</span>(
+<a href=#2255 id=2255 data-nosnippet>2255</a>                                    <span class="string">"[MCP embedded resource unavailable: {uri}: combined attachment limit reached]"
+<a href=#2256 id=2256 data-nosnippet>2256</a>                                </span>)
+<a href=#2257 id=2257 data-nosnippet>2257</a>                            });
+<a href=#2258 id=2258 data-nosnippet>2258</a>                            <span class="kw">if </span>routed {
+<a href=#2259 id=2259 data-nosnippet>2259</a>                                media.insert(output.len() - <span class="number">1</span>, artifact);
+<a href=#2260 id=2260 data-nosnippet>2260</a>                            }
+<a href=#2261 id=2261 data-nosnippet>2261</a>                        }
+<a href=#2262 id=2262 data-nosnippet>2262</a>                        <span class="prelude-val">Err</span>(McpAttachmentError::Invalid(error)) =&gt; output.push(<span class="macro">format!</span>(
+<a href=#2263 id=2263 data-nosnippet>2263</a>                            <span class="string">"[MCP embedded resource unavailable: {uri}: {error}]"
+<a href=#2264 id=2264 data-nosnippet>2264</a>                        </span>)),
+<a href=#2265 id=2265 data-nosnippet>2265</a>                        <span class="prelude-val">Err</span>(McpAttachmentError::Gated(error)) =&gt; {
+<a href=#2266 id=2266 data-nosnippet>2266</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::Failed(error));
+<a href=#2267 id=2267 data-nosnippet>2267</a>                        }
+<a href=#2268 id=2268 data-nosnippet>2268</a>                    }
+<a href=#2269 id=2269 data-nosnippet>2269</a>                }
+<a href=#2270 id=2270 data-nosnippet>2270</a>                <span class="kw">_ </span>=&gt; output.push(<span class="string">"[Unsupported MCP embedded resource]"</span>.into()),
+<a href=#2271 id=2271 data-nosnippet>2271</a>            },
+<a href=#2272 id=2272 data-nosnippet>2272</a>            ContentBlock::ResourceLink(link) =&gt; {
+<a href=#2273 id=2273 data-nosnippet>2273</a>                output.push(<span class="macro">format!</span>(<span class="string">"[MCP resource link: {} ({})]"</span>, link.name, link.uri))
+<a href=#2274 id=2274 data-nosnippet>2274</a>            }
+<a href=#2275 id=2275 data-nosnippet>2275</a>            <span class="kw">_ </span>=&gt; output.push(<span class="string">"[Unsupported MCP content block]"</span>.into()),
+<a href=#2276 id=2276 data-nosnippet>2276</a>        }
+<a href=#2277 id=2277 data-nosnippet>2277</a>    }
+<a href=#2278 id=2278 data-nosnippet>2278</a>    <span class="kw">let </span>text_output = output.join(<span class="string">"\n"</span>);
+<a href=#2279 id=2279 data-nosnippet>2279</a>    <span class="kw">let </span>structured_content = result.structured_content.filter(|structured| {
+<a href=#2280 id=2280 data-nosnippet>2280</a>        !output
+<a href=#2281 id=2281 data-nosnippet>2281</a>            .iter()
+<a href=#2282 id=2282 data-nosnippet>2282</a>            .chain(std::iter::once(<span class="kw-2">&amp;</span>text_output))
+<a href=#2283 id=2283 data-nosnippet>2283</a>            .any(|text| serde_json::from_str::&lt;Value&gt;(text).ok().as_ref() == <span class="prelude-val">Some</span>(structured))
+<a href=#2284 id=2284 data-nosnippet>2284</a>    });
+<a href=#2285 id=2285 data-nosnippet>2285</a>    <span class="kw">let </span><span class="kw-2">mut </span>metadata = <span class="macro">serde_json::json!</span>({
+<a href=#2286 id=2286 data-nosnippet>2286</a>        <span class="string">"mcp"</span>: {
+<a href=#2287 id=2287 data-nosnippet>2287</a>            <span class="string">"is_error"</span>: result.is_error.unwrap_or(<span class="bool-val">false</span>),
+<a href=#2288 id=2288 data-nosnippet>2288</a>        }
+<a href=#2289 id=2289 data-nosnippet>2289</a>    });
+<a href=#2290 id=2290 data-nosnippet>2290</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = result_display(<span class="kw-2">&amp;</span>output, <span class="kw-2">&amp;mut </span>media);
+<a href=#2291 id=2291 data-nosnippet>2291</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(structured) = structured_content {
+<a href=#2292 id=2292 data-nosnippet>2292</a>        display.push(Open::Known(DisplayBlock::Json {
+<a href=#2293 id=2293 data-nosnippet>2293</a>            value: structured.clone(),
+<a href=#2294 id=2294 data-nosnippet>2294</a>        }));
+<a href=#2295 id=2295 data-nosnippet>2295</a>        metadata[<span class="string">"mcp"</span>][<span class="string">"structured_content"</span>] = structured;
+<a href=#2296 id=2296 data-nosnippet>2296</a>    }
+<a href=#2297 id=2297 data-nosnippet>2297</a>    <span class="kw">let </span>additional_messages = <span class="kw">if </span>emitted_attachments.is_empty() {
+<a href=#2298 id=2298 data-nosnippet>2298</a>        Vec::new()
+<a href=#2299 id=2299 data-nosnippet>2299</a>    } <span class="kw">else </span>{
+<a href=#2300 id=2300 data-nosnippet>2300</a>        <span class="macro">vec!</span>[
+<a href=#2301 id=2301 data-nosnippet>2301</a>            ToolEmittedMessage::new(
+<a href=#2302 id=2302 data-nosnippet>2302</a>                ToolEmittedMessageRole::User,
+<a href=#2303 id=2303 data-nosnippet>2303</a>                emitted_attachments
+<a href=#2304 id=2304 data-nosnippet>2304</a>                    .into_iter()
+<a href=#2305 id=2305 data-nosnippet>2305</a>                    .map(ToolEmittedContent::File)
+<a href=#2306 id=2306 data-nosnippet>2306</a>                    .collect(),
+<a href=#2307 id=2307 data-nosnippet>2307</a>            )
+<a href=#2308 id=2308 data-nosnippet>2308</a>            .map_err(|error| ToolError::execution(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2309 id=2309 data-nosnippet>2309</a>        ]
+<a href=#2310 id=2310 data-nosnippet>2310</a>    };
+<a href=#2311 id=2311 data-nosnippet>2311</a>    <span class="prelude-val">Ok</span>(ToolResult {
+<a href=#2312 id=2312 data-nosnippet>2312</a>        display: cookie_agent_protocol::fit_result_display(display),
+<a href=#2313 id=2313 data-nosnippet>2313</a>        background: <span class="prelude-val">None</span>,
+<a href=#2314 id=2314 data-nosnippet>2314</a>        retained_output: <span class="prelude-val">None</span>,
+<a href=#2315 id=2315 data-nosnippet>2315</a>        title: safe_title(tool_name),
+<a href=#2316 id=2316 data-nosnippet>2316</a>        output: text_output,
+<a href=#2317 id=2317 data-nosnippet>2317</a>        metadata,
+<a href=#2318 id=2318 data-nosnippet>2318</a>        attachments,
+<a href=#2319 id=2319 data-nosnippet>2319</a>        additional_messages,
+<a href=#2320 id=2320 data-nosnippet>2320</a>        loaded_tools: Vec::new(),
+<a href=#2321 id=2321 data-nosnippet>2321</a>    })
+<a href=#2322 id=2322 data-nosnippet>2322</a>}
+<a href=#2323 id=2323 data-nosnippet>2323</a>
+<a href=#2324 id=2324 data-nosnippet>2324</a><span class="doccomment">/// What clients see of a result's `output` parts: consecutive text as one
+<a href=#2325 id=2325 data-nosnippet>2325</a>/// `text` block, as the output joins it, and each retained attachment as the
+<a href=#2326 id=2326 data-nosnippet>2326</a>/// `media` it is instead of its placeholder.
+<a href=#2327 id=2327 data-nosnippet>2327</a></span><span class="kw">fn </span>result_display(
+<a href=#2328 id=2328 data-nosnippet>2328</a>    output: <span class="kw-2">&amp;</span>[String],
+<a href=#2329 id=2329 data-nosnippet>2329</a>    media: <span class="kw-2">&amp;mut </span>HashMap&lt;usize, cookie_agent_protocol::ArtifactRef&gt;,
+<a href=#2330 id=2330 data-nosnippet>2330</a>) -&gt; Vec&lt;Open&lt;DisplayBlock&gt;&gt; {
+<a href=#2331 id=2331 data-nosnippet>2331</a>    <span class="kw">let </span><span class="kw-2">mut </span>display = Vec::new();
+<a href=#2332 id=2332 data-nosnippet>2332</a>    <span class="kw">for </span>(index, part) <span class="kw">in </span>output.iter().enumerate() {
+<a href=#2333 id=2333 data-nosnippet>2333</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(artifact) = media.remove(<span class="kw-2">&amp;</span>index) {
+<a href=#2334 id=2334 data-nosnippet>2334</a>            display.push(Open::Known(DisplayBlock::Media {
+<a href=#2335 id=2335 data-nosnippet>2335</a>                artifact,
+<a href=#2336 id=2336 data-nosnippet>2336</a>                alt: <span class="prelude-val">None</span>,
+<a href=#2337 id=2337 data-nosnippet>2337</a>            }));
+<a href=#2338 id=2338 data-nosnippet>2338</a>            <span class="kw">continue</span>;
+<a href=#2339 id=2339 data-nosnippet>2339</a>        }
+<a href=#2340 id=2340 data-nosnippet>2340</a>        <span class="kw">match </span>display.last_mut() {
+<a href=#2341 id=2341 data-nosnippet>2341</a>            <span class="prelude-val">Some</span>(Open::Known(DisplayBlock::Text { text, .. })) =&gt; {
+<a href=#2342 id=2342 data-nosnippet>2342</a>                text.push(<span class="string">'\n'</span>);
+<a href=#2343 id=2343 data-nosnippet>2343</a>                text.push_str(part);
+<a href=#2344 id=2344 data-nosnippet>2344</a>            }
+<a href=#2345 id=2345 data-nosnippet>2345</a>            <span class="kw">_ </span>=&gt; display.push(Open::Known(DisplayBlock::text(part.clone()))),
+<a href=#2346 id=2346 data-nosnippet>2346</a>        }
+<a href=#2347 id=2347 data-nosnippet>2347</a>    }
+<a href=#2348 id=2348 data-nosnippet>2348</a>    display
 <a href=#2349 id=2349 data-nosnippet>2349</a>}
 <a href=#2350 id=2350 data-nosnippet>2350</a>
 <a href=#2351 id=2351 data-nosnippet>2351</a><span class="attr">#[derive(Debug)]
-<a href=#2352 id=2352 data-nosnippet>2352</a></span><span class="kw">struct </span>RetainedMcpAttachment {
-<a href=#2353 id=2353 data-nosnippet>2353</a>    attachment: ToolAttachment,
-<a href=#2354 id=2354 data-nosnippet>2354</a>    delivery: cookie_agent_runtime_api::media::AttachmentGate,
-<a href=#2355 id=2355 data-nosnippet>2355</a>}
-<a href=#2356 id=2356 data-nosnippet>2356</a>
-<a href=#2357 id=2357 data-nosnippet>2357</a><span class="kw">fn </span>route_mcp_attachment(
-<a href=#2358 id=2358 data-nosnippet>2358</a>    retained: RetainedMcpAttachment,
-<a href=#2359 id=2359 data-nosnippet>2359</a>    attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
-<a href=#2360 id=2360 data-nosnippet>2360</a>    emitted_attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
-<a href=#2361 id=2361 data-nosnippet>2361</a>) -&gt; bool {
-<a href=#2362 id=2362 data-nosnippet>2362</a>    <span class="kw">if </span>!mcp_attachment_budget_remaining(attachments, emitted_attachments) {
-<a href=#2363 id=2363 data-nosnippet>2363</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2364 id=2364 data-nosnippet>2364</a>    }
-<a href=#2365 id=2365 data-nosnippet>2365</a>    <span class="kw">match </span>retained.delivery {
-<a href=#2366 id=2366 data-nosnippet>2366</a>        cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult =&gt; {
-<a href=#2367 id=2367 data-nosnippet>2367</a>            attachments.push(retained.attachment)
-<a href=#2368 id=2368 data-nosnippet>2368</a>        }
-<a href=#2369 id=2369 data-nosnippet>2369</a>        cookie_agent_runtime_api::media::AttachmentGate::DeliverViaUserTurn =&gt; {
-<a href=#2370 id=2370 data-nosnippet>2370</a>            emitted_attachments.push(retained.attachment);
-<a href=#2371 id=2371 data-nosnippet>2371</a>        }
-<a href=#2372 id=2372 data-nosnippet>2372</a>        cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedModel
-<a href=#2373 id=2373 data-nosnippet>2373</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedFamily
-<a href=#2374 id=2374 data-nosnippet>2374</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectTooLarge { .. } =&gt; {
-<a href=#2375 id=2375 data-nosnippet>2375</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected MCP attachment gates return an error"</span>)
+<a href=#2352 id=2352 data-nosnippet>2352</a></span><span class="kw">enum </span>McpAttachmentError {
+<a href=#2353 id=2353 data-nosnippet>2353</a>    <span class="doccomment">/// Malformed or undecodable content; reported inline, the call still succeeds.
+<a href=#2354 id=2354 data-nosnippet>2354</a>    </span>Invalid(String),
+<a href=#2355 id=2355 data-nosnippet>2355</a>    <span class="doccomment">/// Rejected by the media gate; fails the tool result like `read` does.
+<a href=#2356 id=2356 data-nosnippet>2356</a>    </span>Gated(String),
+<a href=#2357 id=2357 data-nosnippet>2357</a>}
+<a href=#2358 id=2358 data-nosnippet>2358</a>
+<a href=#2359 id=2359 data-nosnippet>2359</a><span class="attr">#[derive(Debug)]
+<a href=#2360 id=2360 data-nosnippet>2360</a></span><span class="kw">struct </span>RetainedMcpAttachment {
+<a href=#2361 id=2361 data-nosnippet>2361</a>    attachment: ToolAttachment,
+<a href=#2362 id=2362 data-nosnippet>2362</a>    delivery: cookie_agent_runtime_api::media::AttachmentGate,
+<a href=#2363 id=2363 data-nosnippet>2363</a>}
+<a href=#2364 id=2364 data-nosnippet>2364</a>
+<a href=#2365 id=2365 data-nosnippet>2365</a><span class="kw">fn </span>route_mcp_attachment(
+<a href=#2366 id=2366 data-nosnippet>2366</a>    retained: RetainedMcpAttachment,
+<a href=#2367 id=2367 data-nosnippet>2367</a>    attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
+<a href=#2368 id=2368 data-nosnippet>2368</a>    emitted_attachments: <span class="kw-2">&amp;mut </span>Vec&lt;ToolAttachment&gt;,
+<a href=#2369 id=2369 data-nosnippet>2369</a>) -&gt; bool {
+<a href=#2370 id=2370 data-nosnippet>2370</a>    <span class="kw">if </span>!mcp_attachment_budget_remaining(attachments, emitted_attachments) {
+<a href=#2371 id=2371 data-nosnippet>2371</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2372 id=2372 data-nosnippet>2372</a>    }
+<a href=#2373 id=2373 data-nosnippet>2373</a>    <span class="kw">match </span>retained.delivery {
+<a href=#2374 id=2374 data-nosnippet>2374</a>        cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult =&gt; {
+<a href=#2375 id=2375 data-nosnippet>2375</a>            attachments.push(retained.attachment)
 <a href=#2376 id=2376 data-nosnippet>2376</a>        }
-<a href=#2377 id=2377 data-nosnippet>2377</a>    }
-<a href=#2378 id=2378 data-nosnippet>2378</a>    <span class="bool-val">true
-<a href=#2379 id=2379 data-nosnippet>2379</a></span>}
-<a href=#2380 id=2380 data-nosnippet>2380</a>
-<a href=#2381 id=2381 data-nosnippet>2381</a><span class="kw">fn </span>mcp_attachment_budget_remaining(
-<a href=#2382 id=2382 data-nosnippet>2382</a>    attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
-<a href=#2383 id=2383 data-nosnippet>2383</a>    emitted_attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
-<a href=#2384 id=2384 data-nosnippet>2384</a>) -&gt; bool {
-<a href=#2385 id=2385 data-nosnippet>2385</a>    attachments.len().saturating_add(emitted_attachments.len()) &lt; ToolResult::MAX_ATTACHMENTS
-<a href=#2386 id=2386 data-nosnippet>2386</a>}
-<a href=#2387 id=2387 data-nosnippet>2387</a>
-<a href=#2388 id=2388 data-nosnippet>2388</a><span class="kw">fn </span>retain_base64_attachment(
-<a href=#2389 id=2389 data-nosnippet>2389</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
-<a href=#2390 id=2390 data-nosnippet>2390</a>    mime_type: String,
-<a href=#2391 id=2391 data-nosnippet>2391</a>    data: <span class="kw-2">&amp;</span>str,
-<a href=#2392 id=2392 data-nosnippet>2392</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RetainedMcpAttachment, McpAttachmentError&gt; {
-<a href=#2393 id=2393 data-nosnippet>2393</a>    <span class="kw">let </span>bytes = base64::engine::general_purpose::STANDARD
-<a href=#2394 id=2394 data-nosnippet>2394</a>        .decode(data)
-<a href=#2395 id=2395 data-nosnippet>2395</a>        .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2396 id=2396 data-nosnippet>2396</a>    <span class="kw">let </span><span class="kw-2">mut </span>delivery = cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult;
-<a href=#2397 id=2397 data-nosnippet>2397</a>    <span class="kw">let </span>sniffed =
-<a href=#2398 id=2398 data-nosnippet>2398</a>        cookie_agent_runtime_api::media::approved_media_type(std::path::Path::new(<span class="string">""</span>), <span class="kw-2">&amp;</span>bytes)
-<a href=#2399 id=2399 data-nosnippet>2399</a>            .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2400 id=2400 data-nosnippet>2400</a>    <span class="kw">let </span>retained_mime = <span class="kw">if </span>mime_type.is_empty() || mime_type == <span class="string">"application/octet-stream" </span>{
-<a href=#2401 id=2401 data-nosnippet>2401</a>        sniffed.unwrap_or(mime_type.as_str())
-<a href=#2402 id=2402 data-nosnippet>2402</a>    } <span class="kw">else </span>{
-<a href=#2403 id=2403 data-nosnippet>2403</a>        mime_type.as_str()
-<a href=#2404 id=2404 data-nosnippet>2404</a>    };
-<a href=#2405 id=2405 data-nosnippet>2405</a>    <span class="kw">let </span>attachment = <span class="kw">if let </span><span class="prelude-val">Some</span>(mime) = sniffed {
-<a href=#2406 id=2406 data-nosnippet>2406</a>        <span class="kw">if </span>cookie_agent_runtime_api::media::canonical_video_mime_type(mime)
-<a href=#2407 id=2407 data-nosnippet>2407</a>            != cookie_agent_runtime_api::media::canonical_video_mime_type(retained_mime)
-<a href=#2408 id=2408 data-nosnippet>2408</a>        {
-<a href=#2409 id=2409 data-nosnippet>2409</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Invalid(<span class="macro">format!</span>(
-<a href=#2410 id=2410 data-nosnippet>2410</a>                <span class="string">"attachment MIME mismatch: declared {retained_mime}, validated {mime}"
-<a href=#2411 id=2411 data-nosnippet>2411</a>            </span>)));
-<a href=#2412 id=2412 data-nosnippet>2412</a>        }
-<a href=#2413 id=2413 data-nosnippet>2413</a>        <span class="kw">let </span>gate = cookie_agent_runtime_api::media::gate_attachment(
-<a href=#2414 id=2414 data-nosnippet>2414</a>            <span class="kw-2">&amp;</span>context.turn_context.input_media,
-<a href=#2415 id=2415 data-nosnippet>2415</a>            mime,
-<a href=#2416 id=2416 data-nosnippet>2416</a>            bytes.len() <span class="kw">as </span>u64,
-<a href=#2417 id=2417 data-nosnippet>2417</a>        );
-<a href=#2418 id=2418 data-nosnippet>2418</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = cookie_agent_runtime_api::media::attachment_gate_error(
-<a href=#2419 id=2419 data-nosnippet>2419</a>            gate,
-<a href=#2420 id=2420 data-nosnippet>2420</a>            mime,
-<a href=#2421 id=2421 data-nosnippet>2421</a>            <span class="kw-2">&amp;</span>context.turn_context.model,
-<a href=#2422 id=2422 data-nosnippet>2422</a>            <span class="kw-2">&amp;</span>context.turn_context.adapter,
-<a href=#2423 id=2423 data-nosnippet>2423</a>        ) {
-<a href=#2424 id=2424 data-nosnippet>2424</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Gated(error));
-<a href=#2425 id=2425 data-nosnippet>2425</a>        }
-<a href=#2426 id=2426 data-nosnippet>2426</a>        delivery = gate;
-<a href=#2427 id=2427 data-nosnippet>2427</a>        context.retain_validated_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
-<a href=#2428 id=2428 data-nosnippet>2428</a>    } <span class="kw">else </span>{
-<a href=#2429 id=2429 data-nosnippet>2429</a>        context.retain_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
-<a href=#2430 id=2430 data-nosnippet>2430</a>    }
-<a href=#2431 id=2431 data-nosnippet>2431</a>    .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
-<a href=#2432 id=2432 data-nosnippet>2432</a>    <span class="prelude-val">Ok</span>(RetainedMcpAttachment {
-<a href=#2433 id=2433 data-nosnippet>2433</a>        attachment,
-<a href=#2434 id=2434 data-nosnippet>2434</a>        delivery,
-<a href=#2435 id=2435 data-nosnippet>2435</a>    })
-<a href=#2436 id=2436 data-nosnippet>2436</a>}
-<a href=#2437 id=2437 data-nosnippet>2437</a>
-<a href=#2438 id=2438 data-nosnippet>2438</a><span class="kw">fn </span>sanitize_name(value: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#2439 id=2439 data-nosnippet>2439</a>    value
-<a href=#2440 id=2440 data-nosnippet>2440</a>        .chars()
-<a href=#2441 id=2441 data-nosnippet>2441</a>        .map(|character| {
-<a href=#2442 id=2442 data-nosnippet>2442</a>            <span class="kw">if </span>character.is_ascii_alphanumeric() || <span class="macro">matches!</span>(character, <span class="string">'_' </span>| <span class="string">'-'</span>) {
-<a href=#2443 id=2443 data-nosnippet>2443</a>                character
-<a href=#2444 id=2444 data-nosnippet>2444</a>            } <span class="kw">else </span>{
-<a href=#2445 id=2445 data-nosnippet>2445</a>                <span class="string">'_'
-<a href=#2446 id=2446 data-nosnippet>2446</a>            </span>}
-<a href=#2447 id=2447 data-nosnippet>2447</a>        })
-<a href=#2448 id=2448 data-nosnippet>2448</a>        .collect()
-<a href=#2449 id=2449 data-nosnippet>2449</a>}
-<a href=#2450 id=2450 data-nosnippet>2450</a>
-<a href=#2451 id=2451 data-nosnippet>2451</a><span class="kw">fn </span>safe_title(value: <span class="kw-2">&amp;</span>str) -&gt; SafeDisplayText {
-<a href=#2452 id=2452 data-nosnippet>2452</a>    <span class="kw">let </span><span class="kw-2">mut </span>title = String::new();
-<a href=#2453 id=2453 data-nosnippet>2453</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
-<a href=#2454 id=2454 data-nosnippet>2454</a>        <span class="kw">let </span>character = <span class="kw">if </span>character.is_control() {
-<a href=#2455 id=2455 data-nosnippet>2455</a>            <span class="string">' '
-<a href=#2456 id=2456 data-nosnippet>2456</a>        </span>} <span class="kw">else </span>{
-<a href=#2457 id=2457 data-nosnippet>2457</a>            character
-<a href=#2458 id=2458 data-nosnippet>2458</a>        };
-<a href=#2459 id=2459 data-nosnippet>2459</a>        <span class="kw">if </span>title.len() + character.len_utf8() &gt; SafeDisplayText::MAX_BYTES {
-<a href=#2460 id=2460 data-nosnippet>2460</a>            <span class="kw">break</span>;
-<a href=#2461 id=2461 data-nosnippet>2461</a>        }
-<a href=#2462 id=2462 data-nosnippet>2462</a>        title.push(character);
-<a href=#2463 id=2463 data-nosnippet>2463</a>    }
-<a href=#2464 id=2464 data-nosnippet>2464</a>    SafeDisplayText::new(title).expect(<span class="string">"sanitized MCP title"</span>)
-<a href=#2465 id=2465 data-nosnippet>2465</a>}
-<a href=#2466 id=2466 data-nosnippet>2466</a>
-<a href=#2467 id=2467 data-nosnippet>2467</a><span class="attr">#[cfg(test)]
-<a href=#2468 id=2468 data-nosnippet>2468</a></span><span class="kw">mod </span>tests;
+<a href=#2377 id=2377 data-nosnippet>2377</a>        cookie_agent_runtime_api::media::AttachmentGate::DeliverViaUserTurn =&gt; {
+<a href=#2378 id=2378 data-nosnippet>2378</a>            emitted_attachments.push(retained.attachment);
+<a href=#2379 id=2379 data-nosnippet>2379</a>        }
+<a href=#2380 id=2380 data-nosnippet>2380</a>        cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedModel
+<a href=#2381 id=2381 data-nosnippet>2381</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectUnsupportedFamily
+<a href=#2382 id=2382 data-nosnippet>2382</a>        | cookie_agent_runtime_api::media::AttachmentGate::RejectTooLarge { .. } =&gt; {
+<a href=#2383 id=2383 data-nosnippet>2383</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected MCP attachment gates return an error"</span>)
+<a href=#2384 id=2384 data-nosnippet>2384</a>        }
+<a href=#2385 id=2385 data-nosnippet>2385</a>    }
+<a href=#2386 id=2386 data-nosnippet>2386</a>    <span class="bool-val">true
+<a href=#2387 id=2387 data-nosnippet>2387</a></span>}
+<a href=#2388 id=2388 data-nosnippet>2388</a>
+<a href=#2389 id=2389 data-nosnippet>2389</a><span class="kw">fn </span>mcp_attachment_budget_remaining(
+<a href=#2390 id=2390 data-nosnippet>2390</a>    attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
+<a href=#2391 id=2391 data-nosnippet>2391</a>    emitted_attachments: <span class="kw-2">&amp;</span>[ToolAttachment],
+<a href=#2392 id=2392 data-nosnippet>2392</a>) -&gt; bool {
+<a href=#2393 id=2393 data-nosnippet>2393</a>    attachments.len().saturating_add(emitted_attachments.len()) &lt; ToolResult::MAX_ATTACHMENTS
+<a href=#2394 id=2394 data-nosnippet>2394</a>}
+<a href=#2395 id=2395 data-nosnippet>2395</a>
+<a href=#2396 id=2396 data-nosnippet>2396</a><span class="kw">fn </span>retain_base64_attachment(
+<a href=#2397 id=2397 data-nosnippet>2397</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
+<a href=#2398 id=2398 data-nosnippet>2398</a>    mime_type: String,
+<a href=#2399 id=2399 data-nosnippet>2399</a>    data: <span class="kw-2">&amp;</span>str,
+<a href=#2400 id=2400 data-nosnippet>2400</a>) -&gt; <span class="prelude-ty">Result</span>&lt;RetainedMcpAttachment, McpAttachmentError&gt; {
+<a href=#2401 id=2401 data-nosnippet>2401</a>    <span class="kw">let </span>bytes = base64::engine::general_purpose::STANDARD
+<a href=#2402 id=2402 data-nosnippet>2402</a>        .decode(data)
+<a href=#2403 id=2403 data-nosnippet>2403</a>        .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2404 id=2404 data-nosnippet>2404</a>    <span class="kw">let </span><span class="kw-2">mut </span>delivery = cookie_agent_runtime_api::media::AttachmentGate::AttachToolResult;
+<a href=#2405 id=2405 data-nosnippet>2405</a>    <span class="kw">let </span>sniffed =
+<a href=#2406 id=2406 data-nosnippet>2406</a>        cookie_agent_runtime_api::media::approved_media_type(std::path::Path::new(<span class="string">""</span>), <span class="kw-2">&amp;</span>bytes)
+<a href=#2407 id=2407 data-nosnippet>2407</a>            .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2408 id=2408 data-nosnippet>2408</a>    <span class="kw">let </span>retained_mime = <span class="kw">if </span>mime_type.is_empty() || mime_type == <span class="string">"application/octet-stream" </span>{
+<a href=#2409 id=2409 data-nosnippet>2409</a>        sniffed.unwrap_or(mime_type.as_str())
+<a href=#2410 id=2410 data-nosnippet>2410</a>    } <span class="kw">else </span>{
+<a href=#2411 id=2411 data-nosnippet>2411</a>        mime_type.as_str()
+<a href=#2412 id=2412 data-nosnippet>2412</a>    };
+<a href=#2413 id=2413 data-nosnippet>2413</a>    <span class="kw">let </span>attachment = <span class="kw">if let </span><span class="prelude-val">Some</span>(mime) = sniffed {
+<a href=#2414 id=2414 data-nosnippet>2414</a>        <span class="kw">if </span>cookie_agent_runtime_api::media::canonical_video_mime_type(mime)
+<a href=#2415 id=2415 data-nosnippet>2415</a>            != cookie_agent_runtime_api::media::canonical_video_mime_type(retained_mime)
+<a href=#2416 id=2416 data-nosnippet>2416</a>        {
+<a href=#2417 id=2417 data-nosnippet>2417</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Invalid(<span class="macro">format!</span>(
+<a href=#2418 id=2418 data-nosnippet>2418</a>                <span class="string">"attachment MIME mismatch: declared {retained_mime}, validated {mime}"
+<a href=#2419 id=2419 data-nosnippet>2419</a>            </span>)));
+<a href=#2420 id=2420 data-nosnippet>2420</a>        }
+<a href=#2421 id=2421 data-nosnippet>2421</a>        <span class="kw">let </span>gate = cookie_agent_runtime_api::media::gate_attachment(
+<a href=#2422 id=2422 data-nosnippet>2422</a>            <span class="kw-2">&amp;</span>context.turn_context.input_media,
+<a href=#2423 id=2423 data-nosnippet>2423</a>            mime,
+<a href=#2424 id=2424 data-nosnippet>2424</a>            bytes.len() <span class="kw">as </span>u64,
+<a href=#2425 id=2425 data-nosnippet>2425</a>        );
+<a href=#2426 id=2426 data-nosnippet>2426</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = cookie_agent_runtime_api::media::attachment_gate_error(
+<a href=#2427 id=2427 data-nosnippet>2427</a>            gate,
+<a href=#2428 id=2428 data-nosnippet>2428</a>            mime,
+<a href=#2429 id=2429 data-nosnippet>2429</a>            <span class="kw-2">&amp;</span>context.turn_context.model,
+<a href=#2430 id=2430 data-nosnippet>2430</a>            <span class="kw-2">&amp;</span>context.turn_context.adapter,
+<a href=#2431 id=2431 data-nosnippet>2431</a>        ) {
+<a href=#2432 id=2432 data-nosnippet>2432</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(McpAttachmentError::Gated(error));
+<a href=#2433 id=2433 data-nosnippet>2433</a>        }
+<a href=#2434 id=2434 data-nosnippet>2434</a>        delivery = gate;
+<a href=#2435 id=2435 data-nosnippet>2435</a>        context.retain_validated_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
+<a href=#2436 id=2436 data-nosnippet>2436</a>    } <span class="kw">else </span>{
+<a href=#2437 id=2437 data-nosnippet>2437</a>        context.retain_attachment(retained_mime, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>bytes)
+<a href=#2438 id=2438 data-nosnippet>2438</a>    }
+<a href=#2439 id=2439 data-nosnippet>2439</a>    .map_err(|error| McpAttachmentError::Invalid(error.to_string()))<span class="question-mark">?</span>;
+<a href=#2440 id=2440 data-nosnippet>2440</a>    <span class="prelude-val">Ok</span>(RetainedMcpAttachment {
+<a href=#2441 id=2441 data-nosnippet>2441</a>        attachment,
+<a href=#2442 id=2442 data-nosnippet>2442</a>        delivery,
+<a href=#2443 id=2443 data-nosnippet>2443</a>    })
+<a href=#2444 id=2444 data-nosnippet>2444</a>}
+<a href=#2445 id=2445 data-nosnippet>2445</a>
+<a href=#2446 id=2446 data-nosnippet>2446</a><span class="kw">fn </span>sanitize_name(value: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#2447 id=2447 data-nosnippet>2447</a>    value
+<a href=#2448 id=2448 data-nosnippet>2448</a>        .chars()
+<a href=#2449 id=2449 data-nosnippet>2449</a>        .map(|character| {
+<a href=#2450 id=2450 data-nosnippet>2450</a>            <span class="kw">if </span>character.is_ascii_alphanumeric() || <span class="macro">matches!</span>(character, <span class="string">'_' </span>| <span class="string">'-'</span>) {
+<a href=#2451 id=2451 data-nosnippet>2451</a>                character
+<a href=#2452 id=2452 data-nosnippet>2452</a>            } <span class="kw">else </span>{
+<a href=#2453 id=2453 data-nosnippet>2453</a>                <span class="string">'_'
+<a href=#2454 id=2454 data-nosnippet>2454</a>            </span>}
+<a href=#2455 id=2455 data-nosnippet>2455</a>        })
+<a href=#2456 id=2456 data-nosnippet>2456</a>        .collect()
+<a href=#2457 id=2457 data-nosnippet>2457</a>}
+<a href=#2458 id=2458 data-nosnippet>2458</a>
+<a href=#2459 id=2459 data-nosnippet>2459</a><span class="kw">fn </span>safe_title(value: <span class="kw-2">&amp;</span>str) -&gt; SafeDisplayText {
+<a href=#2460 id=2460 data-nosnippet>2460</a>    <span class="kw">let </span><span class="kw-2">mut </span>title = String::new();
+<a href=#2461 id=2461 data-nosnippet>2461</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
+<a href=#2462 id=2462 data-nosnippet>2462</a>        <span class="kw">let </span>character = <span class="kw">if </span>character.is_control() {
+<a href=#2463 id=2463 data-nosnippet>2463</a>            <span class="string">' '
+<a href=#2464 id=2464 data-nosnippet>2464</a>        </span>} <span class="kw">else </span>{
+<a href=#2465 id=2465 data-nosnippet>2465</a>            character
+<a href=#2466 id=2466 data-nosnippet>2466</a>        };
+<a href=#2467 id=2467 data-nosnippet>2467</a>        <span class="kw">if </span>title.len() + character.len_utf8() &gt; SafeDisplayText::MAX_BYTES {
+<a href=#2468 id=2468 data-nosnippet>2468</a>            <span class="kw">break</span>;
+<a href=#2469 id=2469 data-nosnippet>2469</a>        }
+<a href=#2470 id=2470 data-nosnippet>2470</a>        title.push(character);
+<a href=#2471 id=2471 data-nosnippet>2471</a>    }
+<a href=#2472 id=2472 data-nosnippet>2472</a>    SafeDisplayText::new(title).expect(<span class="string">"sanitized MCP title"</span>)
+<a href=#2473 id=2473 data-nosnippet>2473</a>}
+<a href=#2474 id=2474 data-nosnippet>2474</a>
+<a href=#2475 id=2475 data-nosnippet>2475</a><span class="attr">#[cfg(test)]
+<a href=#2476 id=2476 data-nosnippet>2476</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
