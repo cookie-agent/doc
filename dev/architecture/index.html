@@ -4588,12 +4588,13 @@ after a short pause.</p>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       │    └─ web      (browser client; wasm32, also compiles natively)
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       ├─ runtime_api   (tool contract + runtime protocol; never on the engine)
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       ├─ models
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │    └─ config
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       │         └─ mcp     (also on runtime_api; never on the engine)
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       │              ├─ coding_runtime  (never on the engine)
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>       │              └─ engine  (enables mcp's `oauth` feature)
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>       │                   └─ server  (also on web_assets, the built page)
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>       └─ cookie_agent (binary: composes every layer)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       │    ├─ engine_store  (also on config: sessions, event logs, projections)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       │    └─ config
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       │         └─ mcp     (also on runtime_api; never on the engine)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>       │              ├─ coding_runtime  (never on the engine)
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>       │              └─ engine  (also on engine_store; enables mcp's `oauth` feature)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>       │                   └─ server  (also on web_assets, the built page)
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>       └─ cookie_agent (binary: composes every layer)
 </code></pre></div>
 <p>The TUI deliberately sits beside the engine rather than above it: it speaks
 only the protocol, receives an already-connected <code>Client</code>, and the
@@ -4645,8 +4646,12 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
 <td>The MCP client (<code>cookie_agent_mcp</code>): an <code>McpRegistry</code> per runtime that connects its servers eagerly over stdio or Streamable HTTP, publishes their tools as <code>&lt;server&gt;_&lt;tool&gt;</code> with untrusted-output markings, maps result media to attachments, reconnects dropped servers with the shared reconnect policy, and reports status and failures to subscribers and an <code>McpObserver</code>. The <code>oauth</code> feature, which only the engine enables, adds OAuth for remote servers and the <code>mcp-oauth.json</code> credential store. Depends on <code>runtime_api</code> and <code>config</code>, never on the engine.</td>
 </tr>
 <tr>
+<td><code>engine_store</code></td>
+<td>The engine's storage layer (<code>cookie_agent_engine_store</code>): session directories and their <code>events.jsonl</code> logs, the projections folded from them (sessions, goals and producer messages, delegations, usage and pricing), lazy tree loads, the session-log converters (<code>events/convert</code>), and tree ownership locks. It knows nothing of runs or runtimes; where it needs the engine (a tree load's products, the ACP sessions a fork leaves behind) the engine passes a hook. Depends on <code>protocol</code>, <code>models</code>, <code>config</code>, and <code>identity</code>.</td>
+</tr>
+<tr>
 <td><code>engine</code></td>
-<td>Session actors, run loops, permissions, approvals, delegation, compaction, internal agents, persistence, the base layer tools (delegation: <code>delegate_subagent</code>, <code>get_subagent_result</code>; messaging: <code>send_message</code>; <code>skill</code>; goals; <code>read_artifact</code>; <code>stop_background</code>), background calls (<code>runtime/background_tasks.rs</code>), subagent reports (<code>runtime/subagent_reports.rs</code>), and the runtime registry with the runtime protocol client (<code>runtimes::remote</code>), the child-process connector of configured templates (<code>runtimes::process</code>), instance reconnects, and the global runtime's <code>McpRegistry</code> with the TUI's runtime-layer MCP edits and their write-back (<code>config_store</code>).</td>
+<td>Session actors, run loops, permissions, approvals, delegation, compaction, internal agents, the base layer tools (delegation: <code>delegate_subagent</code>, <code>get_subagent_result</code>; messaging: <code>send_message</code>; <code>skill</code>; goals; <code>read_artifact</code>; <code>stop_background</code>), background calls (<code>runtime/background_tasks.rs</code>), subagent reports (<code>runtime/subagent_reports.rs</code>), and the runtime registry with the runtime protocol client (<code>runtimes::remote</code>), the child-process connector of configured templates (<code>runtimes::process</code>), instance reconnects, and the global runtime's <code>McpRegistry</code> with the TUI's runtime-layer MCP edits and their write-back (<code>config_store</code>).</td>
 </tr>
 <tr>
 <td><code>coding_runtime</code></td>

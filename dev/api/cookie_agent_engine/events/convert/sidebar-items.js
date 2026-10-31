@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConvertError"],"fn":["convert","convert_bytes","convertible","history_format"],"struct":["Converter"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OWNER_LOCK_FILE","OWNER_LOCK_SUFFIX"],"enum":["SessionOwnership"],"fn":["owner_lock_path","try_acquire"],"struct":["HeldLock","WriteAuthority","WriteCapability"]};

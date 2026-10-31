@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ACP_ADAPTER"],"fn":["adapter_family","wire_adapter","wire_resolved"]};
