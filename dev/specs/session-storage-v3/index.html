@@ -3864,6 +3864,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="5. Migration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4517,6 +4532,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="5. Migration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4558,7 +4588,9 @@
 
 <h1 id="responsive-session-loading-and-session-storage-v3">Responsive session loading and session storage v3<a class="headerlink" href="#responsive-session-loading-and-session-storage-v3" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>approved</strong> (2026-10-31), with the user's decisions of
-2026-10-31 in <a href="#7-decisions">section 7</a>; phase 1 in progress.</p>
+2026-10-31 in <a href="#7-decisions">section 7</a>; phase 1 in progress; phase 3's
+layout, listing, and migration (4.1, 4.3, 4.4, 5) implemented with history
+format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>).</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>Opening a long session in the web client sometimes fails with
 <code>subscription replay response timed out</code>, most often when the daemon's
@@ -4921,6 +4953,56 @@ and 20–30 s on a busy one. The web client reconnects by itself (its
 backoff tops out at 10 s). Later format bumps use the same marker: one
 migration at startup, then the marker moves up. Converters are never
 removed, so an older store upgrades step by step in one pass.</p>
+<h3 id="51-implementation-notes-2026-10-31">5.1 Implementation notes (2026-10-31)<a class="headerlink" href="#51-implementation-notes-2026-10-31" title="Permanent link">&para;</a></h3>
+<p>Layout version 3 with history format 1, so <code>view.json</code>, <code>blobs/</code>, and
+<code>v1_to_v2</code> are still to come. Where the implementation settles what the
+sections above leave open, or departs from them:</p>
+<ul>
+<li><strong>No conversion yet, so no backups.</strong> Each tree moves by one rename.
+  <code>convert_tree</code> still runs on it under its lock, converting logs of a
+  format older than 1; only their originals go to <code>.backup-v2/&lt;root-id&gt;/</code>,
+  deleted after the commit point. The free-space check counts only the
+  logs that need converting, by <code>statvfs</code> on Unix; Windows has no check
+  (a conversion that runs out of space fails its tree, which stays
+  pending).</li>
+<li><strong><code>layout.json</code></strong> is <code>{"version", "history_format", "build", "pending"}</code>:
+  <code>build</code> is the version of the cookie build that wrote it, which a
+  refusing older build names ("it needs cookie 0.5.0 or newer"). Each
+  pending tree is <code>{"root_session_id", "path", "error"}</code>, <code>path</code> relative
+  to <code>sessions/</code>. The startup also lists <code>sessions/</code> itself (one
+  directory): it removes deletion tombstones, <code>.backup-v2/</code>, and v2
+  work-dir folders left behind by an interrupted cleanup, but never looks
+  inside a month folder.</li>
+<li><strong>Journal writes.</strong> Besides creation (first publication), title,
+  project, and status, an entry is appended when held, attachments, or an
+  active goal change (everything the fold calls durable metadata), on a
+  fork or revert, and when a root with events since its last entry
+  leaves memory (eviction or shutdown), so the listed <code>last_event_seq</code>,
+  which guards a delete, is current. A root resident in this daemon
+  answers from its projection. Appends are not synced; compaction and the
+  migration's journals are (temp file, fsync, rename). A power loss can
+  lose the newest entries; a crashed process cannot. A deletion's
+  tombstone folder now sits in <code>sessions/</code> (<code>.deleted-&lt;root&gt;-&lt;id&gt;</code>), and
+  one found at startup also journals the deletion.</li>
+<li><strong>Cursors.</strong> <code>before</code> and <code>older</code> are timestamps. A page with <code>before</code>
+  and no <code>active_since</code> reaches back to the start of the newest month
+  that holds older sessions, passing over months that hold none.</li>
+<li><strong>The migration's journals</strong> are rebuilt from every root in a month
+  folder (so a resumed migration counts the trees an earlier attempt
+  moved); a retry of pending trees only appends theirs. The work-dir
+  folders' <code>runtime-revisions-v8.jsonl</code> are merged into
+  <code>sessions/runtime-revisions.jsonl</code>, each record once, and of two that
+  map one runtime revision differently the first.</li>
+<li><strong><code>cookie sessions upgrade</code></strong> loses <code>--all</code>: with no work-dir key it
+  moves the store to this layout, as a start does, and converts every
+  tree.</li>
+<li><strong>Measured</strong> on a scratch copy of this machine's store (96 roots in four
+  work-dir folders, 300 MB, a debug build, idle machine): 96 trees moved
+  in 0.7 s, none pending; the next start read only <code>layout.json</code>;
+  <code>session.list</code> over the 30-day window answered 94 of 96 sessions in
+  about 40 ms, over WebSocket. Seven of those roots predate history
+  formats and do not open, as before the migration.</li>
+</ul>
 <h2 id="6-order-of-work">6. Order of work<a class="headerlink" href="#6-order-of-work" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Phase 1 (2.1–2.4), one change each, measured against section 1's

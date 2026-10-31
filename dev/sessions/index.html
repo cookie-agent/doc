@@ -1370,6 +1370,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#where-sessions-are-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where sessions are stored
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#history-formats" class="md-nav__link">
     <span class="md-ellipsis">
       History formats
@@ -4215,6 +4224,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#where-sessions-are-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where sessions are stored
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#history-formats" class="md-nav__link">
     <span class="md-ellipsis">
       History formats
@@ -4311,6 +4329,30 @@ bookkeeping (<code>model_attempt_started</code>, <code>model_tools_published</co
 can drop only such records at the end of the log. While a run is in flight, fold-ignored records do not rewrite the
 metadata tip (<code>last_event_seq</code>, <code>last_activity</code>); it catches up at the run's
 next projection change or terminal event, on eviction, and on shutdown.</p>
+<h2 id="where-sessions-are-stored">Where sessions are stored<a class="headerlink" href="#where-sessions-are-stored" title="Permanent link">&para;</a></h2>
+<p>Every session lives in one store, <code>~/.cookie-agent/sessions/</code>, whatever
+directory the daemon was started in; each session records its own working
+directory, and projects group sessions. A root session's folder is
+<code>sessions/&lt;yyyy-mm&gt;/&lt;session-id&gt;/</code>, named for the month (UTC) its id was
+created in, and never moves; its subagents live under its <code>subagents/</code>
+folder. <code>sessions/layout.json</code> records the store's layout version (3) and
+history format.</p>
+<p>The session lists of the TUI and the web client show the sessions active in
+the last 30 days, and every unread or busy one (a run going, an approval or
+a question waiting, a background call running, or a subagent that can still
+wake it) whatever its age; <strong>Older</strong> (Ctrl+O in <code>/sessions</code>) or <strong>Show
+older</strong> adds a month at a time. The daemon answers from the activity
+journals in <code>sessions/activity/&lt;yyyy-mm&gt;.jsonl</code>, which get a session's entry
+when its title, project, or status changes, never for every event.</p>
+<p>A daemon that finds a store laid out by an older build, with a folder per
+directory (<code>sessions/&lt;hash&gt;-&lt;name&gt;/</code>), moves every session into its month
+once, before it accepts connections, converting logs of an older history
+format on the way; later starts find <code>layout.json</code> current and look at
+nothing else. A session that cannot move, such as one another cookie
+process holds, stays in its old folder: the daemon's log and the
+configuration diagnostics (<code>/config</code> in the TUI, Settings in the web client)
+name it, it is not listed, and every start tries again. A daemon refuses a
+store a newer build laid out and names the build it needs.</p>
 <p>Shutting the daemon down cleanly cancels whatever runs are in flight and waits,
 under a short bound, for them to record <code>RunCancelled</code>; a run only comes back as
 interrupted by daemon restart when the process died without that chance.</p>
@@ -4344,10 +4386,10 @@ older one converts it the first time it takes the session's tree for
 writing, keeping each original log beside the new one as
 <code>events.jsonl.v&lt;N&gt;.bak</code>; a read-only view converts in memory only. To convert
 every session up front instead:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cookie<span class="w"> </span>sessions<span class="w"> </span>upgrade<span class="w">        </span><span class="c1"># the sessions of this directory</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cookie<span class="w"> </span>sessions<span class="w"> </span>upgrade<span class="w"> </span>--all<span class="w">  </span><span class="c1"># the sessions of every directory</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cookie<span class="w"> </span>sessions<span class="w"> </span>upgrade
 </code></pre></div>
-<p>It reports each tree it converted, each it skipped because another cookie
+<p>It moves the store to this build's layout first, as a daemon's start does,
+then converts every session. It reports each tree it converted, each it skipped because another cookie
 process holds it (that process converts it itself), and each session it
 cannot convert, such as one written before history formats, and exits
 nonzero when there was one. The backups stay until you delete them.</p>
@@ -4380,8 +4422,8 @@ since a fork holds its own copy of the artifacts.</p>
 while another cookie process owns the tree, and when the root gained events
 since the client showed it, such as another client's new turn. It moves the
 tree's directory aside first and then removes it, so a crash in between
-leaves only a <code>.deleted-…</code> directory, which the next start removes. Every
-client is told the sessions are gone.</p>
+leaves only a <code>.deleted-…</code> directory, which the next start removes and
+drops from the session list. Every client is told the sessions are gone.</p>
 <p>In the TUI, open <code>/sessions</code>, highlight the session, press Ctrl+D (or Delete
 while the list has focus), and confirm with <code>y</code>. In the web client, use the
 trash icon on the session's row. See

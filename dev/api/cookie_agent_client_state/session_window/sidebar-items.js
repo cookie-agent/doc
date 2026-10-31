@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LIST_WINDOW_SINCE","RECENT_DAYS"],"fn":["daemon_lists_by_activity","merge_older"],"struct":["SessionWindow"]};

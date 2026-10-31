@@ -2874,18 +2874,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#work-dir-layout" class="md-nav__link">
+  <a href="#session-storage-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      Work-dir layout
+      Session storage layout
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#metadata-only-listing-and-lazy-trees" class="md-nav__link">
+  <a href="#listing-from-activity-journals-and-lazy-trees" class="md-nav__link">
     <span class="md-ellipsis">
-      Metadata-only listing and lazy trees
+      Listing from activity journals, and lazy trees
     </span>
   </a>
   
@@ -4435,18 +4435,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#work-dir-layout" class="md-nav__link">
+  <a href="#session-storage-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      Work-dir layout
+      Session storage layout
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#metadata-only-listing-and-lazy-trees" class="md-nav__link">
+  <a href="#listing-from-activity-journals-and-lazy-trees" class="md-nav__link">
     <span class="md-ellipsis">
-      Metadata-only listing and lazy trees
+      Listing from activity journals, and lazy trees
     </span>
   </a>
   
@@ -4587,8 +4587,8 @@ and option; in outline:</p>
 <td>List, edit, and delete the daemon's memories</td>
 </tr>
 <tr>
-<td><code>sessions upgrade [--all]</code></td>
-<td>Convert stored sessions to this build's history format, without a daemon</td>
+<td><code>sessions upgrade</code></td>
+<td>Move the session store to this build's layout and convert stored sessions to its history format, without a daemon</td>
 </tr>
 </tbody>
 </table>
@@ -5033,54 +5033,75 @@ truncates the log after its target, closes whatever the cut left open, and
 deletes the subagent sessions the removed delegations created; live
 subscribers get a <code>rewound</code> notification. Fork copies a persisted prefix under
 a new session ID.</p>
-<h3 id="work-dir-layout">Work-dir layout<a class="headerlink" href="#work-dir-layout" title="Permanent link">&para;</a></h3>
-<p>Session data lives under the user data directory in one store per canonical
-working directory:</p>
+<h3 id="session-storage-layout">Session storage layout<a class="headerlink" href="#session-storage-layout" title="Permanent link">&para;</a></h3>
+<p>Session data lives under the user data directory in one store for the whole
+daemon, whatever directory it was started in (layout version 3,
+<a href="../specs/session-storage-v3/">session storage v3</a>):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>~/.cookie-agent/
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  providers/store-v3.json          # durable managed connections
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  catalog/                         # validated models.dev cache
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  sessions/&lt;workdirkey&gt;/           # one store per canonical cwd
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    layout.json                    # {"version":2}
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    cwd                            # canonical work-dir path
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    runtime-revisions-v8.jsonl     # runtime revision index
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    &lt;root-session-id&gt;/             # root sessions live directly inside
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>      metadata                     # derived session cache
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>      events.jsonl                 # append-only root log
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>      grant-invalidations.jsonl    # this tree's grant invalidation journal
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>      owner.lock                   # Unix in-directory lock for the whole tree
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>      artifacts/                   # artifacts owned by this root's tree
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>      &lt;root-session-id&gt;.owner.lock # Windows sidecar, also for the whole tree
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>      subagents/
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>        index.json                 # child-summary cache, {"version":1,...}
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>        &lt;child-session-id&gt;/        # metadata, events.jsonl — no lock file
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  unread.json                      # the unread root sessions
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  sessions/
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    layout.json                    # {"version":3,"history_format":1,"build":…,"pending":[]}
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    activity/&lt;yyyy-mm&gt;.jsonl       # list entries of root sessions, by month written
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    runtime-revisions.jsonl        # runtime revision index
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    &lt;yyyy-mm&gt;/                     # UTC month of the root's UUIDv7 id
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>      &lt;root-session-id&gt;/
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        metadata                   # derived session cache
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        events.jsonl               # append-only root log
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        grant-invalidations.jsonl  # this tree's grant invalidation journal
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        owner.lock                 # Unix in-directory lock for the whole tree
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>        artifacts/                 # artifacts owned by this root's tree
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>        subagents/
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>          index.json               # child-summary cache, {"version":1,...}
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>          &lt;child-session-id&gt;/      # metadata, events.jsonl — no lock file
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>      &lt;root-session-id&gt;.owner.lock # Windows sidecar, also for the whole tree
 </code></pre></div>
-<p><code>&lt;workdirkey&gt;</code> is <code>&lt;16-hex-hash&gt;-&lt;sanitized-basename&gt;</code>, where the hash is the
-<code>DefaultHasher</code> of the canonical path string and the suffix is the lowercased
-final path component with every character outside <code>[a-z0-9._-]</code> replaced by
-<code>-</code>, repeats collapsed, length capped at 32, and edge <code>-</code>/<code>_</code> trimmed. The
-suffix exists for browsability only and is computed once at directory creation:
-resolution scans <code>sessions/</code> for the entry equal to the hash or prefixed by
-<code>&lt;hash&gt;-</code>, so the hash alone is the addressing key and a stale suffix after a
-cwd rename is harmless. An empty suffix leaves the bare hash as the whole key.</p>
+<p>A root's folder follows from its id, so resolving one needs no lookup, and it
+never moves: a session resumed months later stays in its creation month. A
+child is filed under its root whatever its own month; an unknown child is
+found by checking each root's <code>subagents/&lt;id&gt;/</code> from the child's month
+backwards, which almost always stops in the first month. A root whose id is
+not a UUIDv7, which this build never creates, is found in whichever month
+folder holds it.</p>
+<p><code>layout.json</code> is written last, durably, by the migration from an older
+layout; a daemon refuses a store whose layout version or history format is
+newer than it knows, naming the build it needs. The migration runs once,
+before the daemon accepts connections: it moves every root folder of every
+work-dir folder the version 2 layout kept (<code>sessions/&lt;hash&gt;-&lt;name&gt;/</code>) into its
+month, one tree at a time so a crash leaves each tree old or done, converts
+logs of an older history format on the way, writes the activity journals from
+each root's <code>metadata</code>, and merges the work-dir folders' runtime revision
+indexes. A tree that cannot move (another process holds it, or a log does not
+convert) stays where it was, is listed in <code>pending</code> with the error, named in
+the startup log and the configuration diagnostics, and retried at every
+start; it is not listed until it moves.</p>
 <p>Directories and files are created private (<code>0o700</code> / <code>0o600</code> on Unix).</p>
-<h3 id="metadata-only-listing-and-lazy-trees">Metadata-only listing and lazy trees<a class="headerlink" href="#metadata-only-listing-and-lazy-trees" title="Permanent link">&para;</a></h3>
-<p>Opening a store reads nothing under the work dir. Listing root sessions parses
-each root's <code>metadata</code> once, or answers from memory for a root this process
-holds; it never opens an <code>events.jsonl</code> and keeps no cache of its own, so the
-next listing sees roots other processes created or changed. Everything else
+<h3 id="listing-from-activity-journals-and-lazy-trees">Listing from activity journals, and lazy trees<a class="headerlink" href="#listing-from-activity-journals-and-lazy-trees" title="Permanent link">&para;</a></h3>
+<p>Opening a store reads <code>layout.json</code> and lists <code>sessions/</code> itself, and nothing
+of any session. Listing root sessions reads the activity journals instead of
+every root's <code>metadata</code>: each <code>activity/&lt;yyyy-mm&gt;.jsonl</code> gets a root's list
+entry (its <code>SessionMeta</code>) when the root is first published, when its title,
+project, status, held state, attachments, or goal change, when it is reverted
+or forked, and when a root with later events leaves memory, and a tombstone
+when it is deleted; never for every event. A listing reads them newest month
+first: within a file a session's last line wins, a newer month wins over an
+older one, and a tombstone hides the session. The first entry of a month
+compacts the previous month's journal to each session's last line; older
+journals are not written again. The current and the previous month stay in
+memory, read again only when another process appended to them. A root this
+process holds in memory answers from its projection, so a listed
+<code>last_activity</code> trails only a root that is not open.</p>
+<p>A listing with a window (<code>session.list</code>'s <code>active_since</code> and <code>before</code>) reads
+only the months the window reaches and also lists every root that is unread
+or whose tree is busy, reading such a root's own <code>metadata</code> when no journal
+it read names it. Everything else
 about a tree — its children, usage, delegations, and grants — is read when the
 tree is first used (see <a href="../specs/tree-local-sessions/">Tree-local sessions</a>).
 <code>subagents/index.json</code> carries each child's <code>SessionSummary</code> and terminal run
 statuses for that tree only. It is a cache: a missing, corrupt, or stale entry
 simply means the children are unknown until the tree is loaded, and <code>metadata</code>
 remains authoritative per session.</p>
-<p>A root directory whose <code>metadata</code> is absent is skipped silently, so the next
-listing retries it. That shape is transient rather
-than faulty: <code>&lt;root&gt;/subagents/</code> exists on its own whenever a child publishes
-before its root, and the same shape appears while a prepared directory is
-merged into it. Every other failure to read a root <code>metadata</code> — a corrupt cache,
-an ID that disagrees with its directory name — still reports a diagnostic and
-leaves the root uncached for the next pass.</p>
 <p>When a root first comes into use — resume, open for mutation, fork source, tree
 or child access — the root and every descendant are read and folded exactly
 once in a single bulk pass. That pass assembles the tree, harvests the artifact
@@ -5119,7 +5140,7 @@ parent's slot and promotes whatever was queued behind it. A delegation event ski
 from the recovery projection and appears in the session's skipped-event
 diagnostics, while other delegations continue to load.</p>
 <p>Multiple cookie processes may share this project data directory. Ownership is
-per root session tree, not per session and not per work dir: one <code>owner.lock</code>
+per root session tree, not per session: one <code>owner.lock</code>
 guards a root and every delegated session filed under it, and the process that
 locks it is the only writer anywhere inside that root's directory. It retains
 the lock until process exit, including while every session in the tree is
@@ -5131,7 +5152,7 @@ and swept away by the tree's load pass. New-root and fork publication acquire
 the Windows sidecar derived from the final directory path before renaming the
 temporary directory; publishing a child takes no lock, because its tree is
 already held. Session discovery ignores the sidecar because it scans only
-directories. Session listing reads <code>metadata</code> without locking, which is safe
+directories. Reading a root's <code>metadata</code> takes no lock, which is safe
 because every rewrite of that cache stages a sibling temporary and publishes it
 with a replacement that keeps the name resolvable throughout: <code>rename</code> on Unix,
 and a superseding POSIX rename on Windows.</p>

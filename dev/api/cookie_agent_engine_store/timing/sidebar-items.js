@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SLOW"],"enum":["Meter"],"fn":["record","take_summary","time"]};
