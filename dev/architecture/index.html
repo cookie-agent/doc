@@ -4614,7 +4614,11 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
 </tr>
 <tr>
 <td><code>protocol</code></td>
-<td>The versioned wire contracts (semver per protocol, see <a href="../reference/compatibility/">Compatibility</a>) <strong>and the protocol session layer</strong>: RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the in-memory <code>InProcessStream</code> pair, the <code>ServerProtocol</code> trait, the shared <code>Client</code>, <code>ServerContext</code>, protocol-owned <code>serve</code>, and shared setup-value parsing. The opt-in <code>websocket</code> feature adds the daemon client transport (<code>WebSocketTransport</code>, <code>Client::connect_websocket_with_token</code>, <code>validate_websocket_url</code>). The client side also builds for <code>wasm32-unknown-unknown</code>: there the server, the stdio peer, <code>paths</code>, <code>StopSignals</code>, and the OAuth callback are left out, tasks and timers run on the browser's event loop, and <code>websocket</code> is the browser's <code>WebSocket</code> (<code>Client::connect_browser_websocket</code>, with the token in the handshake). Re-exports <code>identity</code> and hosts the unified wire types.</td>
+<td>The versioned wire contracts (semver per protocol, see <a href="../reference/compatibility/">Compatibility</a>): RPC roots, events, session metadata, agent snapshots, JSON Schema bindings, the frame-level <code>Transport</code> trait, the in-memory <code>InProcessStream</code> pair, the runtime and plugin protocols' JSON-RPC <code>peer</code>, and shared setup-value parsing. It also builds for <code>wasm32-unknown-unknown</code>, where the stdio peer, <code>paths</code>, <code>StopSignals</code>, and the OAuth callback are left out. Re-exports <code>identity</code> and hosts the unified wire types.</td>
+</tr>
+<tr>
+<td><code>protocol_transport</code></td>
+<td>The client protocol's session layer over <code>protocol</code>'s wire types: the <code>ServerProtocol</code> trait, <code>ServerContext</code>, the <code>serve</code> loop, and the shared <code>Client</code>. The opt-in <code>websocket</code> feature adds the daemon client transport (<code>WebSocketTransport</code>, <code>Client::connect_websocket_with_token</code>, <code>validate_websocket_url</code>). The client side also builds for <code>wasm32-unknown-unknown</code>: there the server is left out, tasks and timers run on the browser's event loop, and <code>websocket</code> is the browser's <code>WebSocket</code> (<code>Client::connect_browser_websocket</code>, with the token in the handshake). A change here rebuilds only the crates that connect: <code>client_state</code>, <code>server</code>, <code>tui</code>, <code>web</code>, and <code>cookie_agent</code>.</td>
 </tr>
 <tr>
 <td><code>client_state</code></td>
@@ -4684,24 +4688,24 @@ The TUI's own tests still drive a real <code>server</code> through a dev-depende
   state and manifests written by earlier versions keep loading.</li>
 </ul>
 <h2 id="clientserver-protocol-flow">Client/server protocol flow<a class="headerlink" href="#clientserver-protocol-flow" title="Permanent link">&para;</a></h2>
-<p>The session layer lives in the <code>protocol</code> crate so every frontend shares one
-implementation of the protocol mechanics.</p>
+<p>The session layer lives in the <code>protocol_transport</code> crate so every frontend
+shares one implementation of the protocol mechanics.</p>
 <h3 id="transport">Transport<a class="headerlink" href="#transport" title="Permanent link">&para;</a></h3>
 <p><code>protocol::Transport</code> is a frame-level channel: <code>send(MessageFrame)</code> /
 <code>recv() -&gt; Option&lt;MessageFrame&gt;</code>, with <code>MessageFrame</code> a <code>Text</code> string, the
-<code>Bytes</code> of received JSON text, or a <code>Value</code>. It has no JSON-RPC semantics. The <code>protocol</code> crate also provides the
-concrete client transports: <code>InProcessStream</code> (an in-memory mpsc pair used by
-the local frontend and tests) and, behind the <code>websocket</code> feature,
+<code>Bytes</code> of received JSON text, or a <code>Value</code>. It has no JSON-RPC semantics. The <code>protocol</code> crate also provides
+<code>InProcessStream</code> (an in-memory mpsc pair used by the local frontend and
+tests), and <code>protocol_transport</code>, behind its <code>websocket</code> feature,
 <code>WebSocketTransport</code> (tokio-tungstenite, used by the TUI, the CLI, and dial-in
 runtimes to reach a daemon) natively and <code>BrowserWebSocketTransport</code> (the
 browser's <code>WebSocket</code>, used by the web page) on <code>wasm32</code>. The <code>server</code> crate's axum WebSocket accept path implements
 <code>MessageStream</code> (the <code>Transport</code> alias) server-side.</p>
 <h3 id="server-side">Server side<a class="headerlink" href="#server-side" title="Permanent link">&para;</a></h3>
-<p><code>protocol::ServerProtocol</code> is the server contract: one async method per RPC
+<p><code>protocol_transport::ServerProtocol</code> is the server contract: one async method per RPC
 method plus <code>connected</code> and <code>subscribe_events</code> (which receives a
 <code>ServerContext</code>). The <code>server</code> crate implements it in <code>service/routes.rs</code>,
 delegating every call to <code>Engine</code>.</p>
-<p><code>protocol::serve</code> drives one complete server-side session over a <code>Transport</code>:</p>
+<p><code>protocol_transport::serve</code> drives one complete server-side session over a <code>Transport</code>:</p>
 <ul>
 <li><strong>Handshake gating.</strong> Every request before a valid <code>handshake</code> is rejected with
   <code>-32003</code> (a connection that has not authenticated) or <code>-32001</code>; a handshake
@@ -4720,7 +4724,7 @@ delegating every call to <code>Engine</code>.</p>
   outstanding state.</li>
 </ul>
 <h3 id="client-side">Client side<a class="headerlink" href="#client-side" title="Permanent link">&para;</a></h3>
-<p>The shared concrete <code>protocol::Client</code> runs over any <code>Transport</code>. A connection task owns the stream and
+<p>The shared concrete <code>protocol_transport::Client</code> runs over any <code>Transport</code>. A connection task owns the stream and
 handles:</p>
 <ul>
 <li><strong>Request/response correlation</strong> by id, with a bounded command queue and a
@@ -5141,7 +5145,7 @@ to clients: displays come from live-only <code>tool_call_progress</code> and dur
 terminal events, and retained output is read back through artifacts.</p>
 <p>What moved is where the mechanics live: handshake, request/response
 correlation, notification demux, replay/gap recovery, and shutdown are now
-implemented once in the <code>protocol</code> crate and shared by the server, the TUI, and
+implemented once in the <code>protocol_transport</code> crate and shared by the server, the TUI, and
 the CLI.</p>
 <p>See <a href="../reference/protocol/">Protocol</a>, <a href="../reference/events/">Events</a>, and
 <a href="../reference/schemas/">Schemas</a> for the wire details.</p>
