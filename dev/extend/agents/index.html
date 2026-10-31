@@ -5936,9 +5936,15 @@ process boundaries behind these tools.</p>
 <p>Path resource labels are normalized lexically from the single path requested by
 the caller: <code>/</code> separators on every platform, no Windows <code>\\?\</code> prefix, and
 <code>.</code> and <code>..</code> collapsed, so <code>/srv/ws/../../etc/hosts</code> is matched as
-<code>/etc/hosts</code>. The daemon reads every <code>read</code> and <code>write</code> resource so before
-matching, whoever labelled it, an ACP agent's request included. They are not
-canonicalized through symbolic links before permission matching. That one label authorizes the whole prepared <code>read</code>, <code>write</code>, or
+<code>/etc/hosts</code>. The daemon reads every <code>read</code> and <code>write</code> resource, and
+<code>attach</code>'s workspace, so before matching, whoever labelled it, an ACP agent's
+request included, and reads it as the platform the runtime reported does: on
+Linux or macOS <code>//etc/passwd</code> is <code>/etc/passwd</code> and a <code>\</code> is part of a name; on
+Windows <code>\</code> separates names too, and <code>//server/share</code> (or <code>\\server\share</code>) is a
+share that <code>..</code> never leaves. A runtime that reported no platform has a path
+the two read differently decided both ways, the strictest decision winning,
+so a <code>deny</code> holds under either reading. They are not canonicalized through
+symbolic links before permission matching. That one label authorizes the whole prepared <code>read</code>, <code>write</code>, or
 <code>edit</code> operation: if an allowed alias resolves outside the workspace, cookie
 agent does not perform a second permission check or require a rule for the
 resolved destination. Filesystem preparation resolves the route once and

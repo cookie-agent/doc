@@ -188,194 +188,195 @@
 <a href=#188 id=188 data-nosnippet>188</a>    Fut: std::future::Future&lt;Output = <span class="prelude-ty">Result</span>&lt;T, cookie_agent_server::ServerError&gt;&gt;,
 <a href=#189 id=189 data-nosnippet>189</a>{
 <a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">let </span>deadline = Instant::now() + wait;
-<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">loop </span>{
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">match </span>bind().<span class="kw">await </span>{
-<a href=#193 id=193 data-nosnippet>193</a>            <span class="prelude-val">Err</span>(cookie_agent_server::ServerError::Listen(error))
-<a href=#194 id=194 data-nosnippet>194</a>                <span class="kw">if </span>error.kind() == std::io::ErrorKind::AddrInUse &amp;&amp; Instant::now() &lt; deadline =&gt;
-<a href=#195 id=195 data-nosnippet>195</a>            {
-<a href=#196 id=196 data-nosnippet>196</a>                tokio::time::sleep(Duration::from_millis(<span class="number">100</span>)).<span class="kw">await</span>;
-<a href=#197 id=197 data-nosnippet>197</a>            }
-<a href=#198 id=198 data-nosnippet>198</a>            result =&gt; <span class="kw">return </span>result,
-<a href=#199 id=199 data-nosnippet>199</a>        }
-<a href=#200 id=200 data-nosnippet>200</a>    }
-<a href=#201 id=201 data-nosnippet>201</a>}
-<a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a><span class="doccomment">/// What the daemon answered, as a line.
-<a href=#204 id=204 data-nosnippet>204</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>scheduled_line(when: RestartWhen, result: <span class="kw-2">&amp;</span>DaemonRestartResult) -&gt; String {
-<a href=#205 id=205 data-nosnippet>205</a>    <span class="kw">let </span>waiting = waiting_for(result.active_runs, result.background_calls);
-<a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">match </span>(when, waiting.is_empty()) {
-<a href=#207 id=207 data-nosnippet>207</a>        (<span class="kw">_</span>, <span class="bool-val">true</span>) =&gt; <span class="string">"The daemon is restarting."</span>.to_owned(),
-<a href=#208 id=208 data-nosnippet>208</a>        (RestartWhen::Now, <span class="bool-val">false</span>) =&gt; {
-<a href=#209 id=209 data-nosnippet>209</a>            <span class="macro">format!</span>(<span class="string">"The daemon is restarting now, interrupting {waiting}."</span>)
-<a href=#210 id=210 data-nosnippet>210</a>        }
-<a href=#211 id=211 data-nosnippet>211</a>        (<span class="kw">_</span>, <span class="bool-val">false</span>) =&gt; <span class="macro">format!</span>(
-<a href=#212 id=212 data-nosnippet>212</a>            <span class="string">"The daemon restarts once {waiting} finish{}. Turns started meanwhile are waited for too."</span>,
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">if </span>result.active_runs + result.background_calls == <span class="number">1 </span>{
-<a href=#214 id=214 data-nosnippet>214</a>                <span class="string">"es"
-<a href=#215 id=215 data-nosnippet>215</a>            </span>} <span class="kw">else </span>{
-<a href=#216 id=216 data-nosnippet>216</a>                <span class="string">""
-<a href=#217 id=217 data-nosnippet>217</a>            </span>}
-<a href=#218 id=218 data-nosnippet>218</a>        ),
-<a href=#219 id=219 data-nosnippet>219</a>    }
-<a href=#220 id=220 data-nosnippet>220</a>}
-<a href=#221 id=221 data-nosnippet>221</a>
-<a href=#222 id=222 data-nosnippet>222</a><span class="doccomment">/// `cookie daemon restart`: asks the daemon to restart, then waits until it
-<a href=#223 id=223 data-nosnippet>223</a>/// is back.
-<a href=#224 id=224 data-nosnippet>224</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>run_restart(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str, now: bool) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#225 id=225 data-nosnippet>225</a>    <span class="kw">let </span>client = Client::connect_websocket_with_token(url, token).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#226 id=226 data-nosnippet>226</a>    <span class="kw">let </span><span class="kw-2">mut </span>deliveries = client
-<a href=#227 id=227 data-nosnippet>227</a>        .subscribe_deliveries()
-<a href=#228 id=228 data-nosnippet>228</a>        .context(<span class="string">"the connection's deliveries"</span>)<span class="question-mark">?</span>;
-<a href=#229 id=229 data-nosnippet>229</a>    <span class="kw">let </span>hello = client
-<a href=#230 id=230 data-nosnippet>230</a>        .handshake_as(<span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>))
-<a href=#231 id=231 data-nosnippet>231</a>        .<span class="kw">await
-<a href=#232 id=232 data-nosnippet>232</a>        </span>.context(<span class="string">"handshake with daemon"</span>)<span class="question-mark">?</span>;
-<a href=#233 id=233 data-nosnippet>233</a>    <span class="kw">let </span>when = <span class="kw">if </span>now {
-<a href=#234 id=234 data-nosnippet>234</a>        RestartWhen::Now
-<a href=#235 id=235 data-nosnippet>235</a>    } <span class="kw">else </span>{
-<a href=#236 id=236 data-nosnippet>236</a>        RestartWhen::Idle
-<a href=#237 id=237 data-nosnippet>237</a>    };
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="kw">let </span>result = client
-<a href=#239 id=239 data-nosnippet>239</a>        .restart_daemon(when)
-<a href=#240 id=240 data-nosnippet>240</a>        .<span class="kw">await
-<a href=#241 id=241 data-nosnippet>241</a>        </span>.context(<span class="string">"restart the daemon"</span>)<span class="question-mark">?</span>;
-<a href=#242 id=242 data-nosnippet>242</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, scheduled_line(when, <span class="kw-2">&amp;</span>result));
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">let </span><span class="kw-2">mut </span>waiting_for_now = (result.active_runs, result.background_calls);
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">if </span>waiting_for_now != (<span class="number">0</span>, <span class="number">0</span>) &amp;&amp; when == RestartWhen::Idle {
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="macro">println!</span>(
-<a href=#246 id=246 data-nosnippet>246</a>            <span class="string">"Waiting; Ctrl-C stops waiting, and the restart stays scheduled \
-<a href=#247 id=247 data-nosnippet>247</a>             (`cookie daemon restart --now` restarts at once)."
-<a href=#248 id=248 data-nosnippet>248</a>        </span>);
-<a href=#249 id=249 data-nosnippet>249</a>    }
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(delivery) = deliveries.recv().<span class="kw">await </span>{
-<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">match </span>delivery {
-<a href=#252 id=252 data-nosnippet>252</a>            ClientDelivery::DaemonRestarting(restarting) =&gt; {
-<a href=#253 id=253 data-nosnippet>253</a>                <span class="kw">let </span>now = (restarting.active_runs, restarting.background_calls);
-<a href=#254 id=254 data-nosnippet>254</a>                <span class="kw">if </span>now != waiting_for_now &amp;&amp; now != (<span class="number">0</span>, <span class="number">0</span>) {
-<a href=#255 id=255 data-nosnippet>255</a>                    waiting_for_now = now;
-<a href=#256 id=256 data-nosnippet>256</a>                    <span class="macro">println!</span>(<span class="string">"Waiting for {}."</span>, waiting_for(now.<span class="number">0</span>, now.<span class="number">1</span>));
-<a href=#257 id=257 data-nosnippet>257</a>                }
-<a href=#258 id=258 data-nosnippet>258</a>            }
-<a href=#259 id=259 data-nosnippet>259</a>            ClientDelivery::Disconnected { .. } =&gt; <span class="kw">break</span>,
-<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#261 id=261 data-nosnippet>261</a>        }
-<a href=#262 id=262 data-nosnippet>262</a>    }
-<a href=#263 id=263 data-nosnippet>263</a>    drop(client);
-<a href=#264 id=264 data-nosnippet>264</a>    <span class="kw">let </span>deadline = Instant::now() + RECONNECT_WAIT;
-<a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">loop </span>{
-<a href=#266 id=266 data-nosnippet>266</a>        tokio::time::sleep(Duration::from_millis(<span class="number">250</span>)).<span class="kw">await</span>;
-<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">match </span>reconnect(url, token).<span class="kw">await </span>{
-<a href=#268 id=268 data-nosnippet>268</a>            <span class="prelude-val">Ok</span>(engine_version) =&gt; {
-<a href=#269 id=269 data-nosnippet>269</a>                <span class="kw">if </span>engine_version == hello.engine_version {
-<a href=#270 id=270 data-nosnippet>270</a>                    <span class="macro">println!</span>(<span class="string">"The daemon is back."</span>);
-<a href=#271 id=271 data-nosnippet>271</a>                } <span class="kw">else </span>{
-<a href=#272 id=272 data-nosnippet>272</a>                    <span class="macro">println!</span>(
-<a href=#273 id=273 data-nosnippet>273</a>                        <span class="string">"The daemon is back, now version {engine_version} (was {})."</span>,
-<a href=#274 id=274 data-nosnippet>274</a>                        hello.engine_version
-<a href=#275 id=275 data-nosnippet>275</a>                    );
-<a href=#276 id=276 data-nosnippet>276</a>                }
-<a href=#277 id=277 data-nosnippet>277</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#278 id=278 data-nosnippet>278</a>            }
-<a href=#279 id=279 data-nosnippet>279</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>Instant::now() &gt;= deadline =&gt; {
-<a href=#280 id=280 data-nosnippet>280</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(error.context(<span class="macro">format!</span>(
-<a href=#281 id=281 data-nosnippet>281</a>                    <span class="string">"the daemon did not come back within {} seconds"</span>,
-<a href=#282 id=282 data-nosnippet>282</a>                    RECONNECT_WAIT.as_secs()
-<a href=#283 id=283 data-nosnippet>283</a>                )));
-<a href=#284 id=284 data-nosnippet>284</a>            }
-<a href=#285 id=285 data-nosnippet>285</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {}
-<a href=#286 id=286 data-nosnippet>286</a>        }
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>}
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a><span class="doccomment">/// Connects again; the daemon's version.
-<a href=#291 id=291 data-nosnippet>291</a></span><span class="kw">async fn </span>reconnect(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;String&gt; {
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">let </span>client = Client::connect_websocket_with_token(url, token).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">let </span>hello = client.handshake_as(<span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#294 id=294 data-nosnippet>294</a>    client.shutdown();
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="prelude-val">Ok</span>(hello.engine_version)
-<a href=#296 id=296 data-nosnippet>296</a>}
-<a href=#297 id=297 data-nosnippet>297</a>
-<a href=#298 id=298 data-nosnippet>298</a><span class="attr">#[cfg(test)]
-<a href=#299 id=299 data-nosnippet>299</a></span><span class="kw">mod </span>tests {
-<a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">use </span>std::time::Duration;
-<a href=#301 id=301 data-nosnippet>301</a>
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">use </span>cookie_agent_protocol::{DaemonRestartResult, RestartWhen};
-<a href=#303 id=303 data-nosnippet>303</a>
-<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">use super</span>::{bind_retrying, scheduled_line};
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="attr">#[test]
-<a href=#307 id=307 data-nosnippet>307</a>    </span><span class="kw">fn </span>the_answer_says_what_the_restart_waits_for() {
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>result = |active_runs| DaemonRestartResult {
-<a href=#309 id=309 data-nosnippet>309</a>            scheduled: <span class="bool-val">true</span>,
-<a href=#310 id=310 data-nosnippet>310</a>            active_runs,
-<a href=#311 id=311 data-nosnippet>311</a>            background_calls: <span class="number">0</span>,
-<a href=#312 id=312 data-nosnippet>312</a>        };
-<a href=#313 id=313 data-nosnippet>313</a>        <span class="macro">assert_eq!</span>(
-<a href=#314 id=314 data-nosnippet>314</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">0</span>)),
-<a href=#315 id=315 data-nosnippet>315</a>            <span class="string">"The daemon is restarting."
-<a href=#316 id=316 data-nosnippet>316</a>        </span>);
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">assert_eq!</span>(
-<a href=#318 id=318 data-nosnippet>318</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">1</span>)),
-<a href=#319 id=319 data-nosnippet>319</a>            <span class="string">"The daemon restarts once 1 running turn finishes. Turns started meanwhile are waited for too."
-<a href=#320 id=320 data-nosnippet>320</a>        </span>);
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="macro">assert_eq!</span>(
-<a href=#322 id=322 data-nosnippet>322</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">3</span>)),
-<a href=#323 id=323 data-nosnippet>323</a>            <span class="string">"The daemon restarts once 3 running turns finish. Turns started meanwhile are waited for too."
-<a href=#324 id=324 data-nosnippet>324</a>        </span>);
-<a href=#325 id=325 data-nosnippet>325</a>        <span class="macro">assert_eq!</span>(
-<a href=#326 id=326 data-nosnippet>326</a>            scheduled_line(RestartWhen::Now, <span class="kw-2">&amp;</span>result(<span class="number">2</span>)),
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="string">"The daemon is restarting now, interrupting 2 running turns."
-<a href=#328 id=328 data-nosnippet>328</a>        </span>);
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>background = DaemonRestartResult {
-<a href=#330 id=330 data-nosnippet>330</a>            scheduled: <span class="bool-val">true</span>,
-<a href=#331 id=331 data-nosnippet>331</a>            active_runs: <span class="number">1</span>,
-<a href=#332 id=332 data-nosnippet>332</a>            background_calls: <span class="number">2</span>,
-<a href=#333 id=333 data-nosnippet>333</a>        };
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="macro">assert_eq!</span>(
-<a href=#335 id=335 data-nosnippet>335</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>background),
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="string">"The daemon restarts once 1 running turn, 2 background calls finish. Turns started \
-<a href=#337 id=337 data-nosnippet>337</a>             meanwhile are waited for too."
-<a href=#338 id=338 data-nosnippet>338</a>        </span>);
-<a href=#339 id=339 data-nosnippet>339</a>        <span class="macro">assert_eq!</span>(
-<a href=#340 id=340 data-nosnippet>340</a>            scheduled_line(
-<a href=#341 id=341 data-nosnippet>341</a>                RestartWhen::Idle,
-<a href=#342 id=342 data-nosnippet>342</a>                <span class="kw-2">&amp;</span>DaemonRestartResult {
-<a href=#343 id=343 data-nosnippet>343</a>                    scheduled: <span class="bool-val">true</span>,
-<a href=#344 id=344 data-nosnippet>344</a>                    active_runs: <span class="number">0</span>,
-<a href=#345 id=345 data-nosnippet>345</a>                    background_calls: <span class="number">1</span>,
-<a href=#346 id=346 data-nosnippet>346</a>                }
-<a href=#347 id=347 data-nosnippet>347</a>            ),
-<a href=#348 id=348 data-nosnippet>348</a>            <span class="string">"The daemon restarts once 1 background call finishes. Turns started meanwhile are \
-<a href=#349 id=349 data-nosnippet>349</a>             waited for too."
-<a href=#350 id=350 data-nosnippet>350</a>        </span>);
-<a href=#351 id=351 data-nosnippet>351</a>    }
-<a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>    <span class="kw">async fn </span>bind(port: u16) -&gt; <span class="prelude-ty">Result</span>&lt;tokio::net::TcpListener, cookie_agent_server::ServerError&gt; {
-<a href=#354 id=354 data-nosnippet>354</a>        tokio::net::TcpListener::bind((<span class="string">"127.0.0.1"</span>, port))
-<a href=#355 id=355 data-nosnippet>355</a>            .<span class="kw">await
-<a href=#356 id=356 data-nosnippet>356</a>            </span>.map_err(cookie_agent_server::ServerError::Listen)
-<a href=#357 id=357 data-nosnippet>357</a>    }
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a>    <span class="doccomment">/// A restarted daemon waits for its port to free; a daemon started
-<a href=#360 id=360 data-nosnippet>360</a>    /// anew fails at once on a port in use.
-<a href=#361 id=361 data-nosnippet>361</a>    </span><span class="attr">#[tokio::test]
-<a href=#362 id=362 data-nosnippet>362</a>    </span><span class="kw">async fn </span>binding_retries_a_port_in_use_only_while_waiting() {
-<a href=#363 id=363 data-nosnippet>363</a>        <span class="kw">let </span>held = std::net::TcpListener::bind(<span class="string">"127.0.0.1:0"</span>).expect(<span class="string">"hold a port"</span>);
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>port = held.local_addr().expect(<span class="string">"address"</span>).port();
-<a href=#365 id=365 data-nosnippet>365</a>        <span class="kw">let </span>refused = bind_retrying(Duration::ZERO, || bind(port)).<span class="kw">await</span>;
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="macro">assert!</span>(
-<a href=#367 id=367 data-nosnippet>367</a>            <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>refused, <span class="prelude-val">Err</span>(cookie_agent_server::ServerError::Listen(error))
-<a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">if </span>error.kind() == std::io::ErrorKind::AddrInUse),
-<a href=#369 id=369 data-nosnippet>369</a>            <span class="string">"{refused:?}"
-<a href=#370 id=370 data-nosnippet>370</a>        </span>);
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">let </span>release = std::thread::spawn(<span class="kw">move </span>|| {
-<a href=#372 id=372 data-nosnippet>372</a>            std::thread::sleep(Duration::from_millis(<span class="number">300</span>));
-<a href=#373 id=373 data-nosnippet>373</a>            drop(held);
-<a href=#374 id=374 data-nosnippet>374</a>        });
-<a href=#375 id=375 data-nosnippet>375</a>        bind_retrying(Duration::from_secs(<span class="number">10</span>), || bind(port))
-<a href=#376 id=376 data-nosnippet>376</a>            .<span class="kw">await
-<a href=#377 id=377 data-nosnippet>377</a>            </span>.expect(<span class="string">"bound once the port freed"</span>);
-<a href=#378 id=378 data-nosnippet>378</a>        release.join().expect(<span class="string">"released"</span>);
-<a href=#379 id=379 data-nosnippet>379</a>    }
-<a href=#380 id=380 data-nosnippet>380</a>}
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">let </span><span class="kw-2">mut </span>pauses = cookie_agent_identity::Backoff::fixed(Duration::from_millis(<span class="number">100</span>)).delays();
+<a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">loop </span>{
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">match </span>bind().<span class="kw">await </span>{
+<a href=#194 id=194 data-nosnippet>194</a>            <span class="prelude-val">Err</span>(cookie_agent_server::ServerError::Listen(error))
+<a href=#195 id=195 data-nosnippet>195</a>                <span class="kw">if </span>error.kind() == std::io::ErrorKind::AddrInUse &amp;&amp; Instant::now() &lt; deadline =&gt;
+<a href=#196 id=196 data-nosnippet>196</a>            {
+<a href=#197 id=197 data-nosnippet>197</a>                tokio::time::sleep(pauses.next_delay()).<span class="kw">await</span>;
+<a href=#198 id=198 data-nosnippet>198</a>            }
+<a href=#199 id=199 data-nosnippet>199</a>            result =&gt; <span class="kw">return </span>result,
+<a href=#200 id=200 data-nosnippet>200</a>        }
+<a href=#201 id=201 data-nosnippet>201</a>    }
+<a href=#202 id=202 data-nosnippet>202</a>}
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a><span class="doccomment">/// What the daemon answered, as a line.
+<a href=#205 id=205 data-nosnippet>205</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>scheduled_line(when: RestartWhen, result: <span class="kw-2">&amp;</span>DaemonRestartResult) -&gt; String {
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">let </span>waiting = waiting_for(result.active_runs, result.background_calls);
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">match </span>(when, waiting.is_empty()) {
+<a href=#208 id=208 data-nosnippet>208</a>        (<span class="kw">_</span>, <span class="bool-val">true</span>) =&gt; <span class="string">"The daemon is restarting."</span>.to_owned(),
+<a href=#209 id=209 data-nosnippet>209</a>        (RestartWhen::Now, <span class="bool-val">false</span>) =&gt; {
+<a href=#210 id=210 data-nosnippet>210</a>            <span class="macro">format!</span>(<span class="string">"The daemon is restarting now, interrupting {waiting}."</span>)
+<a href=#211 id=211 data-nosnippet>211</a>        }
+<a href=#212 id=212 data-nosnippet>212</a>        (<span class="kw">_</span>, <span class="bool-val">false</span>) =&gt; <span class="macro">format!</span>(
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="string">"The daemon restarts once {waiting} finish{}. Turns started meanwhile are waited for too."</span>,
+<a href=#214 id=214 data-nosnippet>214</a>            <span class="kw">if </span>result.active_runs + result.background_calls == <span class="number">1 </span>{
+<a href=#215 id=215 data-nosnippet>215</a>                <span class="string">"es"
+<a href=#216 id=216 data-nosnippet>216</a>            </span>} <span class="kw">else </span>{
+<a href=#217 id=217 data-nosnippet>217</a>                <span class="string">""
+<a href=#218 id=218 data-nosnippet>218</a>            </span>}
+<a href=#219 id=219 data-nosnippet>219</a>        ),
+<a href=#220 id=220 data-nosnippet>220</a>    }
+<a href=#221 id=221 data-nosnippet>221</a>}
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a><span class="doccomment">/// `cookie daemon restart`: asks the daemon to restart, then waits until it
+<a href=#224 id=224 data-nosnippet>224</a>/// is back.
+<a href=#225 id=225 data-nosnippet>225</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>run_restart(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str, now: bool) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>    <span class="kw">let </span>client = Client::connect_websocket_with_token(url, token).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">let </span><span class="kw-2">mut </span>deliveries = client
+<a href=#228 id=228 data-nosnippet>228</a>        .subscribe_deliveries()
+<a href=#229 id=229 data-nosnippet>229</a>        .context(<span class="string">"the connection's deliveries"</span>)<span class="question-mark">?</span>;
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">let </span>hello = client
+<a href=#231 id=231 data-nosnippet>231</a>        .handshake_as(<span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>))
+<a href=#232 id=232 data-nosnippet>232</a>        .<span class="kw">await
+<a href=#233 id=233 data-nosnippet>233</a>        </span>.context(<span class="string">"handshake with daemon"</span>)<span class="question-mark">?</span>;
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">let </span>when = <span class="kw">if </span>now {
+<a href=#235 id=235 data-nosnippet>235</a>        RestartWhen::Now
+<a href=#236 id=236 data-nosnippet>236</a>    } <span class="kw">else </span>{
+<a href=#237 id=237 data-nosnippet>237</a>        RestartWhen::Idle
+<a href=#238 id=238 data-nosnippet>238</a>    };
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="kw">let </span>result = client
+<a href=#240 id=240 data-nosnippet>240</a>        .restart_daemon(when)
+<a href=#241 id=241 data-nosnippet>241</a>        .<span class="kw">await
+<a href=#242 id=242 data-nosnippet>242</a>        </span>.context(<span class="string">"restart the daemon"</span>)<span class="question-mark">?</span>;
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, scheduled_line(when, <span class="kw-2">&amp;</span>result));
+<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span><span class="kw-2">mut </span>waiting_for_now = (result.active_runs, result.background_calls);
+<a href=#245 id=245 data-nosnippet>245</a>    <span class="kw">if </span>waiting_for_now != (<span class="number">0</span>, <span class="number">0</span>) &amp;&amp; when == RestartWhen::Idle {
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="macro">println!</span>(
+<a href=#247 id=247 data-nosnippet>247</a>            <span class="string">"Waiting; Ctrl-C stops waiting, and the restart stays scheduled \
+<a href=#248 id=248 data-nosnippet>248</a>             (`cookie daemon restart --now` restarts at once)."
+<a href=#249 id=249 data-nosnippet>249</a>        </span>);
+<a href=#250 id=250 data-nosnippet>250</a>    }
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(delivery) = deliveries.recv().<span class="kw">await </span>{
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">match </span>delivery {
+<a href=#253 id=253 data-nosnippet>253</a>            ClientDelivery::DaemonRestarting(restarting) =&gt; {
+<a href=#254 id=254 data-nosnippet>254</a>                <span class="kw">let </span>now = (restarting.active_runs, restarting.background_calls);
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="kw">if </span>now != waiting_for_now &amp;&amp; now != (<span class="number">0</span>, <span class="number">0</span>) {
+<a href=#256 id=256 data-nosnippet>256</a>                    waiting_for_now = now;
+<a href=#257 id=257 data-nosnippet>257</a>                    <span class="macro">println!</span>(<span class="string">"Waiting for {}."</span>, waiting_for(now.<span class="number">0</span>, now.<span class="number">1</span>));
+<a href=#258 id=258 data-nosnippet>258</a>                }
+<a href=#259 id=259 data-nosnippet>259</a>            }
+<a href=#260 id=260 data-nosnippet>260</a>            ClientDelivery::Disconnected { .. } =&gt; <span class="kw">break</span>,
+<a href=#261 id=261 data-nosnippet>261</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#262 id=262 data-nosnippet>262</a>        }
+<a href=#263 id=263 data-nosnippet>263</a>    }
+<a href=#264 id=264 data-nosnippet>264</a>    drop(client);
+<a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">let </span>deadline = Instant::now() + RECONNECT_WAIT;
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">loop </span>{
+<a href=#267 id=267 data-nosnippet>267</a>        tokio::time::sleep(Duration::from_millis(<span class="number">250</span>)).<span class="kw">await</span>;
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">match </span>reconnect(url, token).<span class="kw">await </span>{
+<a href=#269 id=269 data-nosnippet>269</a>            <span class="prelude-val">Ok</span>(engine_version) =&gt; {
+<a href=#270 id=270 data-nosnippet>270</a>                <span class="kw">if </span>engine_version == hello.engine_version {
+<a href=#271 id=271 data-nosnippet>271</a>                    <span class="macro">println!</span>(<span class="string">"The daemon is back."</span>);
+<a href=#272 id=272 data-nosnippet>272</a>                } <span class="kw">else </span>{
+<a href=#273 id=273 data-nosnippet>273</a>                    <span class="macro">println!</span>(
+<a href=#274 id=274 data-nosnippet>274</a>                        <span class="string">"The daemon is back, now version {engine_version} (was {})."</span>,
+<a href=#275 id=275 data-nosnippet>275</a>                        hello.engine_version
+<a href=#276 id=276 data-nosnippet>276</a>                    );
+<a href=#277 id=277 data-nosnippet>277</a>                }
+<a href=#278 id=278 data-nosnippet>278</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#279 id=279 data-nosnippet>279</a>            }
+<a href=#280 id=280 data-nosnippet>280</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>Instant::now() &gt;= deadline =&gt; {
+<a href=#281 id=281 data-nosnippet>281</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(error.context(<span class="macro">format!</span>(
+<a href=#282 id=282 data-nosnippet>282</a>                    <span class="string">"the daemon did not come back within {} seconds"</span>,
+<a href=#283 id=283 data-nosnippet>283</a>                    RECONNECT_WAIT.as_secs()
+<a href=#284 id=284 data-nosnippet>284</a>                )));
+<a href=#285 id=285 data-nosnippet>285</a>            }
+<a href=#286 id=286 data-nosnippet>286</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {}
+<a href=#287 id=287 data-nosnippet>287</a>        }
+<a href=#288 id=288 data-nosnippet>288</a>    }
+<a href=#289 id=289 data-nosnippet>289</a>}
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a><span class="doccomment">/// Connects again; the daemon's version.
+<a href=#292 id=292 data-nosnippet>292</a></span><span class="kw">async fn </span>reconnect(url: <span class="kw-2">&amp;</span>str, token: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;String&gt; {
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">let </span>client = Client::connect_websocket_with_token(url, token).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">let </span>hello = client.handshake_as(<span class="kw">crate</span>::client_identity(<span class="string">"cli"</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#295 id=295 data-nosnippet>295</a>    client.shutdown();
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="prelude-val">Ok</span>(hello.engine_version)
+<a href=#297 id=297 data-nosnippet>297</a>}
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a><span class="attr">#[cfg(test)]
+<a href=#300 id=300 data-nosnippet>300</a></span><span class="kw">mod </span>tests {
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">use </span>std::time::Duration;
+<a href=#302 id=302 data-nosnippet>302</a>
+<a href=#303 id=303 data-nosnippet>303</a>    <span class="kw">use </span>cookie_agent_protocol::{DaemonRestartResult, RestartWhen};
+<a href=#304 id=304 data-nosnippet>304</a>
+<a href=#305 id=305 data-nosnippet>305</a>    <span class="kw">use super</span>::{bind_retrying, scheduled_line};
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="attr">#[test]
+<a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">fn </span>the_answer_says_what_the_restart_waits_for() {
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">let </span>result = |active_runs| DaemonRestartResult {
+<a href=#310 id=310 data-nosnippet>310</a>            scheduled: <span class="bool-val">true</span>,
+<a href=#311 id=311 data-nosnippet>311</a>            active_runs,
+<a href=#312 id=312 data-nosnippet>312</a>            background_calls: <span class="number">0</span>,
+<a href=#313 id=313 data-nosnippet>313</a>        };
+<a href=#314 id=314 data-nosnippet>314</a>        <span class="macro">assert_eq!</span>(
+<a href=#315 id=315 data-nosnippet>315</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">0</span>)),
+<a href=#316 id=316 data-nosnippet>316</a>            <span class="string">"The daemon is restarting."
+<a href=#317 id=317 data-nosnippet>317</a>        </span>);
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="macro">assert_eq!</span>(
+<a href=#319 id=319 data-nosnippet>319</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">1</span>)),
+<a href=#320 id=320 data-nosnippet>320</a>            <span class="string">"The daemon restarts once 1 running turn finishes. Turns started meanwhile are waited for too."
+<a href=#321 id=321 data-nosnippet>321</a>        </span>);
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="macro">assert_eq!</span>(
+<a href=#323 id=323 data-nosnippet>323</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>result(<span class="number">3</span>)),
+<a href=#324 id=324 data-nosnippet>324</a>            <span class="string">"The daemon restarts once 3 running turns finish. Turns started meanwhile are waited for too."
+<a href=#325 id=325 data-nosnippet>325</a>        </span>);
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="macro">assert_eq!</span>(
+<a href=#327 id=327 data-nosnippet>327</a>            scheduled_line(RestartWhen::Now, <span class="kw-2">&amp;</span>result(<span class="number">2</span>)),
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="string">"The daemon is restarting now, interrupting 2 running turns."
+<a href=#329 id=329 data-nosnippet>329</a>        </span>);
+<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">let </span>background = DaemonRestartResult {
+<a href=#331 id=331 data-nosnippet>331</a>            scheduled: <span class="bool-val">true</span>,
+<a href=#332 id=332 data-nosnippet>332</a>            active_runs: <span class="number">1</span>,
+<a href=#333 id=333 data-nosnippet>333</a>            background_calls: <span class="number">2</span>,
+<a href=#334 id=334 data-nosnippet>334</a>        };
+<a href=#335 id=335 data-nosnippet>335</a>        <span class="macro">assert_eq!</span>(
+<a href=#336 id=336 data-nosnippet>336</a>            scheduled_line(RestartWhen::Idle, <span class="kw-2">&amp;</span>background),
+<a href=#337 id=337 data-nosnippet>337</a>            <span class="string">"The daemon restarts once 1 running turn, 2 background calls finish. Turns started \
+<a href=#338 id=338 data-nosnippet>338</a>             meanwhile are waited for too."
+<a href=#339 id=339 data-nosnippet>339</a>        </span>);
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="macro">assert_eq!</span>(
+<a href=#341 id=341 data-nosnippet>341</a>            scheduled_line(
+<a href=#342 id=342 data-nosnippet>342</a>                RestartWhen::Idle,
+<a href=#343 id=343 data-nosnippet>343</a>                <span class="kw-2">&amp;</span>DaemonRestartResult {
+<a href=#344 id=344 data-nosnippet>344</a>                    scheduled: <span class="bool-val">true</span>,
+<a href=#345 id=345 data-nosnippet>345</a>                    active_runs: <span class="number">0</span>,
+<a href=#346 id=346 data-nosnippet>346</a>                    background_calls: <span class="number">1</span>,
+<a href=#347 id=347 data-nosnippet>347</a>                }
+<a href=#348 id=348 data-nosnippet>348</a>            ),
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="string">"The daemon restarts once 1 background call finishes. Turns started meanwhile are \
+<a href=#350 id=350 data-nosnippet>350</a>             waited for too."
+<a href=#351 id=351 data-nosnippet>351</a>        </span>);
+<a href=#352 id=352 data-nosnippet>352</a>    }
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">async fn </span>bind(port: u16) -&gt; <span class="prelude-ty">Result</span>&lt;tokio::net::TcpListener, cookie_agent_server::ServerError&gt; {
+<a href=#355 id=355 data-nosnippet>355</a>        tokio::net::TcpListener::bind((<span class="string">"127.0.0.1"</span>, port))
+<a href=#356 id=356 data-nosnippet>356</a>            .<span class="kw">await
+<a href=#357 id=357 data-nosnippet>357</a>            </span>.map_err(cookie_agent_server::ServerError::Listen)
+<a href=#358 id=358 data-nosnippet>358</a>    }
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="doccomment">/// A restarted daemon waits for its port to free; a daemon started
+<a href=#361 id=361 data-nosnippet>361</a>    /// anew fails at once on a port in use.
+<a href=#362 id=362 data-nosnippet>362</a>    </span><span class="attr">#[tokio::test]
+<a href=#363 id=363 data-nosnippet>363</a>    </span><span class="kw">async fn </span>binding_retries_a_port_in_use_only_while_waiting() {
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>held = std::net::TcpListener::bind(<span class="string">"127.0.0.1:0"</span>).expect(<span class="string">"hold a port"</span>);
+<a href=#365 id=365 data-nosnippet>365</a>        <span class="kw">let </span>port = held.local_addr().expect(<span class="string">"address"</span>).port();
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">let </span>refused = bind_retrying(Duration::ZERO, || bind(port)).<span class="kw">await</span>;
+<a href=#367 id=367 data-nosnippet>367</a>        <span class="macro">assert!</span>(
+<a href=#368 id=368 data-nosnippet>368</a>            <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>refused, <span class="prelude-val">Err</span>(cookie_agent_server::ServerError::Listen(error))
+<a href=#369 id=369 data-nosnippet>369</a>                <span class="kw">if </span>error.kind() == std::io::ErrorKind::AddrInUse),
+<a href=#370 id=370 data-nosnippet>370</a>            <span class="string">"{refused:?}"
+<a href=#371 id=371 data-nosnippet>371</a>        </span>);
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>release = std::thread::spawn(<span class="kw">move </span>|| {
+<a href=#373 id=373 data-nosnippet>373</a>            std::thread::sleep(Duration::from_millis(<span class="number">300</span>));
+<a href=#374 id=374 data-nosnippet>374</a>            drop(held);
+<a href=#375 id=375 data-nosnippet>375</a>        });
+<a href=#376 id=376 data-nosnippet>376</a>        bind_retrying(Duration::from_secs(<span class="number">10</span>), || bind(port))
+<a href=#377 id=377 data-nosnippet>377</a>            .<span class="kw">await
+<a href=#378 id=378 data-nosnippet>378</a>            </span>.expect(<span class="string">"bound once the port freed"</span>);
+<a href=#379 id=379 data-nosnippet>379</a>        release.join().expect(<span class="string">"released"</span>);
+<a href=#380 id=380 data-nosnippet>380</a>    }
+<a href=#381 id=381 data-nosnippet>381</a>}
 </code></pre></div></section></main></body></html>

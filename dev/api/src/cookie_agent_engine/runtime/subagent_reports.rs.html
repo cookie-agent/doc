@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a>
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use super</span>::{
 <a href=#19 id=19 data-nosnippet>19</a>    Engine, EngineError, Event,
-<a href=#20 id=20 data-nosnippet>20</a>    helpers::{RetryBackoff, retry_is_futile},
+<a href=#20 id=20 data-nosnippet>20</a>    helpers::{RETRY_BACKOFF, retry_is_futile},
 <a href=#21 id=21 data-nosnippet>21</a>    producers::ProducerAuthority,
 <a href=#22 id=22 data-nosnippet>22</a>};
 <a href=#23 id=23 data-nosnippet>23</a>
@@ -75,12 +75,12 @@
 <a href=#75 id=75 data-nosnippet>75</a>    /// delay until it is delivered, not owed, can no longer be delivered
 <a href=#76 id=76 data-nosnippet>76</a>    /// (the child or its parent is gone), or the engine shuts down.
 <a href=#77 id=77 data-nosnippet>77</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>deliver_subagent_report_until_done(<span class="kw-2">&amp;</span><span class="self">self</span>, child: SessionId, run: RunId) {
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span><span class="kw-2">mut </span>backoff = RetryBackoff::new();
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span><span class="kw-2">mut </span>backoff = RETRY_BACKOFF.delays();
 <a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">loop </span>{
 <a href=#80 id=80 data-nosnippet>80</a>            <span class="kw">match </span><span class="self">self</span>.deliver_subagent_report(child, run).<span class="kw">await </span>{
 <a href=#81 id=81 data-nosnippet>81</a>                <span class="prelude-val">Ok</span>(()) =&gt; <span class="kw">return</span>,
 <a href=#82 id=82 data-nosnippet>82</a>                <span class="prelude-val">Err</span>(error) <span class="kw">if </span>retry_is_futile(<span class="kw-2">&amp;</span>error) || <span class="self">self</span>.admission_tasks_closing() =&gt; <span class="kw">return</span>,
-<a href=#83 id=83 data-nosnippet>83</a>                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; backoff.wait().<span class="kw">await</span>,
+<a href=#83 id=83 data-nosnippet>83</a>                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; tokio::time::sleep(backoff.next_delay()).<span class="kw">await</span>,
 <a href=#84 id=84 data-nosnippet>84</a>            }
 <a href=#85 id=85 data-nosnippet>85</a>        }
 <a href=#86 id=86 data-nosnippet>86</a>    }

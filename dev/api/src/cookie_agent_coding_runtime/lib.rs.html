@@ -48,7 +48,7 @@
 <a href=#48 id=48 data-nosnippet>48</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>test_coding_origin(path: <span class="kw">impl </span>AsRef&lt;Path&gt;) -&gt; cookie_agent_runtime_api::ToolOrigin {
 <a href=#49 id=49 data-nosnippet>49</a>    cookie_agent_runtime_api::ToolOrigin::Runtime(Arc::new(
 <a href=#50 id=50 data-nosnippet>50</a>        cookie_agent_runtime_api::RuntimeInfo::coding(
-<a href=#51 id=51 data-nosnippet>51</a>            cookie_agent_runtime_api::LOCAL_RUNTIME_ID,
+<a href=#51 id=51 data-nosnippet>51</a>            cookie_agent_protocol::RuntimeId::LOCAL,
 <a href=#52 id=52 data-nosnippet>52</a>            test_workspace(path),
 <a href=#53 id=53 data-nosnippet>53</a>        ),
 <a href=#54 id=54 data-nosnippet>54</a>    ))
@@ -159,264 +159,267 @@
 <a href=#159 id=159 data-nosnippet>159</a></span><span class="kw">fn </span>normalized_path(path: <span class="kw-2">&amp;</span>Path) -&gt; String {
 <a href=#160 id=160 data-nosnippet>160</a>    <span class="attr">#[cfg(windows)]
 <a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">let </span>path = fs_cap::lexical_path_spelling(path);
-<a href=#162 id=162 data-nosnippet>162</a>    cookie_agent_protocol::paths::path_label(<span class="kw-2">&amp;</span>path.to_string_lossy())
-<a href=#163 id=163 data-nosnippet>163</a>}
-<a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>permission_path_label(path: <span class="kw-2">&amp;</span>str, workspace: <span class="kw-2">&amp;</span>Path) -&gt; String {
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">let </span>path = normalized_path(Path::new(path));
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="attr">#[cfg(not(windows))]
-<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">let </span>workspace = workspace
-<a href=#169 id=169 data-nosnippet>169</a>        .canonicalize()
-<a href=#170 id=170 data-nosnippet>170</a>        .unwrap_or_else(|<span class="kw">_</span>| workspace.to_owned());
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="attr">#[cfg(windows)]
-<a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">let </span>workspace = workspace.to_owned();
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(<span class="kw-2">&amp;</span>workspace)) {
-<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">return </span>relative;
-<a href=#175 id=175 data-nosnippet>175</a>    }
-<a href=#176 id=176 data-nosnippet>176</a>    path
-<a href=#177 id=177 data-nosnippet>177</a>}
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>abbreviated_display_path(path: <span class="kw-2">&amp;</span>str, workspace: <span class="kw-2">&amp;</span>Path) -&gt; String {
-<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">let </span>path = normalized_path(Path::new(path));
-<a href=#181 id=181 data-nosnippet>181</a>    <span class="kw">if </span>!Path::new(<span class="kw-2">&amp;</span>path).is_absolute() {
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="kw">return </span>path;
-<a href=#183 id=183 data-nosnippet>183</a>    }
-<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(workspace)) {
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">return </span>relative;
+<a href=#162 id=162 data-nosnippet>162</a>    cookie_agent_protocol::paths::path_label(
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw-2">&amp;</span>path.to_string_lossy(),
+<a href=#164 id=164 data-nosnippet>164</a>        cookie_agent_protocol::paths::PathStyle::host(),
+<a href=#165 id=165 data-nosnippet>165</a>    )
+<a href=#166 id=166 data-nosnippet>166</a>}
+<a href=#167 id=167 data-nosnippet>167</a>
+<a href=#168 id=168 data-nosnippet>168</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>permission_path_label(path: <span class="kw-2">&amp;</span>str, workspace: <span class="kw-2">&amp;</span>Path) -&gt; String {
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">let </span>path = normalized_path(Path::new(path));
+<a href=#170 id=170 data-nosnippet>170</a>    <span class="attr">#[cfg(not(windows))]
+<a href=#171 id=171 data-nosnippet>171</a>    </span><span class="kw">let </span>workspace = workspace
+<a href=#172 id=172 data-nosnippet>172</a>        .canonicalize()
+<a href=#173 id=173 data-nosnippet>173</a>        .unwrap_or_else(|<span class="kw">_</span>| workspace.to_owned());
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="attr">#[cfg(windows)]
+<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">let </span>workspace = workspace.to_owned();
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(<span class="kw-2">&amp;</span>workspace)) {
+<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">return </span>relative;
+<a href=#178 id=178 data-nosnippet>178</a>    }
+<a href=#179 id=179 data-nosnippet>179</a>    path
+<a href=#180 id=180 data-nosnippet>180</a>}
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>abbreviated_display_path(path: <span class="kw-2">&amp;</span>str, workspace: <span class="kw-2">&amp;</span>Path) -&gt; String {
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">let </span>path = normalized_path(Path::new(path));
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">if </span>!Path::new(<span class="kw-2">&amp;</span>path).is_absolute() {
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">return </span>path;
 <a href=#186 id=186 data-nosnippet>186</a>    }
-<a href=#187 id=187 data-nosnippet>187</a>    <span class="comment">// The home this runtime reports, then the home as the environment spells
-<a href=#188 id=188 data-nosnippet>188</a>    // it, which differ when it is reached through a symbolic link.
-<a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">let </span>homes = [
-<a href=#190 id=190 data-nosnippet>190</a>        runtime_home().map(Path::to_owned),
-<a href=#191 id=191 data-nosnippet>191</a>        cookie_agent_protocol::paths::home_dir().ok(),
-<a href=#192 id=192 data-nosnippet>192</a>    ];
-<a href=#193 id=193 data-nosnippet>193</a>    <span class="kw">for </span>home <span class="kw">in </span>homes.into_iter().flatten() {
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(<span class="kw-2">&amp;</span>home)) {
-<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">return if </span>relative == <span class="string">"." </span>{
-<a href=#196 id=196 data-nosnippet>196</a>                <span class="string">"~"</span>.into()
-<a href=#197 id=197 data-nosnippet>197</a>            } <span class="kw">else </span>{
-<a href=#198 id=198 data-nosnippet>198</a>                <span class="macro">format!</span>(<span class="string">"~/{relative}"</span>)
-<a href=#199 id=199 data-nosnippet>199</a>            };
-<a href=#200 id=200 data-nosnippet>200</a>        }
-<a href=#201 id=201 data-nosnippet>201</a>    }
-<a href=#202 id=202 data-nosnippet>202</a>    path
-<a href=#203 id=203 data-nosnippet>203</a>}
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a><span class="doccomment">/// The home directory this runtime reports in `runtime/initialize` and
-<a href=#206 id=206 data-nosnippet>206</a>/// expands a path argument's `~` against: the user's home, canonicalized
-<a href=#207 id=207 data-nosnippet>207</a>/// ([`cookie_agent_protocol::paths::canonical_home_dir`]) once per process.
-<a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>runtime_home() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>Path&gt; {
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">static </span>HOME: std::sync::OnceLock&lt;<span class="prelude-ty">Option</span>&lt;std::path::PathBuf&gt;&gt; = std::sync::OnceLock::new();
-<a href=#210 id=210 data-nosnippet>210</a>    HOME.get_or_init(|| cookie_agent_protocol::paths::canonical_home_dir().ok())
-<a href=#211 id=211 data-nosnippet>211</a>        .as_deref()
-<a href=#212 id=212 data-nosnippet>212</a>}
-<a href=#213 id=213 data-nosnippet>213</a>
-<a href=#214 id=214 data-nosnippet>214</a><span class="kw">fn </span>strip_absolute_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#215 id=215 data-nosnippet>215</a>    <span class="kw">let </span>prefix = prefix.trim_end_matches(<span class="string">'/'</span>);
-<a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">if </span>prefix.is_empty() {
-<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#218 id=218 data-nosnippet>218</a>    }
-<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">if </span>path_component_prefix(path, prefix) &amp;&amp; path.len() == prefix.len() {
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="string">"."</span>.into());
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(workspace)) {
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">return </span>relative;
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="comment">// The home this runtime reports, then the home as the environment spells
+<a href=#191 id=191 data-nosnippet>191</a>    // it, which differ when it is reached through a symbolic link.
+<a href=#192 id=192 data-nosnippet>192</a>    </span><span class="kw">let </span>homes = [
+<a href=#193 id=193 data-nosnippet>193</a>        runtime_home().map(Path::to_owned),
+<a href=#194 id=194 data-nosnippet>194</a>        cookie_agent_protocol::paths::home_dir().ok(),
+<a href=#195 id=195 data-nosnippet>195</a>    ];
+<a href=#196 id=196 data-nosnippet>196</a>    <span class="kw">for </span>home <span class="kw">in </span>homes.into_iter().flatten() {
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(relative) = strip_absolute_prefix(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>normalized_path(<span class="kw-2">&amp;</span>home)) {
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">return if </span>relative == <span class="string">"." </span>{
+<a href=#199 id=199 data-nosnippet>199</a>                <span class="string">"~"</span>.into()
+<a href=#200 id=200 data-nosnippet>200</a>            } <span class="kw">else </span>{
+<a href=#201 id=201 data-nosnippet>201</a>                <span class="macro">format!</span>(<span class="string">"~/{relative}"</span>)
+<a href=#202 id=202 data-nosnippet>202</a>            };
+<a href=#203 id=203 data-nosnippet>203</a>        }
+<a href=#204 id=204 data-nosnippet>204</a>    }
+<a href=#205 id=205 data-nosnippet>205</a>    path
+<a href=#206 id=206 data-nosnippet>206</a>}
+<a href=#207 id=207 data-nosnippet>207</a>
+<a href=#208 id=208 data-nosnippet>208</a><span class="doccomment">/// The home directory this runtime reports in `runtime/initialize` and
+<a href=#209 id=209 data-nosnippet>209</a>/// expands a path argument's `~` against: the user's home, canonicalized
+<a href=#210 id=210 data-nosnippet>210</a>/// ([`cookie_agent_protocol::paths::canonical_home_dir`]) once per process.
+<a href=#211 id=211 data-nosnippet>211</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>runtime_home() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>Path&gt; {
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="kw">static </span>HOME: std::sync::OnceLock&lt;<span class="prelude-ty">Option</span>&lt;std::path::PathBuf&gt;&gt; = std::sync::OnceLock::new();
+<a href=#213 id=213 data-nosnippet>213</a>    HOME.get_or_init(|| cookie_agent_protocol::paths::canonical_home_dir().ok())
+<a href=#214 id=214 data-nosnippet>214</a>        .as_deref()
+<a href=#215 id=215 data-nosnippet>215</a>}
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a><span class="kw">fn </span>strip_absolute_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">let </span>prefix = prefix.trim_end_matches(<span class="string">'/'</span>);
+<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">if </span>prefix.is_empty() {
+<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#221 id=221 data-nosnippet>221</a>    }
-<a href=#222 id=222 data-nosnippet>222</a>    path_component_prefix(path, prefix)
-<a href=#223 id=223 data-nosnippet>223</a>        .then(|| <span class="kw-2">&amp;</span>path[prefix.len()..])
-<a href=#224 id=224 data-nosnippet>224</a>        .and_then(|rest| rest.strip_prefix(<span class="string">'/'</span>))
-<a href=#225 id=225 data-nosnippet>225</a>        .map(str::to_owned)
-<a href=#226 id=226 data-nosnippet>226</a>}
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a><span class="attr">#[cfg(windows)]
-<a href=#229 id=229 data-nosnippet>229</a></span><span class="kw">fn </span>path_component_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#230 id=230 data-nosnippet>230</a>    path.get(..prefix.len())
-<a href=#231 id=231 data-nosnippet>231</a>        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(prefix))
-<a href=#232 id=232 data-nosnippet>232</a>}
-<a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a><span class="attr">#[cfg(not(windows))]
-<a href=#235 id=235 data-nosnippet>235</a></span><span class="kw">fn </span>path_component_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#236 id=236 data-nosnippet>236</a>    path.starts_with(prefix)
-<a href=#237 id=237 data-nosnippet>237</a>}
-<a href=#238 id=238 data-nosnippet>238</a>
-<a href=#239 id=239 data-nosnippet>239</a><span class="attr">#[derive(Debug)]
-<a href=#240 id=240 data-nosnippet>240</a></span><span class="kw">pub struct </span>BuiltinTools {
-<a href=#241 id=241 data-nosnippet>241</a>    read: read::ReadTool,
-<a href=#242 id=242 data-nosnippet>242</a>    write: write::WriteTool,
-<a href=#243 id=243 data-nosnippet>243</a>    edit: edit::EditTool,
-<a href=#244 id=244 data-nosnippet>244</a>    bash: bash::BashTool,
-<a href=#245 id=245 data-nosnippet>245</a>    webfetch: webfetch::WebfetchTool,
-<a href=#246 id=246 data-nosnippet>246</a>}
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a><span class="kw">impl </span>BuiltinTools {
-<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// The coding runtime's tools, working in its `workspace`.
-<a href=#250 id=250 data-nosnippet>250</a>    </span><span class="attr">#[must_use]
-<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub fn </span>new(workspace: <span class="kw-2">&amp;</span>WorkspaceContext) -&gt; <span class="self">Self </span>{
-<a href=#252 id=252 data-nosnippet>252</a>        <span class="self">Self </span>{
-<a href=#253 id=253 data-nosnippet>253</a>            read: read::ReadTool::new(workspace),
-<a href=#254 id=254 data-nosnippet>254</a>            write: write::WriteTool::new(workspace),
-<a href=#255 id=255 data-nosnippet>255</a>            edit: edit::EditTool::new(workspace),
-<a href=#256 id=256 data-nosnippet>256</a>            bash: bash::BashTool::new(workspace),
-<a href=#257 id=257 data-nosnippet>257</a>            webfetch: webfetch::WebfetchTool::coding(),
-<a href=#258 id=258 data-nosnippet>258</a>        }
-<a href=#259 id=259 data-nosnippet>259</a>    }
-<a href=#260 id=260 data-nosnippet>260</a>}
-<a href=#261 id=261 data-nosnippet>261</a>
-<a href=#262 id=262 data-nosnippet>262</a><span class="doccomment">/// Runtime options for the daemon: the global runtime's fallback `webfetch`
-<a href=#263 id=263 data-nosnippet>263</a>/// and a local coding runtime at `workspace` offering [`BuiltinTools`],
-<a href=#264 id=264 data-nosnippet>264</a>/// served in this process through the runtime protocol. Open the engine with
-<a href=#265 id=265 data-nosnippet>265</a>/// `Engine::open_async`.
-<a href=#266 id=266 data-nosnippet>266</a></span><span class="attr">#[must_use]
-<a href=#267 id=267 data-nosnippet>267</a></span><span class="kw">pub fn </span>runtime_options(workspace: <span class="kw">impl </span>Into&lt;PathBuf&gt;) -&gt; RuntimeOptions {
-<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">let </span><span class="kw-2">mut </span>options = RuntimeOptions::new(workspace);
-<a href=#269 id=269 data-nosnippet>269</a>    options.global_tools = <span class="macro">vec!</span>[Arc::new(webfetch::WebfetchTool::global_fallback())];
-<a href=#270 id=270 data-nosnippet>270</a>    options.local = cookie_agent_runtime_api::LocalRuntime::Protocol(
-<a href=#271 id=271 data-nosnippet>271</a>        server::in_process_connector_with_options(server::ServeOptions {
-<a href=#272 id=272 data-nosnippet>272</a>            transfer_journal: server::default_transfer_journal(),
-<a href=#273 id=273 data-nosnippet>273</a>            ..server::ServeOptions::default()
-<a href=#274 id=274 data-nosnippet>274</a>        }),
-<a href=#275 id=275 data-nosnippet>275</a>    );
-<a href=#276 id=276 data-nosnippet>276</a>    options
-<a href=#277 id=277 data-nosnippet>277</a>}
-<a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a><span class="kw">impl </span>BuiltinTools {
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="doccomment">/// The group this provider's tools are announced under when deferred.
-<a href=#281 id=281 data-nosnippet>281</a>    </span><span class="kw">pub const </span>GROUP: cookie_agent_runtime_api::ToolGroup = cookie_agent_runtime_api::ToolGroup {
-<a href=#282 id=282 data-nosnippet>282</a>        name: <span class="string">"coding"</span>,
-<a href=#283 id=283 data-nosnippet>283</a>        summary: <span class="string">"The workspace: reading, writing, and editing files, running shell commands, and fetching web pages."</span>,
-<a href=#284 id=284 data-nosnippet>284</a>    };
-<a href=#285 id=285 data-nosnippet>285</a>}
-<a href=#286 id=286 data-nosnippet>286</a><span class="attr">#[async_trait]
-<a href=#287 id=287 data-nosnippet>287</a></span><span class="kw">impl </span>ToolProvider <span class="kw">for </span>BuiltinTools {
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="kw">fn </span>provider_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-<a href=#289 id=289 data-nosnippet>289</a>        <span class="string">"builtin.tools"
-<a href=#290 id=290 data-nosnippet>290</a>    </span>}
-<a href=#291 id=291 data-nosnippet>291</a>
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">fn </span>tool_group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_runtime_api::ToolGroup&gt; {
-<a href=#293 id=293 data-nosnippet>293</a>        <span class="prelude-val">Some</span>(<span class="self">Self</span>::GROUP)
-<a href=#294 id=294 data-nosnippet>294</a>    }
-<a href=#295 id=295 data-nosnippet>295</a>
-<a href=#296 id=296 data-nosnippet>296</a>    <span class="kw">fn </span>tools_for_session(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>SessionToolContext) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ToolSpec&gt;, ToolError&gt; {
-<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span><span class="kw-2">mut </span>tools = Vec::new();
-<a href=#298 id=298 data-nosnippet>298</a>        tools.extend(<span class="self">self</span>.read.tools_for_session(ctx)<span class="question-mark">?</span>);
-<a href=#299 id=299 data-nosnippet>299</a>        tools.extend(<span class="self">self</span>.write.tools_for_session(ctx)<span class="question-mark">?</span>);
-<a href=#300 id=300 data-nosnippet>300</a>        tools.extend(<span class="self">self</span>.edit.tools_for_session(ctx)<span class="question-mark">?</span>);
-<a href=#301 id=301 data-nosnippet>301</a>        tools.extend(<span class="self">self</span>.bash.tools_for_session(ctx)<span class="question-mark">?</span>);
-<a href=#302 id=302 data-nosnippet>302</a>        tools.extend(<span class="self">self</span>.webfetch.tools_for_session(ctx)<span class="question-mark">?</span>);
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="prelude-val">Ok</span>(tools)
-<a href=#304 id=304 data-nosnippet>304</a>    }
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">fn </span>get_permission_name(tool_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;, ToolError&gt; {
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">match </span>tool_name {
-<a href=#308 id=308 data-nosnippet>308</a>            <span class="string">"read" </span>=&gt; read::ReadTool::get_permission_name(tool_name),
-<a href=#309 id=309 data-nosnippet>309</a>            <span class="string">"write" </span>=&gt; write::WriteTool::get_permission_name(tool_name),
-<a href=#310 id=310 data-nosnippet>310</a>            <span class="string">"edit" </span>=&gt; edit::EditTool::get_permission_name(tool_name),
-<a href=#311 id=311 data-nosnippet>311</a>            <span class="string">"bash" </span>=&gt; bash::BashTool::get_permission_name(tool_name),
-<a href=#312 id=312 data-nosnippet>312</a>            <span class="string">"webfetch" </span>=&gt; webfetch::WebfetchTool::get_permission_name(tool_name),
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{tool_name}`"</span>))),
-<a href=#314 id=314 data-nosnippet>314</a>        }
-<a href=#315 id=315 data-nosnippet>315</a>    }
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">fn </span>get_permission_resource(
-<a href=#318 id=318 data-nosnippet>318</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#319 id=319 data-nosnippet>319</a>        name: <span class="kw-2">&amp;</span>str,
-<a href=#320 id=320 data-nosnippet>320</a>        arguments: <span class="kw-2">&amp;</span>serde_json::Value,
-<a href=#321 id=321 data-nosnippet>321</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;, <span class="prelude-ty">Option</span>&lt;String&gt;), ToolError&gt; {
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">match </span>name {
-<a href=#323 id=323 data-nosnippet>323</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.get_permission_resource(name, arguments),
-<a href=#324 id=324 data-nosnippet>324</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.get_permission_resource(name, arguments),
-<a href=#325 id=325 data-nosnippet>325</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.get_permission_resource(name, arguments),
-<a href=#326 id=326 data-nosnippet>326</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.get_permission_resource(name, arguments),
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.get_permission_resource(name, arguments),
-<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{name}`"</span>))),
-<a href=#329 id=329 data-nosnippet>329</a>        }
-<a href=#330 id=330 data-nosnippet>330</a>    }
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">fn </span>get_display_argument(
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#334 id=334 data-nosnippet>334</a>        name: <span class="kw-2">&amp;</span>str,
-<a href=#335 id=335 data-nosnippet>335</a>        arguments: <span class="kw-2">&amp;</span>serde_json::Value,
-<a href=#336 id=336 data-nosnippet>336</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, ToolError&gt; {
-<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">match </span>name {
-<a href=#338 id=338 data-nosnippet>338</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.get_display_argument(name, arguments),
-<a href=#339 id=339 data-nosnippet>339</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.get_display_argument(name, arguments),
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.get_display_argument(name, arguments),
-<a href=#341 id=341 data-nosnippet>341</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.get_display_argument(name, arguments),
-<a href=#342 id=342 data-nosnippet>342</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.get_display_argument(name, arguments),
-<a href=#343 id=343 data-nosnippet>343</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{name}`"</span>))),
-<a href=#344 id=344 data-nosnippet>344</a>        }
-<a href=#345 id=345 data-nosnippet>345</a>    }
-<a href=#346 id=346 data-nosnippet>346</a>
-<a href=#347 id=347 data-nosnippet>347</a>    <span class="kw">fn </span>presentation(<span class="kw-2">&amp;</span><span class="self">self</span>, call: <span class="kw-2">&amp;</span>ToolCall) -&gt; cookie_agent_protocol::PreparedPresentation {
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">match </span>call.name.as_str() {
-<a href=#349 id=349 data-nosnippet>349</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.presentation(call),
-<a href=#350 id=350 data-nosnippet>350</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.presentation(call),
-<a href=#351 id=351 data-nosnippet>351</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.presentation(call),
-<a href=#352 id=352 data-nosnippet>352</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.presentation(call),
-<a href=#353 id=353 data-nosnippet>353</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.presentation(call),
-<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">_ </span>=&gt; cookie_agent_runtime_api::tool_title_only(<span class="kw-2">&amp;</span>call.name),
-<a href=#355 id=355 data-nosnippet>355</a>        }
-<a href=#356 id=356 data-nosnippet>356</a>    }
-<a href=#357 id=357 data-nosnippet>357</a>
-<a href=#358 id=358 data-nosnippet>358</a>    <span class="kw">async fn </span>prepare(
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#360 id=360 data-nosnippet>360</a>        ctx: ToolPreparationContext,
-<a href=#361 id=361 data-nosnippet>361</a>        call: ToolCall,
-<a href=#362 id=362 data-nosnippet>362</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt; {
-<a href=#363 id=363 data-nosnippet>363</a>        <span class="kw">match </span>call.name.as_str() {
-<a href=#364 id=364 data-nosnippet>364</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.prepare(ctx, call).<span class="kw">await</span>,
-<a href=#365 id=365 data-nosnippet>365</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.prepare(ctx, call).<span class="kw">await</span>,
-<a href=#366 id=366 data-nosnippet>366</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.prepare(ctx, call).<span class="kw">await</span>,
-<a href=#367 id=367 data-nosnippet>367</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.prepare(ctx, call).<span class="kw">await</span>,
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.prepare(ctx, call).<span class="kw">await</span>,
-<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{}`"</span>, call.name))),
-<a href=#370 id=370 data-nosnippet>370</a>        }
-<a href=#371 id=371 data-nosnippet>371</a>    }
-<a href=#372 id=372 data-nosnippet>372</a>
-<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">async fn </span>prepare_parallel(
-<a href=#374 id=374 data-nosnippet>374</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#375 id=375 data-nosnippet>375</a>        ctx: ToolPreparationContext,
-<a href=#376 id=376 data-nosnippet>376</a>        calls: Vec&lt;ToolCall&gt;,
-<a href=#377 id=377 data-nosnippet>377</a>    ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt;&gt; {
-<a href=#378 id=378 data-nosnippet>378</a>        <span class="comment">// Route each same-tool group to the inner provider's batch
-<a href=#379 id=379 data-nosnippet>379</a>        // preparation so same-target edits and writes chain; every other
-<a href=#380 id=380 data-nosnippet>380</a>        // tool keeps per-call preparation.
-<a href=#381 id=381 data-nosnippet>381</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>groups: Vec&lt;(String, Vec&lt;usize&gt;)&gt; = Vec::new();
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">for </span>(index, call) <span class="kw">in </span>calls.iter().enumerate() {
-<a href=#383 id=383 data-nosnippet>383</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, indexes)) = groups.iter_mut().find(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name == call.name) {
-<a href=#384 id=384 data-nosnippet>384</a>                indexes.push(index);
-<a href=#385 id=385 data-nosnippet>385</a>            } <span class="kw">else </span>{
-<a href=#386 id=386 data-nosnippet>386</a>                groups.push((call.name.clone(), <span class="macro">vec!</span>[index]));
-<a href=#387 id=387 data-nosnippet>387</a>            }
-<a href=#388 id=388 data-nosnippet>388</a>        }
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span><span class="kw-2">mut </span>results: Vec&lt;<span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt;&gt;&gt; =
-<a href=#390 id=390 data-nosnippet>390</a>            (<span class="number">0</span>..calls.len()).map(|<span class="kw">_</span>| <span class="prelude-val">None</span>).collect();
-<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">for </span>(name, indexes) <span class="kw">in </span>groups {
-<a href=#392 id=392 data-nosnippet>392</a>            <span class="kw">let </span>group_calls = indexes
-<a href=#393 id=393 data-nosnippet>393</a>                .iter()
-<a href=#394 id=394 data-nosnippet>394</a>                .map(|index| calls[<span class="kw-2">*</span>index].clone())
-<a href=#395 id=395 data-nosnippet>395</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#396 id=396 data-nosnippet>396</a>            <span class="kw">let </span>prepared = <span class="kw">match </span>name.as_str() {
-<a href=#397 id=397 data-nosnippet>397</a>                <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
-<a href=#398 id=398 data-nosnippet>398</a>                <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
-<a href=#399 id=399 data-nosnippet>399</a>                <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
-<a href=#400 id=400 data-nosnippet>400</a>                <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
-<a href=#401 id=401 data-nosnippet>401</a>                <span class="kw">_ </span>=&gt; {
-<a href=#402 id=402 data-nosnippet>402</a>                    <span class="kw">let </span><span class="kw-2">mut </span>prepared = Vec::with_capacity(group_calls.len());
-<a href=#403 id=403 data-nosnippet>403</a>                    <span class="kw">for </span>call <span class="kw">in </span>group_calls {
-<a href=#404 id=404 data-nosnippet>404</a>                        prepared.push(<span class="self">self</span>.prepare(ctx.clone(), call).<span class="kw">await</span>);
-<a href=#405 id=405 data-nosnippet>405</a>                    }
-<a href=#406 id=406 data-nosnippet>406</a>                    prepared
-<a href=#407 id=407 data-nosnippet>407</a>                }
-<a href=#408 id=408 data-nosnippet>408</a>            };
-<a href=#409 id=409 data-nosnippet>409</a>            <span class="kw">for </span>(index, result) <span class="kw">in </span>indexes.into_iter().zip(prepared) {
-<a href=#410 id=410 data-nosnippet>410</a>                results[index] = <span class="prelude-val">Some</span>(result);
-<a href=#411 id=411 data-nosnippet>411</a>            }
-<a href=#412 id=412 data-nosnippet>412</a>        }
-<a href=#413 id=413 data-nosnippet>413</a>        results
-<a href=#414 id=414 data-nosnippet>414</a>            .into_iter()
-<a href=#415 id=415 data-nosnippet>415</a>            .map(|result| result.expect(<span class="string">"every built-in call is prepared"</span>))
-<a href=#416 id=416 data-nosnippet>416</a>            .collect()
-<a href=#417 id=417 data-nosnippet>417</a>    }
-<a href=#418 id=418 data-nosnippet>418</a>}
-<a href=#419 id=419 data-nosnippet>419</a>
-<a href=#420 id=420 data-nosnippet>420</a><span class="attr">#[cfg(test)]
-<a href=#421 id=421 data-nosnippet>421</a></span><span class="kw">mod </span>tests;
+<a href=#222 id=222 data-nosnippet>222</a>    <span class="kw">if </span>path_component_prefix(path, prefix) &amp;&amp; path.len() == prefix.len() {
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="string">"."</span>.into());
+<a href=#224 id=224 data-nosnippet>224</a>    }
+<a href=#225 id=225 data-nosnippet>225</a>    path_component_prefix(path, prefix)
+<a href=#226 id=226 data-nosnippet>226</a>        .then(|| <span class="kw-2">&amp;</span>path[prefix.len()..])
+<a href=#227 id=227 data-nosnippet>227</a>        .and_then(|rest| rest.strip_prefix(<span class="string">'/'</span>))
+<a href=#228 id=228 data-nosnippet>228</a>        .map(str::to_owned)
+<a href=#229 id=229 data-nosnippet>229</a>}
+<a href=#230 id=230 data-nosnippet>230</a>
+<a href=#231 id=231 data-nosnippet>231</a><span class="attr">#[cfg(windows)]
+<a href=#232 id=232 data-nosnippet>232</a></span><span class="kw">fn </span>path_component_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#233 id=233 data-nosnippet>233</a>    path.get(..prefix.len())
+<a href=#234 id=234 data-nosnippet>234</a>        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(prefix))
+<a href=#235 id=235 data-nosnippet>235</a>}
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a><span class="attr">#[cfg(not(windows))]
+<a href=#238 id=238 data-nosnippet>238</a></span><span class="kw">fn </span>path_component_prefix(path: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#239 id=239 data-nosnippet>239</a>    path.starts_with(prefix)
+<a href=#240 id=240 data-nosnippet>240</a>}
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a><span class="attr">#[derive(Debug)]
+<a href=#243 id=243 data-nosnippet>243</a></span><span class="kw">pub struct </span>BuiltinTools {
+<a href=#244 id=244 data-nosnippet>244</a>    read: read::ReadTool,
+<a href=#245 id=245 data-nosnippet>245</a>    write: write::WriteTool,
+<a href=#246 id=246 data-nosnippet>246</a>    edit: edit::EditTool,
+<a href=#247 id=247 data-nosnippet>247</a>    bash: bash::BashTool,
+<a href=#248 id=248 data-nosnippet>248</a>    webfetch: webfetch::WebfetchTool,
+<a href=#249 id=249 data-nosnippet>249</a>}
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a><span class="kw">impl </span>BuiltinTools {
+<a href=#252 id=252 data-nosnippet>252</a>    <span class="doccomment">/// The coding runtime's tools, working in its `workspace`.
+<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="attr">#[must_use]
+<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="kw">pub fn </span>new(workspace: <span class="kw-2">&amp;</span>WorkspaceContext) -&gt; <span class="self">Self </span>{
+<a href=#255 id=255 data-nosnippet>255</a>        <span class="self">Self </span>{
+<a href=#256 id=256 data-nosnippet>256</a>            read: read::ReadTool::new(workspace),
+<a href=#257 id=257 data-nosnippet>257</a>            write: write::WriteTool::new(workspace),
+<a href=#258 id=258 data-nosnippet>258</a>            edit: edit::EditTool::new(workspace),
+<a href=#259 id=259 data-nosnippet>259</a>            bash: bash::BashTool::new(workspace),
+<a href=#260 id=260 data-nosnippet>260</a>            webfetch: webfetch::WebfetchTool::coding(),
+<a href=#261 id=261 data-nosnippet>261</a>        }
+<a href=#262 id=262 data-nosnippet>262</a>    }
+<a href=#263 id=263 data-nosnippet>263</a>}
+<a href=#264 id=264 data-nosnippet>264</a>
+<a href=#265 id=265 data-nosnippet>265</a><span class="doccomment">/// Runtime options for the daemon: the global runtime's fallback `webfetch`
+<a href=#266 id=266 data-nosnippet>266</a>/// and a local coding runtime at `workspace` offering [`BuiltinTools`],
+<a href=#267 id=267 data-nosnippet>267</a>/// served in this process through the runtime protocol. Open the engine with
+<a href=#268 id=268 data-nosnippet>268</a>/// `Engine::open_async`.
+<a href=#269 id=269 data-nosnippet>269</a></span><span class="attr">#[must_use]
+<a href=#270 id=270 data-nosnippet>270</a></span><span class="kw">pub fn </span>runtime_options(workspace: <span class="kw">impl </span>Into&lt;PathBuf&gt;) -&gt; RuntimeOptions {
+<a href=#271 id=271 data-nosnippet>271</a>    <span class="kw">let </span><span class="kw-2">mut </span>options = RuntimeOptions::new(workspace);
+<a href=#272 id=272 data-nosnippet>272</a>    options.global_tools = <span class="macro">vec!</span>[Arc::new(webfetch::WebfetchTool::global_fallback())];
+<a href=#273 id=273 data-nosnippet>273</a>    options.local = cookie_agent_runtime_api::LocalRuntime::Protocol(
+<a href=#274 id=274 data-nosnippet>274</a>        server::in_process_connector_with_options(server::ServeOptions {
+<a href=#275 id=275 data-nosnippet>275</a>            transfer_journal: server::default_transfer_journal(),
+<a href=#276 id=276 data-nosnippet>276</a>            ..server::ServeOptions::default()
+<a href=#277 id=277 data-nosnippet>277</a>        }),
+<a href=#278 id=278 data-nosnippet>278</a>    );
+<a href=#279 id=279 data-nosnippet>279</a>    options
+<a href=#280 id=280 data-nosnippet>280</a>}
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a><span class="kw">impl </span>BuiltinTools {
+<a href=#283 id=283 data-nosnippet>283</a>    <span class="doccomment">/// The group this provider's tools are announced under when deferred.
+<a href=#284 id=284 data-nosnippet>284</a>    </span><span class="kw">pub const </span>GROUP: cookie_agent_runtime_api::ToolGroup = cookie_agent_runtime_api::ToolGroup {
+<a href=#285 id=285 data-nosnippet>285</a>        name: <span class="string">"coding"</span>,
+<a href=#286 id=286 data-nosnippet>286</a>        summary: <span class="string">"The workspace: reading, writing, and editing files, running shell commands, and fetching web pages."</span>,
+<a href=#287 id=287 data-nosnippet>287</a>    };
+<a href=#288 id=288 data-nosnippet>288</a>}
+<a href=#289 id=289 data-nosnippet>289</a><span class="attr">#[async_trait]
+<a href=#290 id=290 data-nosnippet>290</a></span><span class="kw">impl </span>ToolProvider <span class="kw">for </span>BuiltinTools {
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">fn </span>provider_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="string">"builtin.tools"
+<a href=#293 id=293 data-nosnippet>293</a>    </span>}
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="kw">fn </span>tool_group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;cookie_agent_runtime_api::ToolGroup&gt; {
+<a href=#296 id=296 data-nosnippet>296</a>        <span class="prelude-val">Some</span>(<span class="self">Self</span>::GROUP)
+<a href=#297 id=297 data-nosnippet>297</a>    }
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">fn </span>tools_for_session(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>SessionToolContext) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ToolSpec&gt;, ToolError&gt; {
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span><span class="kw-2">mut </span>tools = Vec::new();
+<a href=#301 id=301 data-nosnippet>301</a>        tools.extend(<span class="self">self</span>.read.tools_for_session(ctx)<span class="question-mark">?</span>);
+<a href=#302 id=302 data-nosnippet>302</a>        tools.extend(<span class="self">self</span>.write.tools_for_session(ctx)<span class="question-mark">?</span>);
+<a href=#303 id=303 data-nosnippet>303</a>        tools.extend(<span class="self">self</span>.edit.tools_for_session(ctx)<span class="question-mark">?</span>);
+<a href=#304 id=304 data-nosnippet>304</a>        tools.extend(<span class="self">self</span>.bash.tools_for_session(ctx)<span class="question-mark">?</span>);
+<a href=#305 id=305 data-nosnippet>305</a>        tools.extend(<span class="self">self</span>.webfetch.tools_for_session(ctx)<span class="question-mark">?</span>);
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="prelude-val">Ok</span>(tools)
+<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#308 id=308 data-nosnippet>308</a>
+<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">fn </span>get_permission_name(tool_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;, ToolError&gt; {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">match </span>tool_name {
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="string">"read" </span>=&gt; read::ReadTool::get_permission_name(tool_name),
+<a href=#312 id=312 data-nosnippet>312</a>            <span class="string">"write" </span>=&gt; write::WriteTool::get_permission_name(tool_name),
+<a href=#313 id=313 data-nosnippet>313</a>            <span class="string">"edit" </span>=&gt; edit::EditTool::get_permission_name(tool_name),
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="string">"bash" </span>=&gt; bash::BashTool::get_permission_name(tool_name),
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="string">"webfetch" </span>=&gt; webfetch::WebfetchTool::get_permission_name(tool_name),
+<a href=#316 id=316 data-nosnippet>316</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{tool_name}`"</span>))),
+<a href=#317 id=317 data-nosnippet>317</a>        }
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">fn </span>get_permission_resource(
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#322 id=322 data-nosnippet>322</a>        name: <span class="kw-2">&amp;</span>str,
+<a href=#323 id=323 data-nosnippet>323</a>        arguments: <span class="kw-2">&amp;</span>serde_json::Value,
+<a href=#324 id=324 data-nosnippet>324</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;, <span class="prelude-ty">Option</span>&lt;String&gt;), ToolError&gt; {
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">match </span>name {
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.get_permission_resource(name, arguments),
+<a href=#327 id=327 data-nosnippet>327</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.get_permission_resource(name, arguments),
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.get_permission_resource(name, arguments),
+<a href=#329 id=329 data-nosnippet>329</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.get_permission_resource(name, arguments),
+<a href=#330 id=330 data-nosnippet>330</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.get_permission_resource(name, arguments),
+<a href=#331 id=331 data-nosnippet>331</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{name}`"</span>))),
+<a href=#332 id=332 data-nosnippet>332</a>        }
+<a href=#333 id=333 data-nosnippet>333</a>    }
+<a href=#334 id=334 data-nosnippet>334</a>
+<a href=#335 id=335 data-nosnippet>335</a>    <span class="kw">fn </span>get_display_argument(
+<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#337 id=337 data-nosnippet>337</a>        name: <span class="kw-2">&amp;</span>str,
+<a href=#338 id=338 data-nosnippet>338</a>        arguments: <span class="kw-2">&amp;</span>serde_json::Value,
+<a href=#339 id=339 data-nosnippet>339</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, ToolError&gt; {
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">match </span>name {
+<a href=#341 id=341 data-nosnippet>341</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.get_display_argument(name, arguments),
+<a href=#342 id=342 data-nosnippet>342</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.get_display_argument(name, arguments),
+<a href=#343 id=343 data-nosnippet>343</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.get_display_argument(name, arguments),
+<a href=#344 id=344 data-nosnippet>344</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.get_display_argument(name, arguments),
+<a href=#345 id=345 data-nosnippet>345</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.get_display_argument(name, arguments),
+<a href=#346 id=346 data-nosnippet>346</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{name}`"</span>))),
+<a href=#347 id=347 data-nosnippet>347</a>        }
+<a href=#348 id=348 data-nosnippet>348</a>    }
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">fn </span>presentation(<span class="kw-2">&amp;</span><span class="self">self</span>, call: <span class="kw-2">&amp;</span>ToolCall) -&gt; cookie_agent_protocol::PreparedPresentation {
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">match </span>call.name.as_str() {
+<a href=#352 id=352 data-nosnippet>352</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.presentation(call),
+<a href=#353 id=353 data-nosnippet>353</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.presentation(call),
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.presentation(call),
+<a href=#355 id=355 data-nosnippet>355</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.presentation(call),
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.presentation(call),
+<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">_ </span>=&gt; cookie_agent_runtime_api::tool_title_only(<span class="kw-2">&amp;</span>call.name),
+<a href=#358 id=358 data-nosnippet>358</a>        }
+<a href=#359 id=359 data-nosnippet>359</a>    }
+<a href=#360 id=360 data-nosnippet>360</a>
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="kw">async fn </span>prepare(
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#363 id=363 data-nosnippet>363</a>        ctx: ToolPreparationContext,
+<a href=#364 id=364 data-nosnippet>364</a>        call: ToolCall,
+<a href=#365 id=365 data-nosnippet>365</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt; {
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">match </span>call.name.as_str() {
+<a href=#367 id=367 data-nosnippet>367</a>            <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.prepare(ctx, call).<span class="kw">await</span>,
+<a href=#368 id=368 data-nosnippet>368</a>            <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.prepare(ctx, call).<span class="kw">await</span>,
+<a href=#369 id=369 data-nosnippet>369</a>            <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.prepare(ctx, call).<span class="kw">await</span>,
+<a href=#370 id=370 data-nosnippet>370</a>            <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.prepare(ctx, call).<span class="kw">await</span>,
+<a href=#371 id=371 data-nosnippet>371</a>            <span class="string">"webfetch" </span>=&gt; <span class="self">self</span>.webfetch.prepare(ctx, call).<span class="kw">await</span>,
+<a href=#372 id=372 data-nosnippet>372</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(tool_error(<span class="macro">format!</span>(<span class="string">"unknown built-in tool `{}`"</span>, call.name))),
+<a href=#373 id=373 data-nosnippet>373</a>        }
+<a href=#374 id=374 data-nosnippet>374</a>    }
+<a href=#375 id=375 data-nosnippet>375</a>
+<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">async fn </span>prepare_parallel(
+<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#378 id=378 data-nosnippet>378</a>        ctx: ToolPreparationContext,
+<a href=#379 id=379 data-nosnippet>379</a>        calls: Vec&lt;ToolCall&gt;,
+<a href=#380 id=380 data-nosnippet>380</a>    ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt;&gt; {
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="comment">// Route each same-tool group to the inner provider's batch
+<a href=#382 id=382 data-nosnippet>382</a>        // preparation so same-target edits and writes chain; every other
+<a href=#383 id=383 data-nosnippet>383</a>        // tool keeps per-call preparation.
+<a href=#384 id=384 data-nosnippet>384</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>groups: Vec&lt;(String, Vec&lt;usize&gt;)&gt; = Vec::new();
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">for </span>(index, call) <span class="kw">in </span>calls.iter().enumerate() {
+<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, indexes)) = groups.iter_mut().find(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name == call.name) {
+<a href=#387 id=387 data-nosnippet>387</a>                indexes.push(index);
+<a href=#388 id=388 data-nosnippet>388</a>            } <span class="kw">else </span>{
+<a href=#389 id=389 data-nosnippet>389</a>                groups.push((call.name.clone(), <span class="macro">vec!</span>[index]));
+<a href=#390 id=390 data-nosnippet>390</a>            }
+<a href=#391 id=391 data-nosnippet>391</a>        }
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span><span class="kw-2">mut </span>results: Vec&lt;<span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;PreparedTool, ToolError&gt;&gt;&gt; =
+<a href=#393 id=393 data-nosnippet>393</a>            (<span class="number">0</span>..calls.len()).map(|<span class="kw">_</span>| <span class="prelude-val">None</span>).collect();
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="kw">for </span>(name, indexes) <span class="kw">in </span>groups {
+<a href=#395 id=395 data-nosnippet>395</a>            <span class="kw">let </span>group_calls = indexes
+<a href=#396 id=396 data-nosnippet>396</a>                .iter()
+<a href=#397 id=397 data-nosnippet>397</a>                .map(|index| calls[<span class="kw-2">*</span>index].clone())
+<a href=#398 id=398 data-nosnippet>398</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#399 id=399 data-nosnippet>399</a>            <span class="kw">let </span>prepared = <span class="kw">match </span>name.as_str() {
+<a href=#400 id=400 data-nosnippet>400</a>                <span class="string">"read" </span>=&gt; <span class="self">self</span>.read.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
+<a href=#401 id=401 data-nosnippet>401</a>                <span class="string">"write" </span>=&gt; <span class="self">self</span>.write.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
+<a href=#402 id=402 data-nosnippet>402</a>                <span class="string">"edit" </span>=&gt; <span class="self">self</span>.edit.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
+<a href=#403 id=403 data-nosnippet>403</a>                <span class="string">"bash" </span>=&gt; <span class="self">self</span>.bash.prepare_parallel(ctx.clone(), group_calls).<span class="kw">await</span>,
+<a href=#404 id=404 data-nosnippet>404</a>                <span class="kw">_ </span>=&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>                    <span class="kw">let </span><span class="kw-2">mut </span>prepared = Vec::with_capacity(group_calls.len());
+<a href=#406 id=406 data-nosnippet>406</a>                    <span class="kw">for </span>call <span class="kw">in </span>group_calls {
+<a href=#407 id=407 data-nosnippet>407</a>                        prepared.push(<span class="self">self</span>.prepare(ctx.clone(), call).<span class="kw">await</span>);
+<a href=#408 id=408 data-nosnippet>408</a>                    }
+<a href=#409 id=409 data-nosnippet>409</a>                    prepared
+<a href=#410 id=410 data-nosnippet>410</a>                }
+<a href=#411 id=411 data-nosnippet>411</a>            };
+<a href=#412 id=412 data-nosnippet>412</a>            <span class="kw">for </span>(index, result) <span class="kw">in </span>indexes.into_iter().zip(prepared) {
+<a href=#413 id=413 data-nosnippet>413</a>                results[index] = <span class="prelude-val">Some</span>(result);
+<a href=#414 id=414 data-nosnippet>414</a>            }
+<a href=#415 id=415 data-nosnippet>415</a>        }
+<a href=#416 id=416 data-nosnippet>416</a>        results
+<a href=#417 id=417 data-nosnippet>417</a>            .into_iter()
+<a href=#418 id=418 data-nosnippet>418</a>            .map(|result| result.expect(<span class="string">"every built-in call is prepared"</span>))
+<a href=#419 id=419 data-nosnippet>419</a>            .collect()
+<a href=#420 id=420 data-nosnippet>420</a>    }
+<a href=#421 id=421 data-nosnippet>421</a>}
+<a href=#422 id=422 data-nosnippet>422</a>
+<a href=#423 id=423 data-nosnippet>423</a><span class="attr">#[cfg(test)]
+<a href=#424 id=424 data-nosnippet>424</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
