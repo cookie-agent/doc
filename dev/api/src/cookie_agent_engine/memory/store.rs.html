@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/engine/src/memory/store.rs`."><title>store.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cookie_agent_engine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_engine/memory/</div>store.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Reading, listing, and changing memory files (`docs/site/specs/memory.md`
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/engine/src/memory/store.rs`."><title>store.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cookie_agent_engine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_engine/memory/</div>store.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Reading, listing, and changing memory files (`docs/site/specs/memory.md`
 <a href=#2 id=2 data-nosnippet>2</a>//! sections 4 and 8, as section 16.9 amends them: stamps, size limits per
 <a href=#3 id=3 data-nosnippet>3</a>//! kind of memory, model writes without revisions, and the similar-memory
 <a href=#4 id=4 data-nosnippet>4</a>//! check).
@@ -971,30 +971,44 @@
 <a href=#971 id=971 data-nosnippet>971</a>/// folder renamed over it, creating the folder first. Returns the new
 <a href=#972 id=972 data-nosnippet>972</a>/// revision.
 <a href=#973 id=973 data-nosnippet>973</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>write_file(path: <span class="kw-2">&amp;</span>Path, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryRevision, MemoryError&gt; {
-<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"memory files have a folder"</span>);
-<a href=#975 id=975 data-nosnippet>975</a>    fs::create_dir_all(directory).map_err(io_error(directory))<span class="question-mark">?</span>;
-<a href=#976 id=976 data-nosnippet>976</a>    <span class="kw">let </span>file_name = path
-<a href=#977 id=977 data-nosnippet>977</a>        .file_name()
-<a href=#978 id=978 data-nosnippet>978</a>        .expect(<span class="string">"memory files have a name"</span>)
-<a href=#979 id=979 data-nosnippet>979</a>        .to_string_lossy();
-<a href=#980 id=980 data-nosnippet>980</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{file_name}.{}.tmp"</span>, uuid::Uuid::now_v7()));
-<a href=#981 id=981 data-nosnippet>981</a>    <span class="kw">let </span>result = (|| {
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
-<a href=#983 id=983 data-nosnippet>983</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, bytes)<span class="question-mark">?</span>;
-<a href=#984 id=984 data-nosnippet>984</a>        output.sync_all()<span class="question-mark">?</span>;
-<a href=#985 id=985 data-nosnippet>985</a>        drop(output);
-<a href=#986 id=986 data-nosnippet>986</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)<span class="question-mark">?</span>;
-<a href=#987 id=987 data-nosnippet>987</a>        <span class="attr">#[cfg(unix)]
-<a href=#988 id=988 data-nosnippet>988</a>        </span>fs::File::open(directory)<span class="question-mark">?</span>.sync_all()<span class="question-mark">?</span>;
-<a href=#989 id=989 data-nosnippet>989</a>        <span class="prelude-val">Ok</span>(())
-<a href=#990 id=990 data-nosnippet>990</a>    })();
-<a href=#991 id=991 data-nosnippet>991</a>    <span class="kw">if </span>result.is_err() {
-<a href=#992 id=992 data-nosnippet>992</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
-<a href=#993 id=993 data-nosnippet>993</a>    }
-<a href=#994 id=994 data-nosnippet>994</a>    result.map_err(io_error(path))<span class="question-mark">?</span>;
-<a href=#995 id=995 data-nosnippet>995</a>    <span class="prelude-val">Ok</span>(MemoryRevision::of(bytes))
-<a href=#996 id=996 data-nosnippet>996</a>}
-<a href=#997 id=997 data-nosnippet>997</a>
-<a href=#998 id=998 data-nosnippet>998</a><span class="attr">#[cfg(test)]
-<a href=#999 id=999 data-nosnippet>999</a></span><span class="kw">mod </span>tests;
+<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">let </span>revision = write_file_unsynced_folder(path, bytes)<span class="question-mark">?</span>;
+<a href=#975 id=975 data-nosnippet>975</a>    <span class="attr">#[cfg(unix)]
+<a href=#976 id=976 data-nosnippet>976</a>    </span>{
+<a href=#977 id=977 data-nosnippet>977</a>        <span class="kw">let </span>directory = path.parent().expect(<span class="string">"memory files have a folder"</span>);
+<a href=#978 id=978 data-nosnippet>978</a>        fs::File::open(directory)
+<a href=#979 id=979 data-nosnippet>979</a>            .and_then(|directory| directory.sync_all())
+<a href=#980 id=980 data-nosnippet>980</a>            .map_err(io_error(path))<span class="question-mark">?</span>;
+<a href=#981 id=981 data-nosnippet>981</a>    }
+<a href=#982 id=982 data-nosnippet>982</a>    <span class="prelude-val">Ok</span>(revision)
+<a href=#983 id=983 data-nosnippet>983</a>}
+<a href=#984 id=984 data-nosnippet>984</a>
+<a href=#985 id=985 data-nosnippet>985</a><span class="doccomment">/// [`write_file`] without the fsync of the file's folder, for a caller that
+<a href=#986 id=986 data-nosnippet>986</a>/// writes several files of one folder and syncs it once after them.
+<a href=#987 id=987 data-nosnippet>987</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>write_file_unsynced_folder(
+<a href=#988 id=988 data-nosnippet>988</a>    path: <span class="kw-2">&amp;</span>Path,
+<a href=#989 id=989 data-nosnippet>989</a>    bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#990 id=990 data-nosnippet>990</a>) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryRevision, MemoryError&gt; {
+<a href=#991 id=991 data-nosnippet>991</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"memory files have a folder"</span>);
+<a href=#992 id=992 data-nosnippet>992</a>    fs::create_dir_all(directory).map_err(io_error(directory))<span class="question-mark">?</span>;
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">let </span>file_name = path
+<a href=#994 id=994 data-nosnippet>994</a>        .file_name()
+<a href=#995 id=995 data-nosnippet>995</a>        .expect(<span class="string">"memory files have a name"</span>)
+<a href=#996 id=996 data-nosnippet>996</a>        .to_string_lossy();
+<a href=#997 id=997 data-nosnippet>997</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{file_name}.{}.tmp"</span>, uuid::Uuid::now_v7()));
+<a href=#998 id=998 data-nosnippet>998</a>    <span class="kw">let </span>result = (|| {
+<a href=#999 id=999 data-nosnippet>999</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
+<a href=#1000 id=1000 data-nosnippet>1000</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, bytes)<span class="question-mark">?</span>;
+<a href=#1001 id=1001 data-nosnippet>1001</a>        output.sync_all()<span class="question-mark">?</span>;
+<a href=#1002 id=1002 data-nosnippet>1002</a>        drop(output);
+<a href=#1003 id=1003 data-nosnippet>1003</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)
+<a href=#1004 id=1004 data-nosnippet>1004</a>    })();
+<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">if </span>result.is_err() {
+<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
+<a href=#1007 id=1007 data-nosnippet>1007</a>    }
+<a href=#1008 id=1008 data-nosnippet>1008</a>    result.map_err(io_error(path))<span class="question-mark">?</span>;
+<a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="prelude-val">Ok</span>(MemoryRevision::of(bytes))
+<a href=#1010 id=1010 data-nosnippet>1010</a>}
+<a href=#1011 id=1011 data-nosnippet>1011</a>
+<a href=#1012 id=1012 data-nosnippet>1012</a><span class="attr">#[cfg(test)]
+<a href=#1013 id=1013 data-nosnippet>1013</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

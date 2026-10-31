@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["basename","compact_cost","compact_count","relative_time"]};

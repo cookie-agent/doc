@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["assistant_footer","format_elapsed","thought_label"]};
+window.SIDEBAR_ITEMS = {"fn":["assistant_footer","thought_label"]};
