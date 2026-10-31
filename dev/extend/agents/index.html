@@ -5932,8 +5932,11 @@ as <code>git *</code> also matches a longer command beginning with <code>git</co
 <a href="../../daemon/security/">Security guarantees</a> for the platform-specific filesystem and
 process boundaries behind these tools.</p>
 <p>Path resource labels are normalized lexically from the single path requested by
-the caller. They are not canonicalized through symbolic links before permission
-matching. That one label authorizes the whole prepared <code>read</code>, <code>write</code>, or
+the caller: <code>/</code> separators on every platform, no Windows <code>\\?\</code> prefix, and
+<code>.</code> and <code>..</code> collapsed, so <code>/srv/ws/../../etc/hosts</code> is matched as
+<code>/etc/hosts</code>. The daemon reads every <code>read</code> and <code>write</code> resource so before
+matching, whoever labelled it, an ACP agent's request included. They are not
+canonicalized through symbolic links before permission matching. That one label authorizes the whole prepared <code>read</code>, <code>write</code>, or
 <code>edit</code> operation: if an allowed alias resolves outside the workspace, cookie
 agent does not perform a second permission check or require a rule for the
 resolved destination. Filesystem preparation resolves the route once and
@@ -5960,7 +5963,8 @@ is <code>ask</code>.</p>
 against the workspace of the runtime that prepared the call; relative path
 labels resolve against it too. Base-layer and global-runtime tools have no
 workspace, so <code>${workspace_dir}</code> and relative-path patterns never match them. Ordinary absolute patterns
-such as <code>/etc/*</code> control outside-workspace paths. Permission patterns do not
+such as <code>/etc/*</code> control outside-workspace paths, a relative label that
+leaves the workspace (<code>../x</code>) included. Permission patterns do not
 expand environment variables; only a leading <code>~</code> expands (see
 <a href="#paths-under-the-home-directory">Paths under the home directory</a>). A <code>*</code> matches across directory separators, so
 <code>"${workspace_dir}/*"</code> already covers nested paths such as
