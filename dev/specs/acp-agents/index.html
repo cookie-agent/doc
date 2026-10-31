@@ -4018,6 +4018,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-31-the-context-in-a-models-order-shown-as-the-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-31): the context in a model's order, shown as the system prompt
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4478,6 +4487,15 @@
   <a href="#addendum-2026-10-30-the-bridge-announces-a-changed-tool-list" class="md-nav__link">
     <span class="md-ellipsis">
       Addendum (2026-10-30): the bridge announces a changed tool list
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-2026-10-31-the-context-in-a-models-order-shown-as-the-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Addendum (2026-10-31): the context in a model's order, shown as the system prompt
     </span>
   </a>
   
@@ -6014,6 +6032,58 @@ Codex session sees a changed list in its next ACP session (user decision,
 <li>Test: <code>the_bridge_tells_the_agent_once_when_its_tool_list_changes</code>
   (<code>crates/engine/src/runtime/tests/acp.rs</code>), with the fixture agent's
   <code>mcp notices</code>.</li>
+</ul>
+<h2 id="addendum-2026-10-31-the-context-in-a-models-order-shown-as-the-system-prompt">Addendum (2026-10-31): the context in a model's order, shown as the system prompt<a class="headerlink" href="#addendum-2026-10-31-the-context-in-a-models-order-shown-as-the-system-prompt" title="Permanent link">&para;</a></h2>
+<p>User decisions of 2026-10-31, after the user found the context's order
+irregular and its transcript row repeating the system prompt and memory
+rows.</p>
+<ul>
+<li><strong>Order.</strong> The context an ACP session is given (its system prompt, or
+  ahead of its first prompt) has a model run's system prompt order: the
+  agent document's body, the attachments block, the tool instructions,
+  the skill listing, and last the memory snapshot turn, which a model run
+  reads as the turn after its system prompt. It was the tool instructions,
+  the skill listing, the attachments, the memory, and the body.</li>
+<li><strong>One memory snapshot per context.</strong> An ACP run takes no memory snapshot
+  at its admission; <code>acp_prompt_context</code> (formerly
+  <code>acp_first_prompt_context</code>) takes one when it composes a context for a
+  new ACP session, and puts that one in it. A snapshot taken later would
+  show a memory row for memory the agent never read.</li>
+<li><strong>Nothing told mid-session.</strong> A live ACP session is not told when its
+  skills, tool instructions, or memory change; it gets them with its next
+  new ACP session. Sending the changes ahead of its next prompt, as a
+  model's <code>instructions changed</code> announcement does, was rejected for now.</li>
+<li><strong>Shown as the system prompt.</strong> The <code>context sent to &lt;agent&gt;</code> row is
+  gone, for sessions recorded before too. The pinned system prompt row of
+  an ACP agent's session shows what cookie gave its latest ACP session,
+  less the memory snapshot turn (which the memory row shows):
+  <code>appended system prompt · claude (N lines)</code>, or <code>system prompt (sent as
+  user message) · claude (N lines)</code> for an agent given its context ahead
+  of its first prompt. Before cookie gives it any, and for a record that
+  says neither, the row is as before. The agent's own subagent keeps its
+  <code>context from the parent · its system prompt</code> row.</li>
+<li><strong>Protocol.</strong> Client protocol 1.58.0 (plugin 1.31.0):
+  <code>acp_session_updated</code> has an optional <code>prompt_context_system_prompt</code>,
+  <code>true</code> when the context went as the agent's system prompt and <code>false</code>
+  when it went ahead of its first prompt. Which way it goes depends on the
+  session as well as the agent: an agent that takes a system prompt gets
+  its context ahead of the first prompt when cookie opened its session
+  outside a run (to set an option), so the capability alone cannot say.</li>
+</ul>
+<p><strong>Implementation notes:</strong></p>
+<ul>
+<li>The client finds the memory part by matching the latest memory row's
+  text: both come from <code>model_text::memory_snapshot_turn</code>.</li>
+<li><code>AcpSessionView::system_prompt</code> holds the shown text and how it went;
+  <code>rows::system_prompt_text</code> and <code>rows::system_prompt_summary</code> give the
+  row its body and title in both clients, for the snapshot of the agent
+  the latest ACP session ran.</li>
+<li>Tests: <code>the_first_prompt_carries_the_body_the_attachments_the_offered_tools_instructions_and_the_memory</code>
+  (<code>crates/engine/src/runtime/tests/acp.rs</code>, with the single snapshot),
+  <code>an_acp_agents_context_shows_as_its_system_prompt_and_its_memory_once</code>
+  (<code>crates/client_state/src/tests.rs</code>), and
+  <code>an_acp_agents_system_prompt_row_shows_what_its_session_was_given</code>
+  (<code>crates/client_state/src/rows.rs</code>).</li>
 </ul>
 
 
