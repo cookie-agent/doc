@@ -3850,6 +3850,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4.2 History format 2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#421-implementation-notes-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2.1 Implementation notes (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4536,6 +4551,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4.2 History format 2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#421-implementation-notes-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2.1 Implementation notes (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4627,7 +4657,10 @@
 2026-10-31 in <a href="#7-decisions">section 7</a>; phases 1 and 2 implemented
 (phase 2: client protocol 1.59.0, <a href="#34-implementation-notes-2026-10-31">3.4</a>);
 phase 3's layout, listing, and migration (4.1, 4.3, 4.4, 5) implemented with
-history format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>).</p>
+history format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>), then
+history format 2 and <code>blobs/</code> (4.2) through the same marker
+(<a href="#421-implementation-notes-2026-11-01">section 4.2.1</a>); <code>view.json</code> is
+still to come.</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>Opening a long session in the web client sometimes fails with
 <code>subscription replay response timed out</code>, most often when the daemon's
@@ -5059,6 +5092,167 @@ two real sessions, over a local WebSocket (sizes before compression):</p>
 </ul>
 <p>Expected effect: logs about 60% smaller, so every parse is faster,
 including a resume for a run.</p>
+<h4 id="421-implementation-notes-2026-11-01">4.2.1 Implementation notes (2026-11-01)<a class="headerlink" href="#421-implementation-notes-2026-11-01" title="Permanent link">&para;</a></h4>
+<p>History format 2 with its converter <code>v1_to_v2</code>
+(<a href="../../reference/events/#history-formats">events reference</a>). The wire
+carries whole values; the one protocol change is that readers take a
+<code>session_created</code> of any history format (client protocol 1.63.0; an older
+client receives format 1, which its whole values are). Where the
+implementation settles what 4.2 leaves open, or departs from it (the
+coordinator extended 4.2 on 2026-11-01 with the tool result's other large
+values and the ACP live-state rule, so the store converts once rather than
+again for a format 3):</p>
+<ul>
+<li><strong>Records in memory stay whole.</strong> The loader reads every value back from
+  <code>blobs/</code> as it parses a line that names one, and the writer moves them out
+  as it writes one, so everything that reads a record (model replay,
+  compaction, the approval reviewer, <code>event.read</code>, both views of
+  <code>events.subscribe</code>, plugins) is unchanged, and the display view cuts large
+  outputs as before. A log is smaller on disk, but a parse that reads it
+  whole still reads the blobs its records name: the faster parse 4.2
+  expects comes for the lines that are not moved, and for a cold view once
+  <code>view.json</code> lands. A line naming blobs is kept in memory as read (the
+  slimmed line, about 2.3 KB for a moved output), not re-read from the file,
+  so a fork copies it with its references.</li>
+<li><strong>What moves.</strong> An output strictly longer than 8 KiB keeps its first
+  2 KiB, floored to a character boundary, as <code>output</code>, with <code>output_bytes</code>
+  and <code>output_blob</code>; a display stored as ranges of the output stays ranges
+  of the whole output. A tool result's <code>display</code> and each part of its
+  <code>metadata</code> longer than 8 KiB of JSON (an ACP agent's <code>raw_output</code> and
+  <code>raw_input</code>, mostly) move whole, an object only once the large members
+  inside it moved and it is still that long; <code>moved_values</code> names them by
+  JSON pointer, restored last-moved first. The display view's cut is
+  unchanged: it works on the whole records in memory. The ACP lists and the
+  chains move when their JSON is
+  512 bytes or more (<code>&lt;member&gt;_blob</code>): a shorter one is smaller than its
+  reference. Besides <code>run_started</code>'s <code>agent.fallback_chain</code>, each internal
+  agent's <code>fallbacks</code> moves too, the bulk of a run's settings (3.4 KB each in
+  the store measured). <code>delegation_reserved</code>'s <code>child_agent</code> holds a chain
+  as well and stays as it is: 4.2 names <code>run_started</code> only.</li>
+<li><strong>Old ACP live state</strong> (<code>v1_to_v2</code> only; a format-2 writer stores none,
+  <a href="../store-locks-and-durability/">store locks and durability</a> 4.3): an
+  <code>acp_session_updated</code> holding only a <code>tool_presentation</code>, a <code>context</code>, or
+  both is live state. A call's last presentation goes into its
+  <code>tool_call_terminated</code> as <code>presentation</code> when it differs from the start's
+  (tool identity aside), also one that arrived after the end; a call with no
+  end record keeps the record of its last presentation. Of the context,
+  the record in effect at each <code>model_usage_recorded</code> (an ACP reply's
+  footer reads the context there) and <code>run_finished</code>, and at the log's
+  end, stays: one per run alone would change earlier replies' footers in a
+  run of several prompts. Every other live-state record becomes a
+  <code>record_omitted</code> at its sequence, run, and time (without engine version
+  and origin): dropping the line would leave a hole in the sequence, which
+  the loader reports as damage. Clients show no row for such a record and
+  the display view leaves it out (<code>EventPayload::is_omitted_live_state</code>);
+  a client before this build shows a debug row for each.</li>
+<li><strong>References are artifact URIs</strong> (<code>artifact://sha256/&lt;digest&gt;</code>), so
+  artifact liveness (a fork links the blobs its history names, a revert
+  collects the ones only its dropped records named) covers blobs without a
+  change, and <code>blobs/</code> holds the tree's artifacts as well: it replaced
+  <code>artifacts/</code>. The conversion moves <code>artifacts/</code> to <code>blobs/</code> first (the
+  folder at once, or file by file into a <code>blobs/</code> that exists, so it can be
+  repeated); a tree no conversion reached, held by another process, is read
+  from <code>artifacts/</code>.</li>
+<li><strong>Durability.</strong> A record's blobs are written before it, unsynced, and the
+  sync that covers the record syncs them and <code>blobs/</code> first, outside every
+  lock (store locks and durability, section 4.1); a blob a sync of the log
+  covered once is not synced again for it. A record whose blob is missing
+  or does not match its digest (lost to a power cut before that sync, or
+  removed by hand) is skipped with a diagnostic, never read short. A
+  conversion and a log written whole (a fork, a buffered session's first
+  persistence) sync their blobs before the log.</li>
+<li><strong>A root's publication</strong> may now find <code>blobs/</code> beside <code>subagents/</code> in
+  its scaffold, when a child published first and its records named blobs;
+  the root's own <code>blobs/</code> is merged into it.</li>
+<li><strong>The migration</strong> converts every tree in the month folders when
+  <code>layout.json</code> records an older format (or there is none), each under its
+  lock, where it is; with a current format it retries only the pending
+  ones. The marker moves to format 2 after the last tree, so a start a
+  crash cut short converts again and finds the trees it finished current;
+  an original a crash left beside its log (<code>events.jsonl.v1.bak</code>) goes to
+  <code>.backup-v2/</code> then too. The free-space check counts the logs to convert
+  in month folders as well, and has a Windows implementation
+  (<code>GetDiskFreeSpaceExW</code>). Unlike a work-dir tree, a month-folder tree that
+  fails to convert stays listed, and is read through an in-memory
+  conversion until it converts.</li>
+<li><strong>Golden logs</strong> of format 2 are in <code>crates/engine/tests/fixtures/history/2/</code>;
+  the <code>coding</code> scenario now reads a 19 KB file, whose output moves.</li>
+</ul>
+<p>Measured on 2026-11-01 on a fresh scratch copy of this machine's store (97
+roots and 174 logs in the v2 work-dir layout, all format 1), on a machine
+with a load average of 40 to 70:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Logs</td>
+<td>281.6 MB</td>
+<td>215.8 MB (−23.4%)</td>
+</tr>
+<tr>
+<td><code>artifacts/</code> / <code>blobs/</code></td>
+<td>45.2 MB</td>
+<td>91.3 MB, 2,848 blobs</td>
+</tr>
+<tr>
+<td>Store</td>
+<td>327.4 MB</td>
+<td>307.7 MB (−6.0%)</td>
+</tr>
+<tr>
+<td>Largest log (<code>01a17973-…</code>)</td>
+<td>16.94 MB</td>
+<td>9.73 MB (−42.5%)</td>
+</tr>
+<tr>
+<td>Largest log after (<code>01a189ee-…</code>)</td>
+<td>13.40 MB</td>
+<td>11.22 MB (−16.2%)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Conversion, release build, tmpfs</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v2 layout to layout 3 and format 2</td>
+<td>97 trees in 8.5 s</td>
+</tr>
+<tr>
+<td>Layout 3 at format 1 (written by the format-1 build) to format 2</td>
+<td>97 trees in 7.0 s</td>
+</tr>
+</tbody>
+</table>
+<p>Every one of the 174 logs opens with no diagnostic, and every line reads
+back as the format-1 original but for the live-state rule (40,415
+<code>acp_session_updated</code> records became <code>record_omitted</code>, 11,467 calls'
+ends took their final presentation) and <code>history_format</code>. Folded through
+the client reducer, the original and the converted log give the same
+transcript rows, tool states (each call's status and displayed
+presentation), ACP view, reply metrics (footers, context), and context use
+for all 174 (158,603 events); the comparison leaves out only the process's
+revision counters and rows' cache versions, and a hash set's order.</p>
+<p>Measured earlier the same day, before the additions above: on the NVMe
+disk, syncs included, the conversion took 2.9 times as long as on tmpfs
+(18.9 s against 6.5 s); a debug start killed after 83 of 97 trees resumed
+with them current (39 ms), converted the other 14, and left no staged
+file, backup, or <code>.backup-v2/</code>; the next start read only <code>layout.json</code>.</p>
+<p>In the largest log, what is left is mostly tool results' values under
+8 KiB (5.1 MB over 1,112 results), model turns (1.4 MB), and the 4,520
+<code>record_omitted</code> lines (1.1 MB). Left for later: <code>delegation_reserved</code>'s
+agent snapshot chains.</p>
 <h3 id="43-listing-recent-sessions">4.3 Listing recent sessions<a class="headerlink" href="#43-listing-recent-sessions" title="Permanent link">&para;</a></h3>
 <p>Each <code>activity/&lt;yyyy-mm&gt;.jsonl</code> is an append-only journal of root
 sessions' list entries (<code>SessionMeta</code>, ~1.6 KB) in the month the entry
@@ -5145,8 +5339,9 @@ migration at startup, then the marker moves up. Converters are never
 removed, so an older store upgrades step by step in one pass.</p>
 <h3 id="51-implementation-notes-2026-10-31">5.1 Implementation notes (2026-10-31)<a class="headerlink" href="#51-implementation-notes-2026-10-31" title="Permanent link">&para;</a></h3>
 <p>Layout version 3 with history format 1, so <code>view.json</code>, <code>blobs/</code>, and
-<code>v1_to_v2</code> are still to come. Where the implementation settles what the
-sections above leave open, or departs from them:</p>
+<code>v1_to_v2</code> were still to come (format 2 and <code>blobs/</code>: 4.2.1). Where the
+implementation settles what the sections above leave open, or departs from
+them:</p>
 <ul>
 <li><strong>No conversion yet, so no backups.</strong> Each tree moves by one rename.
   <code>convert_tree</code> still runs on it under its lock, converting logs of a

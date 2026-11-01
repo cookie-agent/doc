@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOBS_DIR","LEGACY_ARTIFACTS_DIR","OUTPUT_BLOB_MIN_BYTES","OUTPUT_HEAD_BYTES","VALUE_BLOB_MIN_BYTES"],"fn":["digest","externalize","has_references","internalize","is_digest","may_move","read","sync","tree_blob_dir","write","write_synced"],"type":["Blobs"]};

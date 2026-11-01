@@ -4686,8 +4686,11 @@ own. When tool-emitted additional messages are materialized as persisted
 turns, their origin is <code>engine:tool-result</code>: the engine authors the durable
 turn from a validated tool result, and the tool name remains payload context.</p>
 <p>The first record is always <code>session_created</code>. It carries <code>history_format</code>
-(currently <code>1</code>, the <code>HISTORY_FORMAT</code> constant of <code>cookie_agent_protocol</code>),
-and the optional <code>short_id</code>, the tree-unique model-facing handle.</p>
+(currently <code>2</code>, the <code>HISTORY_FORMAT</code> constant of <code>cookie_agent_protocol</code>),
+and the optional <code>short_id</code>, the tree-unique model-facing handle. Events on
+the wire carry whole values whatever the log's format, so a client reads a
+<code>session_created</code> of any format (client protocol 1.63.0); a client before
+1.63.0, which refuses any format but 1, receives <code>history_format: 1</code>.</p>
 <h2 id="reading-a-log">Reading a log<a class="headerlink" href="#reading-a-log" title="Permanent link">&para;</a></h2>
 <p>Writers are strict: every appended record passes validation (bounds, required
 fields, grammar, and the cross-event checks below), including a <code>skippable</code>
@@ -4770,8 +4773,55 @@ each a function from the old log's JSON lines to the new one's:</p>
 <li><a href="../../sessions/#history-formats"><code>cookie sessions upgrade</code></a> converts
   the trees on disk up front.</li>
 </ul>
-<p>Backups are kept until you delete them. The format bumps only for a change
-that cannot follow the additive rules below.</p>
+<p>A daemon's start converts the whole store once, before it accepts
+connections, and records the format in <code>sessions/layout.json</code>; those
+backups go once the record is written (<a href="../../architecture/#session-storage-layout">Session storage
+layout</a>). Backups a later conversion
+makes, when a tree another process held at that start is taken, are kept
+until you delete them. The format bumps only for a change that cannot follow
+the additive rules below.</p>
+<p>The formats:</p>
+<ul>
+<li><strong>1</strong>, the format the protocols froze with.</li>
+<li><strong>2</strong> keeps a record's large values in the tree's <code>blobs/</code> folder, each
+  named by the SHA-256 of its content, so a log holds less:</li>
+<li>a tool result's <code>output</code> longer than 8 KiB keeps its first 2 KiB (cut
+    at a character boundary) as <code>output</code>, its byte length as
+    <code>output_bytes</code>, and <code>output_blob</code>, the blob's reference; a display
+    stored as ranges of the output keeps ranges of the whole output;</li>
+<li>the result's <code>display</code>, and each part of its <code>metadata</code> (an ACP
+    agent's <code>raw_output</code> and <code>raw_input</code>, say), whose JSON is longer than
+    8 KiB move whole: an object of the metadata only once the large members
+    inside it moved and it is still that long, and the metadata itself the
+    same way. <code>moved_values</code> lists them, each <code>{"pointer", "value_blob"}</code>,
+    <code>pointer</code> a JSON pointer into the result, in the order they moved;</li>
+<li><code>acp_session_updated</code>'s <code>commands</code> and <code>options</code>, and <code>run_started</code>'s
+    <code>agent.fallback_chain</code> and each internal agent's <code>fallbacks</code>, become
+    <code>&lt;member&gt;_blob</code> when their JSON is 512 bytes or more, the blob holding
+    that JSON, so a list repeated across records is stored once.</li>
+</ul>
+<p>A reference is <code>"artifact://sha256/&lt;digest&gt;"</code>, so a fork takes the blobs
+  its history names along and a revert collects the ones only its dropped
+  records named, as for any artifact; <code>blobs/</code> replaced the tree's
+  <code>artifacts/</code> folder and holds both. A blob is synced before the log
+  record that names it: a record whose blob is missing or does not match
+  its digest is skipped with a diagnostic, never read short. Readers read
+  every value back, so clients, plugins, model replay, compaction, and the
+  approval reviewer see whole records; nothing on the wire changed. The
+  converter from format 1 (<code>v1_to_v2</code>) moves the same values, and also
+  moves <code>artifacts/</code> to <code>blobs/</code>.</p>
+<p>The converter also stores an ACP agent's live state as a format-2 writer
+  does (<a href="#live-only-stream-output">Live-only stream output</a>): an
+  <code>acp_session_updated</code> that holds only a <code>tool_presentation</code>, a <code>context</code>,
+  or both is live state. A call's last presentation goes into its
+  <code>tool_call_terminated</code> as <code>presentation</code> when it differs from the start's;
+  a call with no end record keeps the record of its last presentation. The
+  context record in effect at each <code>model_usage_recorded</code> and <code>run_finished</code>
+  (a reply's footer and the run's end read it), and at the log's end,
+  stays. Every other live-state record becomes a <code>record_omitted</code> at its
+  sequence, run, and time, and a record that stays keeps only the member it
+  stays for. A client folds a converted log to the same transcript as the
+  original.</p>
 <p><code>crates/engine/tests/fixtures/history/&lt;format&gt;/</code> holds session trees recorded
 from scripted runs against fake model providers, with snapshots of what the
 recording build read from them: every session's metadata, usage, events as
@@ -5610,8 +5660,11 @@ attachments.</p>
 <p><code>record_omitted { omitted_type }</code> stands in for a record its writer
 deliberately did not carry over, at that record's sequence, run (if any),
 time, and origin; <code>omitted_type</code> is the left-out record's <code>type</code>. Its run, when
-it has one, is a run the log started. Nothing reads it but a view; today only a
-fork writes it, for its source's <a href="#delegation">delegation records</a>.</p>
+it has one, is a run the log started. Nothing reads it but a view. A fork
+writes it for its source's <a href="#delegation">delegation records</a>, and the
+conversion to history format 2 for each <code>acp_session_updated</code> that held only
+an ACP agent's live state (without the origin): clients show no row for
+those, and the display view leaves them out.</p>
 <p>The runless <code>session_permission_overlay_set</code> event's <code>overlay</code>
 contains the complete, validated set of unique <code>(action, resource)</code> rules for
 the session. The latest visible event wins. Because it is an ordinary branch

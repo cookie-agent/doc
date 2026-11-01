@@ -4070,6 +4070,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#history-format-2-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      History format 2 (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5390,6 +5399,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#history-format-2-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      History format 2 (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6200,7 +6218,8 @@ not listed above.</p>
 </code></pre></div>
 <p><code>skippable</code> is written only when true.</p>
 <h3 id="87-history-format-and-conversion">8.7 History format and conversion<a class="headerlink" href="#87-history-format-and-conversion" title="Permanent link">&para;</a></h3>
-<p><code>session_created</code> carries <code>history_format: 1</code>. A reader handles a log as
+<p><code>session_created</code> carries <code>history_format</code> (1 at the freeze, 2 since
+<a href="../session-storage-v3/">session storage v3</a>). A reader handles a log as
 follows:</p>
 <ul>
 <li><strong>No <code>history_format</code>:</strong> a pre-1.0 log. It is not converted, and the open
@@ -8437,6 +8456,51 @@ corpora, and the compatibility policy.</p>
   contributor rules and is in the nav; <code>protocol.md</code>, <code>runtime-protocol.md</code>,
   <code>development/plugins.md</code>, <code>schemas.md</code>, <code>architecture.md</code>, and <code>events.md</code>
   describe the frozen versions, the storage encoding, and the golden logs.</li>
+</ul>
+<h3 id="history-format-2-2026-11-01">History format 2 (2026-11-01)<a class="headerlink" href="#history-format-2-2026-11-01" title="Permanent link">&para;</a></h3>
+<p>The first real converter, <code>v1_to_v2</code>, for
+<a href="../session-storage-v3/">session storage v3</a> section 4.2. No client, plugin,
+or runtime protocol changed: readers read every value back.</p>
+<ul>
+<li><strong>Converters take a blob sink.</strong> A step is now
+  <code>fn(Vec&lt;Value&gt;, &amp;mut Blobs) -&gt; Result&lt;Vec&lt;Value&gt;, String&gt;</code>: it may move a
+  value out of the log into the tree's blobs (<code>Blobs</code>, content by digest),
+  and <code>convert_bytes</code> returns them with the converted log. <code>convert_tree</code>
+  writes and syncs them in <code>blobs/</code> before it stages the logs; a read-only
+  open keeps them in memory, where its loader reads them back, and writes
+  nothing. The test-only step from format 0 ignores the sink, so a format-0
+  log converts 0 to 1 to 2.</li>
+<li><strong>What moves</strong> is the writer's own rule (<code>events::blobs::externalize</code>),
+  shared by the converter and the writer, so a converted log reads as one a
+  format-2 build wrote: a tool result's <code>output</code> longer than 8 KiB (its
+  head, <code>output_bytes</code>, and <code>output_blob</code> stay), its <code>display</code> and the
+  parts of its <code>metadata</code> longer than 8 KiB of JSON (whole, listed in
+  <code>moved_values</code> by JSON pointer), <code>acp_session_updated</code>'s <code>commands</code> and
+  <code>options</code>, and <code>run_started</code>'s <code>agent.fallback_chain</code> and each internal
+  agent's <code>fallbacks</code> of 512 bytes of JSON or more (as <code>&lt;member&gt;_blob</code>). A
+  stored display's ranges stay ranges of the whole output, which the reader
+  restores first. Unknown records are copied as they are.</li>
+<li><strong>Old ACP live state</strong> is stored as a format-2 writer stores it
+  (<a href="../store-locks-and-durability/">store locks and durability</a> 4.3): a
+  call's last presentation moves into its end record, the context record in
+  effect at each usage record, run end, and the log's end stays, and every
+  other <code>acp_session_updated</code> that held only live state becomes a
+  <code>record_omitted</code> at its sequence, run, and time. Dropping the lines would
+  break the sequence, which the loader reports as damage. Clients show no row
+  for such a <code>record_omitted</code> and the display view leaves it out
+  (<code>EventPayload::is_omitted_live_state</code>).</li>
+<li><strong>The tree's artifacts move too.</strong> <code>convert_tree</code> first moves
+  <code>artifacts/</code> to <code>blobs/</code> (the folder when there is no <code>blobs/</code> yet, else
+  file by file), so the step can be repeated after a crash. A tree no
+  conversion reached is read from <code>artifacts/</code>.</li>
+<li><strong>Golden logs.</strong> <code>history/2/</code> was recorded with this build; its <code>coding</code>
+  scenario reads a 19 KB file, so it holds a moved output. <code>history/1/</code>
+  reads through the converter, read-only and owned: what a snapshot of an
+  older format shows changes only in <code>session_created</code>'s <code>history_format</code>,
+  which names the format the log converted to, and in the model history's
+  file labels, which format-1 snapshots predate. The native-compaction
+  scenarios' fake server answered only two requests, from when native
+  compaction did not yet run beside a summary; it now answers by path.</li>
 </ul>
 
 
