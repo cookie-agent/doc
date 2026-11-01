@@ -5395,12 +5395,17 @@ compile against it; their UI is phase 2.</p>
   counts a failure.</li>
 <li><strong>Schedules.</strong> Cron fields accept the three-letter month and day names
   and 7 for Sunday besides numbers. <code>a/n</code> runs from <code>a</code> to the field's end.
-  A spring-forward gap fires at the instant it jumps to; a fall-back fold
-  fires at the first occurrence only. An expression is refused when no
-  month has one of its days (<code>0 0 30 2 *</code>); restricting the day of week too
-  makes it reachable (Vixie OR). <code>crons.create</code> and <code>crons.update</code> also
-  take <code>{at}</code>, which must be in the future; <code>max_runs</code> other than 1 with a
-  one-shot schedule is refused.</li>
+  A spring-forward gap fires as much later as the clock jumps (jiff's
+  compatible disambiguation), once where that lands on a time the job also
+  matches; a fall-back fold fires at the first occurrence only, and also at
+  the second for a job whose hour field covers every hour (2026-11-01: an
+  hourly or every-minute job otherwise went a whole real hour without a
+  fire). A day with a clock change compares all its fires by instant, so a
+  query inside the jumped-to hour still finds the gap's fire. An expression
+  is refused when no month has one of its days (<code>0 0 30 2 *</code>); restricting
+  the day of week too makes it reachable (Vixie OR). <code>crons.create</code> and
+  <code>crons.update</code> also take <code>{at}</code>, which must be in the future; <code>max_runs</code>
+  other than 1 with a one-shot schedule is refused.</li>
 <li><strong>Validation details.</strong> A name is trimmed, non-blank, at most 80
   characters, without control characters; a prompt is non-blank and at most
   32 KiB. <code>delivery</code> on a new-session job and <code>permission_mode</code> on an
