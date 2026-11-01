@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["bindings","blocking","delegation_events","events","goal_projection","ownership","session","timing","usage"]};
+window.SIDEBAR_ITEMS = {"mod":["bindings","blocking","delegation_events","events","goal_projection","ownership","session","status","timing","usage"]};

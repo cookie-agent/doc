@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["DaemonExit"],"fn":["daemon_token","exit_on_next_stop","run_daemon","serve","stop_on_signal","web_page_line"],"struct":["DaemonListen"]};
+window.SIDEBAR_ITEMS = {"constant":["FAILED_START_NOTICE"],"enum":["DaemonExit"],"fn":["daemon_token","exit_on_next_stop","hold_start_for_test","run_daemon","serve","stop_on_signal","web_page_line"],"struct":["DaemonListen"]};
