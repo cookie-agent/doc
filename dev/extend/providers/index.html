@@ -4810,7 +4810,7 @@ stored); unconfigured providers report counts alone.</p>
 <td><code>models</code></td>
 <td>map</td>
 <td>empty</td>
-<td>Sparse per-model overrides: <code>enabled</code>, <code>display_name</code>, <code>model_id</code>, <code>generation_options</code>, <code>adaptor_options</code>, <code>variants</code>, <code>default_variant</code>, <code>compaction</code>, <code>deferred_tools</code>, <code>headers</code>, <code>pricing</code>. Unmentioned catalog models remain available. Cannot invent models or directly change catalog capabilities.</td>
+<td>Sparse per-model overrides: <code>enabled</code>, <code>display_name</code>, <code>model_id</code>, <code>generation_options</code>, <code>adaptor_options</code>, <code>variants</code>, <code>default_variant</code>, <code>compaction</code>, <code>deferred_tools</code>, <code>reasoning_binding</code>, <code>headers</code>, <code>pricing</code>. Unmentioned catalog models remain available. Cannot invent models or directly change catalog capabilities.</td>
 </tr>
 </tbody>
 </table>
@@ -4847,6 +4847,22 @@ decided per model, in this order:</p>
 <li>Any other model on an Anthropic or Anthropic-compatible adaptor, a Claude
      model through a gateway included, is <em>attempted</em>: deferral is tried, and
      a rejected request falls back to sending every tool up front.</li>
+</ol>
+<p>Whether a model <strong>binds its reasoning to its prefix</strong> is decided per model
+too. A model that binds accepts a replayed thinking block only while the
+system prompt, the tools, and every earlier message are unchanged since the
+block was made; cookie leaves out reasoning whose prefix changed before
+sending, and asks Anthropic to drop any it missed
+(<a href="../../specs/frozen-context/">frozen context spec</a>).</p>
+<ol>
+<li><strong><code>reasoning_binding</code></strong> in a model override: <code>"prefix"</code> declares that the
+   model binds, <code>"none"</code> that it does not. Any other value is an error.</li>
+<li><strong>Automatic rules:</strong> a reasoning Claude model (a model ID starting
+   <code>claude-</code>, or containing <code>anthropic.claude-</code> on Bedrock) on an Anthropic,
+   Anthropic-compatible, or Bedrock adaptor binds, whatever its endpoint, so a
+   gateway in front of Anthropic is covered. Every other model does not,
+   including other models on Anthropic-compatible endpoints (Kimi, GLM,
+   MiniMax).</li>
 </ol>
 <p>A request with deferred tools that an attempted model refuses (any HTTP 400
 or 422), or that a <code>native</code> model refuses naming deferral, is tried once more
@@ -5433,6 +5449,11 @@ the current configuration or catalog changes.</p>
 <td><code>deferred_tools</code></td>
 <td>string</td>
 <td>Optional <code>"native"</code> or <code>"unsupported"</code>; whether the model loads deferred tools. Omitted, the automatic rules under <a href="#provider-fields">provider fields</a> decide: on an <code>anthropic</code> or <code>anthropic-compatible</code> adaptor a model is attempted (or <code>native</code> for a Claude model on <code>api.anthropic.com</code>), and every other custom model is unsupported. <code>"native"</code> on an adaptor that cannot load deferred tools is an error.</td>
+</tr>
+<tr>
+<td><code>reasoning_binding</code></td>
+<td>string</td>
+<td>Optional <code>"prefix"</code> or <code>"none"</code>; whether the model binds replayed reasoning to its request prefix. Omitted, the automatic rules under <a href="#provider-fields">provider fields</a> decide: a reasoning Claude model on an <code>anthropic</code>, <code>anthropic-compatible</code>, or Bedrock adaptor binds, and every other custom model does not.</td>
 </tr>
 <tr>
 <td><code>native_replay</code></td>
