@@ -5012,6 +5012,12 @@ never stored.</p>
 <td><a href="#prompt-blocks">Prompt blocks</a>: where a run's prompt carries its blocks, and what changed since</td>
 </tr>
 <tr>
+<td><code>context_refreshed</code></td>
+<td>audit</td>
+<td>run</td>
+<td><a href="#prompt-blocks">Prompt blocks</a>: the context before the conversation was composed again between compactions, and why</td>
+</tr>
+<tr>
 <td><code>model_turn_committed</code>, <code>model_usage_recorded</code></td>
 <td>state</td>
 <td>run</td>
@@ -5800,13 +5806,28 @@ pending input and preserves the others.</p>
 made with <code>session.select_model</code>; it is runless and its origin names the client.
 Later runs that name no selection of their own use it.</p>
 <h3 id="prompt-blocks">Prompt blocks<a class="headerlink" href="#prompt-blocks" title="Permanent link">&para;</a></h3>
-<p><a href="../system-prompt/#frozen-blocks-on-models-that-defer-tools">Frozen blocks</a>:</p>
+<p><a href="../system-prompt/#the-frozen-context">The frozen context</a>:</p>
 <ul>
 <li><code>prompt_blocks_recorded</code> comes before a run's first request, unless the
   run is an ACP agent's or a plugin replaced its prompt. <code>blocks</code> lists <code>key</code>
   (<code>runtimes</code>, <code>tool_instructions</code>, or <code>skills</code>), <code>start</code>, and <code>len</code>, in
   bytes of the run's <code>composed_prompt</code>; <code>composed_live</code> says whether the run
   composed them rather than copying the previous run's.</li>
+<li><code>context_refreshed { reason, changed }</code> (client protocol 1.62.0) comes
+  after a refresh run's <code>run_started</code>, before its first request, and
+  starts a new tool round. <code>reason</code> is <code>engine_updated</code>, <code>tools_changed</code>,
+  or <code>agent_changed</code>, an open enum read as <code>unknown</code>; <code>changed</code> holds
+  <code>system_prompt</code>, <code>agent_md</code>, and <code>memory</code> flags and <code>tools</code> (<code>added</code>,
+  <code>removed</code>, <code>changed</code>, by name). Skills loaded before it sit with the turns
+  before the conversation, and in-place <code>agent_md_loaded</code> and
+  <code>memory_loaded</code> before it are left out of history.</li>
+<li><code>agent_md_loaded</code> and <code>memory_loaded</code> have an optional <code>in_place</code> (1.62.0):
+  a runtime a client attached since the previous run, recorded at the next
+  run's start and rendered where it was recorded; the turns before the
+  conversation stay as they were. An in-place <code>memory_loaded</code> holds only the
+  new machines.</li>
+<li><code>tool_round_started</code> has an optional <code>engine_build</code> (1.62.0): the release
+  tag, or commit, of the engine that started the round.</li>
 <li><code>prompt_blocks_announced</code> carries <code>blocks</code>, each a <code>key</code> and its new
   <code>text</code>, or no <code>text</code> when the block no longer applies. Model history renders
   it in place as a user turn; a checkpoint leaves earlier ones out of the

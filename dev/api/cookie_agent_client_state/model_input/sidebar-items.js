@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ModelInputKind"],"fn":["agent_md_turn","elision_note","emitted_message_notes","inherited_context","inherited_system_prompt_header","interrupted_note","loop_warning_note","memory_header","prompt_blocks","reasoning_cut_row"]};
+window.SIDEBAR_ITEMS = {"enum":["ModelInputKind"],"fn":["agent_md_turn","elision_note","emitted_message_notes","inherited_context","inherited_system_prompt_header","interrupted_note","loop_warning_note","memory_header","prompt_blocks","reasoning_cut_row","refresh_row"]};

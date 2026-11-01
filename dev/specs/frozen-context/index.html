@@ -4292,9 +4292,9 @@
 
 
 <h1 id="stale-reasoning-and-a-frozen-context">Stale reasoning and a frozen context<a class="headerlink" href="#stale-reasoning-and-a-frozen-context" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-10-31); phases 1 and 2 implemented (2026-11-01;
-oven-sdk 72c6127, client protocol 1.61.0), phase 3 in progress. See
-<a href="#implementation-notes">implementation notes</a>. Builds on
+<p>Status: <strong>implemented</strong> (2026-11-01; oven-sdk 72c6127, client protocol
+1.61.0 and 1.62.0). See <a href="#implementation-notes">implementation notes</a>.
+Builds on
 <a href="../thinking-replay-recovery/">thinking-replay recovery</a> and
 <a href="../stable-prefix/">a stable prompt prefix</a>, and reverses part of each
 (section 2).</p>
@@ -4659,6 +4659,31 @@ spec index.</p>
     cannot express, so it would be dropped on the next request anyway.</li>
 <li>A cut turn's replay decision is <code>reconstructed_normalized_history</code>, a
     debug row, instead of a discard warning on every later run.</li>
+<li><strong>Phase 3.</strong> Where it differs from sections 6 and 7.2:</li>
+<li><strong>A refresh is decided at a run's admission</strong>, not before each request:
+    the system prompt is frozen into <code>run_started</code>. A tool that joins
+    mid-run on a model that cannot defer it is sent up front at once, as
+    before, and the next run refreshes.</li>
+<li><strong>An agent preset change refreshes too</strong> (<code>agent_changed</code>): a preset
+    swaps the agent's body.</li>
+<li><strong>On a model that defers, a joining tool never refreshes</strong>: it is
+    deferred, as before. Only a changed parameter schema of a round tool
+    does.</li>
+<li><strong><code>engine_updated</code> needs a stamped build.</strong> A source build records no
+    <code>engine_build</code>, so its refreshes read <code>tools_changed</code>.</li>
+<li><strong>What a client attaches between runs</strong> is added at the next run's
+    admission: <code>agent_md_loaded</code> and <code>memory_loaded</code> are run-scoped, so they
+    cannot be recorded between runs. A machine the agent attaches itself
+    with <code>attach_machine</code> gets its memories in the tool's result, beside its
+    <code>AGENTS.md</code>, since a turn between a call and its result is invalid.</li>
+<li><strong>The memory turn is frozen strictly</strong>: detaching <code>global</code> or a rule
+    that hides memory leaves the turn the model read until the next
+    compaction or refresh, while the memory tools refuse calls. A
+    permission change that brings eager tools on a model that does not
+    defer is a refresh.</li>
+<li><strong>The refresh row</strong> is a model-input row in both clients, its body
+    listing the tools by name; the composed parts show on their own rows
+    (the <code>AGENTS.md</code> and memory rows), so the row does not repeat them.</li>
 </ul>
 
 

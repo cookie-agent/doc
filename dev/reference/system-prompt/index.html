@@ -2597,9 +2597,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frozen-blocks-on-models-that-defer-tools" class="md-nav__link">
+  <a href="#the-frozen-context" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen blocks on models that defer tools
+      The frozen context
     </span>
   </a>
   
@@ -4326,9 +4326,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frozen-blocks-on-models-that-defer-tools" class="md-nav__link">
+  <a href="#the-frozen-context" class="md-nav__link">
     <span class="md-ellipsis">
-      Frozen blocks on models that defer tools
+      The frozen context
     </span>
   </a>
   
@@ -4550,12 +4550,17 @@ attachment its harness's built-in tools run on carries
 <code>builtin_tools="true"</code>, and a sentence after <code>&lt;/machines&gt;</code> names it, its
 runtime and machine, and the agent's working directory.</p>
 <h2 id="agentsmd-context-turn">AGENTS.md context turn<a class="headerlink" href="#agentsmd-context-turn" title="Permanent link">&para;</a></h2>
-<p>At each root run start where AGENTS.md loading is on (the run agent's
-<code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>), each coding runtime the
-session is attached to discovers the applicable <code>AGENTS.md</code> files in its own
-workspace, and Cookie Agent stores their bounded content in one
-<code>agent_md_loaded</code> event per attachment that returned a file, naming the
-attachment. Files larger than 2 MiB are skipped and surfaced as
+<p>At a root run start where AGENTS.md loading is on (the run agent's
+<code>agent_md</code> frontmatter, else <code>[agent_md] enabled</code>) and the context is
+composed afresh (see <a href="#the-frozen-context">the frozen context</a>), each coding
+runtime the session is attached to discovers the applicable <code>AGENTS.md</code>
+files in its own workspace, and Cookie Agent stores their bounded content in
+one <code>agent_md_loaded</code> event per attachment that returned a file, naming the
+attachment. Any other root run records the previous run's turn again,
+without reading the files, so an edited <code>AGENTS.md</code> reaches the session at
+its next compaction or refresh. A runtime a client attached since the
+previous run adds its own <code>AGENTS.md</code> once, at the next run's start, as an
+<code>agent_md_loaded</code> with <code>in_place</code>: a turn of its own where it was recorded. Files larger than 2 MiB are skipped and surfaced as
 <code>AgentMdSkipped</code> warning events. History replays the latest run's entries, the
 latest event per attachment, as one user turn, wrapped in a
 <code>&lt;system-reminder&gt;</code> block with each file delimited as:</p>
@@ -4588,16 +4593,21 @@ changes, which is the intended invalidation.</p>
 <p>A run that has memory (the session has the <code>global</code> runtime attached and the
 run's merged rules, the agent's and the session overlay's, hold an <code>allow</code> or <code>ask</code> rule for <code>memory</code>; a root
 run defaults to every memory, a delegated one to its own agent's file) sees a snapshot of it as one user turn right after
-the AGENTS.md turn. The snapshot is taken at run admission and recorded as a
-<code>memory_loaded</code> event only when something it depends on changed: the session
-has none yet, a compaction finished since the latest one, the session's
-machines, the session's project or its name, the run's agent, its <code>memory</code>
-rules, whether memory is available, or whether the run may write it. History
-renders the latest event only, and compaction pins the turn like the AGENTS.md
-turn. Writes during the session, and edits the user makes from a client,
-change the files but not the turn until the next of those points, so the
-prompt cache survives them. When memory stops being available, an empty
-<code>memory_loaded</code> removes the turn.</p>
+the AGENTS.md turn. The snapshot is taken at run admission, only when the
+context is composed afresh (see <a href="#the-frozen-context">the frozen context</a>):
+at a refresh always, and otherwise, as a <code>memory_loaded</code> event, when
+something it depends on changed: the session has none yet, a compaction
+finished since the latest one, the session's machines, the session's project
+or its name, the run's agent, its <code>memory</code> rules, whether memory is
+available, or whether the run may write it. History renders the latest event
+only, and compaction pins the turn like the AGENTS.md turn. Writes during the
+session, edits the user makes from a client, and those changes between
+refresh points change the files but not the turn, so the prompt cache
+survives them. When memory stops being available at such a point, an empty
+<code>memory_loaded</code> removes the turn. A machine new to the session adds its
+memories once where it joined: in <code>attach_machine</code>'s result, or for a runtime
+a client attached, as a <code>memory_loaded</code> with <code>in_place</code> at the next run's
+start.</p>
 <p>The turn holds the notes and one line of background. How to search and what
 to save is not in it: that is the memory provider's <a href="#the-memory-section">system-prompt
 section</a>, which is frozen with the prompt, so the turn
@@ -4729,19 +4739,36 @@ included:</p>
 <p>The approval reviewer receives part B and the write's content when a
 <code>memory_write</code> rule asks, and rejects a write that fails it in auto-approve
 mode.</p>
-<h2 id="frozen-blocks-on-models-that-defer-tools">Frozen blocks on models that defer tools<a class="headerlink" href="#frozen-blocks-on-models-that-defer-tools" title="Permanent link">&para;</a></h2>
-<p>Three parts of the prompt come from the session's state rather than the
-agent: the <a href="#runtimes">runtimes block</a> (<code>runtimes</code>), the tool providers'
-<code>&lt;tool_instructions&gt;</code> sections (<code>tool_instructions</code>), and the skills listing
-(<code>skills</code>). Every run records where they sit in its prompt
-(<code>prompt_blocks_recorded</code>).</p>
-<p>On a model that loads <a href="../tools/#deferred-tools">deferred tools</a>, a run
-copies these blocks from the previous run, unless a compaction lies after
-that run's start, so attaching a runtime, adding a skill or a subagent, or
-moving the session to another project no longer rewrites the prompt and the
-cached conversation after it. What changed is told to the model in place,
-before the next request, as a user turn, and the clients show it word for
-word:</p>
+<h2 id="the-frozen-context">The frozen context<a class="headerlink" href="#the-frozen-context" title="Permanent link">&para;</a></h2>
+<p>The context before the conversation (the system prompt, the AGENTS.md turn,
+and the memory turn) stays as one run composed it until the next refresh
+point, on every model (<a href="../../specs/frozen-context/">frozen context spec</a>).</p>
+<p><strong>It is composed afresh</strong> at the session's first run, at the first run after
+a compaction, after a run whose prompt a plugin replaced, and at a
+<strong>refresh</strong>, which records <code>context_refreshed { reason, changed }</code> and starts
+a new tool round:</p>
+<ul>
+<li>an eager tool's parameter schema changed since the round started
+  (<code>engine_updated</code> when the engine build that started the round differs,
+  else <code>tools_changed</code>); a changed description alone waits;</li>
+<li>on a model that does not load deferred tools, a tool joined
+  (<code>tools_changed</code>);</li>
+<li>the run's agent or agent preset is not the previous run's
+  (<code>agent_changed</code>).</li>
+</ul>
+<p>A change of the session's project is no refresh: the runtimes block
+announces it, and its <code>AGENTS.md</code> and project memory arrive at the next
+compaction. The clients show a refresh as one row naming its reason and what
+it composed again.</p>
+<p><strong>Otherwise a run copies the previous run's system prompt byte for byte</strong>,
+its blocks, plugin composition, and agent body included. Three parts of the
+prompt come from the session's state rather than the agent: the <a href="#runtimes">runtimes
+block</a> (<code>runtimes</code>), the tool providers' <code>&lt;tool_instructions&gt;</code>
+sections (<code>tool_instructions</code>), and the skills listing (<code>skills</code>). Every run
+records where they sit in its prompt (<code>prompt_blocks_recorded</code>, with
+<code>composed_live</code> false for a copied prompt). What changed in them is told to
+the model in place, before the next request, as a user turn, and the clients
+show it word for word:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>[cookie: instructions changed]
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>&lt;instructions_changed&gt;
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>&lt;block name="runtimes"&gt;
@@ -4751,9 +4778,11 @@ word:</p>
 <a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>&lt;/instructions_changed&gt;
 <a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>Each block replaces the part of the system prompt it names, and a removed block no longer applies: runtimes is where this session's tools work, tool_instructions the &lt;tool_instructions&gt; sections, and skills the &lt;available_skills&gt; listing.
 </code></pre></div>
-<p>After a compaction, the next run composes the blocks afresh. On a model that
-does not defer tools, every run composes them afresh, as above. A plugin that
-replaces the system prompt turns the reuse off for that run's successor.</p>
+<p>A plugin's system-prompt hook changes take effect at the next point the
+context is composed afresh; its injected messages apply to every run.</p>
+<p><strong>Skills</strong> loaded since the latest compaction or refresh render where they
+were loaded; at the next one they join the pinned skills after the memory
+turn.</p>
 <h2 id="cache-breakpoints">Cache breakpoints<a class="headerlink" href="#cache-breakpoints" title="Permanent link">&para;</a></h2>
 <p>For capable Anthropic adaptors, cache strategy is structural rather than text
 injection. The engine clears prior markers, then can mark:</p>
