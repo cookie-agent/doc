@@ -3801,6 +3801,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#33-reducer-audit-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.3 Reducer audit (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.4 Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4469,6 +4487,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#33-reducer-audit-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.3 Reducer audit (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.4 Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4588,9 +4624,10 @@
 
 <h1 id="responsive-session-loading-and-session-storage-v3">Responsive session loading and session storage v3<a class="headerlink" href="#responsive-session-loading-and-session-storage-v3" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>approved</strong> (2026-10-31), with the user's decisions of
-2026-10-31 in <a href="#7-decisions">section 7</a>; phase 1 in progress; phase 3's
-layout, listing, and migration (4.1, 4.3, 4.4, 5) implemented with history
-format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>).</p>
+2026-10-31 in <a href="#7-decisions">section 7</a>; phases 1 and 2 implemented
+(phase 2: client protocol 1.59.0, <a href="#34-implementation-notes-2026-10-31">3.4</a>);
+phase 3's layout, listing, and migration (4.1, 4.3, 4.4, 5) implemented with
+history format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>).</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>Opening a long session in the web client sometimes fails with
 <code>subscription replay response timed out</code>, most often when the daemon's
@@ -4817,6 +4854,159 @@ page arrives: display events are small, so this is cheaper than a reducer
 that can prepend.</p>
 <p>Client protocol: a minor bump (<code>view</code>, <code>from</code>, the header, <code>events.page</code>,
 <code>event.read</code>).</p>
+<h3 id="33-reducer-audit-2026-10-31">3.3 Reducer audit (2026-10-31)<a class="headerlink" href="#33-reducer-audit-2026-10-31" title="Permanent link">&para;</a></h3>
+<p>What <code>client_state</code>'s reducer (<code>reduce.rs</code>) and the TUI and web
+transcripts read of each event the display view would drop or slim:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Read by</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>model_attempt_started</code></td>
+<td>Opens the reply block a commit fills, with its model attribution; a commit without it shows no reply</td>
+<td><strong>Stays</strong></td>
+</tr>
+<tr>
+<td><code>model_output_started</code></td>
+<td>The streamed thinking time a reply's thinking rows show</td>
+<td><strong>Stays</strong> (1–2.5% of a log)</td>
+</tr>
+<tr>
+<td><code>model_usage_recorded</code></td>
+<td>Each reply's cost, and an ACP reply's rate and context, in its footer; the clients' cost refresh</td>
+<td><strong>Stays</strong></td>
+</tr>
+<tr>
+<td><code>model_replay_evaluated</code></td>
+<td>Rows: replayed and reconstructed entries are debug, an empty list info, a discard a warning</td>
+<td><strong>Left out unless it discards</strong> (a warning row, shown by default)</td>
+</tr>
+<tr>
+<td><code>model_tools_published</code></td>
+<td>The latest one's tool lists (<code>model_tools</code>)</td>
+<td><strong>Latest wins</strong>: a page keeps its last; the header the last before it</td>
+</tr>
+<tr>
+<td><code>model_request_prepared</code></td>
+<td>Nothing</td>
+<td><strong>Left out</strong></td>
+</tr>
+<tr>
+<td><code>acp_session_updated</code></td>
+<td>Latest wins: <code>commands</code>, <code>options</code>, <code>starting_options</code>, <code>context</code>. Per event: <code>plan</code>, <code>compaction</code>, <code>prompt_context</code>, <code>notice</code>, <code>session_message</code>, <code>background_ended</code>, <code>steered</code>, <code>tool_presentation</code> (rows), and <code>context</code> (a reply's footer reads the context use at its usage)</td>
+<td><strong>Slimmed</strong>: the header holds the latest of the four settings; in a page a command list or starting options a later update replaces, and a tool presentation a later one of the same call replaces, are dropped, and an update left empty goes</td>
+</tr>
+<tr>
+<td><code>tool_call_terminated</code></td>
+<td><code>display</code>, <code>output</code> (a failed call's partial output, the loop warning at its end), <code>additional_messages</code>, <code>background</code>, <code>retained_output</code>; never <code>metadata</code></td>
+<td><strong>Cut</strong> above 4 KiB of output, display, and metadata together</td>
+</tr>
+</tbody>
+</table>
+<p>Other events the reducer ignores entirely (<code>delegation_reserved</code>,
+<code>tool_round_started</code>, <code>prompt_blocks_recorded</code>, <code>tool_call_linked</code>, ...)
+stay: the spec drops only bookkeeping, and they are small in the logs
+measured. The latest-wins state the reducer folds from older events, which
+the header must carry for a window that starts later, is: the session's
+creation, the latest run (its agent and snapshot) and whether it ended,
+memory, published tools, the ACP session and its four settings, the model
+selection, the goal and its changes, runtime attachments still attached, a
+hold nothing cleared, tools announced since the latest compaction, and
+inputs still queued. Title, permission mode, and usage totals come from
+<code>session.list</code>/<code>session.get</code> and <code>session.usage</code>, not the reducer.</p>
+<h3 id="34-implementation-notes-2026-10-31">3.4 Implementation notes (2026-10-31)<a class="headerlink" href="#34-implementation-notes-2026-10-31" title="Permanent link">&para;</a></h3>
+<p>Shipped as client protocol 1.59.0: <code>view</code>, <code>from: "tail"</code>, <code>max_bytes</code>,
+the result's <code>window</code> and <code>cut</code>, <code>events.page</code>, and <code>event.read</code>
+(<a href="../../reference/events/#newest-first">events reference</a>). The view and
+window logic is <code>cookie_agent_protocol::display_view</code>, shared by the
+daemon and the clients. Deviations from 3.1 and 3.2, and why:</p>
+<ul>
+<li><strong>What the view drops</strong> follows the audit (3.3), not the list in 3.1:
+  <code>model_attempt_started</code>, <code>model_output_started</code>, and
+  <code>model_usage_recorded</code> stay; <code>model_replay_evaluated</code> goes unless it
+  discards something; <code>model_tools_published</code> keeps the last of a page.
+  Tool results also lose their <code>metadata</code>, which no client reads and an
+  ACP agent fills with the whole output again.</li>
+<li><strong>The cut</strong> applies when output, display, and metadata together pass
+  4 KiB, not output alone: a result in the golden history has a 1.3 KB
+  output and a 64 KB display. The display is fit to 2 KiB with
+  <code>fit_display_budget</code>, so it keeps its <code>omitted_*</code> counts. The cut is
+  named in a <code>cut</code> list beside the events (<code>seq</code>, the whole result's
+  <code>bytes</code>) instead of a member of the stored event: the stored types, the
+  history format, and the plugin protocol stay as they were.</li>
+<li><strong>The header is events, folded first</strong>, not a state applied after the
+  page: the latest event of each setting before the window, an
+  <code>acp_session_updated</code> stripped to the settings it is the latest for. A
+  client folds them into a scratch projection and seeds the transcript's
+  projection with its latest-wins state, so no row of an old event shows
+  and no older setting overrides a newer one; one reducer serves both, and
+  live events and later folds stay in sequence order. An older page
+  carries the header for its own start.</li>
+<li><strong><code>older_cursor</code> is the first held sequence</strong> (what <code>events.page</code> takes
+  as <code>before</code>), <code>null</code> when the window starts the log.</li>
+<li><strong>The gap</strong> keeps, besides the run's start through its first input and
+  its newest model attempts, the settings and what still waits among the
+  events it skips: approvals and questions not answered, inputs admitted
+  but not applied, and tool calls still running. Older pages have no gap:
+  each starts at the earliest run or model attempt that fits.</li>
+<li><strong>The tail</strong> is cut from the whole log an unlimited final page returns,
+  so its registration, its in-flight output, and its race with appends
+  are the final page's; no store code changed. <code>events.page</code> and
+  <code>event.read</code> read the resident or the parsed read-only log, without the
+  tree.</li>
+<li><strong>Clients</strong> hold the window's events, older pages, the live events
+  after them (whole but for a cut result), and live-only output still in
+  flight, and fold them again when a page or a whole result arrives. A
+  fold after a page numbers its rows so the rows already shown keep their
+  ids, and with them what the user expanded and where the TUI's view is
+  anchored. A row of history not loaded loads when it scrolls into view
+  or is clicked; the web keeps the rows the user reads in place itself,
+  as the browser's scroll anchoring does not act at the view's top.</li>
+</ul>
+<p>Measured on 2026-10-31 with a debug build of a scratch daemon on copies of
+two real sessions, over a local WebSocket (sizes before compression):</p>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Whole replay</th>
+<th>Newest first</th>
+<th>All older pages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACP, 16.9 MB log, 9,813 events</td>
+<td>18.8 MB, 19 pages, 4.5 s</td>
+<td>249 KB of events + 49 KB header, 1 answer, 0.13 s</td>
+<td>47 pages, 11.6 MB, 6.1 s</td>
+</tr>
+<tr>
+<td>Native, 5.3 MB log, 2,037 events</td>
+<td>5.5 MB, 6 pages, 1.3 s</td>
+<td>187 KB + 39 KB header, 0.09 s</td>
+<td>21 pages, 5.6 MB, 1.9 s</td>
+</tr>
+</tbody>
+</table>
+<p><code>event.read</code> of a cut result took 3–5 ms.</p>
+<p>Left for later:</p>
+<ul>
+<li>An older page repeats its header (47 KB in the ACP session, 2.3 MB over
+  all its pages); <code>view.json</code> (phase 3) or a header the client already
+  holds could spare it.</li>
+<li>A tool result's <code>display</code> repeats its output on the wire (the stored
+  encoding's spans do not reach clients), so results under the cut still
+  take about twice their output.</li>
+<li>A window may start at an input steered into a running run, whose run
+  started before it: the reply rows before it are older history.</li>
+<li>Live events are sent whole; only what a client holds is cut.</li>
+</ul>
 <h2 id="4-phase-3-storage-layout-v3">4. Phase 3: storage layout v3<a class="headerlink" href="#4-phase-3-storage-layout-v3" title="Permanent link">&para;</a></h2>
 <h3 id="41-layout">4.1 Layout<a class="headerlink" href="#41-layout" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;data_root&gt;/sessions/

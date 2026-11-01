@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CUT_ABOVE_BYTES","CUT_KEEP_BYTES"],"fn":["cut_result","display_events","event_at","leaves_out","older_page","shown","state_events","tail_window","view_events"],"struct":["Window"]};
