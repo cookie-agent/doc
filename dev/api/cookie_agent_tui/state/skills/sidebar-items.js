@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SOURCES"],"fn":["skill_groups","skill_matches","source_label","update_summary"]};
