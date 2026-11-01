@@ -3885,6 +3885,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#45-implementation-notes-viewjson-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 Implementation notes: view.json (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4586,6 +4595,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#45-implementation-notes-viewjson-2026-11-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 Implementation notes: view.json (2026-11-01)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4659,8 +4677,10 @@
 phase 3's layout, listing, and migration (4.1, 4.3, 4.4, 5) implemented with
 history format 1 (<a href="#51-implementation-notes-2026-10-31">section 5.1</a>), then
 history format 2 and <code>blobs/</code> (4.2) through the same marker
-(<a href="#421-implementation-notes-2026-11-01">section 4.2.1</a>); <code>view.json</code> is
-still to come.</p>
+(<a href="#421-implementation-notes-2026-11-01">section 4.2.1</a>); <code>view.json</code>, a
+newest-first open without the tree, and phase 2's wire leftovers (client
+protocol 1.64.0) implemented
+(<a href="#45-implementation-notes-viewjson-2026-11-01">section 4.5</a>).</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>Opening a long session in the web client sometimes fails with
 <code>subscription replay response timed out</code>, most often when the daemon's
@@ -5030,12 +5050,12 @@ two real sessions, over a local WebSocket (sizes before compression):</p>
 <p><code>event.read</code> of a cut result took 3–5 ms.</p>
 <p>Left for later:</p>
 <ul>
-<li>An older page repeats its header (47 KB in the ACP session, 2.3 MB over
-  all its pages); <code>view.json</code> (phase 3) or a header the client already
-  holds could spare it.</li>
-<li>A tool result's <code>display</code> repeats its output on the wire (the stored
-  encoding's spans do not reach clients), so results under the cut still
-  take about twice their output.</li>
+<li>~~An older page repeats its header (47 KB in the ACP session, 2.3 MB over
+  all its pages).~~ Done in 1.64.0: a delta of the header the client holds
+  (<a href="#45-implementation-notes-viewjson-2026-11-01">4.5</a>).</li>
+<li>~~A tool result's <code>display</code> repeats its output on the wire, so results
+  under the cut still take about twice their output.~~ Done in 1.64.0:
+  ranges of the output (<a href="#45-implementation-notes-viewjson-2026-11-01">4.5</a>).</li>
 <li>A window may start at an input steered into a running run, whose run
   started before it: the reply rows before it are older history.</li>
 <li>Live events are sent whole; only what a client holds is cut.</li>
@@ -5302,6 +5322,160 @@ answer by reading two small files.</p>
 <h3 id="44-a-newer-store">4.4 A newer store<a class="headerlink" href="#44-a-newer-store" title="Permanent link">&para;</a></h3>
 <p>A daemon refuses to open a store whose <code>layout.json</code> version or
 <code>history_format</code> is newer than it knows, and says which build it needs.</p>
+<h3 id="45-implementation-notes-viewjson-2026-11-01">4.5 Implementation notes: <code>view.json</code> (2026-11-01)<a class="headerlink" href="#45-implementation-notes-viewjson-2026-11-01" title="Permanent link">&para;</a></h3>
+<p>Shipped on history format 2 (4.2.1), with the wire leftovers of 3.4 and
+the TUI's open as client protocol 1.64.0. Where it settles what 4.1 and
+3.2 leave open, or departs from them:</p>
+<ul>
+<li><strong>What <code>view.json</code> holds</strong>: <code>{version, history_format, start, header}</code>.
+  <code>start</code> is a run boundary (<code>run_started</code> or <code>user_input_submitted</code>) by
+  <code>seq</code>, <code>timestamp</code>, and the byte <code>offset</code> of its line in <code>events.jsonl</code>;
+  <code>header</code> is the header (3.2) of everything before it. Not a header at
+  the tip plus several run starts, as 4.1 put it: a window needs the
+  header at <em>its</em> start, and the header composes — the header of a log
+  through a boundary, followed by the events after it, has the header of
+  the log through them — so one boundary and its header answer every
+  window that starts after it (<code>display_view::tail_window_after</code>, tested
+  against the whole log's window for every boundary of the golden
+  histories). The boundary is the last one before the newest 1 MiB of
+  display events (<code>HISTORY_WINDOW_MAX_BYTES</code>, every request's budget), so
+  every window starts after it, and stays so as the log grows; a log that
+  fits whole has no cache.</li>
+<li><strong>Reading it.</strong> A cold open parses the log from <code>offset</code> to its end, as
+  the loader reads intact records (<code>events::read_records_from</code>): a line
+  that names blobs has them read back first (<code>blobs::internalize</code>), then
+  every line is typed as it is (<code>StoredEvent::decode_strict</code>). It uses the
+  cache only when the line there is the record <code>start</code> names, whole; a
+  revert, a rewritten or converted log, a missing blob, a line the loader
+  would repair or skip, and a <code>history_format</code> or <code>version</code> other than this
+  build's all fall back to parsing the whole log, as does a window that
+  would reach before the boundary, from a larger budget. The conversion
+  of a tree to a newer format removes its logs' caches as it puts each
+  converted log in place; one it cannot remove names the older format.
+  Tested on a format-1 history with an ACP agent's live state converted
+  to format 2 (moved outputs, model settings chains, <code>record_omitted</code>):
+  read from every line, the records are the loader's, and every window
+  read from a run boundary is the whole log's.</li>
+<li><strong>Writing it.</strong> After a run's <code>run_finished</code> is appended, when a session
+  leaves memory, and after a cold open parsed a log this process owns;
+  only when the boundary moved since this process last wrote it. Outside
+  every lock, as a temporary file renamed over the old one, never synced.
+  Nothing deletes it: a stale one fails the check above. About 37–62 KB
+  for the sessions measured, mostly ACP command lists and agent snapshots.</li>
+<li><strong>No tree, no opening.</strong> <code>from: "tail"</code> no longer goes through the final
+  page. A session this process owns is answered from memory when it is
+  resident, else from the cache or the parsed log, and its tail is
+  registered under the session's slot, which every append takes, after a
+  check that what was read is still the whole log: the same resident
+  log, or, for a session not resident (which is appended to only once it
+  is resident again), a file whose length and modification time did not
+  change. A read that loses that race reads again; a fourth holds the
+  slot throughout. A session this process does not own is answered the
+  same way without a tail (it was <code>snapshot_events</code>, which completed the
+  tree too). Either starts the tree load in the background.</li>
+<li><strong>Deviation: no adoption in the background.</strong> Subscribing never adopted
+  a session (a session this process does not own got a snapshot, and a
+  client calls <code>session.resume</code>, which adopts it, then subscribes again
+  live), so the open path adopts nothing now either.</li>
+<li><strong>The clients' open.</strong> The web client sends <code>session.resume</code> and the
+  subscription together and shows the snapshot at once. The TUI awaited
+  <code>session.resume</code> before it subscribed, so its first paint waited for the
+  tree and the adoption; it now subscribes first and classifies the
+  session in the background, its composer taking input meanwhile as after
+  a reconnect (the daemon takes the session for what is sent, or refuses
+  it and the message goes back to the composer). A session the TUI just
+  created is its own at once. So that a session the daemon already owns
+  is not subscribed twice (once before the classification, once after),
+  the answer that registered the tail says <code>live: true</code> (1.64.0), and both
+  clients take such a subscription as live.</li>
+<li><strong>Older pages' headers</strong> (1.64.0): <code>events.page</code> takes <code>header: "delta"</code>,
+  which the clients send for older history (the header they hold is the
+  one of <code>before</code>); the answer holds only the header events the client
+  lacks or holds differently, and the client keeps the held events before
+  the page's <code>older_cursor</code> and replaces those of the same sequence. That
+  this gives the page's whole header follows from the same composition
+  (tested for every pair of starts of the golden histories). A page read
+  into a gap asks for <code>header: "none"</code>: clients never used its header.</li>
+<li><strong>Display text that repeats the output</strong> (1.64.0): to a client of 1.64.0
+  or newer, display-view answers send such a text (a <code>text</code>, <code>markdown</code>, or
+  <code>code</code> block's, a <code>terminal</code> segment's, a <code>file_excerpt</code>'s lines) empty,
+  with an <code>OutputSpan</code> <code>{seq, block, segment, start, end}</code> in the answer's
+  <code>spans</code>; the client puts the text back before decoding, through the
+  session log's own span decoding. Spans live beside the events, not in
+  them, so neither the stored event types, the plugin protocol, nor the
+  display blocks change; texts under 64 bytes stay. Live events and
+  <code>event.read</code> stay whole.</li>
+</ul>
+<p>Measured on 2026-11-01 with release builds of <code>main</code> (2c35cb728, history
+format 2) and of this change, each on a fresh scratch copy of three
+sessions of this machine's store that a start of this build had converted
+to format 2 (its <code>view.json</code> written by <code>session.resume</code> and a session
+leaving memory), over a local WebSocket, a Node client sending
+<code>events.subscribe {from: "tail", view: "display"}</code>; medians of three (one
+run each for a session paged out after <code>session.resume</code> and an idle
+minute), and "busy" pins the daemon to two cores beside eight busy loops.
+The answers' events and windows were byte for byte the same.</p>
+<table>
+<thead>
+<tr>
+<th>First answer</th>
+<th>Not owned (a fresh daemon)</th>
+<th>Owned, paged out</th>
+<th>With <code>session.resume</code> sent alongside (web, and the TUI now)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>20 subagents (1.6 MB root in format 2), idle</td>
+<td>408 → 51 ms</td>
+<td>406 → 43 ms</td>
+<td>397 → 73 ms</td>
+</tr>
+<tr>
+<td>same, busy</td>
+<td>1,893 → 117 ms</td>
+<td>1,862 → 94 ms</td>
+<td>1,412 → 140 ms</td>
+</tr>
+<tr>
+<td>12 subagents (4.6 MB root), idle</td>
+<td>283 → 45 ms</td>
+<td>259 → 42 ms</td>
+<td>282 → 87 ms</td>
+</tr>
+<tr>
+<td>same, busy</td>
+<td>1,262 → 110 ms</td>
+<td>1,161 → 86 ms</td>
+<td>1,403 → 107 ms</td>
+</tr>
+<tr>
+<td>ACP, 9.3 MB root (16.9 MB in format 1), idle</td>
+<td>253 → 51 ms</td>
+<td>212 → 54 ms</td>
+<td>233 → 61 ms</td>
+</tr>
+<tr>
+<td>same, busy</td>
+<td>807 → 91 ms</td>
+<td>830 → 87 ms</td>
+<td>1,035 → 159 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The TUI's first paint was <code>session.resume</code> and then the answer: 270–490 ms
+idle and 0.8–2.3 s busy; it is now the answer sent alongside, the last
+column. <code>session.resume</code> itself takes as long as before (0.23–0.85 s
+idle, 0.8–3.3 s busy): it loads the tree. Without a <code>view.json</code> (a
+session no build wrote one for yet), the first answer skips only the
+tree: 64–253 ms idle, 163–1,046 ms busy, the ACP log's full parse the
+most.</p>
+<p>On the wire, for a 1.64.0 client (a 1.63.0 client gets the same bytes as
+before): the ACP session's newest-first answer went from 274 to 257 KB,
+and its 35 older pages from 10.1 MB to 7.75 MB (their headers from
+1.61 MB to 0.33 MB); the 20-subagent root's 8 pages from 2.01 to 1.69 MB
+(headers 382 to 140 KB). The first older page now parses the whole log,
+which the first answer no longer does.</p>
 <h2 id="5-migration">5. Migration<a class="headerlink" href="#5-migration" title="Permanent link">&para;</a></h2>
 <p>At startup, before it accepts connections, a daemon reads
 <code>sessions/layout.json</code>:</p>

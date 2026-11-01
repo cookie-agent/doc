@@ -6001,14 +6001,37 @@ and goes live like a final page. Its <code>window</code> holds:</p>
   settings above, an approval or question not answered, an input admitted
   but not applied, and a tool call still running.</li>
 </ul>
-<p><code>events.page { session_id, before, view, max_bytes }</code> returns the newest
-events before <code>before</code> within the budget, starting at a run or a model
-attempt when one fits and holding at least one event while any precede
-<code>before</code>, with the <code>header</code> and <code>older_cursor</code> for its first event. It
-reads the session's own log, registers no tail, and loads no subagent. A
+<p><code>events.page { session_id, before, view, max_bytes, header }</code> returns the
+newest events before <code>before</code> within the budget, starting at a run or a
+model attempt when one fits and holding at least one event while any
+precede <code>before</code>, with the <code>header</code> and <code>older_cursor</code> for its first event.
+It reads the session's own log, registers no tail, and loads no subagent. A
 client that holds a gap reads into it with its <code>before_seq</code>, and older
 history with its <code>older_cursor</code>; it folds again everything it holds when a
 page arrives.</p>
+<p>Since 1.64.0 <code>header</code> says which header the page carries: <code>full</code> (the
+default) the whole of it; <code>none</code> none, for a page read into a gap; and
+<code>delta</code>, for a client that holds the header of what starts at <code>before</code>
+(older history read with its <code>older_cursor</code>), only the events of the new
+header it lacks or holds differently. The client keeps the events of its
+header before the page's <code>older_cursor</code> that the answer holds no event of
+the same sequence for, and adds the answer's: every other event of the
+newer header is the same in the older one. A new header comes whole when
+the page starts at the log's beginning (<code>older_cursor</code> <code>null</code>): it is
+empty.</p>
+<p>To a client of 1.64.0 or newer, the display view sends a tool result's
+display text that repeats its <code>output</code> once: the text of a <code>text</code>,
+<code>markdown</code>, or <code>code</code> block or of a <code>terminal</code> segment, or the <code>lines</code> of a
+<code>file_excerpt</code>, is empty in the event, and the answer's <code>spans</code> lists
+<code>{seq, block, segment, start, end}</code> for it: <code>output[start..end]</code>, in bytes,
+is the text, and for a <code>file_excerpt</code> its lines, one per line, each after
+its line number and <code>": "</code>. <code>segment</code> is present for a <code>terminal</code> block.
+Live events and <code>event.read</code> are sent whole.</p>
+<p>Since 1.64.0 the answer that registers the live tail, a final page or a
+<code>from: "tail"</code> answer for a session the daemon owns, says <code>live: true</code>. A
+client that subscribes a session before <code>session.resume</code> has answered (to
+show it at once) knows from it whether it already follows the tail or has
+a snapshot to subscribe again once the session is its own.</p>
 <p><code>events.unsubscribe</code> ends the connection's live tail for a session: no further
 <code>events.subscription</code> or <code>events.plugin</code> notification for it is sent, and the
 shared client drops messages already in flight and stops recovering it until it

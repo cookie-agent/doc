@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CUT_ABOVE_BYTES","CUT_KEEP_BYTES"],"fn":["cut_result","display_events","event_at","leaves_out","older_page","shown","state_events","tail_window","view_events"],"struct":["Window"]};
+window.SIDEBAR_ITEMS = {"constant":["CUT_ABOVE_BYTES","CUT_KEEP_BYTES"],"fn":["cache_start","cut_result","display_events","event_at","header_delta","leaves_out","merge_header","older_page","output_spans","restore_output_spans","shown","state_events","tail_window","tail_window_after","view_events"],"struct":["Window"]};
