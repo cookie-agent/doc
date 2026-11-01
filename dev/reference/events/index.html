@@ -2721,6 +2721,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stale-reasoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stale reasoning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#approvals" class="md-nav__link">
     <span class="md-ellipsis">
       Approvals
@@ -4492,6 +4501,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stale-reasoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stale reasoning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#approvals" class="md-nav__link">
     <span class="md-ellipsis">
       Approvals
@@ -5003,7 +5021,7 @@ never stored.</p>
 <td><code>native_replay_cut</code></td>
 <td>state</td>
 <td>run</td>
-<td>Reasoning at or before <code>through_seq</code> is no longer replayed, after a <a href="../../specs/thinking-replay-recovery/">thinking-binding mismatch</a></td>
+<td>Reasoning at or before <code>through_seq</code> is no longer replayed, because the request before it changed since it was made; see <a href="#stale-reasoning">Stale reasoning</a></td>
 </tr>
 <tr>
 <td><code>automatic_runs_held</code>, <code>automatic_runs_resumed</code></td>
@@ -5516,6 +5534,29 @@ outcome }</code> ends an internal agent invocation the same way, with
 internal agent definitions, one per kind, and an
 <code>internal_agent_usage_recorded</code> of the run names the agent frozen for its
 kind.</p>
+<h3 id="stale-reasoning">Stale reasoning<a class="headerlink" href="#stale-reasoning" title="Permanent link">&para;</a></h3>
+<p>A model that binds its reasoning to its prefix (Claude; see
+<a href="../../extend/providers/#provider-fields"><code>reasoning_binding</code></a>) accepts a
+replayed thinking block only while everything sent before it is unchanged
+(<a href="../../specs/frozen-context/">frozen context spec</a>).</p>
+<ul>
+<li><code>model_turn_committed</code> has an optional <code>prefix_fingerprint</code> (client
+  protocol 1.61.0) on such a model: the SHA-256 of the system prompt, the
+  eager tools, and every earlier message the request sent. Before each
+  request the engine compares it with the request it is about to send.</li>
+<li><code>native_replay_cut { through_seq, cause }</code> stops replaying the reasoning
+  of every turn at or before <code>through_seq</code>. <code>cause</code> (1.61.0) says how the
+  change was found: <code>refused</code> (the provider refused the request, which is
+  sent again without it; the default for logs written before), <code>prefix_changed</code>
+  (found before sending), <code>provider_dropped</code> (the provider dropped a block
+  and said so), <code>compaction</code>, or <code>refreshed</code>. A value this build does not
+  know reads as <code>unknown</code>.</li>
+<li>A refusal's cut is written before the <code>attempt_abandoned</code> it recovers, so
+  a client shows the cut instead of the failure. The clients show one
+  quiet row for a cut, except after a compaction or a refresh, whose rows
+  stand for it.</li>
+<li>A cut turn's replay decision is <code>reconstructed_normalized_history</code>.</li>
+</ul>
 <h3 id="approvals">Approvals<a class="headerlink" href="#approvals" title="Permanent link">&para;</a></h3>
 <p><code>approval_requested</code> stores the request's <code>tool_call_id</code>, the call it gates,
 whose <code>tool_call_started</code> carries the call's presentation, and its

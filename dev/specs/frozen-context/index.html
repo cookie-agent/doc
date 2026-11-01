@@ -4263,6 +4263,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4283,7 +4292,9 @@
 
 
 <h1 id="stale-reasoning-and-a-frozen-context">Stale reasoning and a frozen context<a class="headerlink" href="#stale-reasoning-and-a-frozen-context" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-10-31), awaiting approval. Builds on
+<p>Status: <strong>approved</strong> (2026-10-31); phases 1 and 2 implemented (2026-11-01;
+oven-sdk 72c6127, client protocol 1.61.0), phase 3 in progress. See
+<a href="#implementation-notes">implementation notes</a>. Builds on
 <a href="../thinking-replay-recovery/">thinking-replay recovery</a> and
 <a href="../stable-prefix/">a stable prompt prefix</a>, and reverses part of each
 (section 2).</p>
@@ -4617,6 +4628,38 @@ where it happened: one line with the reason, and what was composed again.</p>
 the <a href="../../reference/system-prompt/">system prompt reference</a>, the
 <a href="../../reference/events/">events reference</a>, the protocol changelog, and the
 spec index.</p>
+<h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Phase 1</strong> (oven-sdk d9b8960 and 72c6127, core 0.10.0, anthropic
+  0.11.0). <code>block_binding</code> is sent by the Anthropic Messages adapter (direct
+  Anthropic and Claude Platform on AWS, and an Anthropic-compatible
+  endpoint whose model is declared <code>prefix</code>), not by Bedrock: Bedrock goes
+  through Converse, where the field would need
+  <code>additionalModelRequestFields</code>. Bedrock classifies the refusal as
+  <code>ReasoningPrefixMismatch</code>, and its models bind, so the cut before the
+  request and the retry cover it. Google Vertex in oven-sdk serves Gemini
+  only.</li>
+<li><strong>Phase 2.</strong> Where it differs from sections 3 to 7.1:</li>
+<li>The automatic rule keys on the model, not only the adapter: a
+    reasoning model whose ID starts <code>claude-</code>, or contains
+    <code>anthropic.claude-</code> on Bedrock, on an Anthropic, Anthropic-compatible,
+    or Bedrock adaptor. A Claude model through a gateway binds; Kimi on the
+    Anthropic adapter does not.</li>
+<li>The refusal kind is recorded in <code>model_error.kind</code> as
+    <code>invalid_request</code>, as before: a new value of the protocol's closed
+    <code>ModelErrorKind</code> would break older readers.</li>
+<li>Fingerprints are recorded only on models that bind. A turn of another
+    model carries reasoning no binding model replays (it is foreign), so
+    its fingerprint would never be read.</li>
+<li>The fingerprint is taken on the request the context builds, before
+    media fitting and plugin interception: what matters is that recording
+    and checking take it at the same point.</li>
+<li>A <code>provider_dropped</code> cut covers the new turn too: its reasoning was
+    made without the blocks the provider dropped, which a leading cut
+    cannot express, so it would be dropped on the next request anyway.</li>
+<li>A cut turn's replay decision is <code>reconstructed_normalized_history</code>, a
+    debug row, instead of a discard warning on every later run.</li>
+</ul>
 
 
 
