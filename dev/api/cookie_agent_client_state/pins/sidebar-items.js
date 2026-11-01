@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PINS_SINCE"],"fn":["daemon_keeps_pins","pinned_message"]};
