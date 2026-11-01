@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ActiveWithin"],"fn":["agent_options","machine_options"],"struct":["SessionFilter"]};
+window.SIDEBAR_ITEMS = {"enum":["ActiveWithin"],"fn":["agent_options","in_range","machine_options"],"struct":["DateRange","SessionFilter"]};

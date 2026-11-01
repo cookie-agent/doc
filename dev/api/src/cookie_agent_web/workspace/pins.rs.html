@@ -31,14 +31,14 @@
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// Lists the sessions active `within`, with every pinned, unread, and
 <a href=#33 id=33 data-nosnippet>33</a>    /// busy one: the window starts over there, and the list is read again.
-<a href=#34 id=34 data-nosnippet>34</a>    </span><span class="kw">pub fn </span>set_active_within(<span class="self">self</span>, within: ActiveWithin) {
-<a href=#35 id=35 data-nosnippet>35</a>        <span class="kw">if </span><span class="self">self</span>.session_filter.with_untracked(|filter| filter.within) == within {
-<a href=#36 id=36 data-nosnippet>36</a>            <span class="kw">return</span>;
-<a href=#37 id=37 data-nosnippet>37</a>        }
-<a href=#38 id=38 data-nosnippet>38</a>        <span class="self">self</span>.session_filter.update(|filter| filter.within = within);
-<a href=#39 id=39 data-nosnippet>39</a>        <span class="self">self</span>.session_window.set_value(
-<a href=#40 id=40 data-nosnippet>40</a>            cookie_agent_client_state::session_window::SessionWindow::recent(within.days()),
-<a href=#41 id=41 data-nosnippet>41</a>        );
+<a href=#34 id=34 data-nosnippet>34</a>    /// A range's days are the browser's.
+<a href=#35 id=35 data-nosnippet>35</a>    </span><span class="kw">pub fn </span>set_active_within(<span class="self">self</span>, within: ActiveWithin) {
+<a href=#36 id=36 data-nosnippet>36</a>        <span class="kw">if </span><span class="self">self</span>.session_filter.with_untracked(|filter| filter.within) == within {
+<a href=#37 id=37 data-nosnippet>37</a>            <span class="kw">return</span>;
+<a href=#38 id=38 data-nosnippet>38</a>        }
+<a href=#39 id=39 data-nosnippet>39</a>        <span class="self">self</span>.session_filter.update(|filter| filter.within = within);
+<a href=#40 id=40 data-nosnippet>40</a>        <span class="self">self</span>.session_window
+<a href=#41 id=41 data-nosnippet>41</a>            .set_value(within.window(<span class="kw-2">&amp;</span><span class="kw">crate</span>::cron::zone_at(jiff::Timestamp::now())));
 <a href=#42 id=42 data-nosnippet>42</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(client) = <span class="self">self</span>.client() <span class="kw">else </span>{
 <a href=#43 id=43 data-nosnippet>43</a>            <span class="kw">return</span>;
 <a href=#44 id=44 data-nosnippet>44</a>        };
@@ -64,22 +64,36 @@
 <a href=#64 id=64 data-nosnippet>64</a>            + usize::from(<span class="self">self</span>.directory_filter.with(Option::is_some))
 <a href=#65 id=65 data-nosnippet>65</a>    }
 <a href=#66 id=66 data-nosnippet>66</a>
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// Whether the filter's agents and machines leave `session` in the
-<a href=#68 id=68 data-nosnippet>68</a>    /// list; tracks the filter, and the runtimes once a machine is chosen.
-<a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">pub fn </span>filter_passes(<span class="self">self</span>, session: <span class="kw-2">&amp;</span>SessionMeta) -&gt; bool {
-<a href=#70 id=70 data-nosnippet>70</a>        <span class="self">self</span>.session_filter.with(|filter| {
-<a href=#71 id=71 data-nosnippet>71</a>            <span class="kw">if </span>filter.by_date_only() {
-<a href=#72 id=72 data-nosnippet>72</a>                <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#73 id=73 data-nosnippet>73</a>            }
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span>machines = <span class="kw">if </span>filter.machines.is_empty() {
-<a href=#75 id=75 data-nosnippet>75</a>                Vec::new()
-<a href=#76 id=76 data-nosnippet>76</a>            } <span class="kw">else </span>{
-<a href=#77 id=77 data-nosnippet>77</a>                <span class="self">self</span>.runtimes.with(|listing| {
-<a href=#78 id=78 data-nosnippet>78</a>                    cookie_agent_client_state::badges::session_machines(session, listing.as_ref())
-<a href=#79 id=79 data-nosnippet>79</a>                })
-<a href=#80 id=80 data-nosnippet>80</a>            };
-<a href=#81 id=81 data-nosnippet>81</a>            filter.matches(session, <span class="kw-2">&amp;</span>machines)
-<a href=#82 id=82 data-nosnippet>82</a>        })
-<a href=#83 id=83 data-nosnippet>83</a>    }
-<a href=#84 id=84 data-nosnippet>84</a>}
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// Whether the filter leaves `session` in the list: a range's days (the
+<a href=#68 id=68 data-nosnippet>68</a>    /// daemon's answer holds only those, but a session announced since may
+<a href=#69 id=69 data-nosnippet>69</a>    /// be newer), and its agents and machines; tracks the filter, and the
+<a href=#70 id=70 data-nosnippet>70</a>    /// runtimes once a machine is chosen.
+<a href=#71 id=71 data-nosnippet>71</a>    </span><span class="kw">pub fn </span>filter_passes(<span class="self">self</span>, session: <span class="kw-2">&amp;</span>SessionMeta) -&gt; bool {
+<a href=#72 id=72 data-nosnippet>72</a>        <span class="self">self</span>.session_filter.with(|filter| {
+<a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">if let </span>ActiveWithin::Between(range) = filter.within
+<a href=#74 id=74 data-nosnippet>74</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(bounds) = range.bounds(<span class="kw-2">&amp;</span><span class="kw">crate</span>::cron::zone_at(jiff::Timestamp::now()))
+<a href=#75 id=75 data-nosnippet>75</a>                &amp;&amp; !cookie_agent_client_state::session_filter::in_range(session, bounds)
+<a href=#76 id=76 data-nosnippet>76</a>            {
+<a href=#77 id=77 data-nosnippet>77</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#78 id=78 data-nosnippet>78</a>            }
+<a href=#79 id=79 data-nosnippet>79</a>            <span class="kw">if </span>filter.by_date_only() {
+<a href=#80 id=80 data-nosnippet>80</a>                <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#81 id=81 data-nosnippet>81</a>            }
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">let </span>machines = <span class="kw">if </span>filter.machines.is_empty() {
+<a href=#83 id=83 data-nosnippet>83</a>                Vec::new()
+<a href=#84 id=84 data-nosnippet>84</a>            } <span class="kw">else </span>{
+<a href=#85 id=85 data-nosnippet>85</a>                <span class="self">self</span>.runtimes.with(|listing| {
+<a href=#86 id=86 data-nosnippet>86</a>                    cookie_agent_client_state::badges::session_machines(session, listing.as_ref())
+<a href=#87 id=87 data-nosnippet>87</a>                })
+<a href=#88 id=88 data-nosnippet>88</a>            };
+<a href=#89 id=89 data-nosnippet>89</a>            filter.matches(session, <span class="kw-2">&amp;</span>machines)
+<a href=#90 id=90 data-nosnippet>90</a>        })
+<a href=#91 id=91 data-nosnippet>91</a>    }
+<a href=#92 id=92 data-nosnippet>92</a>}
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a><span class="doccomment">/// The browser's date today.
+<a href=#95 id=95 data-nosnippet>95</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>local_today() -&gt; jiff::civil::Date {
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">let </span>now = jiff::Timestamp::now();
+<a href=#97 id=97 data-nosnippet>97</a>    now.to_zoned(<span class="kw">crate</span>::cron::zone_at(now)).date()
+<a href=#98 id=98 data-nosnippet>98</a>}
 </code></pre></div></section></main></body></html>
