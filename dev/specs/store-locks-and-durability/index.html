@@ -3812,6 +3812,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="5. Measurement first">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-what-the-measurement-found-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 What the measurement found (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4376,6 +4391,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="5. Measurement first">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-what-the-measurement-found-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 What the measurement found (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4426,7 +4456,10 @@
 
 <h1 id="session-store-locks-and-durability">Session store locks and durability<a class="headerlink" href="#session-store-locks-and-durability" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>approved</strong> (2026-10-31), with the user's decisions of 2026-10-31
-in <a href="#8-decisions">section 8</a>. Follows
+in <a href="#8-decisions">section 8</a>. The measurement step shipped and its findings
+are in <a href="#51-what-the-measurement-found-2026-10-31">section 5.1</a>; 4.1, 4.2,
+4.3, 4.4's heavy work before locks, and 4.5 in progress, the rest of 4.4
+shelved. Follows
 <a href="../session-storage-v3/">responsive session loading</a>, whose phase 1 removed
 the tree load from a replay's history pages but left the locks below in
 every session command's path.</p>
@@ -4605,17 +4638,20 @@ about 65, and the log about 19% smaller (the final presentations still
 travel in the end records). This replaces the ACP item of history format 2
 in <a href="../session-storage-v3/">session storage v3</a> (its section 4.2).</p>
 <h3 id="44-commands-without-engine-wide-locks">4.4 Commands without engine-wide locks<a class="headerlink" href="#44-commands-without-engine-wide-locks" title="Permanent link">&para;</a></h3>
+<p>The measurement (section 5.1) found no contention on these locks, so only
+the last item, heavy work before locks, is built now. The other three are
+shelved until the timing shows waits for them to remove.</p>
 <ul>
-<li><strong>Fast path.</strong> If the session is owned, resident, and has an actor,
+<li><strong>Shelved: fast path.</strong> If the session is owned, resident, and has an actor,
   <code>send_command</code> sends to it directly. <code>begin_write</code> checks owned and
   resident before it takes the mutation lock, and returns <code>AlreadyOwned</code>
   without it.</li>
-<li><strong>Retired actors.</strong> Eviction marks an actor retired, under its tree's
+<li><strong>Shelved: retired actors.</strong> Eviction marks an actor retired, under its tree's
   residency lock, before draining it. A retired actor answers every
   command it receives with <code>Retired</code>, and the sender retries through the
   locked path, which reopens the session. So a command can never run on an
   evicted session.</li>
-<li><strong>One residency lock per tree.</strong> <code>residency_mutation</code> becomes a lock per
+<li><strong>Shelved: one residency lock per tree.</strong> <code>residency_mutation</code> becomes a lock per
   root, taken by the four places that take it today (<code>send_command</code>'s slow
   path, delegate recovery, and the two janitor passes), each of which knows
   the session's root. Eviction is already per tree: a tree goes whole or
@@ -4673,6 +4709,58 @@ in <a href="../session-storage-v3/">session storage v3</a> (its section 4.2).</p
 takes, and logs any wait or sync over 250 ms with the session and the
 lock. A run of the user's daemon on a busy machine then shows how much of
 the stall each lock causes, and the same counters prove the change after.</p>
+<h3 id="51-what-the-measurement-found-2026-10-31">5.1 What the measurement found (2026-10-31)<a class="headerlink" href="#51-what-the-measurement-found-2026-10-31" title="Permanent link">&para;</a></h3>
+<p>Four hours of the user's daemon (16:39 to 20:49, 25 summaries, the build
+of <code>5a44ac557</code>, before session storage v3's phases 2 and 3):</p>
+<table>
+<thead>
+<tr>
+<th>Meter</th>
+<th>Per 10 minutes</th>
+<th>Typical</th>
+<th>Worst</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>residency lock wait</td>
+<td>14 to 738</td>
+<td>0 ms</td>
+<td>3 ms in all; never slow</td>
+</tr>
+<tr>
+<td>store lock wait, shared, and session slot wait</td>
+<td>11 to 708</td>
+<td>0 ms</td>
+<td>2 ms</td>
+</tr>
+<tr>
+<td>store lock wait, exclusive</td>
+<td>17 to 747</td>
+<td>0 to 16 ms</td>
+<td>192 ms, once</td>
+</tr>
+<tr>
+<td>residency lock hold</td>
+<td>as the waits</td>
+<td>under 1 ms</td>
+<td>275 ms and 525 ms, once each: commands that opened a cold session under the lock</td>
+</tr>
+<tr>
+<td>log sync</td>
+<td>10 to 545</td>
+<td>15 to 45 ms on average</td>
+<td>about 65 over 250 ms, up to 1,699 ms; up to 7.9 s of syncs in 10 minutes</td>
+</tr>
+</tbody>
+</table>
+<p>The locks are not where the time goes: in four hours no command waited
+for the residency lock or a session slot. The disk is. On a busy disk one
+<code>fdatasync</code> takes 250 ms to 1.7 s, and the slow ones come in bursts on the
+session that is working (nine of 270 to 495 ms in two minutes on one log),
+each holding that agent's next record back. Hence the order of work in
+section 7: fewer syncs and syncs outside the locks first; of 4.4 only the
+heavy work before locks, for the two slow holds.</p>
 <h2 id="6-tests">6. Tests<a class="headerlink" href="#6-tests" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Sync counts (<code>EVENT_LOG_SYNCS</code>): a turn's syncs are its commit points; a
@@ -4688,20 +4776,21 @@ the stall each lock causes, and the same counters prove the change after.</p>
   log shows the final presentation from <code>tool_call_terminated</code> and the
   context stored before <code>run_finished</code>; no <code>acp_session_updated</code> is stored
   for presentations or for context mid-run.</li>
-<li>Locks: a command to tree B completes while tree A's residency lock is
-  held; a command racing an eviction is answered <code>Retired</code> and retried,
-  never run on the evicted session (the janitor's pre-barrier hook); a
-  cold reopen does not delay another session's appends.</li>
+<li>Locks: a cold reopen parses its log and completes its tree before it
+  takes the residency lock and the mutation lock, and does not delay
+  another session's appends. (The shelved items of 4.4 bring their own
+  tests: a command to tree B completing while tree A's lock is held, and
+  a command racing an eviction answered <code>Retired</code> and retried.)</li>
 </ul>
 <h2 id="7-order-of-work">7. Order of work<a class="headerlink" href="#7-order-of-work" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Measurement (section 5).</li>
+<li>Measurement (section 5): shipped as <code>5a44ac557</code>; findings in 5.1.</li>
 <li>Syncs outside locks (4.1) and the commit-point classes (4.2).</li>
 <li>ACP live state (4.3).</li>
-<li>The command fast path and retired actors (4.4), then per-tree locks and
-   heavy work before locks.</li>
+<li>Heavy work before locks (the last item of 4.4).</li>
 <li>Other files (4.5).</li>
 </ol>
+<p>The rest of 4.4 is shelved (section 5.1).</p>
 <h2 id="8-decisions">8. Decisions<a class="headerlink" href="#8-decisions" title="Permanent link">&para;</a></h2>
 <p>User decisions of 2026-10-31:</p>
 <ol>
@@ -4721,6 +4810,9 @@ the stall each lock causes, and the same counters prove the change after.</p>
    runs on the user's machine for a few days before the rest is built.</li>
 <li>This spec comes before phase 2 of
    <a href="../session-storage-v3/">session storage v3</a>.</li>
+<li>(2026-10-31, after the measurement in 5.1) Build 4.1, 4.2, 4.3, the
+   heavy work before locks of 4.4, and 4.5; shelve 4.4's fast path,
+   retired actors, and per-tree residency locks.</li>
 </ol>
 
 
