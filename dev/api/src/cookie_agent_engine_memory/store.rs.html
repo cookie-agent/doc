@@ -988,27 +988,42 @@
 <a href=#988 id=988 data-nosnippet>988</a>    path: <span class="kw-2">&amp;</span>Path,
 <a href=#989 id=989 data-nosnippet>989</a>    bytes: <span class="kw-2">&amp;</span>[u8],
 <a href=#990 id=990 data-nosnippet>990</a>) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryRevision, MemoryError&gt; {
-<a href=#991 id=991 data-nosnippet>991</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"memory files have a folder"</span>);
-<a href=#992 id=992 data-nosnippet>992</a>    fs::create_dir_all(directory).map_err(io_error(directory))<span class="question-mark">?</span>;
-<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">let </span>file_name = path
-<a href=#994 id=994 data-nosnippet>994</a>        .file_name()
-<a href=#995 id=995 data-nosnippet>995</a>        .expect(<span class="string">"memory files have a name"</span>)
-<a href=#996 id=996 data-nosnippet>996</a>        .to_string_lossy();
-<a href=#997 id=997 data-nosnippet>997</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{file_name}.{}.tmp"</span>, uuid::Uuid::now_v7()));
-<a href=#998 id=998 data-nosnippet>998</a>    <span class="kw">let </span>result = (|| {
-<a href=#999 id=999 data-nosnippet>999</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
-<a href=#1000 id=1000 data-nosnippet>1000</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, bytes)<span class="question-mark">?</span>;
-<a href=#1001 id=1001 data-nosnippet>1001</a>        output.sync_all()<span class="question-mark">?</span>;
-<a href=#1002 id=1002 data-nosnippet>1002</a>        drop(output);
-<a href=#1003 id=1003 data-nosnippet>1003</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)
-<a href=#1004 id=1004 data-nosnippet>1004</a>    })();
-<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">if </span>result.is_err() {
-<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
-<a href=#1007 id=1007 data-nosnippet>1007</a>    }
-<a href=#1008 id=1008 data-nosnippet>1008</a>    result.map_err(io_error(path))<span class="question-mark">?</span>;
-<a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="prelude-val">Ok</span>(MemoryRevision::of(bytes))
-<a href=#1010 id=1010 data-nosnippet>1010</a>}
-<a href=#1011 id=1011 data-nosnippet>1011</a>
-<a href=#1012 id=1012 data-nosnippet>1012</a><span class="attr">#[cfg(test)]
-<a href=#1013 id=1013 data-nosnippet>1013</a></span><span class="kw">mod </span>tests;
+<a href=#991 id=991 data-nosnippet>991</a>    replace_file(path, bytes, <span class="bool-val">true</span>)
+<a href=#992 id=992 data-nosnippet>992</a>}
+<a href=#993 id=993 data-nosnippet>993</a>
+<a href=#994 id=994 data-nosnippet>994</a><span class="doccomment">/// Replaces `path` atomically, like [`write_file`], but syncs neither the
+<a href=#995 id=995 data-nosnippet>995</a>/// file nor its folder: for bookkeeping a crash may roll back to an older
+<a href=#996 id=996 data-nosnippet>996</a>/// version (store locks and durability, section 4.5).
+<a href=#997 id=997 data-nosnippet>997</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>write_file_unsynced(path: <span class="kw-2">&amp;</span>Path, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), MemoryError&gt; {
+<a href=#998 id=998 data-nosnippet>998</a>    replace_file(path, bytes, <span class="bool-val">false</span>).map(drop)
+<a href=#999 id=999 data-nosnippet>999</a>}
+<a href=#1000 id=1000 data-nosnippet>1000</a>
+<a href=#1001 id=1001 data-nosnippet>1001</a><span class="doccomment">/// Writes `bytes` to a temporary file beside `path`, synced when `durable`
+<a href=#1002 id=1002 data-nosnippet>1002</a>/// asks, and renames it over `path`.
+<a href=#1003 id=1003 data-nosnippet>1003</a></span><span class="kw">fn </span>replace_file(path: <span class="kw-2">&amp;</span>Path, bytes: <span class="kw-2">&amp;</span>[u8], durable: bool) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryRevision, MemoryError&gt; {
+<a href=#1004 id=1004 data-nosnippet>1004</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"memory files have a folder"</span>);
+<a href=#1005 id=1005 data-nosnippet>1005</a>    fs::create_dir_all(directory).map_err(io_error(directory))<span class="question-mark">?</span>;
+<a href=#1006 id=1006 data-nosnippet>1006</a>    <span class="kw">let </span>file_name = path
+<a href=#1007 id=1007 data-nosnippet>1007</a>        .file_name()
+<a href=#1008 id=1008 data-nosnippet>1008</a>        .expect(<span class="string">"memory files have a name"</span>)
+<a href=#1009 id=1009 data-nosnippet>1009</a>        .to_string_lossy();
+<a href=#1010 id=1010 data-nosnippet>1010</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{file_name}.{}.tmp"</span>, uuid::Uuid::now_v7()));
+<a href=#1011 id=1011 data-nosnippet>1011</a>    <span class="kw">let </span>result = (|| {
+<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
+<a href=#1013 id=1013 data-nosnippet>1013</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, bytes)<span class="question-mark">?</span>;
+<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">if </span>durable {
+<a href=#1015 id=1015 data-nosnippet>1015</a>            output.sync_all()<span class="question-mark">?</span>;
+<a href=#1016 id=1016 data-nosnippet>1016</a>        }
+<a href=#1017 id=1017 data-nosnippet>1017</a>        drop(output);
+<a href=#1018 id=1018 data-nosnippet>1018</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)
+<a href=#1019 id=1019 data-nosnippet>1019</a>    })();
+<a href=#1020 id=1020 data-nosnippet>1020</a>    <span class="kw">if </span>result.is_err() {
+<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
+<a href=#1022 id=1022 data-nosnippet>1022</a>    }
+<a href=#1023 id=1023 data-nosnippet>1023</a>    result.map_err(io_error(path))<span class="question-mark">?</span>;
+<a href=#1024 id=1024 data-nosnippet>1024</a>    <span class="prelude-val">Ok</span>(MemoryRevision::of(bytes))
+<a href=#1025 id=1025 data-nosnippet>1025</a>}
+<a href=#1026 id=1026 data-nosnippet>1026</a>
+<a href=#1027 id=1027 data-nosnippet>1027</a><span class="attr">#[cfg(test)]
+<a href=#1028 id=1028 data-nosnippet>1028</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

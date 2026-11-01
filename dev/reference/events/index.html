@@ -4841,7 +4841,7 @@ never stored.</p>
 <td><code>acp_session_updated</code></td>
 <td>state</td>
 <td>either</td>
-<td>What the ACP agent reported of its session: its commands, options, or plan; a notice; input steered into its turn; a tool call's new presentation; or the starting options the session was created with</td>
+<td>What the ACP agent reported of its session: its commands, options, or plan; a notice; input steered into its turn; the starting options the session was created with; the context use a run ended with; or, in a log a build before client protocol 1.60.0 wrote, a tool call's new presentation and every change of its context use</td>
 </tr>
 <tr>
 <td><code>elicitation_requested</code></td>
@@ -5054,7 +5054,7 @@ never stored.</p>
 <td>A <a href="#compaction-checkpoints">compaction checkpoint</a></td>
 </tr>
 <tr>
-<td><code>text_delta</code>, <code>reasoning_delta</code>, <code>internal_agent_text_delta</code>, <code>native_compaction_started</code>, <code>native_compaction_finished</code>, <code>tool_call_progress</code></td>
+<td><code>text_delta</code>, <code>reasoning_delta</code>, <code>internal_agent_text_delta</code>, <code>native_compaction_started</code>, <code>native_compaction_finished</code>, <code>tool_call_progress</code>, <code>acp_live_update</code></td>
 <td>live-only</td>
 <td>run</td>
 <td><a href="#live-only-stream-output">Stream output</a></td>
@@ -5063,28 +5063,49 @@ never stored.</p>
 </table>
 <h2 id="live-only-stream-output">Live-only stream output<a class="headerlink" href="#live-only-stream-output" title="Permanent link">&para;</a></h2>
 <p><code>text_delta</code>, <code>reasoning_delta</code>, <code>internal_agent_text_delta</code>,
-<code>native_compaction_started</code>, <code>native_compaction_finished</code>, and
-<code>tool_call_progress</code> are live-only. The engine delivers them to event
-subscribers and plugins as they stream but never appends them to
-<code>events.jsonl</code> or to a session's in-memory log, and a stored record carrying
-one fails validation. Their durable record is the committed turn
-(<code>model_turn_committed</code>), the tool termination (<code>tool_call_terminated</code>, with its
-retained output), and the internal agent's terminal event. A replay or a reload
-therefore sees finished turns only.</p>
+<code>native_compaction_started</code>, <code>native_compaction_finished</code>,
+<code>tool_call_progress</code>, and <code>acp_live_update</code> are live-only. The engine
+delivers them to event subscribers and plugins as they stream but never
+appends them to <code>events.jsonl</code> or to a session's in-memory log, and a stored
+record carrying one fails validation. Their durable record is the committed
+turn (<code>model_turn_committed</code>), the tool termination (<code>tool_call_terminated</code>,
+with its retained output and, for an ACP agent's call, its final
+presentation), the internal agent's terminal event, and the context use an
+ACP run stores before its end. A replay or a reload therefore sees finished
+turns only.</p>
 <p>A view that attaches while output streams does not start from a fragment: the
 daemon keeps each session's output still in flight in memory, and a tail
 registered by a subscription without a cursor (one that replayed the whole log)
 first receives it as live-only messages positioned after the durable tip it
 replayed to. A subscription that resumes from a cursor does not, since its
-reader may already hold part of that output; its later deltas continue it. Each open attempt's text and reasoning arrive as
+reader may already hold part of that output; its later deltas continue it.
+It gets only an ACP agent's live state, whose values are whole. Each open attempt's text and reasoning arrive as
 one <code>text_delta</code> or <code>reasoning_delta</code> per uninterrupted run of a kind, in
 order; each running tool as one <code>tool_call_progress</code> carrying its latest
 <code>message</code> and its live display so far as one <code>replace</code> delta (within the
 64 KiB budget); a running provider-native
 compaction as its <code>native_compaction_started</code>; and a streaming compaction
-summary as one <code>internal_agent_text_delta</code>. Later deltas append as usual, and
-the durable record replaces it all as before. Output a daemon restart cut off
-is not kept.</p>
+summary as one <code>internal_agent_text_delta</code>; an ACP agent's live state as
+one <code>acp_live_update</code> per open call's newest presentation and one with its
+newest context use. Later deltas append as usual, and the durable record
+replaces it all as before. Output a daemon restart cut off is not kept.</p>
+<p><code>acp_live_update</code> (since client protocol 1.60.0;
+<a href="../../specs/store-locks-and-durability/">store locks and durability</a>
+section 4.3) carries an ACP agent's live state, each member the whole new
+value: <code>tool_presentation</code> (<code>tool_call_id</code>, <code>presentation</code>), a running
+call's newest title, hint, primary argument, arguments, and preview, which
+replace the call's own (its tool identity stays); and <code>context</code> (<code>used</code>,
+and <code>size</code> when the agent reports its window), its context use. A client
+applies it as it applied those members of <code>acp_session_updated</code> before.
+The call's <code>tool_call_terminated</code> stores its final <code>presentation</code> when it
+differs from the one <code>tool_call_started</code> stored, and the run stores one
+<code>acp_session_updated</code> with the <code>context</code> it ended with, before its
+<code>run_finished</code>, when that changed since the last stored. Being whole
+values, the daemon also sends a subscription that resumes from a cursor
+the newest of each, and keeps a call's until its end and the context use
+until its run's end. A client that does not know the event drops it, and
+sees a call's refined presentation when the call ends and the context use
+once per run.</p>
 <p><code>internal_agent_text_delta</code> (<code>invocation_id</code>, <code>text</code>) streams the compaction
 agent's summary text. Other internal agents do not stream.
 <code>native_compaction_started</code> and <code>native_compaction_finished</code> (<code>resolved_model</code>)
@@ -5627,6 +5648,11 @@ argument. It also records the single/named output declaration, including
 arbitrary named streams, and <code>background: true</code> when the call's tool supports
 the background, so a client may offer to move the running call there
 (<code>run.tool_background</code>); the field is absent otherwise.
+<code>tool_call_terminated</code> may carry <code>presentation</code> (since client protocol
+1.60.0): the call's final title, hint, primary argument, arguments, and
+preview, when they changed after its start (an ACP agent's call whose title,
+kind, or arguments arrived later); they replace the start's, and its tool
+identity stays.
 <code>tool_call_progress</code> is live-only. It contains a control-free status <code>message</code>
 and an optional UI-only <code>display</code> delta, tagged by <code>type</code>:</p>
 <ul>
@@ -5911,7 +5937,8 @@ event <code>after_seq</code>: it never advances the cursor, is never stored, and
 never a reason to recover. A subscriber that starts from the beginning (no
 cursor, or <code>0</code>) first receives the output streaming at that moment, coalesced
 into <code>transient</code> messages after the durable tip; one resuming from a cursor
-does not, since it may already hold part of it. The shared client delivers one only when its
+does not, since it may already hold part of it, except an ACP agent's live
+state (<code>acp_live_update</code>), whose values are whole. The shared client delivers one only when its
 <code>after_seq</code> equals the subscription cursor, including output buffered while a
 replay is in flight; anything else is stale or outruns a durable event the view
 has not seen, and is dropped. The engine drops transient output for a

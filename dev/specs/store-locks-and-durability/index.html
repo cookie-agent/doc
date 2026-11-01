@@ -3780,6 +3780,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4.3 The agent&#39;s live state is not history">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -3851,6 +3866,15 @@
   <a href="#8-decisions" class="md-nav__link">
     <span class="md-ellipsis">
       8. Decisions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Implementation notes
     </span>
   </a>
   
@@ -4359,6 +4383,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4.3 The agent&#39;s live state is not history">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation-notes-2026-10-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes (2026-10-31)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4435,6 +4474,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#9-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4457,9 +4505,11 @@
 <h1 id="session-store-locks-and-durability">Session store locks and durability<a class="headerlink" href="#session-store-locks-and-durability" title="Permanent link">&para;</a></h1>
 <p>Status: <strong>approved</strong> (2026-10-31), with the user's decisions of 2026-10-31
 in <a href="#8-decisions">section 8</a>. The measurement step shipped and its findings
-are in <a href="#51-what-the-measurement-found-2026-10-31">section 5.1</a>; 4.1, 4.2,
-4.3, 4.4's heavy work before locks, and 4.5 in progress, the rest of 4.4
-shelved. Follows
+are in <a href="#51-what-the-measurement-found-2026-10-31">section 5.1</a>. 4.1,
+4.2, 4.4's heavy work before locks, and 4.5 are implemented (2026-10-31;
+notes in <a href="#9-implementation-notes">section 9</a>), and so is 4.3 (client
+protocol 1.60.0, plugin protocol 1.32.0; notes at the end of 4.3); the
+rest of 4.4 is shelved. Follows
 <a href="../session-storage-v3/">responsive session loading</a>, whose phase 1 removed
 the tree load from a replay's history pages but left the locks below in
 every session command's path.</p>
@@ -4637,6 +4687,46 @@ minor bump. Effect on the session in section 1: 4,584 ACP records become
 about 65, and the log about 19% smaller (the final presentations still
 travel in the end records). This replaces the ACP item of history format 2
 in <a href="../session-storage-v3/">session storage v3</a> (its section 4.2).</p>
+<h4 id="implementation-notes-2026-10-31">Implementation notes (2026-10-31)<a class="headerlink" href="#implementation-notes-2026-10-31" title="Permanent link">&para;</a></h4>
+<p>Implemented as client protocol 1.60.0 and plugin protocol 1.32.0 (plugins
+receive live-only events too). History format 1 gains only the optional
+<code>presentation</code> of <code>tool_call_terminated</code>; logs earlier builds wrote, with
+their stored presentations and context use, read as before.</p>
+<ul>
+<li><code>acp_live_update</code> is live-only (<code>EventPayload::is_transient</code>), so
+  <code>StoredEvent::validate</code> refuses it and it is never appended: an
+  exhaustive <code>syncs_on_append</code> (4.2) puts it with the other live-only
+  kinds, where it cannot occur.</li>
+<li>The store's <code>in_flight</code> keeps an ACP session's newest context use until
+  its run's end, and each open call's newest presentation until the call's
+  <code>tool_call_terminated</code> or the run's end. Being whole values, they also
+  go to a subscription that resumes from a cursor, which gets no other
+  in-flight output.</li>
+<li>The runner stores the context use, when it changed since the last value
+  the log holds (read from the log as the run starts), before each round's
+  end request (<code>PromotePendingOrComplete</code>, which ends the run unless input
+  waits), before a cancel's <code>run_finished</code>, and before a failed run's,
+  and never once the run has ended (a cancel from outside). A run whose
+  waiting input starts another round may store it once per round.</li>
+<li><code>tool_call_terminated.presentation</code> is set from the presentation the
+  clients last got, when it differs from the start's; a call that ends
+  with the turn (<code>end_open_calls</code>) carries it too. The display audience
+  converts its blocks, and those of <code>acp_live_update</code>, as it converts a
+  start's.</li>
+<li>The client reducer applies <code>acp_live_update</code> as it applied those two
+  members of <code>acp_session_updated</code>, and a termination's <code>presentation</code>
+  before its result; held history keeps only the newest live value of
+  each.</li>
+</ul>
+<p>Measured on a copy of the session in section 1, the new writer simulated
+over its records: 9,813 records become 5,293, its 4,584
+<code>acp_session_updated</code> become 64 (31 context records, one per run; 1,105
+of its tool ends carry a final presentation), and 16.9 MB become 14.0 MB
+(17.6% smaller). Folded by the client reducer, both logs give the same
+presentation and status for all 1,112 calls, the same context, and the
+same transcript rows. A scripted fixture session (four turns: three late
+presentations of two calls, three context changes in two runs, an edit,
+and two commands) stores 65 records instead of 69.</p>
 <h3 id="44-commands-without-engine-wide-locks">4.4 Commands without engine-wide locks<a class="headerlink" href="#44-commands-without-engine-wide-locks" title="Permanent link">&para;</a></h3>
 <p>The measurement (section 5.1) found no contention on these locks, so only
 the last item, heavy work before locks, is built now. The other three are
@@ -4814,6 +4904,97 @@ heavy work before locks, for the two slow holds.</p>
    heavy work before locks of 4.4, and 4.5; shelve 4.4's fast path,
    retired actors, and per-tree residency locks.</li>
 </ol>
+<h2 id="9-implementation-notes">9. Implementation notes<a class="headerlink" href="#9-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>4.1, 4.2, the last item of 4.4, and 4.5, as built on 2026-10-31:</p>
+<ul>
+<li><strong>Syncs.</strong> <code>EventLog::write_owned</code> writes a record unsynced and returns
+  a <code>Commit</code> for a commit point; <code>EventLog::sync_through</code> waits until a
+  sync covers it. The sync state of a log (<code>events/durability.rs</code>) counts
+  records written and the count each finished sync started at, and keeps
+  a duplicate of the writer's descriptor to sync on. A caller whose
+  commit is not covered runs the sync when none is in flight and
+  otherwise waits for the one in flight and then runs the next, so
+  commit points written before a sync starts share it. Closing the
+  writer syncs what no sync covered; a revert's cut, synced whole, counts
+  as a sync of everything written. The <code>log sync</code> meter times each sync
+  as before.</li>
+<li><strong>Appends.</strong> <code>SessionStore::append</code> writes and folds the record under
+  the session's slot, queues its publication there
+  (<code>session/publication.rs</code>), releases the slot, then syncs a commit
+  point and publishes what its sync settled. A record publishes, to the
+  live tails and as the session list's and approvals' notifications,
+  when it rides along or its sync ended, and only after every earlier
+  record of its session. A failed sync is reported to the append that ran
+  it and still releases the queue. A tail registered while a commit point
+  syncs already has it in its first page and is not sent it again.</li>
+<li><strong>Tool starts.</strong> The model loop appends a turn's <code>tool_call_started</code>
+  records with <code>Engine::append_deferring_sync</code> and syncs them once
+  (<code>Engine::sync_appended</code>, which also streams them to plugins) before
+  any permission decision or tool runs. The ACP runner's starts each sync
+  on their own: they report calls the agent already runs.</li>
+<li><strong>Classes.</strong> <code>syncs_on_append</code> is an exhaustive match. Ride along: the
+  six bookkeeping kinds, <code>model_turn_committed</code>, <code>acp_session_updated</code>.
+  Live-only kinds are listed too (never written). Every other kind is a
+  commit point, <code>tool_round_started</code> and the per-run prompt, memory, and
+  internal-agent records among them, as rare kinds.</li>
+<li><strong>Reopens.</strong> A command's slow path calls <code>SessionStore::prepare_write</code>
+  off the async workers before the residency lock: it completes the
+  tree, reopens a session this process owns but evicted, and otherwise
+  parses the log read-only for the adoption to take over.
+  <code>reopen_owned</code> parses and folds without any store lock, one reopen of
+  a session at a time (a per-session gate, so nothing appends to the file
+  while it is parsed and a torn tail is cut safely), and takes the slot
+  only to install, re-checking for a projection installed meanwhile and
+  for deletion. <code>begin_write</code> reopens that way before its exclusive lock
+  and loops if the session was evicted again before the lock.</li>
+<li><strong>Other files.</strong> <code>unread.json</code>, <code>memory/.reads.json</code>, and the catalog's
+  <code>models-dev-v2.meta.json</code> are renamed into place without syncing the
+  file or its folder (<code>SecureDirectoryLock::replace_unsynced</code> for the
+  catalog); the catalog body keeps its sync.</li>
+</ul>
+<p>Deviations:</p>
+<ul>
+<li>An adoption (the first write to a tree this process does not own yet)
+  still takes the tree's <code>owner.lock</code>, converts the tree, and folds the
+  log under the exclusive lock; only the parse moves before it, taken
+  over when the file is unchanged. Taking the owner lock outside the
+  store lock would let two acquisitions in this process race on it.</li>
+<li>A command queued behind the residency lock while the janitor evicts its
+  session finds it evicted under the lock and reopens it there (outside
+  the store's mutation lock); retired actors, shelved, would remove that.</li>
+<li>Forks, reverts, and a buffered session's first write still sync under
+  the locks that make them: they are rare structural changes.</li>
+</ul>
+<p>Measured with <code>strace -f -y -e trace=fdatasync,fsync</code> on <code>cookie run</code> in a
+scratch home with <code>scripts/web-e2e/showcase-model.py</code> (the same edit, check,
+reply turn, 36 events), the store warmed by one earlier run:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Session log</th>
+<th>All syncs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before (<code>b59ba7c14</code>)</td>
+<td>15</td>
+<td>29</td>
+</tr>
+<tr>
+<td>After</td>
+<td>12</td>
+<td>21</td>
+</tr>
+</tbody>
+</table>
+<p>Of the eight syncs fewer, three are the log's: the turn's three
+<code>model_turn_committed</code> now ride along. The other five are <code>unread.json</code>,
+memory's read times and their folder, and the catalog metadata and the
+folder sync after it. The rest are the new session's directory and
+<code>metadata</code>, the runtime revision index, the catalog body (fetched in this
+run), and the file the <code>edit</code> tool wrote with its directory.</p>
 
 
 

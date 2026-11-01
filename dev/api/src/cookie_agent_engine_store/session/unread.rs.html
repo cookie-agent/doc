@@ -142,57 +142,59 @@
 <a href=#142 id=142 data-nosnippet>142</a>        .collect())
 <a href=#143 id=143 data-nosnippet>143</a>}
 <a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a><span class="kw">fn </span>write(path: <span class="kw-2">&amp;</span>Path, file: <span class="kw-2">&amp;</span>UnreadFile) -&gt; io::Result&lt;()&gt; {
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"the data root is a folder"</span>);
-<a href=#147 id=147 data-nosnippet>147</a>    fs::create_dir_all(directory)<span class="question-mark">?</span>;
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">let </span>bytes = serde_json::to_vec_pretty(file).map_err(io::Error::other)<span class="question-mark">?</span>;
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{UNREAD_FILE}.{}.tmp"</span>, uuid::Uuid::now_v7()));
-<a href=#150 id=150 data-nosnippet>150</a>    <span class="kw">let </span>result = (|| {
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
-<a href=#152 id=152 data-nosnippet>152</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
-<a href=#153 id=153 data-nosnippet>153</a>        output.sync_all()<span class="question-mark">?</span>;
-<a href=#154 id=154 data-nosnippet>154</a>        drop(output);
-<a href=#155 id=155 data-nosnippet>155</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)
-<a href=#156 id=156 data-nosnippet>156</a>    })();
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">if </span>result.is_err() {
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
-<a href=#159 id=159 data-nosnippet>159</a>    }
-<a href=#160 id=160 data-nosnippet>160</a>    result
-<a href=#161 id=161 data-nosnippet>161</a>}
-<a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a><span class="attr">#[cfg(test)]
-<a href=#164 id=164 data-nosnippet>164</a></span><span class="kw">mod </span>tests {
-<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="attr">#[test]
-<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">fn </span>unread_sessions_survive_a_reopen_and_change_only_once() {
-<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>data = tempfile::tempdir().unwrap();
-<a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span>(first, second) = (SessionId::new_v7(), SessionId::new_v7());
-<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).unwrap();
-<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">let </span>unread = UnreadSessions::open(data.path());
-<a href=#173 id=173 data-nosnippet>173</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[first, second], <span class="bool-val">true</span>, now), [first, second]);
-<a href=#174 id=174 data-nosnippet>174</a>        <span class="macro">assert!</span>(unread.set(<span class="kw-2">&amp;</span>[first], <span class="bool-val">true</span>, now).is_empty());
-<a href=#175 id=175 data-nosnippet>175</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[second], <span class="bool-val">false</span>, now), [second]);
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="macro">assert!</span>(unread.set(<span class="kw-2">&amp;</span>[second], <span class="bool-val">false</span>, now).is_empty());
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>reopened = UnreadSessions::open(data.path());
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">assert!</span>(reopened.contains(first) &amp;&amp; !reopened.contains(second));
-<a href=#179 id=179 data-nosnippet>179</a>        reopened.forget([first]);
-<a href=#180 id=180 data-nosnippet>180</a>        <span class="macro">assert!</span>(!UnreadSessions::open(data.path()).contains(first));
-<a href=#181 id=181 data-nosnippet>181</a>    }
-<a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="attr">#[test]
-<a href=#184 id=184 data-nosnippet>184</a>    </span><span class="kw">fn </span>a_file_that_does_not_read_starts_with_none() {
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>data = tempfile::tempdir().unwrap();
-<a href=#186 id=186 data-nosnippet>186</a>        fs::write(
-<a href=#187 id=187 data-nosnippet>187</a>            data.path().join(UNREAD_FILE),
-<a href=#188 id=188 data-nosnippet>188</a>            <span class="string">r#"{"sessions": [], "extra": 1}"#</span>,
-<a href=#189 id=189 data-nosnippet>189</a>        )
-<a href=#190 id=190 data-nosnippet>190</a>        .unwrap();
-<a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">let </span>unread = UnreadSessions::open(data.path());
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>id = SessionId::new_v7();
-<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).unwrap();
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[id], <span class="bool-val">true</span>, now), [id]);
-<a href=#195 id=195 data-nosnippet>195</a>        <span class="macro">assert!</span>(UnreadSessions::open(data.path()).contains(id));
-<a href=#196 id=196 data-nosnippet>196</a>    }
-<a href=#197 id=197 data-nosnippet>197</a>}
+<a href=#145 id=145 data-nosnippet>145</a><span class="doccomment">/// Replaces the file atomically but without a sync: a crash may lose the
+<a href=#146 id=146 data-nosnippet>146</a>/// latest change, which marks a session read again or unread again
+<a href=#147 id=147 data-nosnippet>147</a>/// (store locks and durability, section 4.5).
+<a href=#148 id=148 data-nosnippet>148</a></span><span class="kw">fn </span>write(path: <span class="kw-2">&amp;</span>Path, file: <span class="kw-2">&amp;</span>UnreadFile) -&gt; io::Result&lt;()&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">let </span>directory = path.parent().expect(<span class="string">"the data root is a folder"</span>);
+<a href=#150 id=150 data-nosnippet>150</a>    fs::create_dir_all(directory)<span class="question-mark">?</span>;
+<a href=#151 id=151 data-nosnippet>151</a>    <span class="kw">let </span>bytes = serde_json::to_vec_pretty(file).map_err(io::Error::other)<span class="question-mark">?</span>;
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">let </span>temporary = directory.join(<span class="macro">format!</span>(<span class="string">".{UNREAD_FILE}.{}.tmp"</span>, uuid::Uuid::now_v7()));
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">let </span>result = (|| {
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span><span class="kw-2">mut </span>output = fs::File::create(<span class="kw-2">&amp;</span>temporary)<span class="question-mark">?</span>;
+<a href=#155 id=155 data-nosnippet>155</a>        io::Write::write_all(<span class="kw-2">&amp;mut </span>output, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
+<a href=#156 id=156 data-nosnippet>156</a>        drop(output);
+<a href=#157 id=157 data-nosnippet>157</a>        fs::rename(<span class="kw-2">&amp;</span>temporary, path)
+<a href=#158 id=158 data-nosnippet>158</a>    })();
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">if </span>result.is_err() {
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let _ </span>= fs::remove_file(<span class="kw-2">&amp;</span>temporary);
+<a href=#161 id=161 data-nosnippet>161</a>    }
+<a href=#162 id=162 data-nosnippet>162</a>    result
+<a href=#163 id=163 data-nosnippet>163</a>}
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a><span class="attr">#[cfg(test)]
+<a href=#166 id=166 data-nosnippet>166</a></span><span class="kw">mod </span>tests {
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#168 id=168 data-nosnippet>168</a>
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="attr">#[test]
+<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">fn </span>unread_sessions_survive_a_reopen_and_change_only_once() {
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>data = tempfile::tempdir().unwrap();
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">let </span>(first, second) = (SessionId::new_v7(), SessionId::new_v7());
+<a href=#173 id=173 data-nosnippet>173</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).unwrap();
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>unread = UnreadSessions::open(data.path());
+<a href=#175 id=175 data-nosnippet>175</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[first, second], <span class="bool-val">true</span>, now), [first, second]);
+<a href=#176 id=176 data-nosnippet>176</a>        <span class="macro">assert!</span>(unread.set(<span class="kw-2">&amp;</span>[first], <span class="bool-val">true</span>, now).is_empty());
+<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[second], <span class="bool-val">false</span>, now), [second]);
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">assert!</span>(unread.set(<span class="kw-2">&amp;</span>[second], <span class="bool-val">false</span>, now).is_empty());
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">let </span>reopened = UnreadSessions::open(data.path());
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="macro">assert!</span>(reopened.contains(first) &amp;&amp; !reopened.contains(second));
+<a href=#181 id=181 data-nosnippet>181</a>        reopened.forget([first]);
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="macro">assert!</span>(!UnreadSessions::open(data.path()).contains(first));
+<a href=#183 id=183 data-nosnippet>183</a>    }
+<a href=#184 id=184 data-nosnippet>184</a>
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="attr">#[test]
+<a href=#186 id=186 data-nosnippet>186</a>    </span><span class="kw">fn </span>a_file_that_does_not_read_starts_with_none() {
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>data = tempfile::tempdir().unwrap();
+<a href=#188 id=188 data-nosnippet>188</a>        fs::write(
+<a href=#189 id=189 data-nosnippet>189</a>            data.path().join(UNREAD_FILE),
+<a href=#190 id=190 data-nosnippet>190</a>            <span class="string">r#"{"sessions": [], "extra": 1}"#</span>,
+<a href=#191 id=191 data-nosnippet>191</a>        )
+<a href=#192 id=192 data-nosnippet>192</a>        .unwrap();
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>unread = UnreadSessions::open(data.path());
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span>id = SessionId::new_v7();
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).unwrap();
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="macro">assert_eq!</span>(unread.set(<span class="kw-2">&amp;</span>[id], <span class="bool-val">true</span>, now), [id]);
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="macro">assert!</span>(UnreadSessions::open(data.path()).contains(id));
+<a href=#198 id=198 data-nosnippet>198</a>    }
+<a href=#199 id=199 data-nosnippet>199</a>}
 </code></pre></div></section></main></body></html>
