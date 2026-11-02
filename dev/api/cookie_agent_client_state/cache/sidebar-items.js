@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CacheBadge","CacheHeat"],"fn":["badge_text","countdown","detail_lines","heat","source_label","ttl_label"],"struct":["CacheClock"]};

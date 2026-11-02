@@ -5700,6 +5700,11 @@ belongs to that run; any other is runless. The kinds written today:</p>
 <td>Automatic context compaction failed three times in a row and stays off for the rest of the run</td>
 </tr>
 <tr>
+<td><code>engine:cache-expiry</code></td>
+<td><code>cache_expiry_compaction</code></td>
+<td>A compaction <a href="../../sessions/compaction/#before-the-cache-expires">before the prompt cache expired</a> failed; it is not tried again until the session runs</td>
+</tr>
+<tr>
 <td><code>engine:agent-md</code></td>
 <td><code>agent_md_too_large</code></td>
 <td>An <code>AGENTS.md</code> file is over the size limit and contributes no context; run-scoped, with <code>detail</code> <code>{ path, byte_length, attachment }</code></td>
@@ -5886,6 +5891,15 @@ reasoning text is recorded as unknown, together with the text output count
 derived from it. The required <code>estimated_cost_pico_usd</code> stamps the
 engine-selected price for that request: a number is priced, and <code>null</code> is
 unpriced. <code>internal_agent_usage_recorded</code> stamps its price the same way.
+Since client protocol 1.78.0 the optional <code>cache_ttl</code> records how long the
+provider keeps the request's prompt cache: <code>ttl_secs</code> (<code>0</code> never expires)
+and <code>source</code>, <code>set</code> (cookie set it on the request), <code>declared</code> (a model's or
+ACP agent's <code>cache_ttl</code>), or <code>assumed</code> (<code>fallback_ttl</code>, or a ChatGPT
+sign-in's 30 minutes). It is absent when the request cached nothing past
+its system prompt and tools, and in logs written before. Events a session
+records while it compacts <a href="../../sessions/compaction/#before-the-cache-expires">before its cache expires</a>
+carry the origin <code>engine:cache-expiry</code> and are not activity: they do not
+move the session's <code>last_activity</code>.
 Usage rollups preserve stamped prices exactly and never price a record again.
 Event-log validation requires its run, agent, model, and turn to
 match and rejects duplicate records for one turn. Session, agent, and global
@@ -6138,6 +6152,11 @@ and fit rules.</p>
 <td><code>checkpoint.native</code></td>
 <td>object, optional</td>
 <td>On an <code>internal_summary</code> checkpoint, the provider window compacted from the same events (<code>window</code>) and the last event it covers (<code>source_through_seq</code>). Absent when native compaction was not attempted or failed.</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>object, optional</td>
+<td>Why the checkpoint was made, when not for size, overflow, or a manual request (client protocol 1.78.0): <code>{"type": "cache_expiry", "expires_at", "next_fire"?, "job_id"?}</code>, a compaction <a href="../../sessions/compaction/#before-the-cache-expires">before the prompt cache expired</a>, for the scheduled job <code>job_id</code> firing at <code>next_fire</code> when one decided it. A reader treats a type it does not know as no reason.</td>
 </tr>
 <tr>
 <td><code>checkpoint.folded_tools</code></td>
