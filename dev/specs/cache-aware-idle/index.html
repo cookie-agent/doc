@@ -1,0 +1,5040 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Cookie Agent coding harness">
+      
+      
+      
+        <link rel="canonical" href="https://cookie-agent.github.io/doc/dev/specs/cache-aware-idle/">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+    
+    
+      
+        <title>Cache-aware idle sessions: longer ACP residency and compaction before the cache expires - Cookie Agent</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Instrument+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Instrument Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/cookie.css">
+    
+    <script>__md_scope=new URL("/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cache-aware-idle-sessions-longer-acp-residency-and-compaction-before-the-cache-expires" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      <header class="md-header md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title cookie-title">
+      <div class="md-header__topic">
+        <a class="cookie-brand" href="https://cookie-agent.github.io/">
+          <img src="../../assets/logo.svg" alt="" width="32" height="32">
+          <span>Cookie Agent</span>
+        </a>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    <div class="cookie-nav" aria-label="Primary">
+      <a href="../.." aria-current="page">Docs</a>
+      <a href="https://github.com/cookie-agent/cookie-agent">GitHub</a>
+    </div>
+  </nav>
+  
+    
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../install/" class="md-tabs__link">
+          
+  
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/daemon/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../clients/tui/" class="md-tabs__link">
+          
+  
+  
+  Clients
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../daemon/persistent/" class="md-tabs__link">
+          
+  
+  
+  Daemon
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../runtimes/" class="md-tabs__link">
+          
+  
+  
+  Runtimes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sessions/" class="md-tabs__link">
+          
+  
+  
+  Working with sessions
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../extend/agents/" class="md-tabs__link">
+          
+  
+  
+  Extend
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../engine/configuration/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/tools/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+  
+  Build on cookie
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Specs
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="https://cookie-agent.github.io/" title="Cookie Agent" class="md-nav__button md-logo" aria-label="Cookie Agent" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    Cookie Agent
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cookie-agent/cookie-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cookie-agent/cookie-agent
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Get started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Get started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/daemon/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The daemon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Clients
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes and capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Machines
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agents and presets
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Permissions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Clients
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Clients
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clients/tui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Terminal UI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clients/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clients/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Command line
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Daemon
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Daemon
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../daemon/persistent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../daemon/remote-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Remote access
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../daemon/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Runtimes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtimes/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime templates
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtimes/dial-in/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes that dial in
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtimes/service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Running as a service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtimes/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP servers and ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Working with sessions
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Working with sessions
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegating to runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Attaching media
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Assets and attachments
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/goals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Goal mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/scheduling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scheduling prompts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/held/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Held sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sessions/usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Usage and cost
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Extend
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Extend
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agents and presets
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Skills
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Providers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP servers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/browser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Giving agents a browser
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extend/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    config.toml
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Server [server]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/tool_output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tool Output [tool_output]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/subagent_output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Subagent Output [subagent_output]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/agent_md/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AGENTS.md Context [agent_md]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/loop_warning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Loop Warning [loop_warning]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/deferred_tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deferred Tools [deferred_tools]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/approval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval [approval]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/model_retry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model Retry [model_retry]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/context_compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Context Compaction [context_compaction]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/session_title/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session Title [session_title]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegation [delegation]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/messaging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent Messaging [messaging]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External Producers [producers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory [memory]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/cron/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cron Jobs [cron]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Push Notifications [notifications]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/shell_environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shell Environment [shell_environment]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/acp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP Agents [acp]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transfers [transfer]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Request Header [headers]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_22" >
+        
+          
+          <label class="md-nav__link" for="__nav_9_22" id="__nav_9_22_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    tui.toml
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_22">
+            <span class="md-nav__icon md-icon"></span>
+            tui.toml
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    tui.toml
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/minimum_event_level/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Minimum Event Level [minimum_event_level]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Theme [theme]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tui/transcript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcript [transcript]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/system-prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    System prompt
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Client protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/protocol-changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Protocol changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Errors
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/runtime-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/schemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Schemas
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compatibility
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Build on cookie
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            Build on cookie
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/building/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Building and testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Write a client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Write a runtime
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugin development
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Rust API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Specs
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Specs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Status and scope
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_12_2" id="__nav_12_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Implemented
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_12_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12_2">
+            <span class="md-nav__icon md-icon"></span>
+            Implemented
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quiet-ink/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quiet Ink: a new look for both clients
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-onboarding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Onboarding with ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-several-runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents across several machines
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agent permissions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Assets: files agents give the user
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../message-attachments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Attachments in assistant messages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-pins-and-filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session pins and filters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../daemon-startup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Daemon startup and status
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../self-update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    `cookie update`: self-update by channel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tool-header-wrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Full tool headers on open rows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reduced-transcript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reduced transcript display
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable-prefix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    A stable prompt prefix
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../unread-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Unread sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chatgpt-sign-in/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sign in with ChatGPT
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-v2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP v2: self-wakes, subagents, background work
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Push notifications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../native-compaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Native compaction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../approval-reviewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Approval reviewer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../web-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web client and local daemon use
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../web-mcp-oauth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP OAuth from the web client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Memory
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../background-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Background tool calls
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../external-producers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    External producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Persistent daemon and runtime capabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../engine-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Live engine configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plugins (tools, hooks, events, producers)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compatibility v1
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Goal mode and producers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tool-output-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tool output streams
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-messaging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent messaging
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../subagent-handles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Subagent handles
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tree-ownership-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tree-scoped session ownership lock
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tree-local-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tree-local sessions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../store-lock-retention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Store lock retention
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_12_3" id="__nav_12_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Drafts and records
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_12_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12_3">
+            <span class="md-nav__icon md-icon"></span>
+            Drafts and records
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-storage-v3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Responsive session loading and storage v3
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../store-locks-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session store locks and durability
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-delegation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Delegating to runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cron jobs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permission-consolidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Permission consolidation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-tool-filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP tool filters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deferred-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deferred tool loading in oven-sdk
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deferred-tools-cookie/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deferred tools in cookie
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../default-models-and-onboarding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Default models and onboarding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shell-environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shell environment for runtimes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../machines-on-demand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Machines on demand
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Managing runtimes from clients
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../documentation-overhaul/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Documentation overhaul
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-1-test-layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 1 (test layout)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-2-dependencies-ci/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 2 (dependencies, CI)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../refactor-phase-3-module-splits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Refactor phase 3 (module splits)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-goal-and-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Goal and scope
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-decisions-2026-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Decisions (2026-11-02)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-acp-residency" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. ACP residency
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-compacting-before-the-cache-expires" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Compacting before the cache expires
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Compacting before the cache expires">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-the-cache-clock" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 The cache clock
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-the-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 The rule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-the-scheduler" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 The scheduler
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-the-compaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 The compaction
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Configuration
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-keep-warm-pings-not-in-v1" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Keep-warm pings (not in v1)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-protocol-and-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Protocol and history
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Tests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Phases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-resolved-questions-2026-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Resolved questions (2026-11-02)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-phase-0-claude-codes-idle-compaction-2026-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.1 Phase 0: Claude Code's idle compaction (2026-11-02)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cache-aware-idle-sessions-longer-acp-residency-and-compaction-before-the-cache-expires">Cache-aware idle sessions: longer ACP residency and compaction before the cache expires<a class="headerlink" href="#cache-aware-idle-sessions-longer-acp-residency-and-compaction-before-the-cache-expires" title="Permanent link">&para;</a></h1>
+<p>Status: <strong>approved</strong> (2026-11-02), with the user's decisions in
+<a href="#2-decisions-2026-11-02">section 2</a>; phase 0 (a probe) still to run. Builds on <a href="../cron/">cron jobs</a> (sections
+4 and 5), <a href="../native-compaction/">native compaction</a>, <a href="../acp-agents/">ACP agents</a>
+(section 7, sessions and processes; section 15, compaction), and the
+residency janitor (<code>crates/engine/src/runtime/sessions/residency.rs</code>).</p>
+<h2 id="1-goal-and-scope">1. Goal and scope<a class="headerlink" href="#1-goal-and-scope" title="Permanent link">&para;</a></h2>
+<p><strong>Today:</strong></p>
+<ul>
+<li><strong>Residency.</strong> The janitor checks every minute. It pages out a root
+  session's tree once the whole tree has gone
+  <code>[server] session_idle_eviction_after</code> (default <code>30m</code>) with no event, no
+  live tail, and no pending work. Delegated sessions also have their own
+  window, <code>[delegation] idle_eviction_after</code> (default <code>1h</code>). Paging out a
+  session that runs an ACP agent sends <code>session/close</code>. Its next turn
+  resumes or loads the ACP session, or starts a new one. The agent's
+  process stops <code>[acp] idle_shutdown_ms</code> (default 5 minutes) after its last
+  live session closes.</li>
+<li><strong>Compaction</strong> happens for three reasons only: the context passes its
+  size trigger, the user runs <code>/compact</code>, or a request overflows the
+  context. Nothing looks at how long ago the provider last cached the
+  session.</li>
+<li><strong>Cache TTLs</strong> are known per request. Root sessions on Anthropic and
+  Bedrock put a one-hour rolling marker on the conversation, and delegated
+  sessions a five-minute one (<code>CacheTtls::defaults</code>). OpenAI's GPT-5.6
+  controls cache for <code>30m</code> or <code>12h</code>, and <code>prompt_cache_retention = "24h"</code>
+  keeps a cache for a day. Every other provider caches on its own terms.</li>
+</ul>
+<p><strong>Two problems:</strong></p>
+<ol>
+<li><strong>ACP sessions are closed too early.</strong> Interactive Claude Code compacts
+   its own context as its one-hour cache nears expiry. Over ACP it does not
+   (section 11.1). Cookie closes the
+   ACP session after 30 idle minutes, before that can happen. The next turn
+   resumes a session that never compacted.</li>
+<li><strong>Idle sessions waiting on a scheduled job pay a full cache write.</strong> Take
+   a session with 150k tokens of context and a cron job that fires in 3
+   hours. The cache has long expired by then, so the fire re-sends and
+   re-caches all 150k tokens. On Opus, that write costs about $1.50 at the
+   one-hour write price. Compacting just before the cache expires costs
+   less:</li>
+<li>reading the warm prefix: about $0.08;</li>
+<li>the summary's output: about $0.13;</li>
+<li>writing the smaller context (about 25k tokens) at the fire: about
+     $0.25.</li>
+</ol>
+<p>That is roughly $0.45 in total. The compaction call also refreshes the
+   one-hour system and tools markers, so a fire within the next hour still
+   reads those from cache.</p>
+<p><strong>This spec:</strong></p>
+<ul>
+<li>keeps sessions that run an ACP agent resident longer (default <code>90m</code>);</li>
+<li>compacts an idle session shortly before its cache expires (default 5
+  minutes before, at most a fifth of the TTL) when a scheduled job will wake it only after the cache is
+  gone;</li>
+<li>adds a knob for each, and a per-model TTL for providers cookie cannot
+  read one from.</li>
+</ul>
+<p><strong>Out of scope:</strong></p>
+<ul>
+<li>keeping the cache warm with pings (section 6 explains why, and how it
+  could fit later);</li>
+<li>predicting when the user will come back;</li>
+<li>changing <code>[acp] idle_shutdown_ms</code>.</li>
+</ul>
+<h2 id="2-decisions-2026-11-02">2. Decisions (2026-11-02)<a class="headerlink" href="#2-decisions-2026-11-02" title="Permanent link">&para;</a></h2>
+<p>The user accepted D1, D4, D6, D7, and D8 as proposed, made <code>off</code> the
+default mode (D2), set the slack to five minutes capped at a fifth of the
+TTL (D3), and asked for a token floor and a cost floor side by side (D5).
+Section 10 records the answers to the remaining questions.</p>
+<ul>
+<li><strong>D1. The ACP residency window.</strong></li>
+<li>A new key, <code>[acp] session_idle_eviction_after</code>, default <code>90m</code>.</li>
+<li>A per-agent override, <code>[acp.agents.&lt;id&gt;] idle_eviction_after</code>.</li>
+<li>A tree waits for the longest window among its resident sessions.</li>
+</ul>
+<p>Section 3.
+- <strong>D2. The knob.</strong> <code>[context_compaction.cache_expiry] mode</code> takes three
+  values:
+  - <code>off</code> (the default; a compaction the user did not ask for is opt-in);
+  - <code>scheduled</code>: only sessions a scheduled job will wake
+    after the cache expires;
+  - <code>always</code>: every idle session, whether or not a job will wake it. This
+    is what the user reports Claude Code does, and it pays for a summary of
+    every session left idle.</p>
+<p>Section 4.
+- <strong>D3. Slack.</strong> <code>slack = "5m"</code>, capped at 20% of the TTL:
+  <code>effective_slack = min(slack, ttl / 5)</code>. A one-hour TTL compacts 5
+  minutes before expiry, a ten-minute TTL 2 minutes before, and a
+  five-minute TTL 1 minute before. The compaction starts at
+  <code>expiry - effective_slack</code>, and the summary request has to start before
+  expiry.
+  The scheduler wakes at that time; it does not wait for the next one-minute
+  janitor check.
+- <strong>D4. Unknown TTLs.</strong>
+  - <code>fallback_ttl = "30m"</code> for providers whose TTL cookie does not set and
+    cannot read.
+  - A model override <code>cache_ttl = "&lt;duration&gt;"</code> declares a TTL where cookie
+    sets none. Where cookie sets the TTL itself (Anthropic and Bedrock
+    markers, OpenAI's GPT-5.6 controls or 24h retention), its own value
+    wins.</p>
+<p>Section 4.1.
+- <strong>D5. When compaction is worth it: two floors.</strong> <code>min_tokens</code> (default
+  <code>40000</code>) and <code>min_cost_usd</code> (default <code>0</code>). Either can be turned off with
+  a value of 0 or less:
+  - <strong>both off:</strong> every session that meets the other conditions is
+    compacted;
+  - <strong>one on:</strong> that floor alone decides;
+  - <strong>both on:</strong> reaching either floor is enough.</p>
+<p>The cost floor applies only to models with prices; a model with no price
+  never reaches it. So a positive <code>min_cost_usd</code> with <code>min_tokens = 0</code>
+  compacts only priced models, and only above that cost. Section 4.2
+  defines both measures.
+- <strong>D6. ACP sessions.</strong> Cookie compacts an ACP session before expiry only
+  when its agent declares a TTL (<code>[acp.agents.&lt;id&gt;] cache_ttl</code>). It does
+  so with the agent's own <code>/compact</code> command. Without a declared TTL, the
+  agent manages its own context, and cookie only keeps it resident (D1).
+  The Claude Code preset leaves <code>cache_ttl</code> unset, <em>if</em> the phase 0 probe
+  confirms that Claude Code compacts on its own while idle. If the probe
+  shows it does not, the preset sets <code>cache_ttl = "1h"</code> instead.
+  <em>Phase 0 showed it does not (section 11.1), so the preset sets
+  <code>cache_ttl = "1h"</code>.</em>
+- <strong>D7. The checkpoint records why it was made.</strong> Clients show
+  "Compacted before the cache expired · next scheduled prompt 03:00".
+  Section 4.4.
+- <strong>D8. Keep-warm pings stay out of v1.</strong> Section 6.</p>
+<h2 id="3-acp-residency">3. ACP residency<a class="headerlink" href="#3-acp-residency" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The window.</strong> A session whose agent is an ACP agent waits
+  <code>[acp.agents.&lt;id&gt;] idle_eviction_after</code> if set, else
+  <code>[acp] session_idle_eviction_after</code> (default <code>90m</code>). Other root sessions
+  keep <code>[server] session_idle_eviction_after</code>.</li>
+<li><strong>Trees.</strong> <code>root_tree_idle</code> gives each resident session in the tree its
+  own window instead of the root's. The tree pages out only when every
+  session in it has passed its own window, so an ACP subagent under a
+  native root holds the tree for its 90 minutes. A delegated session that
+  runs an ACP agent waits the longer of its ACP window and
+  <code>[delegation] idle_eviction_after</code>.</li>
+<li><strong>Unchanged:</strong></li>
+<li>pending work, live tails, and producer pins still keep a session in
+    memory;</li>
+<li>a cron job still never pins a session;</li>
+<li>the ACP process still stops <code>idle_shutdown_ms</code> after its last live
+    session closes. A resident ACP session is a live one, so the process
+    stays up for as long as the session does.</li>
+<li><strong>Changes apply at once</strong> from the next janitor check, as
+  <code>session_idle_eviction_after</code> does today.</li>
+</ul>
+<h2 id="4-compacting-before-the-cache-expires">4. Compacting before the cache expires<a class="headerlink" href="#4-compacting-before-the-cache-expires" title="Permanent link">&para;</a></h2>
+<h3 id="41-the-cache-clock">4.1 The cache clock<a class="headerlink" href="#41-the-cache-clock" title="Permanent link">&para;</a></h3>
+<p>For each session, cookie keeps two values:</p>
+<ul>
+<li><strong><code>last_request_at</code>:</strong> when the session's own model loop last sent a
+  request: the timestamp of its latest <code>model_usage_recorded</code>. Requests
+  from internal agents do not count: the approval reviewer and the title
+  agent use their own conversations.</li>
+<li><strong><code>ttl</code>:</strong> the cache TTL that request used. Section 7 stamps it on the
+  usage event when the event is written, so a reload or a restart does not
+  have to work it out again from the configuration. The table below shows
+  where the TTL comes from.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Binding</th>
+<th><code>ttl</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic, Bedrock</td>
+<td>The resolved rolling marker: <code>5m</code> or <code>1h</code>. If the marker is <code>off</code>, the session has no clock and is skipped.</td>
+</tr>
+<tr>
+<td>OpenAI and Azure Responses with the GPT-5.6 controls</td>
+<td>The controls' <code>ttl</code>: <code>30m</code> or <code>12h</code>.</td>
+</tr>
+<tr>
+<td>OpenAI with <code>prompt_cache_retention = "24h"</code></td>
+<td><code>24h</code>.</td>
+</tr>
+<tr>
+<td>Any other binding (OpenAI's in-memory retention, Gemini's implicit caching, OpenAI-compatible endpoints, DeepSeek, …)</td>
+<td>The model override's <code>cache_ttl</code> if set, else <code>fallback_ttl</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>expiry = last_request_at + ttl</code></strong>. A new request resets the clock, since
+a cache hit refreshes the TTL.</p>
+<h3 id="42-the-rule">4.2 The rule<a class="headerlink" href="#42-the-rule" title="Permanent link">&para;</a></h3>
+<p>A session is <strong>due</strong> for compaction at <code>expiry - effective_slack</code> (D3) when all of these
+hold:</p>
+<ol>
+<li><strong>The mode allows it.</strong></li>
+<li>Under <code>scheduled</code>, the session is the target of an enabled
+     in-session job, and that job's earliest <code>next_fire</code> comes after
+     <code>expiry</code>. A fire before <code>expiry</code> reads a warm cache, so there is
+     nothing to save.</li>
+<li>Under <code>always</code>, no job is needed.</li>
+<li><strong>The session is idle.</strong> It has no pending work, as the residency
+   janitor defines it (<code>session_has_pending_work</code>), and its tree has no
+   running session.</li>
+<li><strong>It is not held</strong> (<a href="../held-sessions/">held sessions</a>). A held session
+   skips its fires, so under <code>scheduled</code> nothing will wake it.</li>
+<li><strong>The context is worth compacting</strong> (D5). Two measures, each taken
+   from the latest turn:</li>
+<li><strong>tokens:</strong> the reported input plus output tokens, the same measure
+     the size trigger uses;</li>
+<li><strong>cost:</strong> what re-caching that context at the next request would cost:
+     the tokens times the model's cache-write rate (<code>cache_write</code>), or its
+     input rate when it has no cache-write rate <em>(user decision of
+     2026-11-02)</em>, whatever <code>ttl</code> is. A model with neither has no cost.</li>
+</ol>
+<p>With <code>min_tokens</code> and <code>min_cost_usd</code> both 0 or less, this condition
+   always holds. Otherwise, it holds when tokens reach a positive
+   <code>min_tokens</code>, or when cost reaches a positive <code>min_cost_usd</code>.
+5. <strong>There is something new to compact.</strong> No checkpoint has been
+   committed since the latest turn.
+6. <strong>This idle period has not had a try yet.</strong> A failed attempt is not
+   repeated until the session runs again.
+7. <strong>The cache is still warm.</strong> It is not yet <code>expiry</code> when the summary
+   request would start. A timer that wakes late, after a suspend or a busy
+   daemon, compacts nothing, as Claude Code's own idle compactor does
+   (section 11.1).</p>
+<p><strong>Why the default token floor is 40k.</strong> With context <code>C</code>, a summary of output <code>O</code>, and a
+compacted context <code>C'</code> of about 25k tokens (summary plus the 16k recent
+tail), compaction pays when:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>C × write  &gt;  C × read + O × output + C' × write
+</code></pre></div>
+<p>On Anthropic's one-hour prices (write 2×, read 0.1×, output 5× the input
+price) and <code>O</code> around 5k, the break-even point is near <code>C = 40k</code>. The
+cost measure prices those 40k tokens at the catalog's <code>cache_write</code> rate,
+the five-minute one (1.25× input): about $0.25 on Opus, a matching
+<code>min_cost_usd</code> for anyone who would rather set the floor by cost.</p>
+<h3 id="43-the-scheduler">4.3 The scheduler<a class="headerlink" href="#43-the-scheduler" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>One timer task for the whole engine</strong>, built like the cron scheduler.
+  It keeps an in-memory map of <code>session → due_at</code>, sleeps until the
+  earliest entry, and wakes early when the map changes.</li>
+<li><strong>These events recompute a session's entry:</strong></li>
+<li>a run ending or a usage event being recorded;</li>
+<li>a run starting, which drops the entry;</li>
+<li>a job being created, updated, deleted, fired, enabled, or disabled;</li>
+<li>a session being held, resumed, or deleted;</li>
+<li><code>config.reload</code>.</li>
+<li><strong>Residency.</strong> An entry does not keep its session in memory, matching the
+  cron spec's rule. At the due time the session is loaded again if it was
+  paged out. A native root pages out at 30 minutes and its one-hour cache
+  is due at 58, so this is the usual case. Loading reads only the disk.
+  The cache lives at the provider, so it is still warm.</li>
+<li><strong>At daemon start:</strong></li>
+<li>under <code>scheduled</code>, the scheduler computes entries for the targets of
+    enabled in-session jobs, reading each target's latest usage event;</li>
+<li>under <code>always</code>, it computes entries only for sessions that are in
+    memory and for job targets. Sessions that paged out before a restart
+    are not scanned.</li>
+<li><strong>At the due time</strong> the scheduler checks the rule again under the
+  session's residency lock, then compacts.</li>
+</ul>
+<h3 id="44-the-compaction">4.4 The compaction<a class="headerlink" href="#44-the-compaction" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The compaction itself</strong> is the ordinary path that <code>session.compact</code>
+  without a focus takes. The internal summary and, on Responses models,
+  native compaction run side by side. The summary request is a prefix of
+  the session's latest request, so it reads the warm cache.</li>
+<li><strong>Its origin is the system, not the user.</strong> The checkpoint records why it
+  was made, in a new optional field:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">"reason"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"cache_expiry"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">"expires_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">"next_fire"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">"job_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"k3v9q2xa"</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</code></pre></div>
+<p>Under <code>always</code>, <code>next_fire</code> and <code>job_id</code> are absent.
+- <strong>Clients</strong> show the checkpoint row as "Compacted before the cache
+  expired", followed by "· next scheduled prompt <local time>" when a job
+  is waiting.
+- <strong>Input during compaction.</strong> A user message or a job fire that arrives
+  while it runs waits for it to finish, as with manual compaction. Cancel
+  stops it the same way.
+- <strong>On failure:</strong>
+  - a runless diagnostic is recorded, kind <code>cache_expiry_compaction</code>;
+  - rule 7 stops a retry;
+  - it does not count toward automatic compaction's three-failure counter.
+- <strong>ACP sessions</strong> with a declared <code>cache_ttl</code> compact through
+  <code>compact_acp_session</code> (<code>/compact</code>). Cookie does not see their requests,
+  so <code>last_request_at</code> is the end of their last run.
+- <strong>Cost</strong> is recorded the same way as any compaction's
+  (<code>internal_agent_usage_recorded</code>).</p>
+<h2 id="5-configuration">5. Configuration<a class="headerlink" href="#5-configuration" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[context_compaction.cache_expiry]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"off"</span><span class="w">            </span><span class="c1"># off (default) | scheduled | always</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">slack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5m"</span><span class="w">            </span><span class="c1"># capped at ttl / 5</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">fallback_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30m"</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">min_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">40000</span><span class="w">      </span><span class="c1"># &lt;= 0: no token floor</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">min_cost_usd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="w">      </span><span class="c1"># &lt;= 0: no cost floor; priced models only</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">[acp]</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">session_idle_eviction_after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"90m"</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">[acp.agents.claude]</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">idle_eviction_after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"90m"</span><span class="w">   </span><span class="c1"># optional; overrides [acp] for this agent</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">              </span><span class="c1"># optional; turns on section 4 for this agent</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="k">[models.</span><span class="err">&lt;</span><span class="k">provider</span><span class="err">&gt;</span><span class="k">.</span><span class="err">&lt;</span><span class="k">model</span><span class="err">&gt;</span><span class="k">]</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">cache_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h"</span><span class="w">              </span><span class="c1"># optional; for providers cookie cannot read a TTL from</span>
+</code></pre></div>
+<ul>
+<li><strong>Durations</strong> use the existing compact form (<code>ms</code>, <code>s</code>, <code>m</code>, <code>h</code>, <code>d</code>).</li>
+<li><strong><code>slack</code></strong> must be positive. It applies as <code>min(slack, ttl / 5)</code>.</li>
+<li><strong><code>min_tokens</code></strong> is an integer and <strong><code>min_cost_usd</code></strong> a number of
+  dollars. Each is off at 0 or less; section 4.2, condition 4, combines
+  them.</li>
+<li><strong><code>mode = "off"</code></strong> turns section 4 off. ACP residency (section 3) is its
+  own knob.</li>
+<li><strong>Per-agent settings.</strong> <code>cache_expiry</code> follows
+  <code>[context_compaction]</code>'s per-agent inheritance. An agent document's
+  table can turn it off for that agent.</li>
+</ul>
+<h2 id="6-keep-warm-pings-not-in-v1">6. Keep-warm pings (not in v1)<a class="headerlink" href="#6-keep-warm-pings-not-in-v1" title="Permanent link">&para;</a></h2>
+<p><strong>What a ping is.</strong> Instead of compacting, cookie could send a minimal
+request (the same prefix, one output token) shortly before expiry. That
+reads the cache and resets its TTL.</p>
+<p><strong>What it costs.</strong> Each TTL period costs <code>C × read</code>, about 0.1× of a cache
+write's 2×. Pinging until the fire costs about <code>(fire − now) / ttl × 0.1C</code>.</p>
+<p><strong>When it pays:</strong></p>
+<ul>
+<li><strong>Cheaper than a rewrite</strong> for gaps shorter than about 19 TTLs. With a
+  one-hour TTL, that is a fire within about 19 hours.</li>
+<li><strong>Cheaper than compacting</strong> only for short gaps, about 3 to 4 TTLs.</li>
+<li><strong>It keeps the whole context</strong>, where compaction loses detail.</li>
+</ul>
+<p><strong>Why it is left out.</strong> It sends requests that do no work, at regular
+intervals. Some providers' terms or rate limits may not welcome that. It
+also needs a rule for choosing among three options, not two.</p>
+<p><strong>How it could fit later.</strong> The rule in 4.2 could become a choice of the
+cheapest option: nothing, ping, or compact.</p>
+<h2 id="7-protocol-and-history">7. Protocol and history<a class="headerlink" href="#7-protocol-and-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><code>ModelUsageRecorded.cache_ttl_secs</code>:</strong> optional, stamped when the event
+  is written. Older logs lack it, and the TTL is resolved from the binding
+  then.</li>
+<li><strong><code>ContextCheckpointCommit.reason</code>:</strong> optional; section 4.4.</li>
+<li><strong>Diagnostic kind</strong> <code>cache_expiry_compaction</code>.</li>
+<li><strong>Configuration schema:</strong> the keys in section 5.</li>
+<li><strong>Versions.</strong> All additive, so this is a client protocol minor bump. The
+  plugin protocol follows the event changes, as it does for every event
+  change.</li>
+</ul>
+<h2 id="8-tests">8. Tests<a class="headerlink" href="#8-tests" title="Permanent link">&para;</a></h2>
+<p>The tests use explicit values, never the defaults.</p>
+<ul>
+<li><strong>Due time:</strong></li>
+<li>a job firing before expiry leaves the session with no entry;</li>
+<li>a job firing after expiry makes it due at <code>expiry - effective_slack</code>,
+    with <code>slack</code> above and below <code>ttl / 5</code>;</li>
+<li>several jobs: the earliest <code>next_fire</code> decides.</li>
+<li><strong>Each skip in 4.2:</strong></li>
+<li>the session is held;</li>
+<li>it is running, or another session in its tree is;</li>
+<li>each combination of the floors: both off, only tokens, only cost, and
+    both, with sessions below and above each floor;</li>
+<li>a positive cost floor on a model with no price;</li>
+<li>the cost using the cache-write rate, and the input rate when the
+    model has no cache-write rate;</li>
+<li>a checkpoint is already newer than its latest turn;</li>
+<li>its idle period already had a failed try;</li>
+<li>its rolling marker is <code>off</code>.</li>
+<li><strong>The entry changes:</strong></li>
+<li>a user turn before the due time drops it;</li>
+<li>the next run sets it again.</li>
+<li><strong>TTL resolution.</strong> One test per row of 4.1's table, and a declared
+  <code>cache_ttl</code> losing to a TTL cookie sets itself.</li>
+<li><strong>A paged-out session</strong> is loaded again at the due time and compacted.
+  Its checkpoint carries <code>reason.cache_expiry</code>.</li>
+<li><strong>Restart.</strong> Entries for job targets are computed again from the stamped
+  <code>cache_ttl_secs</code>.</li>
+<li><strong>ACP residency:</strong></li>
+<li>an ACP root outlives a native root's window;</li>
+<li>a native root with an ACP subagent waits for the subagent's window;</li>
+<li>a per-agent override wins.</li>
+<li><strong>ACP compaction:</strong></li>
+<li>with a declared <code>cache_ttl</code>, the agent's <code>/compact</code> runs at the due
+    time;</li>
+<li>without one, nothing runs.</li>
+</ul>
+<h2 id="9-phases">9. Phases<a class="headerlink" href="#9-phases" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Probe.</strong> Confirm over ACP that Claude Code (<code>claude-agent-acp</code>)
+   compacts on its own while idle near its one-hour mark, and note when.
+   The result settles D6.</li>
+<li><strong>ACP residency</strong> (section 3). Small, and useful on its own.</li>
+<li><strong>The cache clock and compaction before expiry</strong>, engine and protocol
+   (sections 4, 5, and 7).</li>
+<li><strong>Clients and docs:</strong> the checkpoint row in the TUI and web;
+   <code>engine/context_compaction.md</code>, <code>engine/server.md</code>, the ACP agents
+   guide, and <code>sessions/scheduling.md</code>.</li>
+</ol>
+<h2 id="10-resolved-questions-2026-11-02">10. Resolved questions (2026-11-02)<a class="headerlink" href="#10-resolved-questions-2026-11-02" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><code>always</code> after a restart:</strong> it covers sessions in memory and job
+  targets only. There is no scan of sessions that paged out before the
+  restart.</li>
+<li><strong>Opting a job out:</strong> not possible. The mode (default <code>off</code>) and
+  per-agent inheritance are the only controls.</li>
+<li><strong>Native roots staying in memory until their cache expires:</strong> no. Loading
+  again is cheap, and the cache lives at the provider.</li>
+<li><strong>Compaction on a different model</strong> (an authored <code>compaction.md</code> off
+  <code>${parent_model}</code>): it goes ahead anyway. It still shrinks what the fire
+  has to cache.</li>
+<li><strong>A watched session:</strong> compacted anyway. Watching is not using.</li>
+<li><strong>Activity:</strong> a compaction before expiry is not activity:</li>
+<li>the idle clock for paging out counts from the session's last run
+    (<code>root_tree_idle</code> ignores the compaction's events);</li>
+<li>it does not move the session up in session lists;</li>
+<li>it does not mark the session unread;</li>
+<li>it sends no push notification.</li>
+<li><strong>Phase 0:</strong> the probe runs before phase 1, and its result settles D6.</li>
+</ul>
+<h2 id="11-implementation-notes">11. Implementation notes<a class="headerlink" href="#11-implementation-notes" title="Permanent link">&para;</a></h2>
+<h3 id="111-phase-0-claude-codes-idle-compaction-2026-11-02">11.1 Phase 0: Claude Code's idle compaction (2026-11-02)<a class="headerlink" href="#111-phase-0-claude-codes-idle-compaction-2026-11-02" title="Permanent link">&para;</a></h3>
+<p><strong>What was checked.</strong> The JavaScript bundled in the Claude Code binary that
+<code>@agentclientprotocol/claude-agent-acp</code> 0.100.0 runs: the
+<code>@anthropic-ai/claude-agent-sdk-linux-x64</code> binary of SDK 0.3.316, the same
+2.1.3xx line as the installed CLI. This was a reading of the code. No live
+run was made: the code gates the feature by an environment check (below),
+so a live run could only confirm the gate.</p>
+<p><strong>There are two idle compactors.</strong> Both are on by default, and the
+<code>idleCompaction</code> setting (<code>false</code> in <code>settings.json</code>) turns both off. Both
+also need auto-compact on.</p>
+<ul>
+<li><strong>The interactive REPL's</strong> (<code>tengu_idle_compact_fired</code>):</li>
+<li><strong>Only on a one-hour TTL:</strong> the last request must have used <code>ttl: "1h"</code>.</li>
+<li><strong>Timing:</strong> it fires at 90% of the cache's life,
+    <code>lastActivityAt + 0.9 × (expiresAt − lastActivityAt)</code>, which is 54
+    minutes for a one-hour cache.</li>
+<li><strong>Floor:</strong> <code>max(100k, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS ?? 200k)</code>
+    context tokens.</li>
+<li><strong>It refuses when:</strong><ul>
+<li>the cache is no longer warm, or the timer runs more than 60 s late;</li>
+<li>the prefix changed;</li>
+<li>a newer request went out;</li>
+<li>the account is near its usage limit;</li>
+<li>the session is busy, or held by another process;</li>
+<li>the transcript has moved on;</li>
+<li>the user was present recently.</li>
+</ul>
+</li>
+<li><strong>The note it leaves:</strong> "Compacted while idle, before the prompt cache
+    expired".</li>
+<li><strong>The headless one</strong> (<code>SleepCompactor</code>, <code>tengu_sleep_compact_fired</code>) is
+  the one in the stream-json loop the SDK drives. It enqueues <code>/compact</code>
+  as a meta prompt:</li>
+<li><strong>Timing:</strong> at 90% of the TTL, as above.</li>
+<li><strong>Floor:</strong> <code>max(60k, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS ?? 150k)</code>.</li>
+<li><strong>When it is wired in:</strong> only when <code>CLAUDE_CODE_SLEEP_COMPACT</code> is set
+    <em>and</em> <code>isSleepCompactionHost()</code> holds, which needs <code>CLAUDE_CODE_REMOTE</code>.
+    That makes it a feature of Claude Code's cloud sessions.</li>
+<li><strong>Neither the SDK nor the ACP adapter sets these variables.</strong></li>
+</ul>
+<p><strong>Result.</strong> Under cookie's ACP agent, Claude Code never compacts on its own
+while idle. Setting the two variables ourselves would also switch on
+<code>CLAUDE_CODE_REMOTE</code>'s other behaviour, so we do not. Per D6, the Claude
+Code preset declares <code>cache_ttl = "1h"</code>, and cookie drives <code>/compact</code>
+before expiry (section 4.4).</p>
+<p><strong>Their rule, for comparison:</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Claude Code</th>
+<th>This spec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>When it fires</td>
+<td>90% of the TTL</td>
+<td><code>min(5m, ttl / 5)</code> before expiry, which is 91.7% of a one-hour TTL</td>
+</tr>
+<tr>
+<td>Which TTLs</td>
+<td>One hour only</td>
+<td>Any TTL</td>
+</tr>
+<tr>
+<td>Floor</td>
+<td>150k to 200k tokens</td>
+<td><code>min_tokens</code>, default 40k</td>
+</tr>
+<tr>
+<td>When it gives up</td>
+<td>The timer is more than 60 s late, or the cache has lapsed</td>
+<td>Section 4.2</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.instant", "navigation.instant.progress", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
