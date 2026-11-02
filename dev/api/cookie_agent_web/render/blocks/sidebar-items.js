@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["block_html","diff_html","display_html","media_html","plan_html"],"struct":["BlockPlace"]};
+window.SIDEBAR_ITEMS = {"fn":["asset_html","block_html","diff_html","display_html","media_html","plan_html"],"struct":["BlockPlace"]};

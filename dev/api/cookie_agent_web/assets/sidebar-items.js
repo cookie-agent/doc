@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["act","frame_height","refresh","reveal","show_within"]};
