@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["IDLE_AFTER_MS","PUSH_DAEMON_URL_KEY"],"enum":["PushOffer"],"fn":["asset_from_fragment","daemon_has_push","device_label","fragment_without_session","notification_daemon","presence","same_key","session_from_fragment"],"struct":["PushContext"]};
+window.SIDEBAR_ITEMS = {"constant":["IDLE_AFTER_MS","PUSH_DAEMON_URL_KEY"],"enum":["LinkTarget","PushOffer"],"fn":["daemon_has_push","device_label","fragment_without_session","link_target","notification_daemon","presence","same_key","session_from_fragment"],"struct":["PushContext"]};
