@@ -4378,6 +4378,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#45-showing-the-caches-heat-d9" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 Showing the cache's heat (D9)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4451,6 +4460,15 @@
   <a href="#111-phase-0-claude-codes-idle-compaction-2026-11-02" class="md-nav__link">
     <span class="md-ellipsis">
       11.1 Phase 0: Claude Code's idle compaction (2026-11-02)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-codex-and-chatgpt-sign-ins-2026-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.2 Codex and ChatGPT sign-ins (2026-11-02)
     </span>
   </a>
   
@@ -4604,11 +4622,18 @@ Section 10 records the answers to the remaining questions.</p>
   confirms that Claude Code compacts on its own while idle. If the probe
   shows it does not, the preset sets <code>cache_ttl = "1h"</code> instead.
   <em>Phase 0 showed it does not (section 11.1), so the preset sets
-  <code>cache_ttl = "1h"</code>.</em>
+  <code>cache_ttl = "1h"</code>. The Codex preset sets <code>cache_ttl = "30m"</code> (section
+  11.2; user decision of 2026-11-02).</em>
 - <strong>D7. The checkpoint records why it was made.</strong> Clients show
   "Compacted before the cache expired · next scheduled prompt 03:00".
   Section 4.4.
-- <strong>D8. Keep-warm pings stay out of v1.</strong> Section 6.</p>
+- <strong>D8. Keep-warm pings stay out of v1.</strong> Section 6.
+- <strong>D9. A cache badge in the session header</strong> <em>(approved 2026-11-02)</em>. It
+  shows how long the prompt cache stays warm, as section 4.5 describes,
+  and the <a href="preview.html">preview</a> shows. The daemon
+  computes the clock, and clients only count down. "Hot" gets a colour
+  token of its own. The badge shows whenever a session has a clock, with
+  any <code>mode</code>.</p>
 <h2 id="3-acp-residency-withdrawn">3. ACP residency (withdrawn)<a class="headerlink" href="#3-acp-residency-withdrawn" title="Permanent link">&para;</a></h2>
 <p>ACP sessions page out like every other session, after
 <code>[server] session_idle_eviction_after</code>. A session paged out between its
@@ -4649,11 +4674,17 @@ cache is still there. This section once proposed a longer window (D1).</p>
 <td><code>24h</code>.</td>
 </tr>
 <tr>
+<td>ChatGPT sign-in (the <code>chatgpt</code> provider)</td>
+<td><code>30m</code>, the documented GPT-5.6+ default. The announced "forever" for Codex sign-ins is unconfirmed (section 11.2). A model override's <code>cache_ttl</code> replaces it.</td>
+</tr>
+<tr>
 <td>Any other binding (OpenAI's in-memory retention, Gemini's implicit caching, OpenAI-compatible endpoints, DeepSeek, …)</td>
 <td>The model override's <code>cache_ttl</code> if set, else <code>fallback_ttl</code>.</td>
 </tr>
 </tbody>
 </table>
+<p>A <code>cache_ttl</code> of <code>0s</code> or less, in a model override or an ACP agent's
+table, means the cache never expires, so no compaction is due.</p>
 <p><strong><code>expiry = last_request_at + ttl</code></strong>. A new request resets the clock, since
 a cache hit refreshes the TTL.</p>
 <h3 id="42-the-rule">4.2 The rule<a class="headerlink" href="#42-the-rule" title="Permanent link">&para;</a></h3>
@@ -4759,6 +4790,77 @@ the five-minute one (1.25× input): about $0.25 on Opus, a matching
   so <code>last_request_at</code> is the end of their last run.
 - <strong>Cost</strong> is recorded the same way as any compaction's
   (<code>internal_agent_usage_recorded</code>).</p>
+<h3 id="45-showing-the-caches-heat-d9">4.5 Showing the cache's heat (D9)<a class="headerlink" href="#45-showing-the-caches-heat-d9" title="Permanent link">&para;</a></h3>
+<p>The <a href="preview.html">preview</a> shows every state below, in
+both themes and both clients.</p>
+<p><strong>The badge.</strong> The session header (Quiet Ink D6) gains a badge between
+the goal and the context ring:</p>
+<ul>
+<li><strong>The icon:</strong> a flame (Lucide <code>Flame</code>) while the cache is warm. Once it
+  has expired, a snowflake (<code>Snowflake</code>) with the words "cache expired".</li>
+<li><strong>The countdown:</strong> minutes left, such as <code>41m</code>. Above 90 minutes it shows
+  hours (<code>11h</code>), and in the last minute, seconds.</li>
+<li><strong>The colour grades the heat:</strong> the share of <code>ttl</code> left decides it.</li>
+<li>hot: more than half is left. The badge uses a new <code>hot</code> token
+    (<code>#c2410c</code> light, <code>#fb923c</code> dark), since amber already means an
+    approval is waiting.</li>
+<li>warm: a fifth to a half is left. The same colour, faded.</li>
+<li>cooling: less than a fifth is left. The countdown turns <code>warn</code>.</li>
+</ul>
+<p>The icon and the countdown say the same thing without the colour.
+- <strong>Marks:</strong>
+  - <code>~</code> before the countdown when the TTL is assumed (<code>fallback_ttl</code>,
+    the <code>chatgpt</code> provider's <code>30m</code>) or declared (a model's or an ACP
+    agent's <code>cache_ttl</code>), rather than set by cookie on the request;
+  - an accent dot when a compaction before expiry is planned;
+  - <code>∞</code> for a TTL of <code>0s</code> or less.
+- <strong>During a run:</strong> the flame shows with no countdown.
+- <strong>While a compaction before expiry runs:</strong> a spinner and "compacting".
+- <strong>No badge</strong> when there is no clock: before the first request, or with
+  the rolling marker <code>off</code>.
+- <strong>The badge shows in any <code>mode</code>, <code>off</code> included.</strong> The clock is useful
+  on its own.
+- <strong>Which session's clock:</strong> the one shown. A subagent's clock shows when
+  its session is opened.</p>
+<p><strong>The tooltip</strong> gives:</p>
+<ul>
+<li>the state and the time left;</li>
+<li>when the last request went out, the TTL and where it came from, and
+  when the cache expires;</li>
+<li>when a job is scheduled, its time, and when the compaction will run.</li>
+</ul>
+<p><strong>A click</strong> opens the session panel's Usage tab. It gains a <em>Prompt
+cache</em> card:</p>
+<ul>
+<li>a meter from the last request to expiry, with a tick at the planned
+  compaction;</li>
+<li>the TTL and its source;</li>
+<li>the tokens cached;</li>
+<li>the next scheduled prompt;</li>
+<li>what caching again would cost, by section 4.2's cost measure;</li>
+<li>the <code>mode</code>, and the compaction's time when one is planned.</li>
+</ul>
+<p><strong>The TUI.</strong> The status line shows <code>🔥 41m</code> or <code>❄ cache expired</code> in the
+same states, after the cost and before the context. When the line is too
+narrow, it is dropped after the cost. Under <code>NO_COLOR</code>:</p>
+<ul>
+<li>the glyph and the countdown carry the state;</li>
+<li>bold marks cooling.</li>
+</ul>
+<p>Clicking the cache part opens the usage panel.</p>
+<p><strong>The clock comes from the daemon.</strong> A session's view carries an optional
+<code>cache_clock</code>:</p>
+<ul>
+<li><code>last_request_at</code>;</li>
+<li><code>ttl_secs</code>: <code>null</code> for never expiring;</li>
+<li><code>ttl_source</code>: <code>set</code>, <code>declared</code>, or <code>assumed</code>;</li>
+<li><code>compaction_at</code>, when a compaction before expiry is planned;</li>
+<li><code>next_fire</code> and <code>job_id</code>, when a scheduled job decides it;</li>
+<li><code>compacting</code>.</li>
+</ul>
+<p>A transient <code>session_cache_clock</code> event sends a changed clock to those
+watching. Clients compute only the countdown and its heat from
+<code>last_request_at</code> and <code>ttl_secs</code>. They need no rules of their own.</p>
 <h2 id="5-configuration">5. Configuration<a class="headerlink" href="#5-configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[context_compaction.cache_expiry]</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"off"</span><span class="w">            </span><span class="c1"># off (default) | scheduled | always</span>
@@ -4775,6 +4877,8 @@ the five-minute one (1.25× input): about $0.25 on Opus, a matching
 </code></pre></div>
 <ul>
 <li><strong>Durations</strong> use the existing compact form (<code>ms</code>, <code>s</code>, <code>m</code>, <code>h</code>, <code>d</code>).</li>
+<li><strong><code>cache_ttl = "0s"</code></strong> (or less) declares a cache that never expires.
+  Section 4 then never compacts that model's or agent's sessions.</li>
 <li><strong><code>slack</code></strong> must be positive. It applies as <code>min(slack, ttl / 5)</code>.</li>
 <li><strong><code>min_tokens</code></strong> is an integer and <strong><code>min_cost_usd</code></strong> a number of
   dollars. Each is off at 0 or less; section 4.2, condition 4, combines
@@ -4809,6 +4913,8 @@ cheapest option: nothing, ping, or compact.</p>
   then.</li>
 <li><strong><code>ContextCheckpointCommit.reason</code>:</strong> optional; section 4.4.</li>
 <li><strong>Diagnostic kind</strong> <code>cache_expiry_compaction</code>.</li>
+<li><strong>The session view's <code>cache_clock</code></strong> and the transient
+  <code>session_cache_clock</code> event (section 4.5).</li>
 <li><strong>Configuration schema:</strong> the keys in section 5.</li>
 <li><strong>Versions.</strong> All additive, so this is a client protocol minor bump. The
   plugin protocol follows the event changes, as it does for every event
@@ -4846,6 +4952,21 @@ cheapest option: nothing, ping, or compact.</p>
 <li>with a declared <code>cache_ttl</code>, the agent's <code>/compact</code> runs at the due
     time, on a session that paged out too;</li>
 <li>without one, nothing runs.</li>
+<li><strong>The cache clock and the badge</strong> (section 4.5). These test what the
+  badge is made from, never how it looks:</li>
+<li><strong>the clock the daemon sends:</strong> its source for each row of 4.1's
+    table, <code>compaction_at</code> and <code>next_fire</code> when the rule plans a
+    compaction, and a <code>session_cache_clock</code> event when a run, a job, or a
+    compaction changes it;</li>
+<li><strong>the client's arithmetic:</strong><ul>
+<li>the heat boundaries (a half and a fifth of the TTL, and expiry);</li>
+<li>the countdown's units (minutes, hours above 90 minutes, seconds in
+  the last minute);</li>
+<li>no countdown during a run;</li>
+<li>no badge without a clock;</li>
+</ul>
+</li>
+<li><strong>the TUI's status line:</strong> the cache part drops after the cost.</li>
 </ul>
 <h2 id="9-phases">9. Phases<a class="headerlink" href="#9-phases" title="Permanent link">&para;</a></h2>
 <ol>
@@ -4854,9 +4975,13 @@ cheapest option: nothing, ping, or compact.</p>
    The result settles D6.</li>
 <li><strong>The cache clock and compaction before expiry</strong>, engine and protocol
    (sections 4, 5, and 7).</li>
-<li><strong>Clients and docs:</strong> the checkpoint row in the TUI and web;
-   <code>engine/context_compaction.md</code>, <code>engine/server.md</code>, the ACP agents
-   guide, and <code>sessions/scheduling.md</code>.</li>
+<li><strong>Clients and docs:</strong></li>
+<li>the cache badge, its tooltip, and the Usage tab's card on the web;</li>
+<li>the status line part and the usage panel in the TUI;</li>
+<li>the checkpoint row in both clients;</li>
+<li>the docs:
+     <code>engine/context_compaction.md</code>, <code>engine/server.md</code>, the ACP agents
+     guide, and <code>sessions/scheduling.md</code>.</li>
 </ol>
 <h2 id="10-resolved-questions-2026-11-02">10. Resolved questions (2026-11-02)<a class="headerlink" href="#10-resolved-questions-2026-11-02" title="Permanent link">&para;</a></h2>
 <ul>
@@ -4957,6 +5082,34 @@ before expiry (section 4.4).</p>
 </tr>
 </tbody>
 </table>
+<h3 id="112-codex-and-chatgpt-sign-ins-2026-11-02">11.2 Codex and ChatGPT sign-ins (2026-11-02)<a class="headerlink" href="#112-codex-and-chatgpt-sign-ins-2026-11-02" title="Permanent link">&para;</a></h3>
+<p><strong>What Codex sends.</strong> Codex 0.165.0, the build the ACP adapter runs, sends
+a <code>prompt_cache_key</code> and nothing else about caching. It sets no
+<code>prompt_cache_retention</code> and no <code>prompt_cache_options.ttl</code>; those names
+appear in its binary only inside a bundled docs skill.</p>
+<p><strong>What OpenAI says.</strong> On 2026-10-20 Tibo Sottiaux, who leads Codex, wrote
+on X that "for logged in users across Codex &amp; Work we keep cache forever".
+He added that resuming an old conversation is "guaranteed to hit the
+cache". He posted it on the same day the Responses API gained its <code>12h</code>
+lifetime. OpenAI's prompt caching guide does not mention it, and still
+says "Cache entries are not stored indefinitely". One public report
+describes cache misses after an overnight pause.</p>
+<p><strong>Why there was no live measurement.</strong> Codex's turns open several
+connections and seem to warm the cache before the real request, so the
+turn usage <code>codex exec</code> reports cannot show a miss. A direct call to the
+backend with Codex's sign-in token was not made.</p>
+<p><strong>What cookie does:</strong></p>
+<ul>
+<li><strong>The Codex preset</strong> sets <code>cache_ttl = "30m"</code>, to be safe <em>(user
+  decision of 2026-11-02)</em>. Cookie compacts an idle Codex session about 24
+  minutes after its last turn: the slack is capped at a fifth of 30
+  minutes, so 6 minutes before expiry. It uses the <code>compact</code> command that
+  codex-acp 2.5.0 advertises.</li>
+<li><strong>The <code>chatgpt</code> provider</strong>, which uses the same backend and sign-in,
+  assumes <code>30m</code>, to be safe <em>(user decision of 2026-11-02)</em>. The announced
+  "forever" is not relied on until it is documented. A model override's
+  <code>cache_ttl</code> replaces it, <code>0s</code> for no expiry.</li>
+</ul>
 
 
 
