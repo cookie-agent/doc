@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Slot"],"fn":["choose_model","choose_variant","confirm","describe_status","list_models","run_onboard","run_onboard_with"],"struct":["OnboardArgs"]};
+window.SIDEBAR_ITEMS = {"enum":["Slot"],"fn":["check_acp_agent","choose_acp_agent","choose_default_agent","choose_mcp_servers","choose_model","choose_models","choose_paths","choose_variant","confirm","describe_status","list_models","presets_label","run_onboard","run_onboard_with"],"struct":["OnboardArgs","Paths"],"type":["ModelLists"]};
