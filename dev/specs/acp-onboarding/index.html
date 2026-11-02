@@ -4016,6 +4016,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="9. Onboarding flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-the-tools-step-mcp-servers-without-a-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      9.1 The Tools step: MCP servers without a login
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4683,6 +4698,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="9. Onboarding flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-the-tools-step-mcp-servers-without-a-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      9.1 The Tools step: MCP servers without a login
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5202,7 +5232,9 @@ rules in <code>client_state::onboarding</code>.</p>
    - <strong>Check</strong>, per runtime (section 5);
    - after a successful check, an optional <strong>Model</strong> among the values the
      agent offered. This writes an inheriting <code>agents/&lt;id&gt;.md</code> with <code>models</code>.
-4. <strong>Finish:</strong>
+4. <strong>Tools</strong> (optional, added 2026-11-01, section 9.1): MCP servers that
+   need no login, such as web search and a browser.
+5. <strong>Finish:</strong>
    - <strong>New sessions start with:</strong> the root agents runnable after applying,
      preselecting what resolves now, and written to <code>[agents] default</code> only
      when it differs from that;
@@ -5212,6 +5244,7 @@ rules in <code>client_state::onboarding</code>.</p>
 <ul>
 <li><code>acp_agents: [{ id, where, command, env, description?, preset?, models?
   }]</code>;</li>
+<li><code>mcp_servers</code> (section 9.1);</li>
 <li><code>default_agent?</code>.</li>
 </ul>
 <p>It applies everything in one candidate configuration, as today, and refuses
@@ -5236,6 +5269,84 @@ with <code>onboarding_incomplete</code> when no path would be complete afterward
 - <strong>Web:</strong> the stepper's first step is the two cards. Its steps follow the
   choice. The ACP step uses the Machines view's ACP agent form. Full screen
   on a phone, as today.</p>
+<h3 id="91-the-tools-step-mcp-servers-without-a-login">9.1 The Tools step: MCP servers without a login<a class="headerlink" href="#91-the-tools-step-mcp-servers-without-a-login" title="Permanent link">&para;</a></h3>
+<p>Added at the user's request on 2026-11-01 (D9). The last step before
+Finish offers a few MCP servers that work without signing in to anything,
+so a fresh daemon's agents can search the web, read library documentation,
+and use a browser. It is optional, and nothing is selected by default.</p>
+<ul>
+<li><strong>Presets</strong> come from the official agents repository with the ACP
+  presets: <code>index.json</code> gains <code>mcp_presets: [{ id, name, category,
+  description, server, where, needs, docs_url, requires_cookie }]</code>. <code>server</code>
+  is the <code>[mcp.servers.&lt;name&gt;]</code> table as <code>config.toml</code> takes it (<code>url</code>, or
+  <code>command</code> and <code>args</code>). <code>where</code> is <code>global</code> for a hosted server, or
+  <code>machine</code> for one that runs a program on a machine. The first presets:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Category</th>
+<th>Server</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exa</td>
+<td>Web search</td>
+<td><code>url = "https://mcp.exa.ai/mcp"</code></td>
+<td><code>global</code></td>
+</tr>
+<tr>
+<td>Context7</td>
+<td>Library documentation</td>
+<td><code>url = "https://mcp.context7.com/mcp"</code></td>
+<td><code>global</code></td>
+</tr>
+<tr>
+<td>DeepWiki</td>
+<td>Documentation of public GitHub repositories</td>
+<td><code>url = "https://mcp.deepwiki.com/mcp"</code></td>
+<td><code>global</code></td>
+</tr>
+<tr>
+<td>Playwright</td>
+<td>Browser</td>
+<td><code>command = "npx"</code>, <code>args = ["-y", "@playwright/mcp@latest", "--headless"]</code></td>
+<td><code>machine</code></td>
+</tr>
+</tbody>
+</table>
+<p>The repository's CI checks that each hosted preset answers MCP
+  <code>initialize</code> without credentials. A preset that stops working is fixed
+  or removed there, with no release.
+- <strong>Where a server goes:</strong>
+  - A <code>global</code> preset is written to <code>[mcp.servers.&lt;id&gt;]</code>. It runs where the
+    daemon runs, and every session that attaches <code>global</code> gets it.
+  - A <code>machine</code> preset asks which machine: the daemon's own (<code>local</code>, the
+    default) or another runtime the daemon knows. It is written to
+    <code>[runtimes.&lt;runtime&gt;.mcp.servers.&lt;id&gt;]</code> with <code>scope = "runtime"</code>.
+    Playwright also offers <strong>Show the browser window</strong>, which drops
+    <code>--headless</code>. Its <code>needs</code> names Node.js and a browser Playwright can
+    start, and links <a href="../../extend/browser/">Giving agents a browser</a>.
+- <strong>Already set up:</strong> a preset whose name already has a server at that
+  place shows as configured and cannot be added twice.
+- <strong>Permissions are unchanged:</strong> the official agents' <code>mcp</code> rules still
+  decide each tool call. The step says that calls ask until allowed, and the
+  summary links to the agents panel.
+- <strong>Protocol:</strong>
+  - <code>OnboardingStatus</code> gains <code>mcp_presets</code>, and <code>mcp_servers</code>: the
+    configured servers' names and places.
+  - <code>onboarding.run</code> gains <code>mcp_servers: [{ name, preset?, where: global |
+    runtime(&lt;id&gt;), server }]</code>, applied in the same candidate configuration
+    and checked like <code>config.apply</code>. A name already taken at that place is
+    refused.
+  - The Tools step is not part of readiness.
+- <strong>After Finish,</strong> the summary shows each new server's connection state as
+  <code>mcp.changed</code> reports it.
+- <strong><code>cookie onboard</code>:</strong> <code>--mcp exa,context7,deepwiki,playwright</code>, and
+  <code>--mcp-runtime &lt;id&gt;</code> for the machine presets (default <code>local</code>).</p>
 <h2 id="10-protocol-configuration-and-phases">10. Protocol, configuration, and phases<a class="headerlink" href="#10-protocol-configuration-and-phases" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Client protocol minor:</strong></li>
@@ -5260,11 +5371,12 @@ with <code>onboarding_incomplete</code> when no path would be complete afterward
 <ol>
 <li>Engine: templates, the effective <code>_acp</code> rule, <code>AgentDescriptor.unavailable</code>
    with its reasons, and <code>list_agents</code>/<code>delegate_subagent</code> reasons.</li>
-<li>The official repository: <code>_acp.md</code>, presets, and the checks.</li>
-<li>Onboarding: readiness paths, <code>acp.check</code>, <code>onboarding.run</code>'s ACP fields,
-   and <code>cookie onboard</code>.</li>
-<li>Clients: the onboarding paths in the TUI and web, and unavailable agents in
-   the pickers.</li>
+<li>The official repository: <code>_acp.md</code>, the ACP and MCP presets, and the
+   checks.</li>
+<li>Onboarding: readiness paths, <code>acp.check</code>, <code>onboarding.run</code>'s ACP and MCP
+   fields, and <code>cookie onboard</code>.</li>
+<li>Clients: the onboarding paths and the Tools step in the TUI and web, and
+   unavailable agents in the pickers.</li>
 <li>The agents panel: the <code>agents.*</code> RPCs, the web view, TUI <code>/agents</code>, and
    the <code>cookie agents</code> commands.</li>
 <li>Docs: the ACP guide (onboarding first, the reference document replaced by
@@ -5297,6 +5409,10 @@ made.</p>
 <li><strong>D8. The ACP path is complete from the configuration</strong> (section 2): a
   declared, enabled agent that a reachable runtime offers. No successful
   check is required.</li>
+<li><strong>D9. Onboarding ends with an optional Tools step</strong> (section 9.1), which
+  offers MCP servers that need no login, from presets kept in the official
+  agents repository. The user asked for it on 2026-11-01; the preset list
+  is mine.</li>
 </ul>
 
 
