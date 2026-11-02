@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MENU_GAP","PRESS_SLOP"],"enum":["HistoryStep","Layer","PhoneList","SettingsSection","View"],"fn":["menu_place","reconcile"],"struct":["MenuPlace","Press"]};
+window.SIDEBAR_ITEMS = {"constant":["CONTEXT_MENU_WIDTH","MENU_GAP","PRESS_SLOP"],"enum":["HistoryStep","Layer","PhoneList","SettingsSection","View"],"fn":["context_place","menu_place","reconcile"],"struct":["MenuPlace","Press"]};
