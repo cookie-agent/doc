@@ -4269,9 +4269,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#61-protocol-additive-client-protocol-1x" class="md-nav__link">
+  <a href="#61-protocol-additive-client-protocol-1690" class="md-nav__link">
     <span class="md-ellipsis">
-      6.1 Protocol (additive, client protocol 1.x)
+      6.1 Protocol (additive, client protocol 1.69.0)
     </span>
   </a>
   
@@ -4309,6 +4309,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#9-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4329,7 +4338,7 @@
 
 
 <h1 id="fallback-lists-for-default_model-small_model-and-utility_model">Fallback lists for <code>default_model</code>, <code>small_model</code>, and <code>utility_model</code><a class="headerlink" href="#fallback-lists-for-default_model-small_model-and-utility_model" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-11-01), being implemented. The user's decisions
+<p>Status: <strong>implemented</strong> (2026-11-01, client protocol 1.69.0). The user's decisions
 are in section 8.</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p><code>default_model</code>, <code>small_model</code>, and <code>utility_model</code> each hold one model and
@@ -4415,7 +4424,7 @@ and a reference form in the onboarding inputs (section 6).</p>
 <h2 id="6-onboarding-d3">6. Onboarding (D3)<a class="headerlink" href="#6-onboarding-d3" title="Permanent link">&para;</a></h2>
 <p>Onboarding can set each field to a fallback list, and the optional fields
 to a reference.</p>
-<h3 id="61-protocol-additive-client-protocol-1x">6.1 Protocol (additive, client protocol 1.x)<a class="headerlink" href="#61-protocol-additive-client-protocol-1x" title="Permanent link">&para;</a></h3>
+<h3 id="61-protocol-additive-client-protocol-1690">6.1 Protocol (additive, client protocol 1.69.0)<a class="headerlink" href="#61-protocol-additive-client-protocol-1690" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>OnboardingModelEntry</code>: <code>{ model, variant? }</code> or <code>{ field, variant? }</code>,
   where <code>field</code> is <code>default_model</code>, <code>small_model</code>, or <code>utility_model</code>.</li>
@@ -4426,22 +4435,25 @@ to a reference.</p>
   the first model of the field's expansion, so older clients keep working.</li>
 <li><code>OnboardingRunParams</code> gains the same three <code>*_list</code> fields as
   <code>Vec&lt;OnboardingModelEntry&gt;</code>. Giving both <code>default_model</code> and
-  <code>default_model_list</code> is refused with <code>invalid_params</code>; a cycle or an
-  empty list is refused with <code>onboarding_incomplete</code>, writing nothing.</li>
+  <code>default_model_list</code> is refused with <code>invalid_params</code>, as are an empty
+  list and an entry without exactly one of <code>model</code> and <code>field</code>; a cycle is
+  refused as <code>config.apply</code> refuses it, writing nothing.</li>
 <li><code>OnboardingRequirement::DefaultModel</code> is missing when no model of
   <code>default_model</code>'s expansion is available (today: when its one model is
   not).</li>
 </ul>
 <h3 id="62-clients">6.2 Clients<a class="headerlink" href="#62-clients" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>TUI and web model steps</strong> become an ordered list: choosing a model sets
-  the first entry, "Add fallback" appends another chosen from the same
-  picker (models already in the list hidden), and each row can be removed
-  or moved up and down. A field already holding a list is shown as that
-  list; a single model is a list of one.</li>
-<li><strong>The small and utility steps</strong> offer "Same as default model" (writes
-  <code>${default_model}</code>), and the utility step also "Same as small model".
-  "Skip" still leaves the field unset.</li>
+<li><strong>TUI model steps</strong>: Enter (choose) sets the list to one model and moves
+  on, as before; "add fallback" (<code>a</code>) appends the next model from the same
+  picker and stays on the step; "remove last" (<code>x</code>) drops the last entry.
+  The panel lists the chosen entries in fallback order beside what is
+  configured.</li>
+<li><strong>Web model steps</strong>: choosing a model adds it at the end of the list and
+  choosing it again takes it out; each chosen row shows its place and its
+  variant chips, and a line above the list reads the whole list in order.</li>
+<li>Neither client reorders entries in place: taking one out and adding it
+  again moves it to the end.</li>
 <li><strong><code>cookie onboard</code></strong>: <code>--default-model</code>, <code>--small-model</code>, and
   <code>--utility-model</code> may be repeated, in fallback order; a value is
   <code>provider/model[:variant]</code> or a field name (<code>default_model</code>), which is
@@ -4471,6 +4483,18 @@ to a reference.</p>
 <li><strong>D2</strong> (user, 2026-11-01): the fields may refer to each other; a cycle
   is a configuration error and there is no hop limit (section 5).</li>
 <li><strong>D3</strong> (user, 2026-11-01): onboarding can pick a fallback list.</li>
+</ul>
+<h2 id="9-implementation-notes">9. Implementation notes<a class="headerlink" href="#9-implementation-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li>A list naming the same model or field twice is refused when the file
+  loads, as an agent's <code>models</code> refuses repeats compared as written.</li>
+<li>D1 also changes a single model: an entry such as
+  <code>{ model: "${small_model}", variant: "max" }</code> used to replace the variant
+  <code>small_model</code> configured; it now applies only when <code>small_model</code> gives
+  its model no variant.</li>
+<li>An agent entry's <code>cache</code> beside a variable applies to each of the field's
+  models; a shape for another provider family leaves that model without a
+  structural cache strategy, as it would on a key of that model.</li>
 </ul>
 
 
