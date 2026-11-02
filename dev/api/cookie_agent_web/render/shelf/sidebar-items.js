@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Card"],"fn":["arrange","shelf_html","shelved_handles","type_label","with_chips"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["act","download","frame_height","refresh","reveal","show_within"]};
+window.SIDEBAR_ITEMS = {"fn":["act","copy_handle","download","download_stored","frame_height","refresh","reveal","show_within"],"struct":["OpenAsset"]};
