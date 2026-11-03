@@ -765,7 +765,7 @@
 <a href=#765 id=765 data-nosnippet>765</a></span><span class="kw">fn </span>cap_request_strings(name: <span class="kw-2">&amp;</span>str, arguments: <span class="kw-2">&amp;</span>Value) -&gt; Value {
 <a href=#766 id=766 data-nosnippet>766</a>    <span class="kw">let </span>keys: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str] = <span class="kw">match </span>name {
 <a href=#767 id=767 data-nosnippet>767</a>        <span class="string">"write" </span>=&gt; <span class="kw-2">&amp;</span>[<span class="string">"content"</span>],
-<a href=#768 id=768 data-nosnippet>768</a>        <span class="string">"edit" </span>=&gt; <span class="kw-2">&amp;</span>[<span class="string">"oldString"</span>, <span class="string">"newString"</span>],
+<a href=#768 id=768 data-nosnippet>768</a>        <span class="string">"edit" </span>=&gt; <span class="kw-2">&amp;</span>[<span class="string">"old_string"</span>, <span class="string">"new_string"</span>, <span class="string">"oldString"</span>, <span class="string">"newString"</span>],
 <a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">_ </span>=&gt; <span class="kw">return </span>arguments.clone(),
 <a href=#770 id=770 data-nosnippet>770</a>    };
 <a href=#771 id=771 data-nosnippet>771</a>    <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.clone();
@@ -1222,37 +1222,50 @@
 <a href=#1222 id=1222 data-nosnippet>1222</a><span class="doccomment">/// A call's arguments as a trajectory entry keeps them (section 4.4): an
 <a href=#1223 id=1223 data-nosnippet>1223</a>/// MCP tool's, like any other tool's, are its canonical argument object,
 <a href=#1224 id=1224 data-nosnippet>1224</a>/// which the entry's cap cuts.
-<a href=#1225 id=1225 data-nosnippet>1225</a></span><span class="kw">fn </span>summarize_arguments(name: <span class="kw-2">&amp;</span>str, arguments: <span class="kw-2">&amp;</span>Value) -&gt; String {
-<a href=#1226 id=1226 data-nosnippet>1226</a>    <span class="kw">let </span>string = |key: <span class="kw-2">&amp;</span>str| arguments.get(key).and_then(Value::as_str);
-<a href=#1227 id=1227 data-nosnippet>1227</a>    <span class="kw">let </span>path = || {
-<a href=#1228 id=1228 data-nosnippet>1228</a>        string(<span class="string">"filePath"</span>)
-<a href=#1229 id=1229 data-nosnippet>1229</a>            .or_else(|| string(<span class="string">"path"</span>))
-<a href=#1230 id=1230 data-nosnippet>1230</a>            .unwrap_or(<span class="string">"?"</span>)
-<a href=#1231 id=1231 data-nosnippet>1231</a>            .to_owned()
-<a href=#1232 id=1232 data-nosnippet>1232</a>    };
-<a href=#1233 id=1233 data-nosnippet>1233</a>    <span class="kw">match </span>name {
-<a href=#1234 id=1234 data-nosnippet>1234</a>        <span class="string">"bash" </span><span class="kw">if </span>string(<span class="string">"command"</span>).is_some() =&gt; {
-<a href=#1235 id=1235 data-nosnippet>1235</a>            <span class="macro">format!</span>(<span class="string">"command: {}"</span>, string(<span class="string">"command"</span>).unwrap_or_default())
-<a href=#1236 id=1236 data-nosnippet>1236</a>        }
-<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="string">"write" </span>=&gt; {
-<a href=#1238 id=1238 data-nosnippet>1238</a>            <span class="kw">let </span>content = string(<span class="string">"content"</span>).unwrap_or_default();
-<a href=#1239 id=1239 data-nosnippet>1239</a>            <span class="macro">format!</span>(
-<a href=#1240 id=1240 data-nosnippet>1240</a>                <span class="string">"path: {} ({} bytes)\n{}"</span>,
-<a href=#1241 id=1241 data-nosnippet>1241</a>                path(),
-<a href=#1242 id=1242 data-nosnippet>1242</a>                content.len(),
-<a href=#1243 id=1243 data-nosnippet>1243</a>                first_lines(content, WRITE_LINES)
-<a href=#1244 id=1244 data-nosnippet>1244</a>            )
-<a href=#1245 id=1245 data-nosnippet>1245</a>        }
-<a href=#1246 id=1246 data-nosnippet>1246</a>        <span class="string">"edit" </span>=&gt; <span class="macro">format!</span>(
-<a href=#1247 id=1247 data-nosnippet>1247</a>            <span class="string">"path: {}\nold:\n{}\nnew:\n{}"</span>,
-<a href=#1248 id=1248 data-nosnippet>1248</a>            path(),
-<a href=#1249 id=1249 data-nosnippet>1249</a>            first_lines(string(<span class="string">"oldString"</span>).unwrap_or_default(), EDIT_LINES),
-<a href=#1250 id=1250 data-nosnippet>1250</a>            first_lines(string(<span class="string">"newString"</span>).unwrap_or_default(), EDIT_LINES)
-<a href=#1251 id=1251 data-nosnippet>1251</a>        ),
-<a href=#1252 id=1252 data-nosnippet>1252</a>        <span class="kw">_ </span>=&gt; canonical_json(arguments).to_string(),
-<a href=#1253 id=1253 data-nosnippet>1253</a>    }
-<a href=#1254 id=1254 data-nosnippet>1254</a>}
-<a href=#1255 id=1255 data-nosnippet>1255</a>
-<a href=#1256 id=1256 data-nosnippet>1256</a><span class="attr">#[cfg(test)]
-<a href=#1257 id=1257 data-nosnippet>1257</a></span><span class="kw">mod </span>tests;
+<a href=#1225 id=1225 data-nosnippet>1225</a>/// `filePath`, `oldString`, and `newString` are the names `read`, `write`,
+<a href=#1226 id=1226 data-nosnippet>1226</a>/// and `edit` took before 2026-11, which a runtime not yet updated still
+<a href=#1227 id=1227 data-nosnippet>1227</a>/// publishes.
+<a href=#1228 id=1228 data-nosnippet>1228</a></span><span class="kw">fn </span>summarize_arguments(name: <span class="kw-2">&amp;</span>str, arguments: <span class="kw-2">&amp;</span>Value) -&gt; String {
+<a href=#1229 id=1229 data-nosnippet>1229</a>    <span class="kw">let </span>string = |key: <span class="kw-2">&amp;</span>str| arguments.get(key).and_then(Value::as_str);
+<a href=#1230 id=1230 data-nosnippet>1230</a>    <span class="kw">let </span>path = || {
+<a href=#1231 id=1231 data-nosnippet>1231</a>        string(<span class="string">"path"</span>)
+<a href=#1232 id=1232 data-nosnippet>1232</a>            .or_else(|| string(<span class="string">"filePath"</span>))
+<a href=#1233 id=1233 data-nosnippet>1233</a>            .unwrap_or(<span class="string">"?"</span>)
+<a href=#1234 id=1234 data-nosnippet>1234</a>            .to_owned()
+<a href=#1235 id=1235 data-nosnippet>1235</a>    };
+<a href=#1236 id=1236 data-nosnippet>1236</a>    <span class="kw">match </span>name {
+<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="string">"bash" </span><span class="kw">if </span>string(<span class="string">"command"</span>).is_some() =&gt; {
+<a href=#1238 id=1238 data-nosnippet>1238</a>            <span class="macro">format!</span>(<span class="string">"command: {}"</span>, string(<span class="string">"command"</span>).unwrap_or_default())
+<a href=#1239 id=1239 data-nosnippet>1239</a>        }
+<a href=#1240 id=1240 data-nosnippet>1240</a>        <span class="string">"write" </span>=&gt; {
+<a href=#1241 id=1241 data-nosnippet>1241</a>            <span class="kw">let </span>content = string(<span class="string">"content"</span>).unwrap_or_default();
+<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="macro">format!</span>(
+<a href=#1243 id=1243 data-nosnippet>1243</a>                <span class="string">"path: {} ({} bytes)\n{}"</span>,
+<a href=#1244 id=1244 data-nosnippet>1244</a>                path(),
+<a href=#1245 id=1245 data-nosnippet>1245</a>                content.len(),
+<a href=#1246 id=1246 data-nosnippet>1246</a>                first_lines(content, WRITE_LINES)
+<a href=#1247 id=1247 data-nosnippet>1247</a>            )
+<a href=#1248 id=1248 data-nosnippet>1248</a>        }
+<a href=#1249 id=1249 data-nosnippet>1249</a>        <span class="string">"edit" </span>=&gt; <span class="macro">format!</span>(
+<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="string">"path: {}\nold:\n{}\nnew:\n{}"</span>,
+<a href=#1251 id=1251 data-nosnippet>1251</a>            path(),
+<a href=#1252 id=1252 data-nosnippet>1252</a>            first_lines(
+<a href=#1253 id=1253 data-nosnippet>1253</a>                string(<span class="string">"old_string"</span>)
+<a href=#1254 id=1254 data-nosnippet>1254</a>                    .or_else(|| string(<span class="string">"oldString"</span>))
+<a href=#1255 id=1255 data-nosnippet>1255</a>                    .unwrap_or_default(),
+<a href=#1256 id=1256 data-nosnippet>1256</a>                EDIT_LINES
+<a href=#1257 id=1257 data-nosnippet>1257</a>            ),
+<a href=#1258 id=1258 data-nosnippet>1258</a>            first_lines(
+<a href=#1259 id=1259 data-nosnippet>1259</a>                string(<span class="string">"new_string"</span>)
+<a href=#1260 id=1260 data-nosnippet>1260</a>                    .or_else(|| string(<span class="string">"newString"</span>))
+<a href=#1261 id=1261 data-nosnippet>1261</a>                    .unwrap_or_default(),
+<a href=#1262 id=1262 data-nosnippet>1262</a>                EDIT_LINES
+<a href=#1263 id=1263 data-nosnippet>1263</a>            )
+<a href=#1264 id=1264 data-nosnippet>1264</a>        ),
+<a href=#1265 id=1265 data-nosnippet>1265</a>        <span class="kw">_ </span>=&gt; canonical_json(arguments).to_string(),
+<a href=#1266 id=1266 data-nosnippet>1266</a>    }
+<a href=#1267 id=1267 data-nosnippet>1267</a>}
+<a href=#1268 id=1268 data-nosnippet>1268</a>
+<a href=#1269 id=1269 data-nosnippet>1269</a><span class="attr">#[cfg(test)]
+<a href=#1270 id=1270 data-nosnippet>1270</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
