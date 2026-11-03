@@ -101,59 +101,89 @@
 <a href=#101 id=101 data-nosnippet>101</a>        })
 <a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// The [`CutPoint::ReplyEnd`] of the reply that ends with the
-<a href=#105 id=105 data-nosnippet>105</a>    /// assistant block `item_id`, by [`Self::reply_cut`].
-<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="attr">#[must_use]
-<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">pub fn </span>reply_point(<span class="kw-2">&amp;</span><span class="self">self</span>, item_id: u64) -&gt; <span class="prelude-ty">Option</span>&lt;CutPoint&gt; {
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="self">self</span>.reply_cut(item_id)
-<a href=#109 id=109 data-nosnippet>109</a>            .map(|through_seq| CutPoint::ReplyEnd {
-<a href=#110 id=110 data-nosnippet>110</a>                through_seq,
-<a href=#111 id=111 data-nosnippet>111</a>                at_tip: through_seq &gt;= <span class="self">self</span>.last_seq,
-<a href=#112 id=112 data-nosnippet>112</a>            })
-<a href=#113 id=113 data-nosnippet>113</a>    }
-<a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// The sequence a revert or fork that keeps the reply ending with the
-<a href=#116 id=116 data-nosnippet>116</a>    /// assistant block `item_id` cuts through: just before what came next
-<a href=#117 id=117 data-nosnippet>117</a>    /// ([`Self::reply_boundaries`]), else the session's last event, so the
-<a href=#118 id=118 data-nosnippet>118</a>    /// settings changed since stay. `None` unless the block is the last of its
-<a href=#119 id=119 data-nosnippet>119</a>    /// run and the run finished.
-<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="attr">#[must_use]
-<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">pub fn </span>reply_cut(<span class="kw-2">&amp;</span><span class="self">self</span>, item_id: u64) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">let </span>run = <span class="kw-2">*</span><span class="self">self</span>.assistant_runs.get(<span class="kw-2">&amp;</span>item_id)<span class="question-mark">?</span>;
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>finished = <span class="kw-2">*</span><span class="self">self</span>.run_finishes.get(<span class="kw-2">&amp;</span>run)<span class="question-mark">?</span>;
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">if </span><span class="self">self</span>.run_last_blocks.get(<span class="kw-2">&amp;</span>run) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>item_id) {
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#126 id=126 data-nosnippet>126</a>        }
-<a href=#127 id=127 data-nosnippet>127</a>        <span class="prelude-val">Some</span>(
-<a href=#128 id=128 data-nosnippet>128</a>            <span class="self">self</span>.reply_boundaries
-<a href=#129 id=129 data-nosnippet>129</a>                .range(finished + <span class="number">1</span>..)
-<a href=#130 id=130 data-nosnippet>130</a>                .next()
-<a href=#131 id=131 data-nosnippet>131</a>                .map_or(<span class="self">self</span>.last_seq, |next| next - <span class="number">1</span>)
-<a href=#132 id=132 data-nosnippet>132</a>                .max(finished),
-<a href=#133 id=133 data-nosnippet>133</a>        )
-<a href=#134 id=134 data-nosnippet>134</a>    }
-<a href=#135 id=135 data-nosnippet>135</a>}
-<a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a><span class="attr">#[cfg(test)]
-<a href=#138 id=138 data-nosnippet>138</a></span><span class="kw">mod </span>tests {
-<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a>    <span class="attr">#[test]
-<a href=#142 id=142 data-nosnippet>142</a>    </span><span class="kw">fn </span>a_user_message_cuts_just_before_it() {
-<a href=#143 id=143 data-nosnippet>143</a>        <span class="kw">let </span>point = CutPoint::UserMessage {
-<a href=#144 id=144 data-nosnippet>144</a>            seq: <span class="number">8</span>,
-<a href=#145 id=145 data-nosnippet>145</a>            text: <span class="string">"again"</span>.into(),
-<a href=#146 id=146 data-nosnippet>146</a>        };
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="macro">assert_eq!</span>(point.through_seq(), <span class="number">7</span>);
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="macro">assert_eq!</span>(point.text(), <span class="prelude-val">Some</span>(<span class="string">"again"</span>));
-<a href=#149 id=149 data-nosnippet>149</a>        <span class="macro">assert!</span>(point.revertible() &amp;&amp; point.forkable());
-<a href=#150 id=150 data-nosnippet>150</a>        <span class="macro">assert_eq!</span>(before_user_message(<span class="number">1</span>), <span class="number">1</span>);
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>tip = CutPoint::ReplyEnd {
-<a href=#152 id=152 data-nosnippet>152</a>            through_seq: <span class="number">9</span>,
-<a href=#153 id=153 data-nosnippet>153</a>            at_tip: <span class="bool-val">true</span>,
-<a href=#154 id=154 data-nosnippet>154</a>        };
-<a href=#155 id=155 data-nosnippet>155</a>        <span class="macro">assert!</span>(!tip.revertible() &amp;&amp; tip.forkable());
-<a href=#156 id=156 data-nosnippet>156</a>        <span class="macro">assert!</span>(!CutPoint::Compaction { through_seq: <span class="number">3 </span>}.forkable());
-<a href=#157 id=157 data-nosnippet>157</a>    }
-<a href=#158 id=158 data-nosnippet>158</a>}
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// The text of the reply that ends with the assistant block `item_id`:
+<a href=#105 id=105 data-nosnippet>105</a>    /// the markdown of every text part of its run's blocks, in transcript
+<a href=#106 id=106 data-nosnippet>106</a>    /// order, a blank line between them. `None` when it has none.
+<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="attr">#[must_use]
+<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="kw">pub fn </span>reply_text(<span class="kw-2">&amp;</span><span class="self">self</span>, item_id: u64) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span>run = <span class="self">self</span>.assistant_runs.get(<span class="kw-2">&amp;</span>item_id);
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>texts = <span class="self">self
+<a href=#111 id=111 data-nosnippet>111</a>            </span>.transcript
+<a href=#112 id=112 data-nosnippet>112</a>            .iter()
+<a href=#113 id=113 data-nosnippet>113</a>            .filter(|item| <span class="kw">match </span>item {
+<a href=#114 id=114 data-nosnippet>114</a>                TranscriptItem::Assistant { id, .. } =&gt; {
+<a href=#115 id=115 data-nosnippet>115</a>                    <span class="kw-2">*</span>id == item_id || (run.is_some() &amp;&amp; <span class="self">self</span>.assistant_runs.get(id) == run)
+<a href=#116 id=116 data-nosnippet>116</a>                }
+<a href=#117 id=117 data-nosnippet>117</a>                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#118 id=118 data-nosnippet>118</a>            })
+<a href=#119 id=119 data-nosnippet>119</a>            .flat_map(|item| <span class="kw">match </span>item {
+<a href=#120 id=120 data-nosnippet>120</a>                TranscriptItem::Assistant { children, .. } =&gt; children.as_slice(),
+<a href=#121 id=121 data-nosnippet>121</a>                <span class="kw">_ </span>=&gt; <span class="kw-2">&amp;</span>[],
+<a href=#122 id=122 data-nosnippet>122</a>            })
+<a href=#123 id=123 data-nosnippet>123</a>            .filter_map(|child| <span class="kw">match </span>child {
+<a href=#124 id=124 data-nosnippet>124</a>                <span class="kw">crate</span>::AssistantChild::Text { markdown, .. } =&gt; {
+<a href=#125 id=125 data-nosnippet>125</a>                    <span class="prelude-val">Some</span>(markdown.as_str().trim().to_owned())
+<a href=#126 id=126 data-nosnippet>126</a>                }
+<a href=#127 id=127 data-nosnippet>127</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#128 id=128 data-nosnippet>128</a>            })
+<a href=#129 id=129 data-nosnippet>129</a>            .filter(|text| !text.is_empty())
+<a href=#130 id=130 data-nosnippet>130</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#131 id=131 data-nosnippet>131</a>        (!texts.is_empty()).then(|| texts.join(<span class="string">"\n\n"</span>))
+<a href=#132 id=132 data-nosnippet>132</a>    }
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// The [`CutPoint::ReplyEnd`] of the reply that ends with the
+<a href=#135 id=135 data-nosnippet>135</a>    /// assistant block `item_id`, by [`Self::reply_cut`].
+<a href=#136 id=136 data-nosnippet>136</a>    </span><span class="attr">#[must_use]
+<a href=#137 id=137 data-nosnippet>137</a>    </span><span class="kw">pub fn </span>reply_point(<span class="kw-2">&amp;</span><span class="self">self</span>, item_id: u64) -&gt; <span class="prelude-ty">Option</span>&lt;CutPoint&gt; {
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="self">self</span>.reply_cut(item_id)
+<a href=#139 id=139 data-nosnippet>139</a>            .map(|through_seq| CutPoint::ReplyEnd {
+<a href=#140 id=140 data-nosnippet>140</a>                through_seq,
+<a href=#141 id=141 data-nosnippet>141</a>                at_tip: through_seq &gt;= <span class="self">self</span>.last_seq,
+<a href=#142 id=142 data-nosnippet>142</a>            })
+<a href=#143 id=143 data-nosnippet>143</a>    }
+<a href=#144 id=144 data-nosnippet>144</a>
+<a href=#145 id=145 data-nosnippet>145</a>    <span class="doccomment">/// The sequence a revert or fork that keeps the reply ending with the
+<a href=#146 id=146 data-nosnippet>146</a>    /// assistant block `item_id` cuts through: just before what came next
+<a href=#147 id=147 data-nosnippet>147</a>    /// ([`Self::reply_boundaries`]), else the session's last event, so the
+<a href=#148 id=148 data-nosnippet>148</a>    /// settings changed since stay. `None` unless the block is the last of its
+<a href=#149 id=149 data-nosnippet>149</a>    /// run and the run finished.
+<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="attr">#[must_use]
+<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub fn </span>reply_cut(<span class="kw-2">&amp;</span><span class="self">self</span>, item_id: u64) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">let </span>run = <span class="kw-2">*</span><span class="self">self</span>.assistant_runs.get(<span class="kw-2">&amp;</span>item_id)<span class="question-mark">?</span>;
+<a href=#153 id=153 data-nosnippet>153</a>        <span class="kw">let </span>finished = <span class="kw-2">*</span><span class="self">self</span>.run_finishes.get(<span class="kw-2">&amp;</span>run)<span class="question-mark">?</span>;
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">if </span><span class="self">self</span>.run_last_blocks.get(<span class="kw-2">&amp;</span>run) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>item_id) {
+<a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#156 id=156 data-nosnippet>156</a>        }
+<a href=#157 id=157 data-nosnippet>157</a>        <span class="prelude-val">Some</span>(
+<a href=#158 id=158 data-nosnippet>158</a>            <span class="self">self</span>.reply_boundaries
+<a href=#159 id=159 data-nosnippet>159</a>                .range(finished + <span class="number">1</span>..)
+<a href=#160 id=160 data-nosnippet>160</a>                .next()
+<a href=#161 id=161 data-nosnippet>161</a>                .map_or(<span class="self">self</span>.last_seq, |next| next - <span class="number">1</span>)
+<a href=#162 id=162 data-nosnippet>162</a>                .max(finished),
+<a href=#163 id=163 data-nosnippet>163</a>        )
+<a href=#164 id=164 data-nosnippet>164</a>    }
+<a href=#165 id=165 data-nosnippet>165</a>}
+<a href=#166 id=166 data-nosnippet>166</a>
+<a href=#167 id=167 data-nosnippet>167</a><span class="attr">#[cfg(test)]
+<a href=#168 id=168 data-nosnippet>168</a></span><span class="kw">mod </span>tests {
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#170 id=170 data-nosnippet>170</a>
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="attr">#[test]
+<a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">fn </span>a_user_message_cuts_just_before_it() {
+<a href=#173 id=173 data-nosnippet>173</a>        <span class="kw">let </span>point = CutPoint::UserMessage {
+<a href=#174 id=174 data-nosnippet>174</a>            seq: <span class="number">8</span>,
+<a href=#175 id=175 data-nosnippet>175</a>            text: <span class="string">"again"</span>.into(),
+<a href=#176 id=176 data-nosnippet>176</a>        };
+<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">assert_eq!</span>(point.through_seq(), <span class="number">7</span>);
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">assert_eq!</span>(point.text(), <span class="prelude-val">Some</span>(<span class="string">"again"</span>));
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="macro">assert!</span>(point.revertible() &amp;&amp; point.forkable());
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="macro">assert_eq!</span>(before_user_message(<span class="number">1</span>), <span class="number">1</span>);
+<a href=#181 id=181 data-nosnippet>181</a>        <span class="kw">let </span>tip = CutPoint::ReplyEnd {
+<a href=#182 id=182 data-nosnippet>182</a>            through_seq: <span class="number">9</span>,
+<a href=#183 id=183 data-nosnippet>183</a>            at_tip: <span class="bool-val">true</span>,
+<a href=#184 id=184 data-nosnippet>184</a>        };
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="macro">assert!</span>(!tip.revertible() &amp;&amp; tip.forkable());
+<a href=#186 id=186 data-nosnippet>186</a>        <span class="macro">assert!</span>(!CutPoint::Compaction { through_seq: <span class="number">3 </span>}.forkable());
+<a href=#187 id=187 data-nosnippet>187</a>    }
+<a href=#188 id=188 data-nosnippet>188</a>}
 </code></pre></div></section></main></body></html>
