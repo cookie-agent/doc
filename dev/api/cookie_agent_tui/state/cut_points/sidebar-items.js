@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CutPoint"],"fn":["before_compaction","before_user_message"]};
