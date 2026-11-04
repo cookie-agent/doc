@@ -3188,6 +3188,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/runtime-token/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The runtime token
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/share-links/" class="md-nav__link">
         
   
@@ -4822,6 +4845,16 @@ loopback unless <code>--listen</code> names another address; off loopback, serve
 (<code>--tls-cert</code>, <code>--tls-key</code>) or keep the listener on a private network, since
 a plaintext <code>ws://</code> connection carries the token in the clear. Anyone holding
 the token is a fully trusted client and may also offer a runtime.</p>
+<p><strong>The runtime token.</strong> Runtimes that dial in may present a second token,
+<code>[server] runtime_token</code>, instead. It opens <code>/runtime</code> and nothing else:
+<code>/ws</code> refuses it in the header and in the handshake, and it opens no plugin
+page. A machine that serves as a runtime, often a shared or less trusted
+one, then never holds the client token. Its holder can still offer a
+runtime under any ID the daemon would accept from a dial-in (not <code>global</code>,
+<code>local</code>, a configured template, or an ID connected now), and so receive the
+tool calls sessions send that runtime: treat it as a secret too. Every
+client may read it (<code>machines.runtime_token</code>, <code>cookie machine
+runtime-token</code>), which the web page's dial-in command does.</p>
 <p><strong>Web pages.</strong> <code>/ws</code> does not check a browser's <code>Origin</code> header (see
 <a href="../remote-access/#web-clients">Web clients</a>): any page in any browser on a
 machine that can reach the daemon can open a connection, and the token is the
@@ -4836,10 +4869,12 @@ operating system at its first start and writes it there, rewriting the file
 owner-only (<code>0600</code> on Unix), so it stays the same across restarts and a
 runtime that dials in can reconnect after one. The WebSocket subcommands
 (<code>attach</code>, <code>connect</code>, <code>disconnect</code>, <code>mcp</code>) and <code>cookie runtime serve --daemon</code>
-read it from the same file unless given <code>--token</code> / <code>COOKIE_DAEMON_TOKEN</code>.
+read it from the same file unless given <code>--token</code> / <code>COOKIE_DAEMON_TOKEN</code>
+(<code>cookie runtime serve --daemon</code> reads <code>runtime_token</code> first, and takes
+<code>COOKIE_RUNTIME_TOKEN</code>). The runtime token is kept and created the same way.
 Any process that can read your <code>config.toml</code> can therefore connect to the
-daemon; keep the file private, and replace the token (delete the line and
-restart the daemon) if it leaks. Plain <code>cookie</code> sends the token to whatever
+daemon; keep the file private, and replace a token (delete its line and
+restart the daemon) if it leaks. Replacing one leaves the other working. Plain <code>cookie</code> sends the token to whatever
 listens at <code>[server] host</code> and <code>port</code> when it looks for a running daemon (see
 <a href="../persistent/#a-daemon-already-running">A daemon already running</a>), as
 <code>cookie attach</code> with default settings does; it looks only when the token is

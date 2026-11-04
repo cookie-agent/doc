@@ -5,132 +5,136 @@
 <a href=#5 id=5 data-nosnippet>5</a><span class="doccomment">/// The environment variable a daemon token may come from, which clap reads
 <a href=#6 id=6 data-nosnippet>6</a>/// into the `--token` arguments.
 <a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">const </span>DAEMON_TOKEN_ENV: <span class="kw-2">&amp;</span>str = <span class="string">"COOKIE_DAEMON_TOKEN"</span>;
-<a href=#8 id=8 data-nosnippet>8</a>
-<a href=#9 id=9 data-nosnippet>9</a><span class="doccomment">/// How this process was started, for `cookie daemon` to restart itself.
-<a href=#10 id=10 data-nosnippet>10</a></span><span class="kw">struct </span>Launch {
-<a href=#11 id=11 data-nosnippet>11</a>    <span class="doccomment">/// The command to start again; `None` when it could not be found, and
-<a href=#12 id=12 data-nosnippet>12</a>    /// the daemon then refuses `daemon.restart`.
-<a href=#13 id=13 data-nosnippet>13</a>    </span>relaunch: <span class="prelude-ty">Option</span>&lt;daemon_restart::Relaunch&gt;,
-<a href=#14 id=14 data-nosnippet>14</a>    <span class="doccomment">/// This process was started by a restart, so the daemon waits for its
-<a href=#15 id=15 data-nosnippet>15</a>    /// port to free.
-<a href=#16 id=16 data-nosnippet>16</a>    </span>restarted: bool,
-<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// The daemon stopped to restart: relaunch once the runtime is gone.
-<a href=#18 id=18 data-nosnippet>18</a>    </span>relaunch_now: bool,
-<a href=#19 id=19 data-nosnippet>19</a>}
-<a href=#20 id=20 data-nosnippet>20</a>
-<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// The most async runtime worker threads: the daemon waits on models,
-<a href=#22 id=22 data-nosnippet>22</a>/// tools, and clients far more than it computes, and every worker, with the
-<a href=#23 id=23 data-nosnippet>23</a>/// malloc arena it ends up with, costs memory on a many-core machine while
-<a href=#24 id=24 data-nosnippet>24</a>/// more of them only add scheduling overhead. `TOKIO_WORKER_THREADS`
-<a href=#25 id=25 data-nosnippet>25</a>/// overrides it.
-<a href=#26 id=26 data-nosnippet>26</a></span><span class="kw">const </span>MAX_WORKER_THREADS: usize = <span class="number">8</span>;
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// The most glibc malloc arenas, where glibc would make up to eight per
-<a href=#29 id=29 data-nosnippet>29</a>/// core: each holds on to what its threads freed. `MALLOC_ARENA_MAX`
-<a href=#30 id=30 data-nosnippet>30</a>/// overrides it.
-<a href=#31 id=31 data-nosnippet>31</a></span><span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
-<a href=#32 id=32 data-nosnippet>32</a></span><span class="kw">const </span>MALLOC_ARENA_MAX: libc::c_int = <span class="number">2</span>;
-<a href=#33 id=33 data-nosnippet>33</a>
-<a href=#34 id=34 data-nosnippet>34</a><span class="doccomment">/// Caps glibc's malloc arenas, unless `MALLOC_ARENA_MAX` already did. Runs
-<a href=#35 id=35 data-nosnippet>35</a>/// before any thread exists, which an arena limit needs to apply to all of
-<a href=#36 id=36 data-nosnippet>36</a>/// them.
-<a href=#37 id=37 data-nosnippet>37</a></span><span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
-<a href=#38 id=38 data-nosnippet>38</a></span><span class="kw">fn </span>limit_malloc_arenas() {
-<a href=#39 id=39 data-nosnippet>39</a>    <span class="kw">if </span>env::var_os(<span class="string">"MALLOC_ARENA_MAX"</span>).is_none() {
-<a href=#40 id=40 data-nosnippet>40</a>        <span class="comment">// SAFETY: `mallopt` only sets an allocator parameter; no other
-<a href=#41 id=41 data-nosnippet>41</a>        // thread exists yet to allocate concurrently.
-<a href=#42 id=42 data-nosnippet>42</a>        </span><span class="kw">unsafe </span>{ libc::mallopt(libc::M_ARENA_MAX, MALLOC_ARENA_MAX) };
-<a href=#43 id=43 data-nosnippet>43</a>    }
-<a href=#44 id=44 data-nosnippet>44</a>}
-<a href=#45 id=45 data-nosnippet>45</a>
-<a href=#46 id=46 data-nosnippet>46</a><span class="kw">fn </span>main() {
-<a href=#47 id=47 data-nosnippet>47</a>    <span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
-<a href=#48 id=48 data-nosnippet>48</a>    </span>limit_malloc_arenas();
-<a href=#49 id=49 data-nosnippet>49</a>    <span class="kw">let </span>cli = cli::Cli::parse();
-<a href=#50 id=50 data-nosnippet>50</a>    <span class="comment">// Before anything changes the environment: how to start this command
-<a href=#51 id=51 data-nosnippet>51</a>    // again.
-<a href=#52 id=52 data-nosnippet>52</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>launch = Launch {
-<a href=#53 id=53 data-nosnippet>53</a>        relaunch: daemon_restart::Relaunch::capture(),
-<a href=#54 id=54 data-nosnippet>54</a>        restarted: env::var_os(daemon_restart::RESTARTED_ENV).is_some(),
-<a href=#55 id=55 data-nosnippet>55</a>        relaunch_now: <span class="bool-val">false</span>,
-<a href=#56 id=56 data-nosnippet>56</a>    };
-<a href=#57 id=57 data-nosnippet>57</a>    <span class="comment">// Likewise the path ACP agents' MCP bridges start from, before an
-<a href=#58 id=58 data-nosnippet>58</a>    // update can replace the binary under it.
-<a href=#59 id=59 data-nosnippet>59</a>    </span>cookie_agent_coding_runtime::server::pin_executable();
-<a href=#60 id=60 data-nosnippet>60</a>    <span class="attr">#[cfg(windows)]
-<a href=#61 id=61 data-nosnippet>61</a>    </span>cli::update::remove_replaced_binaries();
-<a href=#62 id=62 data-nosnippet>62</a>    <span class="comment">// SAFETY: as for the token below, no other thread exists yet.
-<a href=#63 id=63 data-nosnippet>63</a>    </span><span class="kw">unsafe </span>{ env::remove_var(daemon_restart::RESTARTED_ENV) };
-<a href=#64 id=64 data-nosnippet>64</a>    <span class="comment">// Clap has read the token into `cli`. Drop the variable so no process
-<a href=#65 id=65 data-nosnippet>65</a>    // cookie starts (the `bash` tool, MCP servers, plugins, runtime
-<a href=#66 id=66 data-nosnippet>66</a>    // templates, editors) inherits the daemon's credential.
-<a href=#67 id=67 data-nosnippet>67</a>    //
-<a href=#68 id=68 data-nosnippet>68</a>    // SAFETY: `remove_var` races only with other threads using the
-<a href=#69 id=69 data-nosnippet>69</a>    // environment. This runs on the main thread before the Tokio runtime or
-<a href=#70 id=70 data-nosnippet>70</a>    // anything else that starts a thread exists; argument parsing starts
-<a href=#71 id=71 data-nosnippet>71</a>    // none.
-<a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">unsafe </span>{ env::remove_var(DAEMON_TOKEN_ENV) };
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">let </span><span class="kw-2">mut </span>builder = tokio::runtime::Builder::new_multi_thread();
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">if </span>env::var_os(<span class="string">"TOKIO_WORKER_THREADS"</span>).is_none() {
-<a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">let </span>cores = std::thread::available_parallelism().map_or(<span class="number">1</span>, std::num::NonZero::get);
-<a href=#76 id=76 data-nosnippet>76</a>        builder.worker_threads(cores.min(MAX_WORKER_THREADS));
-<a href=#77 id=77 data-nosnippet>77</a>    }
-<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">let </span>runtime = <span class="kw">match </span>builder.enable_all().build() {
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="prelude-val">Ok</span>(runtime) =&gt; runtime,
-<a href=#80 id=80 data-nosnippet>80</a>        <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#81 id=81 data-nosnippet>81</a>            <span class="macro">eprintln!</span>(<span class="string">"cookie: cannot start the async runtime: {error}"</span>);
-<a href=#82 id=82 data-nosnippet>82</a>            std::process::exit(<span class="number">1</span>);
-<a href=#83 id=83 data-nosnippet>83</a>        }
-<a href=#84 id=84 data-nosnippet>84</a>    };
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">let </span>error_details = cli.error_details;
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">let </span>result = runtime.block_on(cli::dispatch(cli, <span class="kw-2">&amp;mut </span>launch));
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">if </span>result.is_ok()
-<a href=#88 id=88 data-nosnippet>88</a>        &amp;&amp; launch.relaunch_now
-<a href=#89 id=89 data-nosnippet>89</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(relaunch) = <span class="kw-2">&amp;</span>launch.relaunch
-<a href=#90 id=90 data-nosnippet>90</a>    {
-<a href=#91 id=91 data-nosnippet>91</a>        <span class="comment">// Every task and socket goes with the runtime before the new image
-<a href=#92 id=92 data-nosnippet>92</a>        // starts.
-<a href=#93 id=93 data-nosnippet>93</a>        </span>runtime.shutdown_timeout(Duration::from_secs(<span class="number">5</span>));
-<a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">let </span>error = daemon_restart::relaunch(relaunch);
-<a href=#95 id=95 data-nosnippet>95</a>        <span class="macro">eprintln!</span>(
-<a href=#96 id=96 data-nosnippet>96</a>            <span class="string">"cookie: {}"</span>,
-<a href=#97 id=97 data-nosnippet>97</a>            cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{error:#}"</span>))
-<a href=#98 id=98 data-nosnippet>98</a>        );
-<a href=#99 id=99 data-nosnippet>99</a>        std::process::exit(<span class="number">1</span>);
-<a href=#100 id=100 data-nosnippet>100</a>    }
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = result {
-<a href=#102 id=102 data-nosnippet>102</a>        <span class="macro">eprintln!</span>(
-<a href=#103 id=103 data-nosnippet>103</a>            <span class="string">"cookie: {}"</span>,
-<a href=#104 id=104 data-nosnippet>104</a>            cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{error:#}"</span>))
-<a href=#105 id=105 data-nosnippet>105</a>        );
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="comment">// A daemon error shows its message and hint above; its technical
-<a href=#107 id=107 data-nosnippet>107</a>        // detail only on request.
-<a href=#108 id=108 data-nosnippet>108</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(detail) = error
-<a href=#109 id=109 data-nosnippet>109</a>            .chain()
-<a href=#110 id=110 data-nosnippet>110</a>            .find_map(|cause| cause.downcast_ref::&lt;cookie_agent_protocol_transport::ClientError&gt;())
-<a href=#111 id=111 data-nosnippet>111</a>            .and_then(cookie_agent_protocol_transport::ClientError::detail)
-<a href=#112 id=112 data-nosnippet>112</a>        {
-<a href=#113 id=113 data-nosnippet>113</a>            <span class="kw">if </span>error_details {
-<a href=#114 id=114 data-nosnippet>114</a>                <span class="macro">eprintln!</span>(
-<a href=#115 id=115 data-nosnippet>115</a>                    <span class="string">"details: {}"</span>,
-<a href=#116 id=116 data-nosnippet>116</a>                    cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span>detail)
-<a href=#117 id=117 data-nosnippet>117</a>                );
-<a href=#118 id=118 data-nosnippet>118</a>            } <span class="kw">else </span>{
-<a href=#119 id=119 data-nosnippet>119</a>                <span class="macro">eprintln!</span>(<span class="string">"(run again with --error-details for the technical detail)"</span>);
-<a href=#120 id=120 data-nosnippet>120</a>            }
-<a href=#121 id=121 data-nosnippet>121</a>        }
-<a href=#122 id=122 data-nosnippet>122</a>        std::process::exit(<span class="number">1</span>);
-<a href=#123 id=123 data-nosnippet>123</a>    }
-<a href=#124 id=124 data-nosnippet>124</a>}
-<a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a><span class="kw">mod </span>cli;
-<a href=#127 id=127 data-nosnippet>127</a><span class="kw">mod </span>daemon_restart;
-<a href=#128 id=128 data-nosnippet>128</a><span class="kw">mod </span>local_daemon;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">const </span>RUNTIME_TOKEN_ENV: <span class="kw-2">&amp;</span>str = <span class="string">"COOKIE_RUNTIME_TOKEN"</span>;
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="doccomment">/// How this process was started, for `cookie daemon` to restart itself.
+<a href=#11 id=11 data-nosnippet>11</a></span><span class="kw">struct </span>Launch {
+<a href=#12 id=12 data-nosnippet>12</a>    <span class="doccomment">/// The command to start again; `None` when it could not be found, and
+<a href=#13 id=13 data-nosnippet>13</a>    /// the daemon then refuses `daemon.restart`.
+<a href=#14 id=14 data-nosnippet>14</a>    </span>relaunch: <span class="prelude-ty">Option</span>&lt;daemon_restart::Relaunch&gt;,
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// This process was started by a restart, so the daemon waits for its
+<a href=#16 id=16 data-nosnippet>16</a>    /// port to free.
+<a href=#17 id=17 data-nosnippet>17</a>    </span>restarted: bool,
+<a href=#18 id=18 data-nosnippet>18</a>    <span class="doccomment">/// The daemon stopped to restart: relaunch once the runtime is gone.
+<a href=#19 id=19 data-nosnippet>19</a>    </span>relaunch_now: bool,
+<a href=#20 id=20 data-nosnippet>20</a>}
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// The most async runtime worker threads: the daemon waits on models,
+<a href=#23 id=23 data-nosnippet>23</a>/// tools, and clients far more than it computes, and every worker, with the
+<a href=#24 id=24 data-nosnippet>24</a>/// malloc arena it ends up with, costs memory on a many-core machine while
+<a href=#25 id=25 data-nosnippet>25</a>/// more of them only add scheduling overhead. `TOKIO_WORKER_THREADS`
+<a href=#26 id=26 data-nosnippet>26</a>/// overrides it.
+<a href=#27 id=27 data-nosnippet>27</a></span><span class="kw">const </span>MAX_WORKER_THREADS: usize = <span class="number">8</span>;
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="doccomment">/// The most glibc malloc arenas, where glibc would make up to eight per
+<a href=#30 id=30 data-nosnippet>30</a>/// core: each holds on to what its threads freed. `MALLOC_ARENA_MAX`
+<a href=#31 id=31 data-nosnippet>31</a>/// overrides it.
+<a href=#32 id=32 data-nosnippet>32</a></span><span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
+<a href=#33 id=33 data-nosnippet>33</a></span><span class="kw">const </span>MALLOC_ARENA_MAX: libc::c_int = <span class="number">2</span>;
+<a href=#34 id=34 data-nosnippet>34</a>
+<a href=#35 id=35 data-nosnippet>35</a><span class="doccomment">/// Caps glibc's malloc arenas, unless `MALLOC_ARENA_MAX` already did. Runs
+<a href=#36 id=36 data-nosnippet>36</a>/// before any thread exists, which an arena limit needs to apply to all of
+<a href=#37 id=37 data-nosnippet>37</a>/// them.
+<a href=#38 id=38 data-nosnippet>38</a></span><span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
+<a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">fn </span>limit_malloc_arenas() {
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">if </span>env::var_os(<span class="string">"MALLOC_ARENA_MAX"</span>).is_none() {
+<a href=#41 id=41 data-nosnippet>41</a>        <span class="comment">// SAFETY: `mallopt` only sets an allocator parameter; no other
+<a href=#42 id=42 data-nosnippet>42</a>        // thread exists yet to allocate concurrently.
+<a href=#43 id=43 data-nosnippet>43</a>        </span><span class="kw">unsafe </span>{ libc::mallopt(libc::M_ARENA_MAX, MALLOC_ARENA_MAX) };
+<a href=#44 id=44 data-nosnippet>44</a>    }
+<a href=#45 id=45 data-nosnippet>45</a>}
+<a href=#46 id=46 data-nosnippet>46</a>
+<a href=#47 id=47 data-nosnippet>47</a><span class="kw">fn </span>main() {
+<a href=#48 id=48 data-nosnippet>48</a>    <span class="attr">#[cfg(all(target_os = <span class="string">"linux"</span>, target_env = <span class="string">"gnu"</span>))]
+<a href=#49 id=49 data-nosnippet>49</a>    </span>limit_malloc_arenas();
+<a href=#50 id=50 data-nosnippet>50</a>    <span class="kw">let </span>cli = cli::Cli::parse();
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="comment">// Before anything changes the environment: how to start this command
+<a href=#52 id=52 data-nosnippet>52</a>    // again.
+<a href=#53 id=53 data-nosnippet>53</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>launch = Launch {
+<a href=#54 id=54 data-nosnippet>54</a>        relaunch: daemon_restart::Relaunch::capture(),
+<a href=#55 id=55 data-nosnippet>55</a>        restarted: env::var_os(daemon_restart::RESTARTED_ENV).is_some(),
+<a href=#56 id=56 data-nosnippet>56</a>        relaunch_now: <span class="bool-val">false</span>,
+<a href=#57 id=57 data-nosnippet>57</a>    };
+<a href=#58 id=58 data-nosnippet>58</a>    <span class="comment">// Likewise the path ACP agents' MCP bridges start from, before an
+<a href=#59 id=59 data-nosnippet>59</a>    // update can replace the binary under it.
+<a href=#60 id=60 data-nosnippet>60</a>    </span>cookie_agent_coding_runtime::server::pin_executable();
+<a href=#61 id=61 data-nosnippet>61</a>    <span class="attr">#[cfg(windows)]
+<a href=#62 id=62 data-nosnippet>62</a>    </span>cli::update::remove_replaced_binaries();
+<a href=#63 id=63 data-nosnippet>63</a>    <span class="comment">// SAFETY: as for the token below, no other thread exists yet.
+<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">unsafe </span>{ env::remove_var(daemon_restart::RESTARTED_ENV) };
+<a href=#65 id=65 data-nosnippet>65</a>    <span class="comment">// Clap has read the tokens into `cli`. Drop the variables so no process
+<a href=#66 id=66 data-nosnippet>66</a>    // cookie starts (the `bash` tool, MCP servers, plugins, runtime
+<a href=#67 id=67 data-nosnippet>67</a>    // templates, editors) inherits the daemon's credentials.
+<a href=#68 id=68 data-nosnippet>68</a>    //
+<a href=#69 id=69 data-nosnippet>69</a>    // SAFETY: `remove_var` races only with other threads using the
+<a href=#70 id=70 data-nosnippet>70</a>    // environment. This runs on the main thread before the Tokio runtime or
+<a href=#71 id=71 data-nosnippet>71</a>    // anything else that starts a thread exists; argument parsing starts
+<a href=#72 id=72 data-nosnippet>72</a>    // none.
+<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">unsafe </span>{
+<a href=#74 id=74 data-nosnippet>74</a>        env::remove_var(DAEMON_TOKEN_ENV);
+<a href=#75 id=75 data-nosnippet>75</a>        env::remove_var(RUNTIME_TOKEN_ENV);
+<a href=#76 id=76 data-nosnippet>76</a>    }
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">let </span><span class="kw-2">mut </span>builder = tokio::runtime::Builder::new_multi_thread();
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">if </span>env::var_os(<span class="string">"TOKIO_WORKER_THREADS"</span>).is_none() {
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span>cores = std::thread::available_parallelism().map_or(<span class="number">1</span>, std::num::NonZero::get);
+<a href=#80 id=80 data-nosnippet>80</a>        builder.worker_threads(cores.min(MAX_WORKER_THREADS));
+<a href=#81 id=81 data-nosnippet>81</a>    }
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">let </span>runtime = <span class="kw">match </span>builder.enable_all().build() {
+<a href=#83 id=83 data-nosnippet>83</a>        <span class="prelude-val">Ok</span>(runtime) =&gt; runtime,
+<a href=#84 id=84 data-nosnippet>84</a>        <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#85 id=85 data-nosnippet>85</a>            <span class="macro">eprintln!</span>(<span class="string">"cookie: cannot start the async runtime: {error}"</span>);
+<a href=#86 id=86 data-nosnippet>86</a>            std::process::exit(<span class="number">1</span>);
+<a href=#87 id=87 data-nosnippet>87</a>        }
+<a href=#88 id=88 data-nosnippet>88</a>    };
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">let </span>error_details = cli.error_details;
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">let </span>result = runtime.block_on(cli::dispatch(cli, <span class="kw-2">&amp;mut </span>launch));
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">if </span>result.is_ok()
+<a href=#92 id=92 data-nosnippet>92</a>        &amp;&amp; launch.relaunch_now
+<a href=#93 id=93 data-nosnippet>93</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(relaunch) = <span class="kw-2">&amp;</span>launch.relaunch
+<a href=#94 id=94 data-nosnippet>94</a>    {
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="comment">// Every task and socket goes with the runtime before the new image
+<a href=#96 id=96 data-nosnippet>96</a>        // starts.
+<a href=#97 id=97 data-nosnippet>97</a>        </span>runtime.shutdown_timeout(Duration::from_secs(<span class="number">5</span>));
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>error = daemon_restart::relaunch(relaunch);
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="macro">eprintln!</span>(
+<a href=#100 id=100 data-nosnippet>100</a>            <span class="string">"cookie: {}"</span>,
+<a href=#101 id=101 data-nosnippet>101</a>            cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{error:#}"</span>))
+<a href=#102 id=102 data-nosnippet>102</a>        );
+<a href=#103 id=103 data-nosnippet>103</a>        std::process::exit(<span class="number">1</span>);
+<a href=#104 id=104 data-nosnippet>104</a>    }
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = result {
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="macro">eprintln!</span>(
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="string">"cookie: {}"</span>,
+<a href=#108 id=108 data-nosnippet>108</a>            cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{error:#}"</span>))
+<a href=#109 id=109 data-nosnippet>109</a>        );
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="comment">// A daemon error shows its message and hint above; its technical
+<a href=#111 id=111 data-nosnippet>111</a>        // detail only on request.
+<a href=#112 id=112 data-nosnippet>112</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(detail) = error
+<a href=#113 id=113 data-nosnippet>113</a>            .chain()
+<a href=#114 id=114 data-nosnippet>114</a>            .find_map(|cause| cause.downcast_ref::&lt;cookie_agent_protocol_transport::ClientError&gt;())
+<a href=#115 id=115 data-nosnippet>115</a>            .and_then(cookie_agent_protocol_transport::ClientError::detail)
+<a href=#116 id=116 data-nosnippet>116</a>        {
+<a href=#117 id=117 data-nosnippet>117</a>            <span class="kw">if </span>error_details {
+<a href=#118 id=118 data-nosnippet>118</a>                <span class="macro">eprintln!</span>(
+<a href=#119 id=119 data-nosnippet>119</a>                    <span class="string">"details: {}"</span>,
+<a href=#120 id=120 data-nosnippet>120</a>                    cookie_agent_protocol::diagnostics::detail(<span class="kw-2">&amp;</span>detail)
+<a href=#121 id=121 data-nosnippet>121</a>                );
+<a href=#122 id=122 data-nosnippet>122</a>            } <span class="kw">else </span>{
+<a href=#123 id=123 data-nosnippet>123</a>                <span class="macro">eprintln!</span>(<span class="string">"(run again with --error-details for the technical detail)"</span>);
+<a href=#124 id=124 data-nosnippet>124</a>            }
+<a href=#125 id=125 data-nosnippet>125</a>        }
+<a href=#126 id=126 data-nosnippet>126</a>        std::process::exit(<span class="number">1</span>);
+<a href=#127 id=127 data-nosnippet>127</a>    }
+<a href=#128 id=128 data-nosnippet>128</a>}
 <a href=#129 id=129 data-nosnippet>129</a>
-<a href=#130 id=130 data-nosnippet>130</a><span class="attr">#[cfg(test)]
-<a href=#131 id=131 data-nosnippet>131</a></span><span class="kw">mod </span>cli_reference;
-<a href=#132 id=132 data-nosnippet>132</a>
-<a href=#133 id=133 data-nosnippet>133</a><span class="attr">#[cfg(test)]
-<a href=#134 id=134 data-nosnippet>134</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
-<a href=#135 id=135 data-nosnippet>135</a></span><span class="kw">mod </span>config_harness;
+<a href=#130 id=130 data-nosnippet>130</a><span class="kw">mod </span>cli;
+<a href=#131 id=131 data-nosnippet>131</a><span class="kw">mod </span>daemon_restart;
+<a href=#132 id=132 data-nosnippet>132</a><span class="kw">mod </span>local_daemon;
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a><span class="attr">#[cfg(test)]
+<a href=#135 id=135 data-nosnippet>135</a></span><span class="kw">mod </span>cli_reference;
+<a href=#136 id=136 data-nosnippet>136</a>
+<a href=#137 id=137 data-nosnippet>137</a><span class="attr">#[cfg(test)]
+<a href=#138 id=138 data-nosnippet>138</a>#[path = <span class="string">"../../../test-support/config_harness.rs"</span>]
+<a href=#139 id=139 data-nosnippet>139</a></span><span class="kw">mod </span>config_harness;
 </code></pre></div></section></main></body></html>
