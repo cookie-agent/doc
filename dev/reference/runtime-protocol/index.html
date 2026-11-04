@@ -5186,7 +5186,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.16.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.17.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -5281,7 +5281,10 @@ does not know reads as <code>off</code>.
 (<a href="../../specs/assets/">assets</a>). Only the daemon makes it; a runtime
 never needs to send one.
 1.16.0 added tool groups: <code>tools.groups</code> and each tool's optional <code>group</code>
-(<a href="../../specs/session-tool-groups/">session tool groups</a> section 11.1).</p>
+(<a href="../../specs/session-tool-groups/">session tool groups</a> section 11.1).
+1.17.0 added MCP servers on demand: the <code>mcp_on_demand</code> feature, the
+<code>mcp/wanted</code> request, and the <code>stopped</code> MCP server state
+(<a href="../../specs/session-tool-groups/">session tool groups</a> section 11.2).</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -5359,7 +5362,7 @@ connection it keeps (an in-process <code>local</code> runtime's aside):</p>
   in flight fail with <code>runtime_unavailable</code>, a dial-in runtime shows as
   disconnected, and its instances reconnect, then fail, as below.</li>
 <li>Every request has a deadline. <code>tool/prepare</code>, <code>tool/revalidate</code>, and
-  <code>runtime/context</code> get <strong>30 s</strong>; <code>mcp/reconnect</code> gets 6 minutes, since it
+  <code>runtime/context</code> get <strong>30 s</strong>; <code>mcp/reconnect</code> and <code>mcp/wanted</code> get 6 minutes, since they
   may wait for a server to start or a user to sign in; <code>runtime/initialize</code>
   and <code>capability/open</code> get the template's <code>startup_timeout_ms</code>, or 30 s for
   a dial-in runtime; <code>runtime/shutdown</code> gets the shutdown grace. A request
@@ -5537,6 +5540,12 @@ that dials in after its instances failed reopens them. Calls are never retried t
 <td>Reconnect one runtime-scoped MCP server, or retry every failed one; since 1.5.0</td>
 </tr>
 <tr>
+<td><code>mcp/wanted</code></td>
+<td>daemon → runtime</td>
+<td>request</td>
+<td>The whole set of MCP servers some session wants, of one instance (<code>instance</code>) or of the runtime's runtime-scoped servers (no <code>instance</code>), as <code>servers</code>: the runtime connects those not connected and stops the others (<code>stopped</code> in <code>mcp/changed</code> and <code>runtime/mcp_changed</code>), and answers once the attempts have finished; since 1.17.0, sent only to a runtime that took the <code>mcp_on_demand</code> feature</td>
+</tr>
+<tr>
 <td><code>producer/recovery/start</code></td>
 <td>daemon → runtime</td>
 <td>notification</td>
@@ -5679,7 +5688,7 @@ ignored.</p>
 </tr>
 <tr>
 <td><code>features</code></td>
-<td>What the daemon's configuration enables for the runtime; none are defined yet.</td>
+<td>What the daemon offers the runtime: <code>mcp_on_demand</code> (since 1.17.0), MCP servers that start only when <code>mcp/wanted</code> names them. A runtime ignores a feature it does not know.</td>
 </tr>
 <tr>
 <td><code>runtime_id</code></td>
@@ -5721,7 +5730,7 @@ or enables OAuth, which stays with the daemon's global runtime.</p>
 </tr>
 <tr>
 <td><code>features</code></td>
-<td>Optional: what the runtime's configuration enables; none are defined yet.</td>
+<td>Optional: what the runtime takes of the daemon's offer: <code>mcp_on_demand</code> when it starts no MCP server until <code>mcp/wanted</code> names it. A runtime that does not list it connects every server as before, and is never sent <code>mcp/wanted</code>.</td>
 </tr>
 <tr>
 <td><code>platform</code></td>

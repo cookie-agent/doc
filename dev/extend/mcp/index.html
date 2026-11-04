@@ -4707,7 +4707,8 @@ roots, or other interactive input are rejected.</p>
 <a href="../browser/">Giving agents a browser</a>, a guide to Playwright MCP that builds
 on this page.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p><code>mcp</code> accepts one optional <code>servers</code> map, empty by default. Define entries in
+<p><code>mcp</code> accepts an optional <code>servers</code> map, empty by default, and
+<code>idle_stop_after</code> (see <a href="#connection-lifecycle">Connection lifecycle</a>). Define entries in
 <code>~/.cookie-agent/config.toml</code>; this is a complete illustrative file:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[mcp.servers.github]</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"npx"</span>
@@ -4884,19 +4885,40 @@ are enabled by default. <code>timeout_ms</code> bounds connection, listing, and 
 defaults to 30000. A call that reaches it, or whose run is cancelled, ends at
 once and sends the server <code>notifications/cancelled</code> for its request.</p>
 <h2 id="connection-lifecycle">Connection lifecycle<a class="headerlink" href="#connection-lifecycle" title="Permanent link">&para;</a></h2>
-<p>Every enabled server connects eagerly, in every runtime: there is no deferred
-connection, and an authored <code>lazy</code> key is an unknown field.</p>
+<p>A server connects when a session wants it, and stops once none has for
+<code>[mcp] idle_stop_after</code>
+(<a href="../../specs/session-tool-groups/">Session tool groups</a> section 10). An
+authored <code>lazy</code> key is an unknown field.</p>
 <ul>
-<li><strong>At startup</strong> every enabled server connects, in parallel: the global
-  runtime's when the daemon starts, a coding runtime's runtime-scoped ones
-  when the runtime starts, and its workspace-scoped ones when an instance
-  opens, before the instance answers the daemon (so the template's
-  <code>startup_timeout_ms</code> must cover them, and the runtime-scoped ones' first
-  attempt, which every open waits for). The first run waits for every
-  server's initial connection and <code>tools/list</code> attempt to finish, so its tool
-  context is not built from a partial startup snapshot. Each wait is bounded
-  by that server's <code>timeout_ms</code>; one server's failure does not block the
-  others.</li>
+<li><strong>Wanted.</strong> A server is wanted while a loaded session that reaches it
+  leaves its tool group (<code>mcp:&lt;name&gt;</code>, or <code>mcp:&lt;name&gt;@&lt;runtime&gt;</code> for a
+  runtime's) on or deferred: a top-level server through the session's
+  <code>global</code> attachment, a runtime-scoped one through an attachment to its
+  runtime, and a workspace-scoped one through an attachment to the instance
+  that hosts it. A session paged out of memory does not count; ACP sessions
+  do.</li>
+<li><strong>Start.</strong> Nothing connects when the daemon starts. A server connects when
+  a client opens a session that wants it (usually while you type), when a
+  run starts, when a session's choices turn its group back on, and when a
+  runtime reports a new server. The run waits for every wanted server's
+  connection and <code>tools/list</code> attempt to finish, so its tool context is not
+  built from a partial snapshot. Each wait is bounded by that server's
+  <code>timeout_ms</code>; one server's failure does not block the others.</li>
+<li><strong>Stop.</strong> Once no session has wanted it for <code>idle_stop_after</code> (default
+  <code>"10m"</code>; a duration, or a number of seconds; <code>0</code> or less keeps servers
+  connected once started), the server disconnects and shows as <code>stopped</code>
+  (<em>no session uses it</em>) with its tools from its last connection. <code>r</code> in
+  <code>/mcp</code> (or <code>mcp.server.reconnect</code>) starts it, and it stops again after the
+  same delay. A session that wants it again starts it.</li>
+<li><strong>Runtimes.</strong> The daemon tells each runtime which of its servers some
+  session wants (<code>mcp/wanted</code>, runtime protocol 1.17.0); a runtime older
+  than that connects every server as before: its runtime-scoped ones when
+  it starts, its workspace-scoped ones when an instance opens.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[mcp]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">idle_stop_after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30m"</span>
+</code></pre></div>
+<ul>
 <li><strong>A failed server</strong> publishes no tools. It is retried when a session that
   uses its runtime instance is created or opened (and when the instance is
   attached to a session or retried from <code>/runtime</code>), and the session's next
@@ -4921,18 +4943,18 @@ naming the server, its runtime (and the instance's workspace), and the reason
 global runtime hosts; see <a href="#where-servers-run">where servers run</a>.
 Streamable HTTP servers use OAuth automatically when an unauthenticated request
 returns an authorization challenge. OAuth can be selected explicitly or disabled:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[mcp.servers.remote]</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://mcp.example.com/mcp"</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">[mcp.servers.pre_registered]</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://other.example.com/mcp"</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">client_id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"cookie-agent"</span><span class="p">,</span><span class="w"> </span><span class="n">scopes</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">[mcp.servers.no_oauth]</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://static.example.com/mcp"</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">headers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Authorization</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Bearer REPLACE_WITH_LOCAL_TOKEN"</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[mcp.servers.remote]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://mcp.example.com/mcp"</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">[mcp.servers.pre_registered]</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://other.example.com/mcp"</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">client_id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"cookie-agent"</span><span class="p">,</span><span class="w"> </span><span class="n">scopes</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">[mcp.servers.no_oauth]</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://static.example.com/mcp"</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">oauth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">headers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Authorization</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Bearer REPLACE_WITH_LOCAL_TOKEN"</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>Omitting <code>oauth</code> is the default auto mode. <code>true</code> and <code>{}</code> enable the same
 reactive flow. The settings object may contain <code>client_id</code>, <code>client_secret</code>,
@@ -5074,10 +5096,10 @@ collides with a tool of another runtime or of the base layer is published
 with the runtime's attachment prefix instead, for example
 <code>global_github_search_repos</code> or <code>labpc_api_rust_analyzer_hover</code>; see
 <a href="../../specs/runtimes/#63-collisions">tool composition</a>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">permissions</span><span class="p">:</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">permissions</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">mcp</span><span class="p">:</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="s">"github_*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">github_delete_repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 </code></pre></div>
 <p>MCP availability is permission-driven. An agent document with no <code>mcp</code> key
 (in any form, <code>mcp@&lt;runtime&gt;</code> included) gets the daemon's default
