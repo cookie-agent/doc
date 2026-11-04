@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PAGE_TICKET_COOKIE"],"fn":["plugin_detail","plugin_event_status","plugin_page_url","serves_page","state_label"]};
+window.SIDEBAR_ITEMS = {"constant":["PAGE_TICKET_COOKIE"],"fn":["plugin_detail","plugin_event_status","plugin_page_url","serves_page","settings_changes","settings_draft","settings_form","state_label"]};
