@@ -5186,7 +5186,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.15.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.16.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -5279,7 +5279,9 @@ daemon copies files and folders between machines without storing them.
 does not know reads as <code>off</code>.
 1.15.0 added the <code>asset</code> display block, shared with the client protocol
 (<a href="../../specs/assets/">assets</a>). Only the daemon makes it; a runtime
-never needs to send one.</p>
+never needs to send one.
+1.16.0 added tool groups: <code>tools.groups</code> and each tool's optional <code>group</code>
+(<a href="../../specs/session-tool-groups/">session tool groups</a> section 11.1).</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -5809,11 +5811,15 @@ never used: a remote server connects with its static headers only.</p>
 </tr>
 <tr>
 <td><code>tools.tools</code></td>
-<td>Tool declarations: <code>name</code>, <code>collision</code> (<code>prefix</code>, <code>override</code>, or <code>fallback</code>; see <a href="../../specs/runtimes/#63-collisions">collisions</a>), <code>permission</code>, <code>description</code>, <code>parameters</code> (JSON Schema), <code>concurrency</code>, <code>result_truncation</code>, <code>output</code>, and optionally <code>background</code> and <code>background_default</code>. <code>background</code> says the tool supports the background: the daemon adds a <code>background</code> argument to its schema, strips it before <code>tool/prepare</code>, and may detach its calls (see <a href="#background-calls">Background calls</a>); <code>background_default</code> is that argument's default and is only valid with <code>background</code>. <code>permission</code> is the action the tool is checked under: a label matching <code>[a-z][a-z0-9_]{0,31}</code>, either one the daemon's own tools use (such as <code>bash</code> or <code>read</code>, which takes file paths) or the runtime's own (such as <code>browse</code>). An action no rule names is denied, so its tools stay hidden until an agent grants it. A tool without <code>permission</code> needs none: it is always published and every call is allowed without rules or approval, and its prepared calls report no <code>permission</code> either. Version 1 allowed only the nine built-in actions, and versions before 3 required <code>permission</code>.</td>
+<td>Tool declarations: <code>name</code>, <code>collision</code> (<code>prefix</code>, <code>override</code>, or <code>fallback</code>; see <a href="../../specs/runtimes/#63-collisions">collisions</a>), <code>permission</code>, <code>description</code>, <code>parameters</code> (JSON Schema), <code>concurrency</code>, <code>result_truncation</code>, <code>output</code>, and optionally <code>background</code> and <code>background_default</code>. <code>background</code> says the tool supports the background: the daemon adds a <code>background</code> argument to its schema, strips it before <code>tool/prepare</code>, and may detach its calls (see <a href="#background-calls">Background calls</a>); <code>background_default</code> is that argument's default and is only valid with <code>background</code>. <code>permission</code> is the action the tool is checked under: a label matching <code>[a-z][a-z0-9_]{0,31}</code>, either one the daemon's own tools use (such as <code>bash</code> or <code>read</code>, which takes file paths) or the runtime's own (such as <code>browse</code>). An action no rule names is denied, so its tools stay hidden until an agent grants it. A tool without <code>permission</code> needs none: it is always published and every call is allowed without rules or approval, and its prepared calls report no <code>permission</code> either. Since 1.16.0 a tool may also name its <code>group</code> from <code>tools.groups</code>. Version 1 allowed only the nine built-in actions, and versions before 3 required <code>permission</code>.</td>
 </tr>
 <tr>
 <td><code>tools.prompt_sections</code></td>
 <td>System prompt sections (<code>title</code>, <code>body</code>) the tools contribute.</td>
+</tr>
+<tr>
+<td><code>tools.groups</code></td>
+<td>Since 1.16.0: the tool groups the tools name, each once: <code>name</code> (<code>[a-z][a-z0-9_]{0,31}</code>; <code>mcp</code>, <code>plugin</code>, <code>runtime</code>, and the fixed groups <code>artifacts</code>, <code>background</code>, <code>loader</code>, <code>tool_search</code>, and <code>skills</code> are reserved), <code>summary</code> (what the tools are for, at most 512 bytes), and optional <code>default</code> (<code>on</code>, the default, or <code>deferred</code>). A tool's <code>group</code> names one; a session's choices name the group with the runtime's ID, such as <code>coding@labpc</code> (see <a href="../../extend/agents/#tool-groups-and-skills">Tool groups and skills</a>). A tool that names no group, or an undeclared or invalid one, belongs to its capability's group, named after the capability. cookie's own coding runtime declares <code>coding</code> and <code>web</code>.</td>
 </tr>
 <tr>
 <td><code>skills.skills</code></td>

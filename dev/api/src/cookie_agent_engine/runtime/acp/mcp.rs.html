@@ -6,7 +6,7 @@
 <a href=#6 id=6 data-nosnippet>6</a>//! relays every message of each connection to it as `agent/mcp`. The
 <a href=#7 id=7 data-nosnippet>7</a>//! daemon answers them here: `initialize`, `ping`, `tools/list` with the
 <a href=#8 id=8 data-nosnippet>8</a>//! session's tools as cookie composes them for a model request (the merged
-<a href=#9 id=9 data-nosnippet>9</a>//! rules hide what they deny) minus the agent document's `acp.hide_tools`,
+<a href=#9 id=9 data-nosnippet>9</a>//! rules hide what they deny, and groups that are off are not composed),
 <a href=#10 id=10 data-nosnippet>10</a>//! and `tools/call` through the same preparation, permission decision,
 <a href=#11 id=11 data-nosnippet>11</a>//! approval, and execution as a model's call, inside the agent's turn.
 <a href=#12 id=12 data-nosnippet>12</a>//!
@@ -346,452 +346,432 @@
 <a href=#346 id=346 data-nosnippet>346</a>    });
 <a href=#347 id=347 data-nosnippet>347</a>}
 <a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a><span class="doccomment">/// Whether `tool` matches one of the `hidden` patterns (`*`, `?`).
-<a href=#350 id=350 data-nosnippet>350</a></span><span class="kw">fn </span>hidden(tool: <span class="kw-2">&amp;</span>str, patterns: <span class="kw-2">&amp;</span>[String]) -&gt; bool {
-<a href=#351 id=351 data-nosnippet>351</a>    patterns
-<a href=#352 id=352 data-nosnippet>352</a>        .iter()
-<a href=#353 id=353 data-nosnippet>353</a>        .any(|pattern| cookie_agent_config::simple_wildcard_match(pattern, tool))
-<a href=#354 id=354 data-nosnippet>354</a>}
-<a href=#355 id=355 data-nosnippet>355</a>
-<a href=#356 id=356 data-nosnippet>356</a><span class="kw">impl </span>Engine {
-<a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">async fn </span>mcp_answer(
-<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#359 id=359 data-nosnippet>359</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
-<a href=#360 id=360 data-nosnippet>360</a>        (key, connection): (<span class="kw-2">&amp;</span>(String, String), u64),
-<a href=#361 id=361 data-nosnippet>361</a>        method: <span class="kw-2">&amp;</span>str,
-<a href=#362 id=362 data-nosnippet>362</a>        params: <span class="kw-2">&amp;</span>Value,
-<a href=#363 id=363 data-nosnippet>363</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Value, (i64, String)&gt; {
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">match </span>method {
-<a href=#365 id=365 data-nosnippet>365</a>            <span class="string">"initialize" </span>=&gt; {
-<a href=#366 id=366 data-nosnippet>366</a>                <span class="kw">let </span>asked = params
-<a href=#367 id=367 data-nosnippet>367</a>                    .get(<span class="string">"protocolVersion"</span>)
-<a href=#368 id=368 data-nosnippet>368</a>                    .and_then(Value::as_str)
-<a href=#369 id=369 data-nosnippet>369</a>                    .unwrap_or_default();
-<a href=#370 id=370 data-nosnippet>370</a>                <span class="kw">let </span>version = MCP_VERSIONS
-<a href=#371 id=371 data-nosnippet>371</a>                    .iter()
-<a href=#372 id=372 data-nosnippet>372</a>                    .find(|version| <span class="kw-2">**</span>version == asked)
-<a href=#373 id=373 data-nosnippet>373</a>                    .unwrap_or(<span class="kw-2">&amp;</span>MCP_VERSIONS[<span class="number">0</span>]);
-<a href=#374 id=374 data-nosnippet>374</a>                <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({
-<a href=#375 id=375 data-nosnippet>375</a>                    <span class="string">"protocolVersion"</span>: version,
-<a href=#376 id=376 data-nosnippet>376</a>                    <span class="string">"capabilities"</span>: {<span class="string">"tools"</span>: {<span class="string">"listChanged"</span>: <span class="bool-val">true</span>}},
-<a href=#377 id=377 data-nosnippet>377</a>                    <span class="string">"serverInfo"</span>: {<span class="string">"name"</span>: BRIDGE_SERVER, <span class="string">"version"</span>: <span class="macro">env!</span>(<span class="string">"CARGO_PKG_VERSION"</span>)},
-<a href=#378 id=378 data-nosnippet>378</a>                }))
-<a href=#379 id=379 data-nosnippet>379</a>            }
-<a href=#380 id=380 data-nosnippet>380</a>            <span class="string">"ping" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({})),
-<a href=#381 id=381 data-nosnippet>381</a>            <span class="string">"tools/list" </span>=&gt; {
-<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">let </span>tools = <span class="self">self
-<a href=#383 id=383 data-nosnippet>383</a>                    </span>.bridge_tools(binding)
-<a href=#384 id=384 data-nosnippet>384</a>                    .map_err(|error| (-<span class="number">32603</span>, error.to_string()))<span class="question-mark">?</span>;
-<a href=#385 id=385 data-nosnippet>385</a>                fetched(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, key, connection, <span class="kw-2">&amp;</span>tools);
-<a href=#386 id=386 data-nosnippet>386</a>                <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({<span class="string">"tools"</span>: tools}))
+<a href=#349 id=349 data-nosnippet>349</a><span class="kw">impl </span>Engine {
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">async fn </span>mcp_answer(
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#352 id=352 data-nosnippet>352</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
+<a href=#353 id=353 data-nosnippet>353</a>        (key, connection): (<span class="kw-2">&amp;</span>(String, String), u64),
+<a href=#354 id=354 data-nosnippet>354</a>        method: <span class="kw-2">&amp;</span>str,
+<a href=#355 id=355 data-nosnippet>355</a>        params: <span class="kw-2">&amp;</span>Value,
+<a href=#356 id=356 data-nosnippet>356</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Value, (i64, String)&gt; {
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">match </span>method {
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="string">"initialize" </span>=&gt; {
+<a href=#359 id=359 data-nosnippet>359</a>                <span class="kw">let </span>asked = params
+<a href=#360 id=360 data-nosnippet>360</a>                    .get(<span class="string">"protocolVersion"</span>)
+<a href=#361 id=361 data-nosnippet>361</a>                    .and_then(Value::as_str)
+<a href=#362 id=362 data-nosnippet>362</a>                    .unwrap_or_default();
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">let </span>version = MCP_VERSIONS
+<a href=#364 id=364 data-nosnippet>364</a>                    .iter()
+<a href=#365 id=365 data-nosnippet>365</a>                    .find(|version| <span class="kw-2">**</span>version == asked)
+<a href=#366 id=366 data-nosnippet>366</a>                    .unwrap_or(<span class="kw-2">&amp;</span>MCP_VERSIONS[<span class="number">0</span>]);
+<a href=#367 id=367 data-nosnippet>367</a>                <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({
+<a href=#368 id=368 data-nosnippet>368</a>                    <span class="string">"protocolVersion"</span>: version,
+<a href=#369 id=369 data-nosnippet>369</a>                    <span class="string">"capabilities"</span>: {<span class="string">"tools"</span>: {<span class="string">"listChanged"</span>: <span class="bool-val">true</span>}},
+<a href=#370 id=370 data-nosnippet>370</a>                    <span class="string">"serverInfo"</span>: {<span class="string">"name"</span>: BRIDGE_SERVER, <span class="string">"version"</span>: <span class="macro">env!</span>(<span class="string">"CARGO_PKG_VERSION"</span>)},
+<a href=#371 id=371 data-nosnippet>371</a>                }))
+<a href=#372 id=372 data-nosnippet>372</a>            }
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="string">"ping" </span>=&gt; <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({})),
+<a href=#374 id=374 data-nosnippet>374</a>            <span class="string">"tools/list" </span>=&gt; {
+<a href=#375 id=375 data-nosnippet>375</a>                <span class="kw">let </span>tools = <span class="self">self
+<a href=#376 id=376 data-nosnippet>376</a>                    </span>.bridge_tools(binding)
+<a href=#377 id=377 data-nosnippet>377</a>                    .map_err(|error| (-<span class="number">32603</span>, error.to_string()))<span class="question-mark">?</span>;
+<a href=#378 id=378 data-nosnippet>378</a>                fetched(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, key, connection, <span class="kw-2">&amp;</span>tools);
+<a href=#379 id=379 data-nosnippet>379</a>                <span class="prelude-val">Ok</span>(<span class="macro">json!</span>({<span class="string">"tools"</span>: tools}))
+<a href=#380 id=380 data-nosnippet>380</a>            }
+<a href=#381 id=381 data-nosnippet>381</a>            <span class="string">"tools/call" </span>=&gt; {
+<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">let </span>result = <span class="self">self</span>.bridge_call(binding, params).<span class="kw">await</span>;
+<a href=#383 id=383 data-nosnippet>383</a>                <span class="comment">// Before the result, so the agent can fetch the new list
+<a href=#384 id=384 data-nosnippet>384</a>                // before its next step.
+<a href=#385 id=385 data-nosnippet>385</a>                </span><span class="self">self</span>.announce_tool_changes(binding.session).<span class="kw">await</span>;
+<a href=#386 id=386 data-nosnippet>386</a>                <span class="prelude-val">Ok</span>(result)
 <a href=#387 id=387 data-nosnippet>387</a>            }
-<a href=#388 id=388 data-nosnippet>388</a>            <span class="string">"tools/call" </span>=&gt; {
-<a href=#389 id=389 data-nosnippet>389</a>                <span class="kw">let </span>result = <span class="self">self</span>.bridge_call(binding, params).<span class="kw">await</span>;
-<a href=#390 id=390 data-nosnippet>390</a>                <span class="comment">// Before the result, so the agent can fetch the new list
-<a href=#391 id=391 data-nosnippet>391</a>                // before its next step.
-<a href=#392 id=392 data-nosnippet>392</a>                </span><span class="self">self</span>.announce_tool_changes(binding.session).<span class="kw">await</span>;
-<a href=#393 id=393 data-nosnippet>393</a>                <span class="prelude-val">Ok</span>(result)
-<a href=#394 id=394 data-nosnippet>394</a>            }
-<a href=#395 id=395 data-nosnippet>395</a>            other =&gt; <span class="prelude-val">Err</span>((
-<a href=#396 id=396 data-nosnippet>396</a>                -<span class="number">32601</span>,
-<a href=#397 id=397 data-nosnippet>397</a>                <span class="macro">format!</span>(<span class="string">"cookie's MCP server has no method `{other}`"</span>),
-<a href=#398 id=398 data-nosnippet>398</a>            )),
-<a href=#399 id=399 data-nosnippet>399</a>        }
-<a href=#400 id=400 data-nosnippet>400</a>    }
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// The patterns of the tools the agent of `binding` does not get.
-<a href=#403 id=403 data-nosnippet>403</a>    </span><span class="kw">fn </span>hidden_tools(<span class="kw-2">&amp;</span><span class="self">self</span>, binding: <span class="kw-2">&amp;</span>BridgeBinding) -&gt; Vec&lt;String&gt; {
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.current_runtime()
-<a href=#405 id=405 data-nosnippet>405</a>            .agents
-<a href=#406 id=406 data-nosnippet>406</a>            .get(<span class="kw-2">&amp;</span>binding.agent.id)
-<a href=#407 id=407 data-nosnippet>407</a>            .and_then(|agent| agent.document.frontmatter.acp.clone())
-<a href=#408 id=408 data-nosnippet>408</a>            .unwrap_or_default()
-<a href=#409 id=409 data-nosnippet>409</a>            .hidden_tools()
-<a href=#410 id=410 data-nosnippet>410</a>    }
-<a href=#411 id=411 data-nosnippet>411</a>
-<a href=#412 id=412 data-nosnippet>412</a>    <span class="doccomment">/// The active run of `binding`'s session, if one runs.
-<a href=#413 id=413 data-nosnippet>413</a>    </span><span class="kw">fn </span>bridge_run(
-<a href=#414 id=414 data-nosnippet>414</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#415 id=415 data-nosnippet>415</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
-<a href=#416 id=416 data-nosnippet>416</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(cookie_agent_protocol::RunId, Arc&lt;<span class="kw">super</span>::<span class="kw">super</span>::ActiveRun&gt;)&gt; {
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="self">self</span>.inner
-<a href=#418 id=418 data-nosnippet>418</a>            .sessions
-<a href=#419 id=419 data-nosnippet>419</a>            .active
-<a href=#420 id=420 data-nosnippet>420</a>            .lock()
-<a href=#421 id=421 data-nosnippet>421</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#422 id=422 data-nosnippet>422</a>            .iter()
-<a href=#423 id=423 data-nosnippet>423</a>            .find(|(<span class="kw">_</span>, active)| active.session == binding.session)
-<a href=#424 id=424 data-nosnippet>424</a>            .map(|(run, active)| (<span class="kw-2">*</span>run, Arc::clone(active)))
-<a href=#425 id=425 data-nosnippet>425</a>    }
-<a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a>    <span class="doccomment">/// The tools of `session` a run of `policy` offers its ACP agent over
-<a href=#428 id=428 data-nosnippet>428</a>    /// the bridge, `hide` left out, by the provider that publishes them.
-<a href=#429 id=429 data-nosnippet>429</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>offered_tools(
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#431 id=431 data-nosnippet>431</a>        session: SessionId,
-<a href=#432 id=432 data-nosnippet>432</a>        policy: <span class="kw-2">&amp;</span><span class="kw">super</span>::<span class="kw">super</span>::FrozenRunPolicy,
-<a href=#433 id=433 data-nosnippet>433</a>        hide: <span class="kw-2">&amp;</span>[String],
-<a href=#434 id=434 data-nosnippet>434</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">super</span>::<span class="kw">super</span>::tool_prompts::OfferedTools, <span class="kw">crate</span>::EngineError&gt; {
-<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw">let </span>composition = <span class="self">self</span>.compose_for_policy(session, policy)<span class="question-mark">?</span>;
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span><span class="kw-2">mut </span>offered = <span class="kw">super</span>::<span class="kw">super</span>::tool_prompts::OfferedTools::default();
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">for </span>tool <span class="kw">in </span>composition
-<a href=#438 id=438 data-nosnippet>438</a>            .tools
-<a href=#439 id=439 data-nosnippet>439</a>            .iter()
-<a href=#440 id=440 data-nosnippet>440</a>            .filter(|tool| !hidden(<span class="kw-2">&amp;</span>tool.name, hide))
-<a href=#441 id=441 data-nosnippet>441</a>        {
-<a href=#442 id=442 data-nosnippet>442</a>            <span class="kw">let </span>provider = tool.source.provider.provider_id();
-<a href=#443 id=443 data-nosnippet>443</a>            offered.skill |= tool.spec.permission_name.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"skill"</span>);
-<a href=#444 id=444 data-nosnippet>444</a>            <span class="kw">if </span>provider == <span class="kw">crate</span>::memory_tools::PROVIDER_ID {
-<a href=#445 id=445 data-nosnippet>445</a>                offered.memory = <span class="bool-val">true</span>;
-<a href=#446 id=446 data-nosnippet>446</a>                offered.memory_write |=
-<a href=#447 id=447 data-nosnippet>447</a>                    tool.spec.permission_name.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"memory_write"</span>);
-<a href=#448 id=448 data-nosnippet>448</a>            }
-<a href=#449 id=449 data-nosnippet>449</a>            offered.providers.insert((
-<a href=#450 id=450 data-nosnippet>450</a>                provider.to_owned(),
-<a href=#451 id=451 data-nosnippet>451</a>                tool.source
-<a href=#452 id=452 data-nosnippet>452</a>                    .attachment
-<a href=#453 id=453 data-nosnippet>453</a>                    .as_ref()
-<a href=#454 id=454 data-nosnippet>454</a>                    .map(|name| name.as_str().to_owned()),
-<a href=#455 id=455 data-nosnippet>455</a>            ));
-<a href=#456 id=456 data-nosnippet>456</a>        }
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="prelude-val">Ok</span>(offered)
-<a href=#458 id=458 data-nosnippet>458</a>    }
-<a href=#459 id=459 data-nosnippet>459</a>
-<a href=#460 id=460 data-nosnippet>460</a>    <span class="doccomment">/// The tools of `session` a run of `policy` offers its ACP agent over
-<a href=#461 id=461 data-nosnippet>461</a>    /// the bridge: its tool definitions without `hide`.
-<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bridged_tool_definitions(
-<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#464 id=464 data-nosnippet>464</a>        session: SessionId,
-<a href=#465 id=465 data-nosnippet>465</a>        policy: <span class="kw-2">&amp;</span><span class="kw">super</span>::<span class="kw">super</span>::FrozenRunPolicy,
-<a href=#466 id=466 data-nosnippet>466</a>        hide: <span class="kw-2">&amp;</span>[String],
-<a href=#467 id=467 data-nosnippet>467</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;oven_sdk::ToolDefinition&gt;, <span class="kw">crate</span>::EngineError&gt; {
-<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span><span class="kw-2">mut </span>tools = <span class="self">self</span>.tool_definitions(session, policy)<span class="question-mark">?</span>;
-<a href=#469 id=469 data-nosnippet>469</a>        tools.retain(|tool| !hidden(<span class="kw-2">&amp;</span>tool.name, hide));
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="prelude-val">Ok</span>(tools)
-<a href=#471 id=471 data-nosnippet>471</a>    }
-<a href=#472 id=472 data-nosnippet>472</a>
-<a href=#473 id=473 data-nosnippet>473</a>    <span class="doccomment">/// The session's tools as the agent gets them.
-<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">fn </span>bridge_tools(<span class="kw-2">&amp;</span><span class="self">self</span>, binding: <span class="kw-2">&amp;</span>BridgeBinding) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, <span class="kw">crate</span>::EngineError&gt; {
-<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>policy = <span class="kw">match </span><span class="self">self</span>.bridge_run(binding) {
-<a href=#476 id=476 data-nosnippet>476</a>            <span class="prelude-val">Some</span>((<span class="kw">_</span>, active)) =&gt; Arc::clone(<span class="kw-2">&amp;</span>active.policy),
-<a href=#477 id=477 data-nosnippet>477</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#478 id=478 data-nosnippet>478</a>                <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(binding.session)<span class="question-mark">?</span>;
-<a href=#479 id=479 data-nosnippet>479</a>                <span class="kw">let </span>selection = cookie_agent_protocol::RunSelection {
-<a href=#480 id=480 data-nosnippet>480</a>                    agent: binding.agent.id.clone(),
-<a href=#481 id=481 data-nosnippet>481</a>                    model: cookie_agent_protocol::acp_model_selection(<span class="kw-2">&amp;</span>binding.agent.id),
-<a href=#482 id=482 data-nosnippet>482</a>                    preset: projection.meta.creation_selection.preset.clone(),
-<a href=#483 id=483 data-nosnippet>483</a>                    acp_runtime: <span class="prelude-val">None</span>,
-<a href=#484 id=484 data-nosnippet>484</a>                };
-<a href=#485 id=485 data-nosnippet>485</a>                <span class="kw">let </span>memory = <span class="self">self</span>.memory_variables(binding.session);
-<a href=#486 id=486 data-nosnippet>486</a>                Arc::new(<span class="self">self</span>.freeze_root_selection(<span class="kw-2">&amp;</span>selection, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span>memory)<span class="question-mark">?</span>.<span class="number">0</span>)
-<a href=#487 id=487 data-nosnippet>487</a>            }
-<a href=#488 id=488 data-nosnippet>488</a>        };
-<a href=#489 id=489 data-nosnippet>489</a>        <span class="kw">let </span>hide = <span class="self">self</span>.hidden_tools(binding);
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="prelude-val">Ok</span>(<span class="self">self
-<a href=#491 id=491 data-nosnippet>491</a>            </span>.bridged_tool_definitions(binding.session, <span class="kw-2">&amp;</span>policy, <span class="kw-2">&amp;</span>hide)<span class="question-mark">?
-<a href=#492 id=492 data-nosnippet>492</a>            </span>.into_iter()
-<a href=#493 id=493 data-nosnippet>493</a>            .map(|tool| {
-<a href=#494 id=494 data-nosnippet>494</a>                <span class="macro">json!</span>({
-<a href=#495 id=495 data-nosnippet>495</a>                    <span class="string">"name"</span>: tool.name,
-<a href=#496 id=496 data-nosnippet>496</a>                    <span class="string">"description"</span>: tool.description,
-<a href=#497 id=497 data-nosnippet>497</a>                    <span class="string">"inputSchema"</span>: tool.input_schema.as_value(),
-<a href=#498 id=498 data-nosnippet>498</a>                })
-<a href=#499 id=499 data-nosnippet>499</a>            })
-<a href=#500 id=500 data-nosnippet>500</a>            .collect())
-<a href=#501 id=501 data-nosnippet>501</a>    }
-<a href=#502 id=502 data-nosnippet>502</a>
-<a href=#503 id=503 data-nosnippet>503</a>    <span class="doccomment">/// Tells each connection to a bridge of `session` that the tool list
-<a href=#504 id=504 data-nosnippet>504</a>    /// changed when the list it last fetched differs from the session's
-<a href=#505 id=505 data-nosnippet>505</a>    /// now, once until it fetches again. A subagent's calls go over its
-<a href=#506 id=506 data-nosnippet>506</a>    /// parent's bridge, so the parent's session is the one to name.
-<a href=#507 id=507 data-nosnippet>507</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>announce_tool_changes(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) {
-<a href=#508 id=508 data-nosnippet>508</a>        <span class="kw">let </span>candidates = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.bridges)
-<a href=#509 id=509 data-nosnippet>509</a>            .iter()
-<a href=#510 id=510 data-nosnippet>510</a>            .filter(|(<span class="kw">_</span>, bridge)| {
-<a href=#511 id=511 data-nosnippet>511</a>                bridge.binding.session == session
-<a href=#512 id=512 data-nosnippet>512</a>                    &amp;&amp; bridge
-<a href=#513 id=513 data-nosnippet>513</a>                        .connections
-<a href=#514 id=514 data-nosnippet>514</a>                        .values()
-<a href=#515 id=515 data-nosnippet>515</a>                        .any(|open| open.fetched.is_some() &amp;&amp; !open.notified)
-<a href=#516 id=516 data-nosnippet>516</a>            })
-<a href=#517 id=517 data-nosnippet>517</a>            .map(|(key, bridge)| (key.clone(), bridge.binding.clone()))
-<a href=#518 id=518 data-nosnippet>518</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#519 id=519 data-nosnippet>519</a>        <span class="kw">for </span>(key, binding) <span class="kw">in </span>candidates {
-<a href=#520 id=520 data-nosnippet>520</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(tools) = <span class="self">self</span>.bridge_tools(<span class="kw-2">&amp;</span>binding) <span class="kw">else </span>{
-<a href=#521 id=521 data-nosnippet>521</a>                <span class="kw">continue</span>;
-<a href=#522 id=522 data-nosnippet>522</a>            };
-<a href=#523 id=523 data-nosnippet>523</a>            <span class="kw">let </span>now = fingerprint(<span class="kw-2">&amp;</span>tools);
-<a href=#524 id=524 data-nosnippet>524</a>            <span class="kw">let </span>due = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.bridges)
-<a href=#525 id=525 data-nosnippet>525</a>                .get_mut(<span class="kw-2">&amp;</span>key)
-<a href=#526 id=526 data-nosnippet>526</a>                .map(|bridge| {
-<a href=#527 id=527 data-nosnippet>527</a>                    bridge
-<a href=#528 id=528 data-nosnippet>528</a>                        .connections
-<a href=#529 id=529 data-nosnippet>529</a>                        .iter_mut()
-<a href=#530 id=530 data-nosnippet>530</a>                        .filter(|(<span class="kw">_</span>, open)| {
-<a href=#531 id=531 data-nosnippet>531</a>                            !open.notified &amp;&amp; open.fetched.is_some_and(|last| last != now)
-<a href=#532 id=532 data-nosnippet>532</a>                        })
-<a href=#533 id=533 data-nosnippet>533</a>                        .map(|(connection, open)| {
-<a href=#534 id=534 data-nosnippet>534</a>                            open.notified = <span class="bool-val">true</span>;
-<a href=#535 id=535 data-nosnippet>535</a>                            (<span class="kw-2">*</span>connection, open.client.clone())
-<a href=#536 id=536 data-nosnippet>536</a>                        })
-<a href=#537 id=537 data-nosnippet>537</a>                        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-<a href=#538 id=538 data-nosnippet>538</a>                })
-<a href=#539 id=539 data-nosnippet>539</a>                .unwrap_or_default();
-<a href=#540 id=540 data-nosnippet>540</a>            <span class="kw">for </span>(connection, client) <span class="kw">in </span>due {
-<a href=#541 id=541 data-nosnippet>541</a>                <span class="kw">let _ </span>= client
-<a href=#542 id=542 data-nosnippet>542</a>                    .agent_notify(
-<a href=#543 id=543 data-nosnippet>543</a>                        method::AGENT_MCP,
-<a href=#544 id=544 data-nosnippet>544</a>                        <span class="kw-2">&amp;</span>AgentMcpParams {
-<a href=#545 id=545 data-nosnippet>545</a>                            bridge: key.<span class="number">1</span>.clone(),
-<a href=#546 id=546 data-nosnippet>546</a>                            connection,
-<a href=#547 id=547 data-nosnippet>547</a>                            message: <span class="macro">json!</span>({
-<a href=#548 id=548 data-nosnippet>548</a>                                <span class="string">"jsonrpc"</span>: <span class="string">"2.0"</span>,
-<a href=#549 id=549 data-nosnippet>549</a>                                <span class="string">"method"</span>: <span class="string">"notifications/tools/list_changed"</span>,
-<a href=#550 id=550 data-nosnippet>550</a>                            }),
-<a href=#551 id=551 data-nosnippet>551</a>                        },
-<a href=#552 id=552 data-nosnippet>552</a>                    )
-<a href=#553 id=553 data-nosnippet>553</a>                    .<span class="kw">await</span>;
-<a href=#554 id=554 data-nosnippet>554</a>            }
-<a href=#555 id=555 data-nosnippet>555</a>        }
-<a href=#556 id=556 data-nosnippet>556</a>    }
-<a href=#557 id=557 data-nosnippet>557</a>
-<a href=#558 id=558 data-nosnippet>558</a>    <span class="doccomment">/// The cookie session of the agent's ACP session `acp` when it is
-<a href=#559 id=559 data-nosnippet>559</a>    /// `bridge`'s own or one of its subagents' (at any depth), which reach
-<a href=#560 id=560 data-nosnippet>560</a>    /// cookie over its bridge.
-<a href=#561 id=561 data-nosnippet>561</a>    </span><span class="kw">fn </span>bridge_member(<span class="kw-2">&amp;</span><span class="self">self</span>, bridge: <span class="kw-2">&amp;</span>LiveSession, acp: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;SessionId&gt; {
-<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">if </span>acp == bridge.acp_session_id {
-<a href=#563 id=563 data-nosnippet>563</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(bridge.session);
-<a href=#564 id=564 data-nosnippet>564</a>        }
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">let </span>child = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.subagents).get(acp).copied()<span class="question-mark">?</span>;
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="kw">let </span>live = <span class="self">self</span>.live_session(child)<span class="question-mark">?</span>;
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">if </span>!Arc::ptr_eq(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>bridge.process) {
-<a href=#568 id=568 data-nosnippet>568</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#569 id=569 data-nosnippet>569</a>        }
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span><span class="kw-2">mut </span>session = child;
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">for _ in </span><span class="number">0</span>..MAX_SUBAGENT_DEPTH {
-<a href=#572 id=572 data-nosnippet>572</a>            <span class="kw">let </span>parent = <span class="self">self</span>.acp_subagent_parent(session)<span class="question-mark">?</span>;
-<a href=#573 id=573 data-nosnippet>573</a>            <span class="kw">if </span>parent == bridge.session {
-<a href=#574 id=574 data-nosnippet>574</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(child);
-<a href=#575 id=575 data-nosnippet>575</a>            }
-<a href=#576 id=576 data-nosnippet>576</a>            session = parent;
-<a href=#577 id=577 data-nosnippet>577</a>        }
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="prelude-val">None
-<a href=#579 id=579 data-nosnippet>579</a>    </span>}
-<a href=#580 id=580 data-nosnippet>580</a>
-<a href=#581 id=581 data-nosnippet>581</a>    <span class="doccomment">/// Whether another session than `bridge`'s may call over its bridge: a
-<a href=#582 id=582 data-nosnippet>582</a>    /// subagent of it routed, or one the agent announced that is not.
-<a href=#583 id=583 data-nosnippet>583</a>    </span><span class="kw">fn </span>bridge_shared(<span class="kw-2">&amp;</span><span class="self">self</span>, bridge: <span class="kw-2">&amp;</span>LiveSession) -&gt; bool {
-<a href=#584 id=584 data-nosnippet>584</a>        <span class="kw">if </span>bridge.process.expects_subagents() {
-<a href=#585 id=585 data-nosnippet>585</a>            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#586 id=586 data-nosnippet>586</a>        }
-<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">let </span>others = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.sessions)
-<a href=#588 id=588 data-nosnippet>588</a>            .values()
-<a href=#589 id=589 data-nosnippet>589</a>            .filter(|live| {
-<a href=#590 id=590 data-nosnippet>590</a>                live.session != bridge.session &amp;&amp; Arc::ptr_eq(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>bridge.process)
-<a href=#591 id=591 data-nosnippet>591</a>            })
-<a href=#592 id=592 data-nosnippet>592</a>            .map(|live| live.acp_session_id.clone())
-<a href=#593 id=593 data-nosnippet>593</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#594 id=594 data-nosnippet>594</a>        others
-<a href=#595 id=595 data-nosnippet>595</a>            .iter()
-<a href=#596 id=596 data-nosnippet>596</a>            .any(|acp| <span class="self">self</span>.bridge_member(bridge, acp).is_some())
-<a href=#597 id=597 data-nosnippet>597</a>    }
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="doccomment">/// The session a call of `tool` over `binding`'s bridge (`bridge`, its
-<a href=#600 id=600 data-nosnippet>600</a>    /// live session) belongs to, by the agent's report of the call, which
-<a href=#601 id=601 data-nosnippet>601</a>    /// names the session that made it: the bridge's own or one of its
-<a href=#602 id=602 data-nosnippet>602</a>    /// subagents', which share the bridge. A call that names the agent's
-<a href=#603 id=603 data-nosnippet>603</a>    /// ID for it (`named`) waits for that report; one that does not takes
-<a href=#604 id=604 data-nosnippet>604</a>    /// the only session with a report of the tool no bridge call claimed,
-<a href=#605 id=605 data-nosnippet>605</a>    /// and runs at once in the bridge's session when no other could have
-<a href=#606 id=606 data-nosnippet>606</a>    /// made it. A subagent whose rules do not offer the tool has its call
-<a href=#607 id=607 data-nosnippet>607</a>    /// run in the bridge's session, and does not show it again. A call
-<a href=#608 id=608 data-nosnippet>608</a>    /// whose session cannot be told is refused, never run in another.
-<a href=#609 id=609 data-nosnippet>609</a>    </span><span class="kw">async fn </span>bridge_call_session(
-<a href=#610 id=610 data-nosnippet>610</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#611 id=611 data-nosnippet>611</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
-<a href=#612 id=612 data-nosnippet>612</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
-<a href=#613 id=613 data-nosnippet>613</a>        tool: <span class="kw-2">&amp;</span>str,
-<a href=#614 id=614 data-nosnippet>614</a>        named: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#615 id=615 data-nosnippet>615</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Attribution, String&gt; {
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>deadline = tokio::time::Instant::now() + REPORT_WAIT;
-<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">loop </span>{
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">let </span>sighted = bridge.process.sighted.notified();
-<a href=#619 id=619 data-nosnippet>619</a>            <span class="macro">tokio::pin!</span>(sighted);
-<a href=#620 id=620 data-nosnippet>620</a>            sighted.as_mut().enable();
-<a href=#621 id=621 data-nosnippet>621</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(found) = <span class="self">self</span>.claim_sighting(bridge, tool, named)<span class="question-mark">? </span>{
-<a href=#622 id=622 data-nosnippet>622</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.offer_to_subagent(binding, bridge, tool, found));
-<a href=#623 id=623 data-nosnippet>623</a>            }
-<a href=#624 id=624 data-nosnippet>624</a>            <span class="kw">if </span>named.is_none() &amp;&amp; !<span class="self">self</span>.bridge_shared(bridge) {
-<a href=#625 id=625 data-nosnippet>625</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(Attribution {
-<a href=#626 id=626 data-nosnippet>626</a>                    session: bridge.session,
-<a href=#627 id=627 data-nosnippet>627</a>                    call: <span class="prelude-val">None</span>,
-<a href=#628 id=628 data-nosnippet>628</a>                    for_subagent: <span class="bool-val">false</span>,
-<a href=#629 id=629 data-nosnippet>629</a>                });
-<a href=#630 id=630 data-nosnippet>630</a>            }
-<a href=#631 id=631 data-nosnippet>631</a>            <span class="kw">if </span>tokio::time::Instant::now() &gt;= deadline {
-<a href=#632 id=632 data-nosnippet>632</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#633 id=633 data-nosnippet>633</a>                    <span class="string">"cookie could not tell which of the agent's sessions called `{tool}`: the \
-<a href=#634 id=634 data-nosnippet>634</a>                     agent did not report the call, so it did not run"
-<a href=#635 id=635 data-nosnippet>635</a>                </span>));
-<a href=#636 id=636 data-nosnippet>636</a>            }
-<a href=#637 id=637 data-nosnippet>637</a>            <span class="macro">tokio::select!</span> {
-<a href=#638 id=638 data-nosnippet>638</a>                () = <span class="kw-2">&amp;mut </span>sighted =&gt; {}
-<a href=#639 id=639 data-nosnippet>639</a>                () = tokio::time::sleep(REPORT_RECHECK) =&gt; {}
-<a href=#640 id=640 data-nosnippet>640</a>                () = tokio::time::sleep_until(deadline) =&gt; {}
-<a href=#641 id=641 data-nosnippet>641</a>            }
-<a href=#642 id=642 data-nosnippet>642</a>        }
-<a href=#643 id=643 data-nosnippet>643</a>    }
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>    <span class="doccomment">/// Claims the agent's report a call of `tool` over `bridge`'s bridge
-<a href=#646 id=646 data-nosnippet>646</a>    /// stands for (the one `named`, else the oldest of the only session
-<a href=#647 id=647 data-nosnippet>647</a>    /// with one open): the session that made it and the call's ID; `None`
-<a href=#648 id=648 data-nosnippet>648</a>    /// while none fits yet.
-<a href=#649 id=649 data-nosnippet>649</a>    </span><span class="kw">fn </span>claim_sighting(
-<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#651 id=651 data-nosnippet>651</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
-<a href=#652 id=652 data-nosnippet>652</a>        tool: <span class="kw-2">&amp;</span>str,
-<a href=#653 id=653 data-nosnippet>653</a>        named: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#654 id=654 data-nosnippet>654</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(SessionId, BridgeSighting)&gt;, String&gt; {
-<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">let </span>candidates = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings)
-<a href=#656 id=656 data-nosnippet>656</a>            .iter()
-<a href=#657 id=657 data-nosnippet>657</a>            .filter(|known| <span class="kw">match </span>named {
-<a href=#658 id=658 data-nosnippet>658</a>                <span class="prelude-val">Some</span>(call) =&gt; known.call == call,
-<a href=#659 id=659 data-nosnippet>659</a>                <span class="prelude-val">None </span>=&gt; known.tool == tool &amp;&amp; known.state == SightingState::Open,
-<a href=#660 id=660 data-nosnippet>660</a>            })
-<a href=#661 id=661 data-nosnippet>661</a>            .cloned()
-<a href=#662 id=662 data-nosnippet>662</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw">let </span>members = candidates
-<a href=#664 id=664 data-nosnippet>664</a>            .into_iter()
-<a href=#665 id=665 data-nosnippet>665</a>            .filter_map(|known| <span class="prelude-val">Some</span>((<span class="self">self</span>.bridge_member(bridge, <span class="kw-2">&amp;</span>known.acp_session)<span class="question-mark">?</span>, known)))
-<a href=#666 id=666 data-nosnippet>666</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((session, chosen)) = members.first().cloned() <span class="kw">else </span>{
-<a href=#668 id=668 data-nosnippet>668</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#669 id=669 data-nosnippet>669</a>        };
-<a href=#670 id=670 data-nosnippet>670</a>        <span class="kw">if </span>named.is_some() {
-<a href=#671 id=671 data-nosnippet>671</a>            <span class="kw">if </span>chosen.tool != tool {
-<a href=#672 id=672 data-nosnippet>672</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#673 id=673 data-nosnippet>673</a>                    <span class="string">"the agent's call `{}` is of `{}`, not `{tool}`, so it did not run"</span>,
-<a href=#674 id=674 data-nosnippet>674</a>                    chosen.call, chosen.tool
-<a href=#675 id=675 data-nosnippet>675</a>                ));
-<a href=#676 id=676 data-nosnippet>676</a>            }
-<a href=#677 id=677 data-nosnippet>677</a>            <span class="kw">if </span>chosen.state != SightingState::Open {
-<a href=#678 id=678 data-nosnippet>678</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#679 id=679 data-nosnippet>679</a>                    <span class="string">"the agent's call `{}` already ran or ended, so it did not run again"</span>,
-<a href=#680 id=680 data-nosnippet>680</a>                    chosen.call
-<a href=#681 id=681 data-nosnippet>681</a>                ));
-<a href=#682 id=682 data-nosnippet>682</a>            }
-<a href=#683 id=683 data-nosnippet>683</a>        } <span class="kw">else if </span>members.iter().any(|(other, <span class="kw">_</span>)| <span class="kw-2">*</span>other != session) {
-<a href=#684 id=684 data-nosnippet>684</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#685 id=685 data-nosnippet>685</a>                <span class="string">"more than one of the agent's sessions is calling `{tool}` and the call does \
-<a href=#686 id=686 data-nosnippet>686</a>                 not say whose it is, so it did not run"
-<a href=#687 id=687 data-nosnippet>687</a>            </span>));
-<a href=#688 id=688 data-nosnippet>688</a>        }
-<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">let </span><span class="kw-2">mut </span>sightings = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings);
-<a href=#690 id=690 data-nosnippet>690</a>        <span class="kw">match </span>sightings.iter_mut().find(|known| {
-<a href=#691 id=691 data-nosnippet>691</a>            known.acp_session == chosen.acp_session
-<a href=#692 id=692 data-nosnippet>692</a>                &amp;&amp; known.call == chosen.call
-<a href=#693 id=693 data-nosnippet>693</a>                &amp;&amp; known.state == SightingState::Open
-<a href=#694 id=694 data-nosnippet>694</a>        }) {
-<a href=#695 id=695 data-nosnippet>695</a>            <span class="prelude-val">Some</span>(known) =&gt; {
-<a href=#696 id=696 data-nosnippet>696</a>                known.state = SightingState::Claimed;
-<a href=#697 id=697 data-nosnippet>697</a>                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((session, chosen)))
-<a href=#698 id=698 data-nosnippet>698</a>            }
-<a href=#699 id=699 data-nosnippet>699</a>            <span class="comment">// It changed meanwhile: looked at again.
-<a href=#700 id=700 data-nosnippet>700</a>            </span><span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-<a href=#701 id=701 data-nosnippet>701</a>        }
-<a href=#702 id=702 data-nosnippet>702</a>    }
-<a href=#703 id=703 data-nosnippet>703</a>
-<a href=#704 id=704 data-nosnippet>704</a>    <span class="doccomment">/// Where the call the agent's session `session` reported (`report`)
-<a href=#705 id=705 data-nosnippet>705</a>    /// runs: there, unless it is a subagent whose rules do not offer
-<a href=#706 id=706 data-nosnippet>706</a>    /// `tool`, whose call runs in the bridge's session.
-<a href=#707 id=707 data-nosnippet>707</a>    </span><span class="kw">fn </span>offer_to_subagent(
-<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#709 id=709 data-nosnippet>709</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
-<a href=#710 id=710 data-nosnippet>710</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
-<a href=#711 id=711 data-nosnippet>711</a>        tool: <span class="kw-2">&amp;</span>str,
-<a href=#712 id=712 data-nosnippet>712</a>        (session, report): (SessionId, BridgeSighting),
-<a href=#713 id=713 data-nosnippet>713</a>    ) -&gt; Attribution {
-<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">if </span>session == bridge.session {
-<a href=#715 id=715 data-nosnippet>715</a>            <span class="kw">return </span>Attribution {
-<a href=#716 id=716 data-nosnippet>716</a>                session,
-<a href=#717 id=717 data-nosnippet>717</a>                call: <span class="prelude-val">Some</span>(report.call),
-<a href=#718 id=718 data-nosnippet>718</a>                for_subagent: <span class="bool-val">false</span>,
-<a href=#719 id=719 data-nosnippet>719</a>            };
-<a href=#720 id=720 data-nosnippet>720</a>        }
-<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>subagent = BridgeBinding {
-<a href=#722 id=722 data-nosnippet>722</a>            session,
-<a href=#723 id=723 data-nosnippet>723</a>            agent: binding.agent.clone(),
-<a href=#724 id=724 data-nosnippet>724</a>        };
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">let </span>offered = <span class="self">self</span>.bridge_tools(<span class="kw-2">&amp;</span>subagent).is_ok_and(|tools| {
-<a href=#726 id=726 data-nosnippet>726</a>            tools
-<a href=#727 id=727 data-nosnippet>727</a>                .iter()
-<a href=#728 id=728 data-nosnippet>728</a>                .any(|offered| offered.get(<span class="string">"name"</span>).and_then(Value::as_str) == <span class="prelude-val">Some</span>(tool))
-<a href=#729 id=729 data-nosnippet>729</a>        });
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">if </span>offered {
-<a href=#731 id=731 data-nosnippet>731</a>            <span class="kw">return </span>Attribution {
-<a href=#732 id=732 data-nosnippet>732</a>                session,
-<a href=#733 id=733 data-nosnippet>733</a>                call: <span class="prelude-val">Some</span>(report.call),
-<a href=#734 id=734 data-nosnippet>734</a>                for_subagent: <span class="bool-val">false</span>,
-<a href=#735 id=735 data-nosnippet>735</a>            };
-<a href=#736 id=736 data-nosnippet>736</a>        }
-<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(known) = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings)
-<a href=#738 id=738 data-nosnippet>738</a>            .iter_mut()
-<a href=#739 id=739 data-nosnippet>739</a>            .find(|known| known.acp_session == report.acp_session &amp;&amp; known.call == report.call)
-<a href=#740 id=740 data-nosnippet>740</a>        {
-<a href=#741 id=741 data-nosnippet>741</a>            known.state = SightingState::ClaimedElsewhere;
-<a href=#742 id=742 data-nosnippet>742</a>        }
-<a href=#743 id=743 data-nosnippet>743</a>        Attribution {
-<a href=#744 id=744 data-nosnippet>744</a>            session: bridge.session,
-<a href=#745 id=745 data-nosnippet>745</a>            call: <span class="prelude-val">None</span>,
-<a href=#746 id=746 data-nosnippet>746</a>            for_subagent: <span class="bool-val">true</span>,
-<a href=#747 id=747 data-nosnippet>747</a>        }
-<a href=#748 id=748 data-nosnippet>748</a>    }
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a>    <span class="doccomment">/// Runs one `tools/call` as a call of the agent's turn (the runner of
-<a href=#751 id=751 data-nosnippet>751</a>    /// the session's turn records and runs it): a result for the agent, an
-<a href=#752 id=752 data-nosnippet>752</a>    /// error one when the call failed or was refused.
-<a href=#753 id=753 data-nosnippet>753</a>    </span><span class="kw">async fn </span>bridge_call(<span class="kw-2">&amp;</span><span class="self">self</span>, binding: <span class="kw-2">&amp;</span>BridgeBinding, params: <span class="kw-2">&amp;</span>Value) -&gt; Value {
-<a href=#754 id=754 data-nosnippet>754</a>        <span class="kw">let </span>failed = |message: String| <span class="macro">json!</span>({<span class="string">"content"</span>: [{<span class="string">"type"</span>: <span class="string">"text"</span>, <span class="string">"text"</span>: message}], <span class="string">"isError"</span>: <span class="bool-val">true</span>});
-<a href=#755 id=755 data-nosnippet>755</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = params.get(<span class="string">"name"</span>).and_then(Value::as_str) <span class="kw">else </span>{
-<a href=#756 id=756 data-nosnippet>756</a>            <span class="kw">return </span>failed(<span class="string">"the call names no tool"</span>.to_owned());
+<a href=#388 id=388 data-nosnippet>388</a>            other =&gt; <span class="prelude-val">Err</span>((
+<a href=#389 id=389 data-nosnippet>389</a>                -<span class="number">32601</span>,
+<a href=#390 id=390 data-nosnippet>390</a>                <span class="macro">format!</span>(<span class="string">"cookie's MCP server has no method `{other}`"</span>),
+<a href=#391 id=391 data-nosnippet>391</a>            )),
+<a href=#392 id=392 data-nosnippet>392</a>        }
+<a href=#393 id=393 data-nosnippet>393</a>    }
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="doccomment">/// The active run of `binding`'s session, if one runs.
+<a href=#396 id=396 data-nosnippet>396</a>    </span><span class="kw">fn </span>bridge_run(
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#398 id=398 data-nosnippet>398</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
+<a href=#399 id=399 data-nosnippet>399</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(cookie_agent_protocol::RunId, Arc&lt;<span class="kw">super</span>::<span class="kw">super</span>::ActiveRun&gt;)&gt; {
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="self">self</span>.inner
+<a href=#401 id=401 data-nosnippet>401</a>            .sessions
+<a href=#402 id=402 data-nosnippet>402</a>            .active
+<a href=#403 id=403 data-nosnippet>403</a>            .lock()
+<a href=#404 id=404 data-nosnippet>404</a>            .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#405 id=405 data-nosnippet>405</a>            .iter()
+<a href=#406 id=406 data-nosnippet>406</a>            .find(|(<span class="kw">_</span>, active)| active.session == binding.session)
+<a href=#407 id=407 data-nosnippet>407</a>            .map(|(run, active)| (<span class="kw-2">*</span>run, Arc::clone(active)))
+<a href=#408 id=408 data-nosnippet>408</a>    }
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="doccomment">/// The tools of `session` a run of `policy` offers its ACP agent over
+<a href=#411 id=411 data-nosnippet>411</a>    /// the bridge, by the provider that publishes them.
+<a href=#412 id=412 data-nosnippet>412</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>offered_tools(
+<a href=#413 id=413 data-nosnippet>413</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#414 id=414 data-nosnippet>414</a>        session: SessionId,
+<a href=#415 id=415 data-nosnippet>415</a>        policy: <span class="kw-2">&amp;</span><span class="kw">super</span>::<span class="kw">super</span>::FrozenRunPolicy,
+<a href=#416 id=416 data-nosnippet>416</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">super</span>::<span class="kw">super</span>::tool_prompts::OfferedTools, <span class="kw">crate</span>::EngineError&gt; {
+<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span>composition = <span class="self">self</span>.compose_for_policy(session, policy)<span class="question-mark">?</span>;
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">let </span><span class="kw-2">mut </span>offered = <span class="kw">super</span>::<span class="kw">super</span>::tool_prompts::OfferedTools::default();
+<a href=#419 id=419 data-nosnippet>419</a>        <span class="kw">for </span>tool <span class="kw">in </span><span class="kw-2">&amp;</span>composition.tools {
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="kw">let </span>provider = tool.source.provider.provider_id();
+<a href=#421 id=421 data-nosnippet>421</a>            offered.skill |= provider == <span class="kw">crate</span>::base_tools::SKILL_PROVIDER_ID;
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="kw">if </span>provider == <span class="kw">crate</span>::memory_tools::PROVIDER_ID {
+<a href=#423 id=423 data-nosnippet>423</a>                offered.memory = <span class="bool-val">true</span>;
+<a href=#424 id=424 data-nosnippet>424</a>                offered.memory_write |=
+<a href=#425 id=425 data-nosnippet>425</a>                    tool.spec.permission_name.as_deref() == <span class="prelude-val">Some</span>(<span class="string">"memory_write"</span>);
+<a href=#426 id=426 data-nosnippet>426</a>            }
+<a href=#427 id=427 data-nosnippet>427</a>            offered.providers.insert((
+<a href=#428 id=428 data-nosnippet>428</a>                provider.to_owned(),
+<a href=#429 id=429 data-nosnippet>429</a>                tool.source
+<a href=#430 id=430 data-nosnippet>430</a>                    .attachment
+<a href=#431 id=431 data-nosnippet>431</a>                    .as_ref()
+<a href=#432 id=432 data-nosnippet>432</a>                    .map(|name| name.as_str().to_owned()),
+<a href=#433 id=433 data-nosnippet>433</a>            ));
+<a href=#434 id=434 data-nosnippet>434</a>        }
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="prelude-val">Ok</span>(offered)
+<a href=#436 id=436 data-nosnippet>436</a>    }
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>    <span class="doccomment">/// The tools of `session` a run of `policy` offers its ACP agent over
+<a href=#439 id=439 data-nosnippet>439</a>    /// the bridge: its tool definitions.
+<a href=#440 id=440 data-nosnippet>440</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bridged_tool_definitions(
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#442 id=442 data-nosnippet>442</a>        session: SessionId,
+<a href=#443 id=443 data-nosnippet>443</a>        policy: <span class="kw-2">&amp;</span><span class="kw">super</span>::<span class="kw">super</span>::FrozenRunPolicy,
+<a href=#444 id=444 data-nosnippet>444</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;oven_sdk::ToolDefinition&gt;, <span class="kw">crate</span>::EngineError&gt; {
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="self">self</span>.tool_definitions(session, policy)
+<a href=#446 id=446 data-nosnippet>446</a>    }
+<a href=#447 id=447 data-nosnippet>447</a>
+<a href=#448 id=448 data-nosnippet>448</a>    <span class="doccomment">/// The session's tools as the agent gets them.
+<a href=#449 id=449 data-nosnippet>449</a>    </span><span class="kw">fn </span>bridge_tools(<span class="kw-2">&amp;</span><span class="self">self</span>, binding: <span class="kw-2">&amp;</span>BridgeBinding) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, <span class="kw">crate</span>::EngineError&gt; {
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>policy = <span class="kw">match </span><span class="self">self</span>.bridge_run(binding) {
+<a href=#451 id=451 data-nosnippet>451</a>            <span class="prelude-val">Some</span>((<span class="kw">_</span>, active)) =&gt; Arc::clone(<span class="kw-2">&amp;</span>active.policy),
+<a href=#452 id=452 data-nosnippet>452</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#453 id=453 data-nosnippet>453</a>                <span class="kw">let </span>projection = <span class="self">self</span>.inner.store.get(binding.session)<span class="question-mark">?</span>;
+<a href=#454 id=454 data-nosnippet>454</a>                <span class="kw">let </span>selection = cookie_agent_protocol::RunSelection {
+<a href=#455 id=455 data-nosnippet>455</a>                    agent: binding.agent.id.clone(),
+<a href=#456 id=456 data-nosnippet>456</a>                    model: cookie_agent_protocol::acp_model_selection(<span class="kw-2">&amp;</span>binding.agent.id),
+<a href=#457 id=457 data-nosnippet>457</a>                    preset: projection.meta.creation_selection.preset.clone(),
+<a href=#458 id=458 data-nosnippet>458</a>                    acp_runtime: <span class="prelude-val">None</span>,
+<a href=#459 id=459 data-nosnippet>459</a>                };
+<a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">let </span>memory = <span class="self">self</span>.memory_variables(binding.session);
+<a href=#461 id=461 data-nosnippet>461</a>                Arc::new(<span class="self">self</span>.freeze_root_selection(<span class="kw-2">&amp;</span>selection, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span>memory)<span class="question-mark">?</span>.<span class="number">0</span>)
+<a href=#462 id=462 data-nosnippet>462</a>            }
+<a href=#463 id=463 data-nosnippet>463</a>        };
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="prelude-val">Ok</span>(<span class="self">self
+<a href=#465 id=465 data-nosnippet>465</a>            </span>.bridged_tool_definitions(binding.session, <span class="kw-2">&amp;</span>policy)<span class="question-mark">?
+<a href=#466 id=466 data-nosnippet>466</a>            </span>.into_iter()
+<a href=#467 id=467 data-nosnippet>467</a>            .map(|tool| {
+<a href=#468 id=468 data-nosnippet>468</a>                <span class="macro">json!</span>({
+<a href=#469 id=469 data-nosnippet>469</a>                    <span class="string">"name"</span>: tool.name,
+<a href=#470 id=470 data-nosnippet>470</a>                    <span class="string">"description"</span>: tool.description,
+<a href=#471 id=471 data-nosnippet>471</a>                    <span class="string">"inputSchema"</span>: tool.input_schema.as_value(),
+<a href=#472 id=472 data-nosnippet>472</a>                })
+<a href=#473 id=473 data-nosnippet>473</a>            })
+<a href=#474 id=474 data-nosnippet>474</a>            .collect())
+<a href=#475 id=475 data-nosnippet>475</a>    }
+<a href=#476 id=476 data-nosnippet>476</a>
+<a href=#477 id=477 data-nosnippet>477</a>    <span class="doccomment">/// Tells each connection to a bridge of `session` that the tool list
+<a href=#478 id=478 data-nosnippet>478</a>    /// changed when the list it last fetched differs from the session's
+<a href=#479 id=479 data-nosnippet>479</a>    /// now, once until it fetches again. A subagent's calls go over its
+<a href=#480 id=480 data-nosnippet>480</a>    /// parent's bridge, so the parent's session is the one to name.
+<a href=#481 id=481 data-nosnippet>481</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>announce_tool_changes(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) {
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>candidates = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.bridges)
+<a href=#483 id=483 data-nosnippet>483</a>            .iter()
+<a href=#484 id=484 data-nosnippet>484</a>            .filter(|(<span class="kw">_</span>, bridge)| {
+<a href=#485 id=485 data-nosnippet>485</a>                bridge.binding.session == session
+<a href=#486 id=486 data-nosnippet>486</a>                    &amp;&amp; bridge
+<a href=#487 id=487 data-nosnippet>487</a>                        .connections
+<a href=#488 id=488 data-nosnippet>488</a>                        .values()
+<a href=#489 id=489 data-nosnippet>489</a>                        .any(|open| open.fetched.is_some() &amp;&amp; !open.notified)
+<a href=#490 id=490 data-nosnippet>490</a>            })
+<a href=#491 id=491 data-nosnippet>491</a>            .map(|(key, bridge)| (key.clone(), bridge.binding.clone()))
+<a href=#492 id=492 data-nosnippet>492</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">for </span>(key, binding) <span class="kw">in </span>candidates {
+<a href=#494 id=494 data-nosnippet>494</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(tools) = <span class="self">self</span>.bridge_tools(<span class="kw-2">&amp;</span>binding) <span class="kw">else </span>{
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">continue</span>;
+<a href=#496 id=496 data-nosnippet>496</a>            };
+<a href=#497 id=497 data-nosnippet>497</a>            <span class="kw">let </span>now = fingerprint(<span class="kw-2">&amp;</span>tools);
+<a href=#498 id=498 data-nosnippet>498</a>            <span class="kw">let </span>due = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.bridges)
+<a href=#499 id=499 data-nosnippet>499</a>                .get_mut(<span class="kw-2">&amp;</span>key)
+<a href=#500 id=500 data-nosnippet>500</a>                .map(|bridge| {
+<a href=#501 id=501 data-nosnippet>501</a>                    bridge
+<a href=#502 id=502 data-nosnippet>502</a>                        .connections
+<a href=#503 id=503 data-nosnippet>503</a>                        .iter_mut()
+<a href=#504 id=504 data-nosnippet>504</a>                        .filter(|(<span class="kw">_</span>, open)| {
+<a href=#505 id=505 data-nosnippet>505</a>                            !open.notified &amp;&amp; open.fetched.is_some_and(|last| last != now)
+<a href=#506 id=506 data-nosnippet>506</a>                        })
+<a href=#507 id=507 data-nosnippet>507</a>                        .map(|(connection, open)| {
+<a href=#508 id=508 data-nosnippet>508</a>                            open.notified = <span class="bool-val">true</span>;
+<a href=#509 id=509 data-nosnippet>509</a>                            (<span class="kw-2">*</span>connection, open.client.clone())
+<a href=#510 id=510 data-nosnippet>510</a>                        })
+<a href=#511 id=511 data-nosnippet>511</a>                        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#512 id=512 data-nosnippet>512</a>                })
+<a href=#513 id=513 data-nosnippet>513</a>                .unwrap_or_default();
+<a href=#514 id=514 data-nosnippet>514</a>            <span class="kw">for </span>(connection, client) <span class="kw">in </span>due {
+<a href=#515 id=515 data-nosnippet>515</a>                <span class="kw">let _ </span>= client
+<a href=#516 id=516 data-nosnippet>516</a>                    .agent_notify(
+<a href=#517 id=517 data-nosnippet>517</a>                        method::AGENT_MCP,
+<a href=#518 id=518 data-nosnippet>518</a>                        <span class="kw-2">&amp;</span>AgentMcpParams {
+<a href=#519 id=519 data-nosnippet>519</a>                            bridge: key.<span class="number">1</span>.clone(),
+<a href=#520 id=520 data-nosnippet>520</a>                            connection,
+<a href=#521 id=521 data-nosnippet>521</a>                            message: <span class="macro">json!</span>({
+<a href=#522 id=522 data-nosnippet>522</a>                                <span class="string">"jsonrpc"</span>: <span class="string">"2.0"</span>,
+<a href=#523 id=523 data-nosnippet>523</a>                                <span class="string">"method"</span>: <span class="string">"notifications/tools/list_changed"</span>,
+<a href=#524 id=524 data-nosnippet>524</a>                            }),
+<a href=#525 id=525 data-nosnippet>525</a>                        },
+<a href=#526 id=526 data-nosnippet>526</a>                    )
+<a href=#527 id=527 data-nosnippet>527</a>                    .<span class="kw">await</span>;
+<a href=#528 id=528 data-nosnippet>528</a>            }
+<a href=#529 id=529 data-nosnippet>529</a>        }
+<a href=#530 id=530 data-nosnippet>530</a>    }
+<a href=#531 id=531 data-nosnippet>531</a>
+<a href=#532 id=532 data-nosnippet>532</a>    <span class="doccomment">/// The cookie session of the agent's ACP session `acp` when it is
+<a href=#533 id=533 data-nosnippet>533</a>    /// `bridge`'s own or one of its subagents' (at any depth), which reach
+<a href=#534 id=534 data-nosnippet>534</a>    /// cookie over its bridge.
+<a href=#535 id=535 data-nosnippet>535</a>    </span><span class="kw">fn </span>bridge_member(<span class="kw-2">&amp;</span><span class="self">self</span>, bridge: <span class="kw-2">&amp;</span>LiveSession, acp: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;SessionId&gt; {
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="kw">if </span>acp == bridge.acp_session_id {
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(bridge.session);
+<a href=#538 id=538 data-nosnippet>538</a>        }
+<a href=#539 id=539 data-nosnippet>539</a>        <span class="kw">let </span>child = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.subagents).get(acp).copied()<span class="question-mark">?</span>;
+<a href=#540 id=540 data-nosnippet>540</a>        <span class="kw">let </span>live = <span class="self">self</span>.live_session(child)<span class="question-mark">?</span>;
+<a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">if </span>!Arc::ptr_eq(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>bridge.process) {
+<a href=#542 id=542 data-nosnippet>542</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#543 id=543 data-nosnippet>543</a>        }
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="kw">let </span><span class="kw-2">mut </span>session = child;
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">for _ in </span><span class="number">0</span>..MAX_SUBAGENT_DEPTH {
+<a href=#546 id=546 data-nosnippet>546</a>            <span class="kw">let </span>parent = <span class="self">self</span>.acp_subagent_parent(session)<span class="question-mark">?</span>;
+<a href=#547 id=547 data-nosnippet>547</a>            <span class="kw">if </span>parent == bridge.session {
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(child);
+<a href=#549 id=549 data-nosnippet>549</a>            }
+<a href=#550 id=550 data-nosnippet>550</a>            session = parent;
+<a href=#551 id=551 data-nosnippet>551</a>        }
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="prelude-val">None
+<a href=#553 id=553 data-nosnippet>553</a>    </span>}
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="doccomment">/// Whether another session than `bridge`'s may call over its bridge: a
+<a href=#556 id=556 data-nosnippet>556</a>    /// subagent of it routed, or one the agent announced that is not.
+<a href=#557 id=557 data-nosnippet>557</a>    </span><span class="kw">fn </span>bridge_shared(<span class="kw-2">&amp;</span><span class="self">self</span>, bridge: <span class="kw-2">&amp;</span>LiveSession) -&gt; bool {
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">if </span>bridge.process.expects_subagents() {
+<a href=#559 id=559 data-nosnippet>559</a>            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#560 id=560 data-nosnippet>560</a>        }
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">let </span>others = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.acp.processes.sessions)
+<a href=#562 id=562 data-nosnippet>562</a>            .values()
+<a href=#563 id=563 data-nosnippet>563</a>            .filter(|live| {
+<a href=#564 id=564 data-nosnippet>564</a>                live.session != bridge.session &amp;&amp; Arc::ptr_eq(<span class="kw-2">&amp;</span>live.process, <span class="kw-2">&amp;</span>bridge.process)
+<a href=#565 id=565 data-nosnippet>565</a>            })
+<a href=#566 id=566 data-nosnippet>566</a>            .map(|live| live.acp_session_id.clone())
+<a href=#567 id=567 data-nosnippet>567</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#568 id=568 data-nosnippet>568</a>        others
+<a href=#569 id=569 data-nosnippet>569</a>            .iter()
+<a href=#570 id=570 data-nosnippet>570</a>            .any(|acp| <span class="self">self</span>.bridge_member(bridge, acp).is_some())
+<a href=#571 id=571 data-nosnippet>571</a>    }
+<a href=#572 id=572 data-nosnippet>572</a>
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="doccomment">/// The session a call of `tool` over `binding`'s bridge (`bridge`, its
+<a href=#574 id=574 data-nosnippet>574</a>    /// live session) belongs to, by the agent's report of the call, which
+<a href=#575 id=575 data-nosnippet>575</a>    /// names the session that made it: the bridge's own or one of its
+<a href=#576 id=576 data-nosnippet>576</a>    /// subagents', which share the bridge. A call that names the agent's
+<a href=#577 id=577 data-nosnippet>577</a>    /// ID for it (`named`) waits for that report; one that does not takes
+<a href=#578 id=578 data-nosnippet>578</a>    /// the only session with a report of the tool no bridge call claimed,
+<a href=#579 id=579 data-nosnippet>579</a>    /// and runs at once in the bridge's session when no other could have
+<a href=#580 id=580 data-nosnippet>580</a>    /// made it. A subagent whose rules do not offer the tool has its call
+<a href=#581 id=581 data-nosnippet>581</a>    /// run in the bridge's session, and does not show it again. A call
+<a href=#582 id=582 data-nosnippet>582</a>    /// whose session cannot be told is refused, never run in another.
+<a href=#583 id=583 data-nosnippet>583</a>    </span><span class="kw">async fn </span>bridge_call_session(
+<a href=#584 id=584 data-nosnippet>584</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#585 id=585 data-nosnippet>585</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
+<a href=#586 id=586 data-nosnippet>586</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
+<a href=#587 id=587 data-nosnippet>587</a>        tool: <span class="kw-2">&amp;</span>str,
+<a href=#588 id=588 data-nosnippet>588</a>        named: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#589 id=589 data-nosnippet>589</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Attribution, String&gt; {
+<a href=#590 id=590 data-nosnippet>590</a>        <span class="kw">let </span>deadline = tokio::time::Instant::now() + REPORT_WAIT;
+<a href=#591 id=591 data-nosnippet>591</a>        <span class="kw">loop </span>{
+<a href=#592 id=592 data-nosnippet>592</a>            <span class="kw">let </span>sighted = bridge.process.sighted.notified();
+<a href=#593 id=593 data-nosnippet>593</a>            <span class="macro">tokio::pin!</span>(sighted);
+<a href=#594 id=594 data-nosnippet>594</a>            sighted.as_mut().enable();
+<a href=#595 id=595 data-nosnippet>595</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(found) = <span class="self">self</span>.claim_sighting(bridge, tool, named)<span class="question-mark">? </span>{
+<a href=#596 id=596 data-nosnippet>596</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.offer_to_subagent(binding, bridge, tool, found));
+<a href=#597 id=597 data-nosnippet>597</a>            }
+<a href=#598 id=598 data-nosnippet>598</a>            <span class="kw">if </span>named.is_none() &amp;&amp; !<span class="self">self</span>.bridge_shared(bridge) {
+<a href=#599 id=599 data-nosnippet>599</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(Attribution {
+<a href=#600 id=600 data-nosnippet>600</a>                    session: bridge.session,
+<a href=#601 id=601 data-nosnippet>601</a>                    call: <span class="prelude-val">None</span>,
+<a href=#602 id=602 data-nosnippet>602</a>                    for_subagent: <span class="bool-val">false</span>,
+<a href=#603 id=603 data-nosnippet>603</a>                });
+<a href=#604 id=604 data-nosnippet>604</a>            }
+<a href=#605 id=605 data-nosnippet>605</a>            <span class="kw">if </span>tokio::time::Instant::now() &gt;= deadline {
+<a href=#606 id=606 data-nosnippet>606</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#607 id=607 data-nosnippet>607</a>                    <span class="string">"cookie could not tell which of the agent's sessions called `{tool}`: the \
+<a href=#608 id=608 data-nosnippet>608</a>                     agent did not report the call, so it did not run"
+<a href=#609 id=609 data-nosnippet>609</a>                </span>));
+<a href=#610 id=610 data-nosnippet>610</a>            }
+<a href=#611 id=611 data-nosnippet>611</a>            <span class="macro">tokio::select!</span> {
+<a href=#612 id=612 data-nosnippet>612</a>                () = <span class="kw-2">&amp;mut </span>sighted =&gt; {}
+<a href=#613 id=613 data-nosnippet>613</a>                () = tokio::time::sleep(REPORT_RECHECK) =&gt; {}
+<a href=#614 id=614 data-nosnippet>614</a>                () = tokio::time::sleep_until(deadline) =&gt; {}
+<a href=#615 id=615 data-nosnippet>615</a>            }
+<a href=#616 id=616 data-nosnippet>616</a>        }
+<a href=#617 id=617 data-nosnippet>617</a>    }
+<a href=#618 id=618 data-nosnippet>618</a>
+<a href=#619 id=619 data-nosnippet>619</a>    <span class="doccomment">/// Claims the agent's report a call of `tool` over `bridge`'s bridge
+<a href=#620 id=620 data-nosnippet>620</a>    /// stands for (the one `named`, else the oldest of the only session
+<a href=#621 id=621 data-nosnippet>621</a>    /// with one open): the session that made it and the call's ID; `None`
+<a href=#622 id=622 data-nosnippet>622</a>    /// while none fits yet.
+<a href=#623 id=623 data-nosnippet>623</a>    </span><span class="kw">fn </span>claim_sighting(
+<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#625 id=625 data-nosnippet>625</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
+<a href=#626 id=626 data-nosnippet>626</a>        tool: <span class="kw-2">&amp;</span>str,
+<a href=#627 id=627 data-nosnippet>627</a>        named: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#628 id=628 data-nosnippet>628</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(SessionId, BridgeSighting)&gt;, String&gt; {
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span>candidates = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings)
+<a href=#630 id=630 data-nosnippet>630</a>            .iter()
+<a href=#631 id=631 data-nosnippet>631</a>            .filter(|known| <span class="kw">match </span>named {
+<a href=#632 id=632 data-nosnippet>632</a>                <span class="prelude-val">Some</span>(call) =&gt; known.call == call,
+<a href=#633 id=633 data-nosnippet>633</a>                <span class="prelude-val">None </span>=&gt; known.tool == tool &amp;&amp; known.state == SightingState::Open,
+<a href=#634 id=634 data-nosnippet>634</a>            })
+<a href=#635 id=635 data-nosnippet>635</a>            .cloned()
+<a href=#636 id=636 data-nosnippet>636</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#637 id=637 data-nosnippet>637</a>        <span class="kw">let </span>members = candidates
+<a href=#638 id=638 data-nosnippet>638</a>            .into_iter()
+<a href=#639 id=639 data-nosnippet>639</a>            .filter_map(|known| <span class="prelude-val">Some</span>((<span class="self">self</span>.bridge_member(bridge, <span class="kw-2">&amp;</span>known.acp_session)<span class="question-mark">?</span>, known)))
+<a href=#640 id=640 data-nosnippet>640</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((session, chosen)) = members.first().cloned() <span class="kw">else </span>{
+<a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#643 id=643 data-nosnippet>643</a>        };
+<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">if </span>named.is_some() {
+<a href=#645 id=645 data-nosnippet>645</a>            <span class="kw">if </span>chosen.tool != tool {
+<a href=#646 id=646 data-nosnippet>646</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#647 id=647 data-nosnippet>647</a>                    <span class="string">"the agent's call `{}` is of `{}`, not `{tool}`, so it did not run"</span>,
+<a href=#648 id=648 data-nosnippet>648</a>                    chosen.call, chosen.tool
+<a href=#649 id=649 data-nosnippet>649</a>                ));
+<a href=#650 id=650 data-nosnippet>650</a>            }
+<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw">if </span>chosen.state != SightingState::Open {
+<a href=#652 id=652 data-nosnippet>652</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#653 id=653 data-nosnippet>653</a>                    <span class="string">"the agent's call `{}` already ran or ended, so it did not run again"</span>,
+<a href=#654 id=654 data-nosnippet>654</a>                    chosen.call
+<a href=#655 id=655 data-nosnippet>655</a>                ));
+<a href=#656 id=656 data-nosnippet>656</a>            }
+<a href=#657 id=657 data-nosnippet>657</a>        } <span class="kw">else if </span>members.iter().any(|(other, <span class="kw">_</span>)| <span class="kw-2">*</span>other != session) {
+<a href=#658 id=658 data-nosnippet>658</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#659 id=659 data-nosnippet>659</a>                <span class="string">"more than one of the agent's sessions is calling `{tool}` and the call does \
+<a href=#660 id=660 data-nosnippet>660</a>                 not say whose it is, so it did not run"
+<a href=#661 id=661 data-nosnippet>661</a>            </span>));
+<a href=#662 id=662 data-nosnippet>662</a>        }
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw">let </span><span class="kw-2">mut </span>sightings = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings);
+<a href=#664 id=664 data-nosnippet>664</a>        <span class="kw">match </span>sightings.iter_mut().find(|known| {
+<a href=#665 id=665 data-nosnippet>665</a>            known.acp_session == chosen.acp_session
+<a href=#666 id=666 data-nosnippet>666</a>                &amp;&amp; known.call == chosen.call
+<a href=#667 id=667 data-nosnippet>667</a>                &amp;&amp; known.state == SightingState::Open
+<a href=#668 id=668 data-nosnippet>668</a>        }) {
+<a href=#669 id=669 data-nosnippet>669</a>            <span class="prelude-val">Some</span>(known) =&gt; {
+<a href=#670 id=670 data-nosnippet>670</a>                known.state = SightingState::Claimed;
+<a href=#671 id=671 data-nosnippet>671</a>                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((session, chosen)))
+<a href=#672 id=672 data-nosnippet>672</a>            }
+<a href=#673 id=673 data-nosnippet>673</a>            <span class="comment">// It changed meanwhile: looked at again.
+<a href=#674 id=674 data-nosnippet>674</a>            </span><span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+<a href=#675 id=675 data-nosnippet>675</a>        }
+<a href=#676 id=676 data-nosnippet>676</a>    }
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>    <span class="doccomment">/// Where the call the agent's session `session` reported (`report`)
+<a href=#679 id=679 data-nosnippet>679</a>    /// runs: there, unless it is a subagent whose rules do not offer
+<a href=#680 id=680 data-nosnippet>680</a>    /// `tool`, whose call runs in the bridge's session.
+<a href=#681 id=681 data-nosnippet>681</a>    </span><span class="kw">fn </span>offer_to_subagent(
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#683 id=683 data-nosnippet>683</a>        binding: <span class="kw-2">&amp;</span>BridgeBinding,
+<a href=#684 id=684 data-nosnippet>684</a>        bridge: <span class="kw-2">&amp;</span>LiveSession,
+<a href=#685 id=685 data-nosnippet>685</a>        tool: <span class="kw-2">&amp;</span>str,
+<a href=#686 id=686 data-nosnippet>686</a>        (session, report): (SessionId, BridgeSighting),
+<a href=#687 id=687 data-nosnippet>687</a>    ) -&gt; Attribution {
+<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">if </span>session == bridge.session {
+<a href=#689 id=689 data-nosnippet>689</a>            <span class="kw">return </span>Attribution {
+<a href=#690 id=690 data-nosnippet>690</a>                session,
+<a href=#691 id=691 data-nosnippet>691</a>                call: <span class="prelude-val">Some</span>(report.call),
+<a href=#692 id=692 data-nosnippet>692</a>                for_subagent: <span class="bool-val">false</span>,
+<a href=#693 id=693 data-nosnippet>693</a>            };
+<a href=#694 id=694 data-nosnippet>694</a>        }
+<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>subagent = BridgeBinding {
+<a href=#696 id=696 data-nosnippet>696</a>            session,
+<a href=#697 id=697 data-nosnippet>697</a>            agent: binding.agent.clone(),
+<a href=#698 id=698 data-nosnippet>698</a>        };
+<a href=#699 id=699 data-nosnippet>699</a>        <span class="kw">let </span>offered = <span class="self">self</span>.bridge_tools(<span class="kw-2">&amp;</span>subagent).is_ok_and(|tools| {
+<a href=#700 id=700 data-nosnippet>700</a>            tools
+<a href=#701 id=701 data-nosnippet>701</a>                .iter()
+<a href=#702 id=702 data-nosnippet>702</a>                .any(|offered| offered.get(<span class="string">"name"</span>).and_then(Value::as_str) == <span class="prelude-val">Some</span>(tool))
+<a href=#703 id=703 data-nosnippet>703</a>        });
+<a href=#704 id=704 data-nosnippet>704</a>        <span class="kw">if </span>offered {
+<a href=#705 id=705 data-nosnippet>705</a>            <span class="kw">return </span>Attribution {
+<a href=#706 id=706 data-nosnippet>706</a>                session,
+<a href=#707 id=707 data-nosnippet>707</a>                call: <span class="prelude-val">Some</span>(report.call),
+<a href=#708 id=708 data-nosnippet>708</a>                for_subagent: <span class="bool-val">false</span>,
+<a href=#709 id=709 data-nosnippet>709</a>            };
+<a href=#710 id=710 data-nosnippet>710</a>        }
+<a href=#711 id=711 data-nosnippet>711</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(known) = <span class="kw">super</span>::lock(<span class="kw-2">&amp;</span>bridge.process.bridge_sightings)
+<a href=#712 id=712 data-nosnippet>712</a>            .iter_mut()
+<a href=#713 id=713 data-nosnippet>713</a>            .find(|known| known.acp_session == report.acp_session &amp;&amp; known.call == report.call)
+<a href=#714 id=714 data-nosnippet>714</a>        {
+<a href=#715 id=715 data-nosnippet>715</a>            known.state = SightingState::ClaimedElsewhere;
+<a href=#716 id=716 data-nosnippet>716</a>        }
+<a href=#717 id=717 data-nosnippet>717</a>        Attribution {
+<a href=#718 id=718 data-nosnippet>718</a>            session: bridge.session,
+<a href=#719 id=719 data-nosnippet>719</a>            call: <span class="prelude-val">None</span>,
+<a href=#720 id=720 data-nosnippet>720</a>            for_subagent: <span class="bool-val">true</span>,
+<a href=#721 id=721 data-nosnippet>721</a>        }
+<a href=#722 id=722 data-nosnippet>722</a>    }
+<a href=#723 id=723 data-nosnippet>723</a>
+<a href=#724 id=724 data-nosnippet>724</a>    <span class="doccomment">/// Runs one `tools/call` as a call of the agent's turn (the runner of
+<a href=#725 id=725 data-nosnippet>725</a>    /// the session's turn records and runs it): a result for the agent, an
+<a href=#726 id=726 data-nosnippet>726</a>    /// error one when the call failed or was refused.
+<a href=#727 id=727 data-nosnippet>727</a>    </span><span class="kw">async fn </span>bridge_call(<span class="kw-2">&amp;</span><span class="self">self</span>, binding: <span class="kw-2">&amp;</span>BridgeBinding, params: <span class="kw-2">&amp;</span>Value) -&gt; Value {
+<a href=#728 id=728 data-nosnippet>728</a>        <span class="kw">let </span>failed = |message: String| <span class="macro">json!</span>({<span class="string">"content"</span>: [{<span class="string">"type"</span>: <span class="string">"text"</span>, <span class="string">"text"</span>: message}], <span class="string">"isError"</span>: <span class="bool-val">true</span>});
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = params.get(<span class="string">"name"</span>).and_then(Value::as_str) <span class="kw">else </span>{
+<a href=#730 id=730 data-nosnippet>730</a>            <span class="kw">return </span>failed(<span class="string">"the call names no tool"</span>.to_owned());
+<a href=#731 id=731 data-nosnippet>731</a>        };
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="comment">// A tool the session's choices or rules took away since the agent
+<a href=#733 id=733 data-nosnippet>733</a>        // fetched its list is refused, not run.
+<a href=#734 id=734 data-nosnippet>734</a>        </span><span class="kw">if </span>!<span class="self">self</span>.bridge_tools(binding).is_ok_and(|tools| {
+<a href=#735 id=735 data-nosnippet>735</a>            tools
+<a href=#736 id=736 data-nosnippet>736</a>                .iter()
+<a href=#737 id=737 data-nosnippet>737</a>                .any(|tool| tool.get(<span class="string">"name"</span>).and_then(Value::as_str) == <span class="prelude-val">Some</span>(name))
+<a href=#738 id=738 data-nosnippet>738</a>        }) {
+<a href=#739 id=739 data-nosnippet>739</a>            <span class="kw">return </span>failed(<span class="macro">format!</span>(<span class="string">"`{name}` is no longer available in this session"</span>));
+<a href=#740 id=740 data-nosnippet>740</a>        }
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">let </span>outside_turns =
+<a href=#742 id=742 data-nosnippet>742</a>            || failed(<span class="string">"these tools can be called only during your turns"</span>.to_owned());
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bridge) = <span class="self">self</span>.live_session(binding.session) <span class="kw">else </span>{
+<a href=#744 id=744 data-nosnippet>744</a>            <span class="kw">return </span>outside_turns();
+<a href=#745 id=745 data-nosnippet>745</a>        };
+<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">let </span>attribution = <span class="kw">match </span><span class="self">self
+<a href=#747 id=747 data-nosnippet>747</a>            </span>.bridge_call_session(binding, <span class="kw-2">&amp;</span>bridge, name, named_call(params))
+<a href=#748 id=748 data-nosnippet>748</a>            .<span class="kw">await
+<a href=#749 id=749 data-nosnippet>749</a>        </span>{
+<a href=#750 id=750 data-nosnippet>750</a>            <span class="prelude-val">Ok</span>(attribution) =&gt; attribution,
+<a href=#751 id=751 data-nosnippet>751</a>            <span class="prelude-val">Err</span>(refusal) =&gt; <span class="kw">return </span>failed(refusal),
+<a href=#752 id=752 data-nosnippet>752</a>        };
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="attr">#[cfg(test)]
+<a href=#754 id=754 data-nosnippet>754</a>        </span><span class="self">self</span>.inner.test_hooks.bridge_attributed(attribution.session);
+<a href=#755 id=755 data-nosnippet>755</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(live) = <span class="self">self</span>.live_session(attribution.session) <span class="kw">else </span>{
+<a href=#756 id=756 data-nosnippet>756</a>            <span class="kw">return </span>outside_turns();
 <a href=#757 id=757 data-nosnippet>757</a>        };
-<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">if </span>hidden(name, <span class="kw-2">&amp;</span><span class="self">self</span>.hidden_tools(binding)) {
-<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw">return </span>failed(<span class="macro">format!</span>(<span class="string">"tool `{name}` is not offered to this agent"</span>));
-<a href=#760 id=760 data-nosnippet>760</a>        }
-<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">let </span>outside_turns =
-<a href=#762 id=762 data-nosnippet>762</a>            || failed(<span class="string">"these tools can be called only during your turns"</span>.to_owned());
-<a href=#763 id=763 data-nosnippet>763</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(bridge) = <span class="self">self</span>.live_session(binding.session) <span class="kw">else </span>{
-<a href=#764 id=764 data-nosnippet>764</a>            <span class="kw">return </span>outside_turns();
-<a href=#765 id=765 data-nosnippet>765</a>        };
-<a href=#766 id=766 data-nosnippet>766</a>        <span class="kw">let </span>attribution = <span class="kw">match </span><span class="self">self
-<a href=#767 id=767 data-nosnippet>767</a>            </span>.bridge_call_session(binding, <span class="kw-2">&amp;</span>bridge, name, named_call(params))
-<a href=#768 id=768 data-nosnippet>768</a>            .<span class="kw">await
-<a href=#769 id=769 data-nosnippet>769</a>        </span>{
-<a href=#770 id=770 data-nosnippet>770</a>            <span class="prelude-val">Ok</span>(attribution) =&gt; attribution,
-<a href=#771 id=771 data-nosnippet>771</a>            <span class="prelude-val">Err</span>(refusal) =&gt; <span class="kw">return </span>failed(refusal),
-<a href=#772 id=772 data-nosnippet>772</a>        };
-<a href=#773 id=773 data-nosnippet>773</a>        <span class="attr">#[cfg(test)]
-<a href=#774 id=774 data-nosnippet>774</a>        </span><span class="self">self</span>.inner.test_hooks.bridge_attributed(attribution.session);
-<a href=#775 id=775 data-nosnippet>775</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(live) = <span class="self">self</span>.live_session(attribution.session) <span class="kw">else </span>{
-<a href=#776 id=776 data-nosnippet>776</a>            <span class="kw">return </span>outside_turns();
-<a href=#777 id=777 data-nosnippet>777</a>        };
-<a href=#778 id=778 data-nosnippet>778</a>        <span class="kw">let </span>(reply, answer) = tokio::sync::oneshot::channel();
-<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">let </span>event = <span class="kw">super</span>::process::SessionEvent::BridgeCall {
-<a href=#780 id=780 data-nosnippet>780</a>            name: name.to_owned(),
-<a href=#781 id=781 data-nosnippet>781</a>            arguments: params
-<a href=#782 id=782 data-nosnippet>782</a>                .get(<span class="string">"arguments"</span>)
-<a href=#783 id=783 data-nosnippet>783</a>                .cloned()
-<a href=#784 id=784 data-nosnippet>784</a>                .unwrap_or_else(|| <span class="macro">json!</span>({})),
-<a href=#785 id=785 data-nosnippet>785</a>            call: attribution.call,
-<a href=#786 id=786 data-nosnippet>786</a>            for_subagent: attribution.for_subagent,
-<a href=#787 id=787 data-nosnippet>787</a>            reply,
-<a href=#788 id=788 data-nosnippet>788</a>        };
-<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">if </span>live.process.send_to(<span class="kw-2">&amp;</span>live.acp_session_id, event).is_err() {
-<a href=#790 id=790 data-nosnippet>790</a>            <span class="kw">return </span>outside_turns();
-<a href=#791 id=791 data-nosnippet>791</a>        }
-<a href=#792 id=792 data-nosnippet>792</a>        answer.<span class="kw">await</span>.unwrap_or_else(|<span class="kw">_</span>| {
-<a href=#793 id=793 data-nosnippet>793</a>            failed(<span class="string">"the agent's turn ended before the call finished"</span>.to_owned())
-<a href=#794 id=794 data-nosnippet>794</a>        })
-<a href=#795 id=795 data-nosnippet>795</a>    }
-<a href=#796 id=796 data-nosnippet>796</a>}
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">let </span>(reply, answer) = tokio::sync::oneshot::channel();
+<a href=#759 id=759 data-nosnippet>759</a>        <span class="kw">let </span>event = <span class="kw">super</span>::process::SessionEvent::BridgeCall {
+<a href=#760 id=760 data-nosnippet>760</a>            name: name.to_owned(),
+<a href=#761 id=761 data-nosnippet>761</a>            arguments: params
+<a href=#762 id=762 data-nosnippet>762</a>                .get(<span class="string">"arguments"</span>)
+<a href=#763 id=763 data-nosnippet>763</a>                .cloned()
+<a href=#764 id=764 data-nosnippet>764</a>                .unwrap_or_else(|| <span class="macro">json!</span>({})),
+<a href=#765 id=765 data-nosnippet>765</a>            call: attribution.call,
+<a href=#766 id=766 data-nosnippet>766</a>            for_subagent: attribution.for_subagent,
+<a href=#767 id=767 data-nosnippet>767</a>            reply,
+<a href=#768 id=768 data-nosnippet>768</a>        };
+<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">if </span>live.process.send_to(<span class="kw-2">&amp;</span>live.acp_session_id, event).is_err() {
+<a href=#770 id=770 data-nosnippet>770</a>            <span class="kw">return </span>outside_turns();
+<a href=#771 id=771 data-nosnippet>771</a>        }
+<a href=#772 id=772 data-nosnippet>772</a>        answer.<span class="kw">await</span>.unwrap_or_else(|<span class="kw">_</span>| {
+<a href=#773 id=773 data-nosnippet>773</a>            failed(<span class="string">"the agent's turn ended before the call finished"</span>.to_owned())
+<a href=#774 id=774 data-nosnippet>774</a>        })
+<a href=#775 id=775 data-nosnippet>775</a>    }
+<a href=#776 id=776 data-nosnippet>776</a>}
 </code></pre></div></section></main></body></html>

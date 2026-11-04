@@ -4560,8 +4560,8 @@ carries no version.</p>
   <a href="../../clients/cli/#cookie-skills"><code>cookie skills</code></a>. The TUI's skill picker
   and the web page's skill list mark official skills.</li>
 </ul>
-<p>Skills grant no tools; the <code>skill</code> permission and every tool's own rules
-still decide each call.</p>
+<p>Skills grant no tools; the session's <a href="../agents/#tool-groups-and-skills">skill choices</a>
+and every tool's own rules still decide each call.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[skills]</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">official</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">   </span><span class="c1"># the default</span>
 </code></pre></div>
@@ -4595,16 +4595,19 @@ the directory name.</p>
 does not execute a shell.</p>
 <h2 id="invocation-and-permissions">Invocation and permissions<a class="headerlink" href="#invocation-and-permissions" title="Permanent link">&para;</a></h2>
 <p>The model uses <code>skill({"name":"release-check","args":"v1.2.0"})</code>. The tool is
-absent when policy leaves no skill effectively usable, and skills with
+absent when no skill is on for the agent, and skills with
 <code>disable-model-invocation: true</code> are omitted from the model listing. In the TUI, users
 choose <code>/skills</code> in the <a href="../../clients/tui/#command-palette">command palette</a>, search for a
 <code>user-invocable</code> skill, press Enter, and type optional arguments such as
-<code>v1.2.0</code> into the prompt that follows. The highlighted skill's source,
-permission effect, and location show under the list. Headless runs use
+<code>v1.2.0</code> into the prompt that follows. The highlighted skill's source
+and location show under the list. Headless runs use
 <code>cookie run --skill release-check --skill-args v1.2.0 "Check the release"</code>.</p>
-<p>Skill access uses the <code>skill</code> permission action and the skill name as its
-resource. A denied skill is hidden from the model listing. Headless runs can
-grant one skill with <code>--allowed-tools skill:release-check</code>.</p>
+<p>Skills take no permission. Which skills the model may load is the agent
+document's, the project's, and the session's
+<a href="../agents/#tool-groups-and-skills">skill choices</a>: a skill that is off is
+left out of the listing and refused by the <code>skill</code> tool, and a skill that
+is on loads without asking, its grants with it. The user may still run any
+user-invocable skill, on or off for the agent.</p>
 <p><code>allowed-tools</code> uses the agentskills.io/Claude Code syntax: a space-separated
 string of bare <code>Tool</code> names or <code>Tool(pattern)</code> entries. Patterns may contain
 spaces and parentheses; a bare tool means <code>*</code>. Tool names are case-insensitive,
@@ -4622,9 +4625,10 @@ glob semantics. For example, <code>Bash(git:*)</code> creates grants for both <c
 patterns pass through unchanged: <code>Write(src/**)</code> grants the <code>src/**</code> glob.</p>
 <p>On load, these entries create turn-scoped allow grants labeled for that skill.
 A project skill's grants apply only to the tools of the attachment that
-contributed it (and, for <code>Skill</code> and <code>Delegate</code> grants, to the base layer's
-<code>skill</code> and <code>delegate_subagent</code> tools); a user skill's grants apply to every
-runtime.
+contributed it (and, for <code>Delegate</code> grants, to the base layer's
+<code>delegate_subagent</code> tool); a user skill's grants apply to every runtime. A
+<code>Skill(...)</code> entry grants nothing: skills take no permission, so it names an
+action no tool uses.
 Grants from every skill loaded during the same turn are merged; loading a
 grantless skill does not remove grants from an earlier skill. The complete
 collection disappears on the next committed user input. Grants can only upgrade
