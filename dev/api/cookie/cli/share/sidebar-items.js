@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ShareCommand"],"fn":["find_asset","parse_lifetime","parse_share_id","run_share","run_share_with","share_line"]};
+window.SIDEBAR_ITEMS = {"enum":["ShareCommand"],"fn":["expiry_line","find_asset","parse_lifetime","parse_share_id","run_share","run_share_with","session_share_line","share_line"]};
