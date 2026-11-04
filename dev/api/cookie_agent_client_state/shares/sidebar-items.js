@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ShareLifetime"],"fn":["daemon_has_shares","looks_private","page_base","share_address"]};

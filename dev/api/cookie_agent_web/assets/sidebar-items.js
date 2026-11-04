@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Source"],"fn":["act","copy_handle","download","download_source","frame_height","refresh","reveal","reveal_attachment","show_within"],"struct":["OpenAsset"]};
+window.SIDEBAR_ITEMS = {"enum":["Source"],"fn":["act","copy_handle","download","download_source","frame_height","mark_shared","refresh","reveal","reveal_attachment","show_within"],"struct":["OpenAsset"]};
