@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SessionsCommand"],"fn":["run_sessions"]};
+window.SIDEBAR_ITEMS = {"enum":["SessionsCommand"],"fn":["layer_word","run_session_tools","run_sessions","session_tools_lines"]};

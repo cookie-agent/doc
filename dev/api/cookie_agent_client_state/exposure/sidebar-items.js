@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["change_text","from_project","groups_off","step_group_state","with_group","with_skill"]};
