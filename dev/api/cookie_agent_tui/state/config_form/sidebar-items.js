@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MANAGED","MASK","SECTIONS"],"enum":["FieldDefault","FieldKind","ManagedPanel"],"fn":["models_from_value","models_to_value"],"struct":["ConfigField","ConfigForm","ConfigSection","FormField","FormManaged","FormSection","ManagedTable","OtherEntry"]};
