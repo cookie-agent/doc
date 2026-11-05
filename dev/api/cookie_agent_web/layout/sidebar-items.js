@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CONTEXT_MENU_WIDTH","MENU_GAP","PRESS_SLOP"],"enum":["HistoryStep","Layer","PhoneList","SettingsSection","View"],"fn":["context_place","menu_place","reconcile"],"struct":["MenuPlace","Press"]};
+window.SIDEBAR_ITEMS = {"constant":["ASSET_PANEL_MIN_SIDE","ASSET_PANEL_SHARE_KEY","CONTEXT_MENU_WIDTH","MENU_GAP","PRESS_SLOP"],"enum":["HistoryStep","Layer","PhoneList","SettingsSection","View"],"fn":["asset_panel_share","context_place","menu_place","parse_asset_panel_share","reconcile"],"struct":["MenuPlace","Press"]};
