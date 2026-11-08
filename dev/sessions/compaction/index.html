@@ -5022,20 +5022,28 @@ retries.</p>
    text summary, the native window beside it when the native call succeeded,
    source and recent-suffix boundaries, and the budget math, including the
    effective recent-history token budget. Retained messages come from saved
-   history, not new file reads.</li>
+   history, not new file reads. Just before it, the checkpoint records the
+   <code>AGENTS.md</code> of every coding attachment and the memory snapshot it read as
+   compaction started (their size counts in the budgets), and marks itself
+   <code>context_fresh</code>: the context before the conversation is composed afresh, and
+   nothing older is pinned. What cannot be read, a machine that is away, is
+   recorded again as it was.</li>
 </ol>
 <h2 id="context-after-an-internal-checkpoint">Context after an internal checkpoint<a class="headerlink" href="#context-after-an-internal-checkpoint" title="Permanent link">&para;</a></h2>
 <p>The next request assembles context in this order:</p>
 <ol>
 <li>System prompt and tool definitions.</li>
-<li>Pinned <code>AGENTS.md</code> context.</li>
-<li>Pinned loaded skill bodies.</li>
+<li>The <code>AGENTS.md</code> and memory turns the checkpoint recorded.</li>
 <li>Summary of everything before the retained suffix.</li>
 <li>Recent original messages retained unchanged, followed by any new messages.</li>
 </ol>
-<p>Pinned context is preserved separately from the suffix. With retention disabled,
-or when the newest complete group cannot fit, the recent suffix is absent and
-only the summary remains alongside pinned context. The summary and the retained
+<p>A loaded skill is a turn like any other: in the retained suffix it stays where
+it was loaded, and before it the summary covers it. The model loads it again
+when it needs it, and the body shows again. A checkpoint an earlier build wrote
+(without <code>context_fresh</code>) pins every skill loaded before it after the memory
+turn, as it did. With retention disabled, or when the newest complete group
+cannot fit, the recent suffix is absent and only the summary remains after the
+turns before the conversation. The summary and the retained
 suffix do not overlap. A request on the window's own model uses the window
 and the messages after it instead of this summary-and-tail layout.</p>
 <p>With <a href="../../reference/tools/#deferred-tools">deferred tools</a>, a checkpoint

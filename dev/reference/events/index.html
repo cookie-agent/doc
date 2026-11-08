@@ -5517,6 +5517,18 @@ never stored.</p>
 <td><a href="#prompt-blocks">Prompt blocks</a>: the context before the conversation was composed again between compactions, and why</td>
 </tr>
 <tr>
+<td><code>system_prompt_composed</code></td>
+<td>audit</td>
+<td>run</td>
+<td><a href="#prompt-blocks">Prompt blocks</a>: a checkpoint inside a run composed the run's system prompt afresh</td>
+</tr>
+<tr>
+<td><code>reviewer_turn_recorded</code></td>
+<td>state</td>
+<td>runless</td>
+<td>A turn of the <a href="#approvals">approval reviewer's own log</a>, which only that log holds</td>
+</tr>
+<tr>
 <td><code>model_turn_committed</code>, <code>model_usage_recorded</code></td>
 <td>state</td>
 <td>run</td>
@@ -5825,9 +5837,11 @@ gets one more, written first, whose optional <code>project</code> (<code>{ id, n
 client protocol 1.8.0) names the project; its <code>attachment</code> is <code>global</code>, where
 the file lives, and its entry's source is <code>project:&lt;name&gt;/AGENTS.md</code>.
 Missing or disabled context produces no event. History uses only the latest
-run's events, the latest per attachment and the project's, and replays their
-entries as one provenance-delimited user turn, the project's first. Compaction pins that turn
-alongside loaded skill bodies. See
+run's events, the latest per attachment and the project's, or after a
+checkpoint with <code>context_fresh</code> in that run the ones it recorded just before
+itself, and replays their entries as one provenance-delimited user turn, the
+project's first. A checkpoint without <code>context_fresh</code> pins that turn alongside
+loaded skill bodies. See
 <a href="../system-prompt/#agentsmd-context-turn">System Prompt Composition</a>.</p>
 <h3 id="memory-snapshots">Memory snapshots<a class="headerlink" href="#memory-snapshots" title="Permanent link">&para;</a></h3>
 <p><code>memory_loaded</code> is a run-scoped event stamped <code>engine:memory</code>, appended at a
@@ -6092,8 +6106,20 @@ the user, or <code>cancelled { reason_code }</code>, the engine withdrawing the 
 cancelled the request. An outcome this build does not know reads as cancelled,
 so the operation is not approved.</p>
 <p>The approval reviewer's conversation is rendered from these records and the
-session's messages and tool calls, never stored separately
-(<a href="../../extend/agents/#the-approval-reviewer">The approval reviewer</a>).</p>
+session's messages and tool calls, and kept in a log of its own
+(<a href="../../extend/agents/#the-approval-reviewer">The approval reviewer</a>): a hidden
+child session in the reviewed session's folder, <code>reviewer/events.jsonl</code>, which
+no listing, tree, or client reads. After its <code>session_created</code>, each of its
+records is <code>reviewer_turn_recorded { turn }</code> (client protocol 1.92.0), one per
+review the reviewer answered: <code>turn.request</code> and <code>turn.verdict</code> are the <code>user</code>
+turn and the verdict as they were sent, <code>cut_seq</code> the reviewed session's
+<code>approval_requested</code> of the call and <code>evaluated_seq</code> its <code>evaluated</code> step,
+<code>entries</code> what the turn rendered since the previous one, and <code>cursor</code> what
+the next review needs of the session's log before its cut. A turn with
+<code>epoch</code> started the conversation over, holding the entries a later epoch can
+still keep and the verdicts it carries forward; the log's window starts
+there. A revert of the reviewed session drops the turns whose <code>evaluated_seq</code>
+it cuts, and a fork copies those it keeps.</p>
 <p><code>permission_mode_set { mode }</code> is a runless state event of a root session:
 its tree's permission mode changed to <code>mode</code>. Loading the tree restores the
 newest one; a session without one is in <code>auto_approve</code>.</p>
@@ -6366,8 +6392,18 @@ Later runs that name no selection of their own use it.</p>
   <code>text</code>, or no <code>text</code> when the block no longer applies. Model history renders
   it in place as a user turn; a checkpoint leaves earlier ones out of the
   messages it keeps, and the next request announces afresh.</li>
+<li><code>system_prompt_composed { composed_prompt, prompt_fingerprint, blocks? }</code>
+  (client protocol 1.91.0) comes right after a native run's
+  <code>context_checkpoint_committed</code> when the checkpoint composed the run's system
+  prompt afresh and it differs from the one in force. Every later request of
+  the run carries it instead of its <code>run_started</code> agent's <code>composed_prompt</code>,
+  until a later one; the rest of that agent (permissions, models, limits) stays
+  as the run started. <code>blocks</code> is as for <code>prompt_blocks_recorded</code>, absent when
+  a plugin replaced the prompt. Clients show it in the system prompt row. A
+  run that does not outlive its engine is the only reader, so an engine that
+  does not know it skips it.</li>
 </ul>
-<p>Both are audit events: an engine that does not know them composes every
+<p>They are audit events: an engine that does not know them composes every
 prompt afresh.</p>
 <h3 id="the-queued-input-lane">The queued-input lane<a class="headerlink" href="#the-queued-input-lane" title="Permanent link">&para;</a></h3>
 <p>The queued-input lane is session-level, so its events are runless.
@@ -6385,8 +6421,12 @@ the active pre-compaction history before the recent messages retained unchanged
 after the summary; the two do not overlap. Active history is the currently assembled context,
 not a reload of events replaced by earlier checkpoints. The original saved log
 is preserved; retained recent messages are replayed from it. System and tool
-context comes first, followed by pinned <code>AGENTS.md</code>, the latest memory
-snapshot, loaded skills, the summary, and the recent messages. See <a href="../../sessions/compaction/">Compaction</a> for selection
+context comes first, followed by the <code>AGENTS.md</code> turn, the memory turn, the
+summary, and the recent messages. A checkpoint with <code>context_fresh</code> records its
+<code>AGENTS.md</code> and memory again just before itself and pins nothing older; one
+without it, written before client protocol 1.90.0, pins the latest <code>AGENTS.md</code>,
+the latest memory snapshot, and every skill loaded before it, which then sit
+between the memory turn and the summary. See <a href="../../sessions/compaction/">Compaction</a> for selection
 and fit rules.</p>
 <p>The retention fields:</p>
 <table>
@@ -6417,6 +6457,11 @@ and fit rules.</p>
 <td><code>reason</code></td>
 <td>object, optional</td>
 <td>Why the checkpoint was made, when not for size, overflow, or a manual request (client protocol 1.78.0): <code>{"type": "cache_expiry", "expires_at", "next_fire"?, "job_id"?}</code>, a compaction <a href="../../sessions/compaction/#before-the-cache-expires">before the prompt cache expired</a>, for the scheduled job <code>job_id</code> firing at <code>next_fire</code> when one decided it. A reader treats a type it does not know as no reason.</td>
+</tr>
+<tr>
+<td><code>context_fresh</code></td>
+<td>bool, optional</td>
+<td>The context before the conversation was composed afresh for this checkpoint (client protocol 1.90.0): <code>agent_md_loaded</code> and <code>memory_loaded</code> recorded just before it hold what the model reads, and a skill loaded before the kept range is not carried. Absent, or <code>false</code>, in checkpoints written before.</td>
 </tr>
 <tr>
 <td><code>checkpoint.folded_tools</code></td>

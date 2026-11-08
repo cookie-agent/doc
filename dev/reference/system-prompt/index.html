@@ -4879,8 +4879,9 @@ agent but is not copied into prompt text.</p>
    system turn.</li>
 <li>Root runs may then add a durable <a href="#agentsmd-context-turn">AGENTS.md context</a>
    user turn. The <a href="#memory-turn">memory snapshot</a> follows when the session's
-   latest snapshot is not empty, then loaded skill bodies as user turns,
-   followed by normal session history.</li>
+   latest snapshot is not empty, then the skills a refresh moved there (see
+   <a href="#the-frozen-context">the frozen context</a>), followed by normal session
+   history, where other loaded skills sit as user turns.</li>
 </ol>
 <p>Appended blocks are joined by a markdown horizontal rule (<code>\n\n---\n\n</code>) so the
 boundaries between the authored body, the runtimes block, the attachments
@@ -4889,8 +4890,12 @@ body is first and carries no leading separator; a plugin <code>replace_system_pr
 replaces the whole prompt instead of appending to it.</p>
 <p>The resulting agent snapshot is frozen in <code>run_started</code>. Model retries and
 fallbacks reuse that run policy and prompt fingerprint; configuration refreshes
-cannot alter an admitted run. Request assembly reuses the first event snapshot
-for the first attempt and refreshes session events only when a later attempt
+cannot alter an admitted run. The one exception is a native run's checkpoint,
+which composes the prompt again through steps 1 to 6 and records it as
+<code>system_prompt_composed</code> (see <a href="#the-frozen-context">the frozen context</a>):
+the run's later requests carry that prompt, while the rest of its snapshot,
+its permissions and models among it, stays as <code>run_started</code> froze it.
+Request assembly reuses the first event snapshot for the first attempt and refreshes session events only when a later attempt
 needs current history.</p>
 <h2 id="fingerprints">Fingerprints<a class="headerlink" href="#fingerprints" title="Permanent link">&para;</a></h2>
 <p>The document fingerprint covers the agent identity, strict frontmatter, and
@@ -4899,12 +4904,14 @@ the attachments block, tool-provider sections, skill listings, and plugin compos
 effective fingerprints before
 <code>run_started</code> is persisted. Model-attempt events record the prompt fingerprint,
 and replay validation rejects attempt attribution that contradicts the frozen
-run snapshot.</p>
+run snapshot, or, after a <code>system_prompt_composed</code> in the run, that record's
+fingerprint.</p>
 <p>AGENTS.md context and the memory snapshot are intentionally excluded from the
 system-prompt fingerprint. Each has its own durable event, provenance, and
 user-role boundary.</p>
 <h2 id="tool-provider-sections">Tool-provider sections<a class="headerlink" href="#tool-provider-sections" title="Permanent link">&para;</a></h2>
-<p>Tool providers can contribute cross-tool behavioral policy at run admission:
+<p>Tool providers can contribute cross-tool behavioral policy at run admission,
+and at a native run's checkpoint, which composes the prompt again:
 built-in providers, plugins, and runtimes over the runtime protocol. Each section is normalized, validated, and rendered with an
 engine-derived identity:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;tool_instructions provider="builtin.delegate"&gt;
@@ -4917,8 +4924,9 @@ the session attaches, in attach order (plugins under <code>global</code>), each 
 registration order.
 Declaration order determines section order within a provider. Bodies are limited to 8 KiB per section,
 16 KiB per provider, and 32 KiB across all providers. Any invalid content or
-overflow rejects run admission instead of truncating or omitting policy. The
-existing 128 KiB composed-prompt limit still applies.</p>
+overflow rejects run admission instead of truncating or omitting policy; at
+a checkpoint it leaves the prompt the run's requests carry. The existing 128
+KiB composed-prompt limit still applies.</p>
 <p>This channel is for durable behavioral policy that must survive compaction and
 carry system priority. Per-tool guidance remains in typed tool descriptions;
 reference material belongs in explicit user-role context. Built-in providers
@@ -5016,8 +5024,8 @@ project. Moving a session to another project changes the next run's prompt,
 which costs one prompt-cache miss, like any other change to the session's
 facts. Attribute values are XML-escaped. The block is frozen with the prompt: an
 attachment added or removed, or a machine renamed, regrouped, or merged after
-admission changes the next run's block, while the tool descriptions follow
-at once. The block is skipped rather than truncated if the composed prompt is
+admission changes the next run's block, or the block a checkpoint inside the
+run composes, while the tool descriptions follow at once. The block is skipped rather than truncated if the composed prompt is
 already at its byte limit.</p>
 <p>An <a href="../../extend/acp-agents/#what-the-first-prompt-carries">ACP agent</a> gets
 the same block in its first prompt. With several attachments, the
@@ -5062,13 +5070,17 @@ composed afresh (see <a href="#the-frozen-context">the frozen context</a>), each
 runtime the session is attached to discovers the applicable <code>AGENTS.md</code>
 files in its own workspace, and Cookie Agent stores their bounded content in
 one <code>agent_md_loaded</code> event per attachment that returned a file, naming the
-attachment. Any other root run records the previous run's turn again,
-without reading the files, so an edited <code>AGENTS.md</code> reaches the session at
-its next compaction or refresh. A runtime a client attached since the
+attachment. A native session's compaction reads them again too, as it
+starts, and records them just before its checkpoint commits, in the same run
+(see <a href="#the-frozen-context">the frozen context</a>); an attachment whose runtime is
+away, or whose files cannot be read, keeps its previous record. Any other root
+run records the previous run's turn again, without reading the files, so an
+edited <code>AGENTS.md</code> reaches the session at its next compaction or refresh. A runtime a client attached since the
 previous run adds its own <code>AGENTS.md</code> once, at the next run's start, as an
 <code>agent_md_loaded</code> with <code>in_place</code>: a turn of its own where it was recorded. Files larger than 2 MiB are skipped and surfaced as
 <code>AgentMdSkipped</code> warning events. History replays the latest run's entries, the
-latest event per attachment, as one user turn, wrapped in a
+latest event per attachment, or, after a checkpoint in that run, those it
+recorded, as one user turn, wrapped in a
 <code>&lt;system-reminder&gt;</code> block with each file delimited as:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>&lt;system-reminder&gt;
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>As you answer the user's questions, you can use the following context:
@@ -5092,9 +5104,9 @@ workspace's, as <code>&lt;contents from="project:&lt;name&gt;/AGENTS.md"&gt;</co
 <code>global</code>, where the file lives, and the project.</p>
 <p>Making this context a turn rather than system text keeps the stable system
 cache key independent of normal repository edits, preserves per-file
-provenance, and lets compaction pin the turn alongside loaded skill bodies. The
-rolling non-system cache breakpoint can still move when AGENTS.md context
-changes, which is the intended invalidation.</p>
+provenance, and lets a checkpoint compose it afresh without touching the system
+text. The rolling non-system cache breakpoint can still move when AGENTS.md
+context changes, which is the intended invalidation.</p>
 <h2 id="memory-turn">Memory turn<a class="headerlink" href="#memory-turn" title="Permanent link">&para;</a></h2>
 <p>A run that has memory (the session has the <code>global</code> runtime attached and the
 run's merged rules, the agent's and the session overlay's, hold an <code>allow</code> or <code>ask</code> rule for <code>memory</code>; a root
@@ -5105,8 +5117,10 @@ at a refresh always, and otherwise, as a <code>memory_loaded</code> event, when
 something it depends on changed: the session has none yet, a compaction
 finished since the latest one, the session's machines, the session's project
 or its name, the run's agent, its <code>memory</code> rules, whether memory is
-available, or whether the run may write it. History renders the latest event
-only, and compaction pins the turn like the AGENTS.md turn. Writes during the
+available, or whether the run may write it. A native session's compaction
+takes one as it starts too, and records it just before its checkpoint, or the
+latest one again when it cannot be read. History renders the latest event
+only. Writes during the
 session, edits the user makes from a client, and those changes between
 refresh points change the files but not the turn, so the prompt cache
 survives them. When memory stops being available at such a point, an empty
@@ -5207,7 +5221,8 @@ background line:</p>
 provider="builtin.memory"&gt;</code> section (see
 <a href="#tool-provider-sections">Tool-provider sections</a>) to every run that is
 offered any memory tool, and none to one that is not. It is composed at run
-admission from the run's frozen policy, so it is identical on every run that
+admission, and at a checkpoint inside the run, from the run's frozen policy,
+so it is identical on every run that
 keeps the same access and stays cached. On a model that loads
 <a href="../tools/#deferred-tools">deferred tools</a>, the memory tools are deferred and
 the section arrives with their first load instead, unless
@@ -5252,7 +5267,29 @@ point, on every model (<a href="../../specs/frozen-context/">frozen context spec
 <p><strong>It is composed afresh</strong> at the session's first run, at the first run after
 a compaction, after a run whose prompt a plugin replaced, and at a
 <strong>refresh</strong>, which records <code>context_refreshed { reason, changed }</code> and starts
-a new tool round:</p>
+a new tool round. <strong>A native session's checkpoint</strong> composes the whole
+context afresh in the run that compacts
+(<a href="../../specs/forever-sessions/">forever sessions</a>, section 5.2):</p>
+<ul>
+<li>the AGENTS.md and memory turns, read as compaction starts and recorded just
+  before the checkpoint;</li>
+<li>the system prompt, right after the checkpoint, as the run's admission
+  composes it: the agent's body as its document reads now, the runtimes,
+  attachments, tool instructions, and skills blocks, and the plugins'
+  <code>agent_before_start</code> hooks (run with no <code>input</code>; a message one injects is
+  not taken). When it differs from the prompt the run's requests carry, it is
+  recorded as <code>system_prompt_composed { composed_prompt, prompt_fingerprint,
+  blocks? }</code>, and every later request of the run carries it, so the log alone
+  gives the request after a restart. A prompt that cannot be composed (too
+  long, or a hook that blocks failed) leaves the one in force;</li>
+<li>the tool round, which starts over for the request right after the
+  checkpoint.</li>
+</ul>
+<p>The run's agent otherwise stays as it was admitted: its permissions, models,
+limits, and delegation targets, which the run's policy decides, change only at
+the next run. Between runs a checkpoint leaves the prompt to the next run,
+which composes it afresh. An ACP agent's context stays as its session started
+it. The refresh points:</p>
 <ul>
 <li>an eager tool's parameter schema changed since the round started
   (<code>engine_updated</code> when the engine build that started the round differs,
@@ -5287,10 +5324,16 @@ show it word for word:</p>
 <a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>&lt;/system-reminder&gt;
 </code></pre></div>
 <p>A plugin's system-prompt hook changes take effect at the next point the
-context is composed afresh; its injected messages apply to every run.</p>
-<p><strong>Skills</strong> loaded since the latest compaction or refresh render where they
-were loaded; at the next one they join the pinned skills after the memory
-turn.</p>
+context is composed afresh, a checkpoint inside a run included; its injected
+messages apply to every run's start.</p>
+<p><strong>Skills</strong> render where they were loaded, as user turns, like any other
+turn: a checkpoint keeps one in its kept range in place and summarizes an
+older one, and nothing loads it again; the model loads it again when it needs
+it, and gets its current version. Loading it again with a body already loaded
+since the latest compaction is only noted. A refresh that is not a checkpoint moves
+skills loaded before it after the memory turn, as the conversation stays
+whole; a checkpoint written before client protocol 1.90.0 (without
+<code>context_fresh</code>) keeps every skill loaded before it there.</p>
 <h2 id="cache-breakpoints">Cache breakpoints<a class="headerlink" href="#cache-breakpoints" title="Permanent link">&para;</a></h2>
 <p>For capable Anthropic adaptors, cache strategy is structural rather than text
 injection. The engine clears prior markers, then can mark:</p>
@@ -5327,7 +5370,7 @@ cached prefix rather than using an isolated cache namespace. See the
 <tr>
 <td>Root</td>
 <td>Selected authored agent body, or the concise built-in default coding prompt; runtimes block, attachments block, optional tool-provider sections, skill listing, and plugin composition</td>
-<td>Root-only AGENTS.md context turn, the memory turn, loaded skill bodies, then session history</td>
+<td>Root-only AGENTS.md context turn, the memory turn, then session history with loaded skill bodies where they were loaded</td>
 </tr>
 <tr>
 <td>Delegated</td>

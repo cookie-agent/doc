@@ -331,180 +331,184 @@
 <a href=#331 id=331 data-nosnippet>331</a>            <span class="kw">return</span>;
 <a href=#332 id=332 data-nosnippet>332</a>        };
 <a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">if </span>projection.status == SessionStatus::Running
-<a href=#334 id=334 data-nosnippet>334</a>            || <span class="kw">super</span>::sessions::residency::has_runless_pending_inputs(
-<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw-2">&amp;</span>projection.log.event_snapshot(),
-<a href=#336 id=336 data-nosnippet>336</a>            )
-<a href=#337 id=337 data-nosnippet>337</a>        {
-<a href=#338 id=338 data-nosnippet>338</a>            <span class="kw">return</span>;
-<a href=#339 id=339 data-nosnippet>339</a>        }
-<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(producers) = <span class="self">self</span>.goal_producer_projection(root) <span class="kw">else </span>{
-<a href=#341 id=341 data-nosnippet>341</a>            <span class="kw">return</span>;
-<a href=#342 id=342 data-nosnippet>342</a>        };
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">if </span>producers
-<a href=#344 id=344 data-nosnippet>344</a>            .messages
-<a href=#345 id=345 data-nosnippet>345</a>            .iter()
-<a href=#346 id=346 data-nosnippet>346</a>            .any(<span class="kw">super</span>::messaging::producers::pending)
-<a href=#347 id=347 data-nosnippet>347</a>            || producers
-<a href=#348 id=348 data-nosnippet>348</a>                .goal
-<a href=#349 id=349 data-nosnippet>349</a>                .as_ref()
-<a href=#350 id=350 data-nosnippet>350</a>                .is_some_and(|goal| goal.status == GoalStatus::Active)
-<a href=#351 id=351 data-nosnippet>351</a>        {
-<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw">return</span>;
-<a href=#353 id=353 data-nosnippet>353</a>        }
-<a href=#354 id=354 data-nosnippet>354</a>        <span class="kw">let </span>waking_once = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.push.waking_once).clone();
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">if </span><span class="self">self</span>.wakes_once(root, <span class="kw-2">&amp;</span>waking_once) {
-<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">return</span>;
-<a href=#357 id=357 data-nosnippet>357</a>        }
-<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>meta = <span class="kw-2">&amp;</span>projection.meta;
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">let _ </span>= <span class="self">self
-<a href=#360 id=360 data-nosnippet>360</a>            </span>.inner
-<a href=#361 id=361 data-nosnippet>361</a>            .push
-<a href=#362 id=362 data-nosnippet>362</a>            .sender
-<a href=#363 id=363 data-nosnippet>363</a>            .send(PushSignal::Settled(SettledSignal {
-<a href=#364 id=364 data-nosnippet>364</a>                root,
-<a href=#365 id=365 data-nosnippet>365</a>                outcome,
-<a href=#366 id=366 data-nosnippet>366</a>                title: meta.title.as_ref().map(ToString::to_string),
-<a href=#367 id=367 data-nosnippet>367</a>                short_id: meta.short_id.clone(),
-<a href=#368 id=368 data-nosnippet>368</a>                cron: meta.cron.is_some(),
-<a href=#369 id=369 data-nosnippet>369</a>                at: Timestamp::now(),
-<a href=#370 id=370 data-nosnippet>370</a>            }));
-<a href=#371 id=371 data-nosnippet>371</a>    }
-<a href=#372 id=372 data-nosnippet>372</a>
-<a href=#373 id=373 data-nosnippet>373</a>    <span class="doccomment">/// Whether `session` can still wake on its own, counting one-time cron
-<a href=#374 id=374 data-nosnippet>374</a>    /// jobs and not recurring ones: a background call, a background
-<a href=#375 id=375 data-nosnippet>375</a>    /// delegation, an external producer, a one-time job, or a direct child
-<a href=#376 id=376 data-nosnippet>376</a>    /// that runs a turn or itself wakes so (`waking_once`), a child's
-<a href=#377 id=377 data-nosnippet>377</a>    /// report on its way, a wake already scheduled for a producer message
-<a href=#378 id=378 data-nosnippet>378</a>    /// that arrived, an ACP agent's command that runs, or a subagent of the
-<a href=#379 id=379 data-nosnippet>379</a>    /// ACP agent's own that works. The goal is checked apart, from the
-<a href=#380 id=380 data-nosnippet>380</a>    /// fold.
-<a href=#381 id=381 data-nosnippet>381</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>wakes_once(
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#383 id=383 data-nosnippet>383</a>        session: SessionId,
-<a href=#384 id=384 data-nosnippet>384</a>        waking_once: <span class="kw-2">&amp;</span>HashMap&lt;SessionId, SessionId&gt;,
-<a href=#385 id=385 data-nosnippet>385</a>    ) -&gt; bool {
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>registered = <span class="self">self
-<a href=#387 id=387 data-nosnippet>387</a>            </span>.inner
-<a href=#388 id=388 data-nosnippet>388</a>            .sessions
-<a href=#389 id=389 data-nosnippet>389</a>            .producers
-<a href=#390 id=390 data-nosnippet>390</a>            .lock()
-<a href=#391 id=391 data-nosnippet>391</a>            .unwrap_or_else(|e| e.into_inner())
-<a href=#392 id=392 data-nosnippet>392</a>            .get(<span class="kw-2">&amp;</span>session)
-<a href=#393 id=393 data-nosnippet>393</a>            .is_some_and(|state| {
-<a href=#394 id=394 data-nosnippet>394</a>                <span class="comment">// A producer message that arrived starts a run: the
-<a href=#395 id=395 data-nosnippet>395</a>                // session wakes until that run is running.
-<a href=#396 id=396 data-nosnippet>396</a>                </span>state.wake_scheduled
-<a href=#397 id=397 data-nosnippet>397</a>                    || state.registrations.iter().any(|registration| {
-<a href=#398 id=398 data-nosnippet>398</a>                        <span class="kw">match </span><span class="kw-2">&amp;</span>registration.authority.owner {
-<a href=#399 id=399 data-nosnippet>399</a>                            ProducerOwner::Tool { .. } | ProducerOwner::Delegation { .. } =&gt; <span class="bool-val">true</span>,
-<a href=#400 id=400 data-nosnippet>400</a>                            owner <span class="kw">if </span><span class="kw">super</span>::cron::fire::is_cron_owner(owner) =&gt; <span class="bool-val">false</span>,
-<a href=#401 id=401 data-nosnippet>401</a>                            ProducerOwner::External { .. } =&gt; <span class="bool-val">true</span>,
-<a href=#402 id=402 data-nosnippet>402</a>                            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#403 id=403 data-nosnippet>403</a>                        }
-<a href=#404 id=404 data-nosnippet>404</a>                    })
-<a href=#405 id=405 data-nosnippet>405</a>            });
-<a href=#406 id=406 data-nosnippet>406</a>        registered
-<a href=#407 id=407 data-nosnippet>407</a>            || lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.push.reports)
-<a href=#408 id=408 data-nosnippet>408</a>                .values()
-<a href=#409 id=409 data-nosnippet>409</a>                .any(|parent| <span class="kw-2">*</span>parent == session)
-<a href=#410 id=410 data-nosnippet>410</a>            || <span class="self">self</span>.inner.crons.waits_on_once(session)
-<a href=#411 id=411 data-nosnippet>411</a>            || waking_once.values().any(|parent| <span class="kw-2">*</span>parent == session)
-<a href=#412 id=412 data-nosnippet>412</a>            || <span class="self">self</span>.has_running_subagent_turn(session)
-<a href=#413 id=413 data-nosnippet>413</a>            || <span class="self">self</span>.acp_background_running(session)
-<a href=#414 id=414 data-nosnippet>414</a>            || <span class="self">self</span>.acp_subagent_working(session)
-<a href=#415 id=415 data-nosnippet>415</a>    }
-<a href=#416 id=416 data-nosnippet>416</a>
-<a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Sends `NeedsYou` for an approval that escalated to the user in
-<a href=#418 id=418 data-nosnippet>418</a>    /// `session` (spec section 4.1).
-<a href=#419 id=419 data-nosnippet>419</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>signal_approval_needs_you(
-<a href=#420 id=420 data-nosnippet>420</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#421 id=421 data-nosnippet>421</a>        session: SessionId,
-<a href=#422 id=422 data-nosnippet>422</a>        request: <span class="kw-2">&amp;</span>ApprovalRequest,
-<a href=#423 id=423 data-nosnippet>423</a>        expires_at: <span class="prelude-ty">Option</span>&lt;Timestamp&gt;,
-<a href=#424 id=424 data-nosnippet>424</a>    ) {
-<a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">let </span>tool_call_id = request.tool_call_id();
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>presentation = <span class="self">self</span>.inner.store.get(session).ok().and_then(|projection| {
-<a href=#427 id=427 data-nosnippet>427</a>            projection
-<a href=#428 id=428 data-nosnippet>428</a>                .log
-<a href=#429 id=429 data-nosnippet>429</a>                .event_snapshot()
-<a href=#430 id=430 data-nosnippet>430</a>                .iter()
-<a href=#431 id=431 data-nosnippet>431</a>                .rev()
-<a href=#432 id=432 data-nosnippet>432</a>                .find_map(|event| <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#433 id=433 data-nosnippet>433</a>                    Event::ToolCallStarted { start } <span class="kw">if </span>start.tool_call_id == tool_call_id =&gt; {
-<a href=#434 id=434 data-nosnippet>434</a>                        <span class="prelude-val">Some</span>(start.presentation.clone())
-<a href=#435 id=435 data-nosnippet>435</a>                    }
-<a href=#436 id=436 data-nosnippet>436</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#437 id=437 data-nosnippet>437</a>                })
-<a href=#438 id=438 data-nosnippet>438</a>        });
-<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">let </span>(tool, summary) = presentation.map_or_else(
-<a href=#440 id=440 data-nosnippet>440</a>            || (<span class="string">"A tool call"</span>.to_owned(), <span class="prelude-val">None</span>),
-<a href=#441 id=441 data-nosnippet>441</a>            |presentation| {
-<a href=#442 id=442 data-nosnippet>442</a>                (
-<a href=#443 id=443 data-nosnippet>443</a>                    presentation.title.to_string(),
-<a href=#444 id=444 data-nosnippet>444</a>                    presentation
-<a href=#445 id=445 data-nosnippet>445</a>                        .primary_argument
-<a href=#446 id=446 data-nosnippet>446</a>                        .as_ref()
-<a href=#447 id=447 data-nosnippet>447</a>                        .map(ToString::to_string),
-<a href=#448 id=448 data-nosnippet>448</a>                )
-<a href=#449 id=449 data-nosnippet>449</a>            },
-<a href=#450 id=450 data-nosnippet>450</a>        );
-<a href=#451 id=451 data-nosnippet>451</a>        <span class="self">self</span>.signal_needs_you(
-<a href=#452 id=452 data-nosnippet>452</a>            session,
-<a href=#453 id=453 data-nosnippet>453</a>            NeedsYouItem::Approval {
-<a href=#454 id=454 data-nosnippet>454</a>                tool,
-<a href=#455 id=455 data-nosnippet>455</a>                summary,
-<a href=#456 id=456 data-nosnippet>456</a>                expires_at,
-<a href=#457 id=457 data-nosnippet>457</a>            },
-<a href=#458 id=458 data-nosnippet>458</a>        );
-<a href=#459 id=459 data-nosnippet>459</a>    }
-<a href=#460 id=460 data-nosnippet>460</a>
-<a href=#461 id=461 data-nosnippet>461</a>    <span class="doccomment">/// Sends `NeedsYou` for a question an ACP agent asks in `session`
-<a href=#462 id=462 data-nosnippet>462</a>    /// (spec section 4.2).
-<a href=#463 id=463 data-nosnippet>463</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>signal_question_needs_you(
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#465 id=465 data-nosnippet>465</a>        session: SessionId,
-<a href=#466 id=466 data-nosnippet>466</a>        agent: String,
-<a href=#467 id=467 data-nosnippet>467</a>        message: String,
-<a href=#468 id=468 data-nosnippet>468</a>        url: bool,
-<a href=#469 id=469 data-nosnippet>469</a>    ) {
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="self">self</span>.signal_needs_you(
-<a href=#471 id=471 data-nosnippet>471</a>            session,
-<a href=#472 id=472 data-nosnippet>472</a>            NeedsYouItem::Question {
-<a href=#473 id=473 data-nosnippet>473</a>                agent,
-<a href=#474 id=474 data-nosnippet>474</a>                message,
-<a href=#475 id=475 data-nosnippet>475</a>                url,
-<a href=#476 id=476 data-nosnippet>476</a>            },
-<a href=#477 id=477 data-nosnippet>477</a>        );
-<a href=#478 id=478 data-nosnippet>478</a>    }
-<a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">fn </span>signal_needs_you(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId, item: NeedsYouItem) {
-<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">let </span>root = <span class="self">self</span>.root_session_of(session);
-<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>meta = |id: SessionId| {
-<a href=#483 id=483 data-nosnippet>483</a>            <span class="self">self</span>.inner
-<a href=#484 id=484 data-nosnippet>484</a>                .store
-<a href=#485 id=485 data-nosnippet>485</a>                .summary(id)
-<a href=#486 id=486 data-nosnippet>486</a>                .ok()
-<a href=#487 id=487 data-nosnippet>487</a>                .map(|summary| summary.meta)
-<a href=#488 id=488 data-nosnippet>488</a>        };
-<a href=#489 id=489 data-nosnippet>489</a>        <span class="kw">let </span>root_meta = meta(root);
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>handle = (session != root)
-<a href=#491 id=491 data-nosnippet>491</a>            .then(|| meta(session).and_then(|meta| meta.short_id))
-<a href=#492 id=492 data-nosnippet>492</a>            .flatten();
-<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">let _ </span>= <span class="self">self
-<a href=#494 id=494 data-nosnippet>494</a>            </span>.inner
-<a href=#495 id=495 data-nosnippet>495</a>            .push
-<a href=#496 id=496 data-nosnippet>496</a>            .sender
-<a href=#497 id=497 data-nosnippet>497</a>            .send(PushSignal::NeedsYou(NeedsYouSignal {
-<a href=#498 id=498 data-nosnippet>498</a>                root,
-<a href=#499 id=499 data-nosnippet>499</a>                session,
-<a href=#500 id=500 data-nosnippet>500</a>                handle,
-<a href=#501 id=501 data-nosnippet>501</a>                root_title: root_meta
-<a href=#502 id=502 data-nosnippet>502</a>                    .as_ref()
-<a href=#503 id=503 data-nosnippet>503</a>                    .and_then(|meta| meta.title.as_ref().map(ToString::to_string)),
-<a href=#504 id=504 data-nosnippet>504</a>                root_short_id: root_meta.and_then(|meta| meta.short_id),
-<a href=#505 id=505 data-nosnippet>505</a>                item,
-<a href=#506 id=506 data-nosnippet>506</a>                at: Timestamp::now(),
-<a href=#507 id=507 data-nosnippet>507</a>            }));
-<a href=#508 id=508 data-nosnippet>508</a>    }
-<a href=#509 id=509 data-nosnippet>509</a>}
+<a href=#334 id=334 data-nosnippet>334</a>            || !projection.log.state().runless_pending_inputs().is_empty()
+<a href=#335 id=335 data-nosnippet>335</a>        {
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="kw">return</span>;
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(producers) = <span class="self">self</span>.goal_producer_projection(root) <span class="kw">else </span>{
+<a href=#339 id=339 data-nosnippet>339</a>            <span class="kw">return</span>;
+<a href=#340 id=340 data-nosnippet>340</a>        };
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">if </span>producers
+<a href=#342 id=342 data-nosnippet>342</a>            .messages
+<a href=#343 id=343 data-nosnippet>343</a>            .iter()
+<a href=#344 id=344 data-nosnippet>344</a>            .any(<span class="kw">super</span>::messaging::producers::pending)
+<a href=#345 id=345 data-nosnippet>345</a>            || producers
+<a href=#346 id=346 data-nosnippet>346</a>                .goal
+<a href=#347 id=347 data-nosnippet>347</a>                .as_ref()
+<a href=#348 id=348 data-nosnippet>348</a>                .is_some_and(|goal| goal.status == GoalStatus::Active)
+<a href=#349 id=349 data-nosnippet>349</a>        {
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw">return</span>;
+<a href=#351 id=351 data-nosnippet>351</a>        }
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>waking_once = lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.push.waking_once).clone();
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">if </span><span class="self">self</span>.wakes_once(root, <span class="kw-2">&amp;</span>waking_once) {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">return</span>;
+<a href=#355 id=355 data-nosnippet>355</a>        }
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>meta = <span class="kw-2">&amp;</span>projection.meta;
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">let _ </span>= <span class="self">self
+<a href=#358 id=358 data-nosnippet>358</a>            </span>.inner
+<a href=#359 id=359 data-nosnippet>359</a>            .push
+<a href=#360 id=360 data-nosnippet>360</a>            .sender
+<a href=#361 id=361 data-nosnippet>361</a>            .send(PushSignal::Settled(SettledSignal {
+<a href=#362 id=362 data-nosnippet>362</a>                root,
+<a href=#363 id=363 data-nosnippet>363</a>                outcome,
+<a href=#364 id=364 data-nosnippet>364</a>                title: meta.title.as_ref().map(ToString::to_string),
+<a href=#365 id=365 data-nosnippet>365</a>                short_id: meta.short_id.clone(),
+<a href=#366 id=366 data-nosnippet>366</a>                cron: meta.cron.is_some(),
+<a href=#367 id=367 data-nosnippet>367</a>                at: Timestamp::now(),
+<a href=#368 id=368 data-nosnippet>368</a>            }));
+<a href=#369 id=369 data-nosnippet>369</a>    }
+<a href=#370 id=370 data-nosnippet>370</a>
+<a href=#371 id=371 data-nosnippet>371</a>    <span class="doccomment">/// Whether `session` can still wake on its own, counting one-time cron
+<a href=#372 id=372 data-nosnippet>372</a>    /// jobs and not recurring ones: a background call, a background
+<a href=#373 id=373 data-nosnippet>373</a>    /// delegation, an external producer, a one-time job, or a direct child
+<a href=#374 id=374 data-nosnippet>374</a>    /// that runs a turn or itself wakes so (`waking_once`), a child's
+<a href=#375 id=375 data-nosnippet>375</a>    /// report on its way, a wake already scheduled for a producer message
+<a href=#376 id=376 data-nosnippet>376</a>    /// that arrived, an ACP agent's command that runs, or a subagent of the
+<a href=#377 id=377 data-nosnippet>377</a>    /// ACP agent's own that works. The goal is checked apart, from the
+<a href=#378 id=378 data-nosnippet>378</a>    /// fold.
+<a href=#379 id=379 data-nosnippet>379</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>wakes_once(
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#381 id=381 data-nosnippet>381</a>        session: SessionId,
+<a href=#382 id=382 data-nosnippet>382</a>        waking_once: <span class="kw-2">&amp;</span>HashMap&lt;SessionId, SessionId&gt;,
+<a href=#383 id=383 data-nosnippet>383</a>    ) -&gt; bool {
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>registered = <span class="self">self
+<a href=#385 id=385 data-nosnippet>385</a>            </span>.inner
+<a href=#386 id=386 data-nosnippet>386</a>            .sessions
+<a href=#387 id=387 data-nosnippet>387</a>            .producers
+<a href=#388 id=388 data-nosnippet>388</a>            .lock()
+<a href=#389 id=389 data-nosnippet>389</a>            .unwrap_or_else(|e| e.into_inner())
+<a href=#390 id=390 data-nosnippet>390</a>            .get(<span class="kw-2">&amp;</span>session)
+<a href=#391 id=391 data-nosnippet>391</a>            .is_some_and(|state| {
+<a href=#392 id=392 data-nosnippet>392</a>                <span class="comment">// A producer message that arrived starts a run: the
+<a href=#393 id=393 data-nosnippet>393</a>                // session wakes until that run is running.
+<a href=#394 id=394 data-nosnippet>394</a>                </span>state.wake_scheduled
+<a href=#395 id=395 data-nosnippet>395</a>                    || state.registrations.iter().any(|registration| {
+<a href=#396 id=396 data-nosnippet>396</a>                        <span class="kw">match </span><span class="kw-2">&amp;</span>registration.authority.owner {
+<a href=#397 id=397 data-nosnippet>397</a>                            ProducerOwner::Tool { .. } | ProducerOwner::Delegation { .. } =&gt; <span class="bool-val">true</span>,
+<a href=#398 id=398 data-nosnippet>398</a>                            owner <span class="kw">if </span><span class="kw">super</span>::cron::fire::is_cron_owner(owner) =&gt; <span class="bool-val">false</span>,
+<a href=#399 id=399 data-nosnippet>399</a>                            ProducerOwner::External { .. } =&gt; <span class="bool-val">true</span>,
+<a href=#400 id=400 data-nosnippet>400</a>                            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#401 id=401 data-nosnippet>401</a>                        }
+<a href=#402 id=402 data-nosnippet>402</a>                    })
+<a href=#403 id=403 data-nosnippet>403</a>            });
+<a href=#404 id=404 data-nosnippet>404</a>        registered
+<a href=#405 id=405 data-nosnippet>405</a>            || lock(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.push.reports)
+<a href=#406 id=406 data-nosnippet>406</a>                .values()
+<a href=#407 id=407 data-nosnippet>407</a>                .any(|parent| <span class="kw-2">*</span>parent == session)
+<a href=#408 id=408 data-nosnippet>408</a>            || <span class="self">self</span>.inner.crons.waits_on_once(session)
+<a href=#409 id=409 data-nosnippet>409</a>            || waking_once.values().any(|parent| <span class="kw-2">*</span>parent == session)
+<a href=#410 id=410 data-nosnippet>410</a>            || <span class="self">self</span>.has_running_subagent_turn(session)
+<a href=#411 id=411 data-nosnippet>411</a>            || <span class="self">self</span>.acp_background_running(session)
+<a href=#412 id=412 data-nosnippet>412</a>            || <span class="self">self</span>.acp_subagent_working(session)
+<a href=#413 id=413 data-nosnippet>413</a>    }
+<a href=#414 id=414 data-nosnippet>414</a>
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="doccomment">/// Sends `NeedsYou` for an approval that escalated to the user in
+<a href=#416 id=416 data-nosnippet>416</a>    /// `session` (spec section 4.1).
+<a href=#417 id=417 data-nosnippet>417</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>signal_approval_needs_you(
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#419 id=419 data-nosnippet>419</a>        session: SessionId,
+<a href=#420 id=420 data-nosnippet>420</a>        request: <span class="kw-2">&amp;</span>ApprovalRequest,
+<a href=#421 id=421 data-nosnippet>421</a>        expires_at: <span class="prelude-ty">Option</span>&lt;Timestamp&gt;,
+<a href=#422 id=422 data-nosnippet>422</a>    ) {
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span>tool_call_id = request.tool_call_id();
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>presentation = <span class="self">self</span>.inner.store.get(session).ok().and_then(|projection| {
+<a href=#425 id=425 data-nosnippet>425</a>            <span class="kw">let </span>started = |event: <span class="kw-2">&amp;</span>Event| <span class="kw">match </span>event {
+<a href=#426 id=426 data-nosnippet>426</a>                Event::ToolCallStarted { start } <span class="kw">if </span>start.tool_call_id == tool_call_id =&gt; {
+<a href=#427 id=427 data-nosnippet>427</a>                    <span class="prelude-val">Some</span>(start.presentation.clone())
+<a href=#428 id=428 data-nosnippet>428</a>                }
+<a href=#429 id=429 data-nosnippet>429</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#430 id=430 data-nosnippet>430</a>            };
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="comment">// A call this approval asks for is open; a pass over the log
+<a href=#432 id=432 data-nosnippet>432</a>            // answers for any other.
+<a href=#433 id=433 data-nosnippet>433</a>            </span><span class="kw">match </span>projection.log.state().open_call(tool_call_id) {
+<a href=#434 id=434 data-nosnippet>434</a>                <span class="prelude-val">Some</span>(event) =&gt; started(<span class="kw-2">&amp;</span>event.payload),
+<a href=#435 id=435 data-nosnippet>435</a>                <span class="prelude-val">None </span>=&gt; projection
+<a href=#436 id=436 data-nosnippet>436</a>                    .log
+<a href=#437 id=437 data-nosnippet>437</a>                    .history()
+<a href=#438 id=438 data-nosnippet>438</a>                    .and_then(|events| events.last_map_ok(|event| started(<span class="kw-2">&amp;</span>event.payload)))
+<a href=#439 id=439 data-nosnippet>439</a>                    .ok()
+<a href=#440 id=440 data-nosnippet>440</a>                    .flatten(),
+<a href=#441 id=441 data-nosnippet>441</a>            }
+<a href=#442 id=442 data-nosnippet>442</a>        });
+<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">let </span>(tool, summary) = presentation.map_or_else(
+<a href=#444 id=444 data-nosnippet>444</a>            || (<span class="string">"A tool call"</span>.to_owned(), <span class="prelude-val">None</span>),
+<a href=#445 id=445 data-nosnippet>445</a>            |presentation| {
+<a href=#446 id=446 data-nosnippet>446</a>                (
+<a href=#447 id=447 data-nosnippet>447</a>                    presentation.title.to_string(),
+<a href=#448 id=448 data-nosnippet>448</a>                    presentation
+<a href=#449 id=449 data-nosnippet>449</a>                        .primary_argument
+<a href=#450 id=450 data-nosnippet>450</a>                        .as_ref()
+<a href=#451 id=451 data-nosnippet>451</a>                        .map(ToString::to_string),
+<a href=#452 id=452 data-nosnippet>452</a>                )
+<a href=#453 id=453 data-nosnippet>453</a>            },
+<a href=#454 id=454 data-nosnippet>454</a>        );
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="self">self</span>.signal_needs_you(
+<a href=#456 id=456 data-nosnippet>456</a>            session,
+<a href=#457 id=457 data-nosnippet>457</a>            NeedsYouItem::Approval {
+<a href=#458 id=458 data-nosnippet>458</a>                tool,
+<a href=#459 id=459 data-nosnippet>459</a>                summary,
+<a href=#460 id=460 data-nosnippet>460</a>                expires_at,
+<a href=#461 id=461 data-nosnippet>461</a>            },
+<a href=#462 id=462 data-nosnippet>462</a>        );
+<a href=#463 id=463 data-nosnippet>463</a>    }
+<a href=#464 id=464 data-nosnippet>464</a>
+<a href=#465 id=465 data-nosnippet>465</a>    <span class="doccomment">/// Sends `NeedsYou` for a question an ACP agent asks in `session`
+<a href=#466 id=466 data-nosnippet>466</a>    /// (spec section 4.2).
+<a href=#467 id=467 data-nosnippet>467</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>signal_question_needs_you(
+<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#469 id=469 data-nosnippet>469</a>        session: SessionId,
+<a href=#470 id=470 data-nosnippet>470</a>        agent: String,
+<a href=#471 id=471 data-nosnippet>471</a>        message: String,
+<a href=#472 id=472 data-nosnippet>472</a>        url: bool,
+<a href=#473 id=473 data-nosnippet>473</a>    ) {
+<a href=#474 id=474 data-nosnippet>474</a>        <span class="self">self</span>.signal_needs_you(
+<a href=#475 id=475 data-nosnippet>475</a>            session,
+<a href=#476 id=476 data-nosnippet>476</a>            NeedsYouItem::Question {
+<a href=#477 id=477 data-nosnippet>477</a>                agent,
+<a href=#478 id=478 data-nosnippet>478</a>                message,
+<a href=#479 id=479 data-nosnippet>479</a>                url,
+<a href=#480 id=480 data-nosnippet>480</a>            },
+<a href=#481 id=481 data-nosnippet>481</a>        );
+<a href=#482 id=482 data-nosnippet>482</a>    }
+<a href=#483 id=483 data-nosnippet>483</a>
+<a href=#484 id=484 data-nosnippet>484</a>    <span class="kw">fn </span>signal_needs_you(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId, item: NeedsYouItem) {
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="kw">let </span>root = <span class="self">self</span>.root_session_of(session);
+<a href=#486 id=486 data-nosnippet>486</a>        <span class="kw">let </span>meta = |id: SessionId| {
+<a href=#487 id=487 data-nosnippet>487</a>            <span class="self">self</span>.inner
+<a href=#488 id=488 data-nosnippet>488</a>                .store
+<a href=#489 id=489 data-nosnippet>489</a>                .summary(id)
+<a href=#490 id=490 data-nosnippet>490</a>                .ok()
+<a href=#491 id=491 data-nosnippet>491</a>                .map(|summary| summary.meta)
+<a href=#492 id=492 data-nosnippet>492</a>        };
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">let </span>root_meta = meta(root);
+<a href=#494 id=494 data-nosnippet>494</a>        <span class="kw">let </span>handle = (session != root)
+<a href=#495 id=495 data-nosnippet>495</a>            .then(|| meta(session).and_then(|meta| meta.short_id))
+<a href=#496 id=496 data-nosnippet>496</a>            .flatten();
+<a href=#497 id=497 data-nosnippet>497</a>        <span class="kw">let _ </span>= <span class="self">self
+<a href=#498 id=498 data-nosnippet>498</a>            </span>.inner
+<a href=#499 id=499 data-nosnippet>499</a>            .push
+<a href=#500 id=500 data-nosnippet>500</a>            .sender
+<a href=#501 id=501 data-nosnippet>501</a>            .send(PushSignal::NeedsYou(NeedsYouSignal {
+<a href=#502 id=502 data-nosnippet>502</a>                root,
+<a href=#503 id=503 data-nosnippet>503</a>                session,
+<a href=#504 id=504 data-nosnippet>504</a>                handle,
+<a href=#505 id=505 data-nosnippet>505</a>                root_title: root_meta
+<a href=#506 id=506 data-nosnippet>506</a>                    .as_ref()
+<a href=#507 id=507 data-nosnippet>507</a>                    .and_then(|meta| meta.title.as_ref().map(ToString::to_string)),
+<a href=#508 id=508 data-nosnippet>508</a>                root_short_id: root_meta.and_then(|meta| meta.short_id),
+<a href=#509 id=509 data-nosnippet>509</a>                item,
+<a href=#510 id=510 data-nosnippet>510</a>                at: Timestamp::now(),
+<a href=#511 id=511 data-nosnippet>511</a>            }));
+<a href=#512 id=512 data-nosnippet>512</a>    }
+<a href=#513 id=513 data-nosnippet>513</a>}
 </code></pre></div></section></main></body></html>

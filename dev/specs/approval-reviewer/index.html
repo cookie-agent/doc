@@ -5024,7 +5024,10 @@
 
 
 <h1 id="approval-reviewer-context-caching-and-verdicts">Approval reviewer: context, caching, and verdicts<a class="headerlink" href="#approval-reviewer-context-caching-and-verdicts" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>implemented</strong> (2026-10-24); approved 2026-10-24, with the deviations in section 15. Revises the built-in
+<p>Status: <strong>implemented</strong> (2026-10-24); approved 2026-10-24, with the deviations in section 15.
+Since 2026-11-08 the conversation is kept in the reviewer's own log instead of rendered from the
+session's log at each review (<a href="../forever-sessions/">Sessions that run forever</a> section 5.5; section
+15 here). Revises the built-in
 <code>approval</code> internal agent (<a href="../../extend/agents/">Agents: internal agents</a>)
 and the approval flow of the <a href="../permission-consolidation/">permission consolidation</a>
 spec, which left approvals out of scope.</p>
@@ -5184,11 +5187,12 @@ deltas, and restart instead of summarising.</p>
 <li>The output contract stays in the request block, as today
     (<code>APPROVAL_USER_REQUEST_PREFIX</code>), so a custom <code>approval.md</code> cannot break
     parsing.</li>
-<li><strong>Rendered from the event log, deterministically.</strong> The engine rebuilds the
-  conversation from the session's events and the reviewer's own earlier
-  verdict events.</li>
-<li>It is not stored separately: after a daemon restart it renders the same
-    bytes, and the provider cache still hits.</li>
+<li><strong>Rendered from the event log, deterministically, and kept as sent.</strong> Each
+  turn is rendered from the session's events, and since 2026-11-08 stored in
+  the reviewer's own log (section 15): after a daemon restart the next review
+  sends the stored bytes, and the provider cache still hits. When this spec
+  was implemented it was not stored separately, and each review rendered the
+  whole conversation again.</li>
 <li>A revert truncates the log, so it truncates the conversation; the prefix
     before the revert point still hits.</li>
 <li><strong>One conversation per session.</strong> A delegated child has its own (section
@@ -5551,7 +5555,9 @@ engine's estimates.</p>
 <li><strong>Epochs.</strong> Any drop rewrites earlier context, so it can only happen when
   the conversation starts over. A new <strong>epoch</strong> begins when the next request
   would not fit the window.</li>
-<li>The engine renders a fresh conversation from the log within the budgets.</li>
+<li>The engine renders a fresh conversation within the budgets: since
+    2026-11-08 from what the reviewer's own log kept, reading <code>AGENTS.md</code>
+    afresh (section 15).</li>
 <li>It carries forward the last five verdicts as trajectory entries.</li>
 <li>That costs one full cache write. No summarising call is made and nothing
     is summarised.</li>
@@ -5782,6 +5788,36 @@ the first <code>[instructions from the parent agent]</code>, a delegated session
 own task. The trajectory halves as often as it takes to fit. A new
 epoch's first turn says the conversation started over; the five carried
 verdicts read <code>[your earlier verdict] on &lt;tool&gt;: {…}</code>.</p>
+<p><strong>The reviewer's own log (2026-11-08,</strong> <a href="../forever-sessions/">Sessions that run forever</a>
+<strong>section 5.5 and section 12, phase 8).</strong> Rendering the conversation from the session's log took a
+pass over the whole log at every escalated approval, which a session that runs forever cannot
+afford. As built:</p>
+<ul>
+<li><strong>A hidden child session.</strong> The conversation is a log of its own, <code>reviewer/events.jsonl</code> in the
+  reviewed session's folder, with its own <code>session_created</code> (the session's, as a root) and one
+  <code>reviewer_turn_recorded { turn }</code> per review that gave a verdict (client protocol 1.92.0): the
+  <code>user</code> turn and the verdict as they were sent, the entries the turn rendered, and a cursor of what
+  the next review needs of the session's log before its cut. Nothing that lists or walks sessions
+  looks there, and usage stays on the session as <code>internal_agent_usage_recorded</code>.</li>
+<li><strong>Each review renders only its delta</strong> (section 4.1's turns): it reads the session's log after the
+  previous turn's cut, with that turn's cursor, and records its turn once the session's log has
+  evaluated the verdict, in the same order the evaluations come. One review runs at a time per
+  session.</li>
+<li><strong>An epoch</strong> (section 6) is a fresh turn rendered from what the log kept: the epoch's first turn
+  holds the messages and tool calls a later fresh turn can still keep within the budgets, and the
+  verdicts it carries. The log's window starts there, so the log holds one epoch in memory and in
+  its <code>state.json</code>. A root session's <code>AGENTS.md</code> is read afresh at each epoch, the newest run's
+  before its cut, where the render kept those before the first review; a delegated session keeps
+  what it inherited of its root, read once when its log was created.</li>
+<li><strong>What it sends is what this spec's render gives</strong> for the same reviews, at every review of every
+  golden log and of the tests, epochs included, with the exceptions above and these: a session with
+  no reviewer log starts one at its next review with a fresh turn carrying its last verdicts, a turn
+  stays as it was sent when the reviewer's bounds change, and a verdict the daemon stopped before
+  recording is no turn. The render stays as the test-only reference.</li>
+<li><strong>Revert and fork.</strong> A revert of the session drops the turns whose verdicts it cuts (the epoch they
+  started with them); a fork copies its source's turns whose verdicts it keeps, from their latest
+  epoch, so its conversation continues as the source's did.</li>
+</ul>
 
 
 

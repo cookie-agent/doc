@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["STATE_FILE","STATE_MIN_LOG_BYTES","STATE_VERSION"],"struct":["StateFile"]};

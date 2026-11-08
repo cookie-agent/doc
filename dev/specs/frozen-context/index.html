@@ -4895,7 +4895,21 @@ system prompt composed live, <code>AGENTS.md</code> loaded again from every codi
 attachment, and a new memory snapshot. The refresh points are:</p>
 <ul>
 <li><strong>the session's first request;</strong></li>
-<li><strong>a compaction,</strong> as today;</li>
+<li><strong>a compaction,</strong> as today. Since
+  <a href="../forever-sessions/">forever sessions</a> phase 6 (client protocol 1.90.0)
+  a native session's checkpoint composes its context afresh itself, in the
+  run that compacts: it reads <code>AGENTS.md</code> from every coding attachment and a
+  memory snapshot as compaction starts, counts them in its budgets, records
+  them just before it commits (<code>context_fresh</code>), and pins nothing older,
+  loaded skills included (section 6.4). What cannot be read is recorded
+  again as it was. Since client protocol 1.91.0 a checkpoint inside a run
+  also composes the system prompt afresh right after it commits, as the
+  run's admission does (the agent's body as it reads now, the blocks, and
+  the plugins' system-prompt hooks), records it as <code>system_prompt_composed</code>
+  when it differs from the prompt in force, and the run's later requests
+  carry it; the request right after the checkpoint starts the new tool
+  round. Between runs, the next run composes the prompt. An ACP agent's
+  context stays frozen for the life of its ACP session;</li>
 <li><strong>an eager tool change,</strong> checked before each request:</li>
 <li>the live parameter schema of an eager tool differs from the round's
     (an engine build or a runtime changed it). A changed description alone
@@ -4932,8 +4946,9 @@ the compaction has its own row.</p>
 <ul>
 <li><strong>The system prompt</strong> is the previous run's, byte for byte, on every model
   except an ACP agent: the agent's body, its blocks, and plugin
-  composition. The system-prompt hooks of plugins run at refresh points
-  only; message injections run as today.</li>
+  composition. The system-prompt hooks of plugins take effect at refresh
+  points, and at a checkpoint inside a run, only; message injections run as
+  today, at a run's start.</li>
 <li><strong>Prompt block changes</strong> (<code>runtimes</code>, <code>tool_instructions</code>, <code>skills</code>) are
   announced as today (<code>prompt_blocks_announced</code>), now on every model.</li>
 <li><strong>The <code>AGENTS.md</code> turn</strong> is not reloaded. A root run no longer appends
@@ -4960,8 +4975,19 @@ stay in the context until the next refresh point; the runtimes announcement
 already says the machine is gone.</p>
 <h3 id="64-skills-where-they-were-loaded">6.4 Skills where they were loaded<a class="headerlink" href="#64-skills-where-they-were-loaded" title="Permanent link">&para;</a></h3>
 <p><strong>A skill loaded between refresh points renders in place,</strong> as a user turn
-right after the call or command that loaded it. At the next refresh point or
-compaction it joins the pinned skills after the memory turn, as today.</p>
+right after the call or command that loaded it. At the next refresh point
+that is not a compaction it joins the skills after the memory turn, as the
+conversation stays whole.</p>
+<p><strong>A compaction carries no skill</strong> (since <a href="../forever-sessions/">forever sessions</a>
+phase 6, client protocol 1.90.0, the user's decision of 2026-11-06): a loaded
+skill is a turn like any other. One in the checkpoint's kept range stays where
+it was loaded; an older one is summarized, and the summarizer is no longer told
+to leave it out. Nothing injects it again: the skill listing says what is
+available, and a model that needs it loads it again, which reads its current
+version and shows its body, as the duplicate check looks only since the latest
+such checkpoint. What a load granted, its permission overlay and model, stays
+across the checkpoint. A checkpoint written before (without <code>context_fresh</code>)
+keeps every skill loaded before it after the memory turn, as it did.</p>
 <h2 id="7-in-the-transcript">7. In the transcript<a class="headerlink" href="#7-in-the-transcript" title="Permanent link">&para;</a></h2>
 <h3 id="71-the-cut-marker">7.1 The cut marker<a class="headerlink" href="#71-the-cut-marker" title="Permanent link">&para;</a></h3>
 <ul>
@@ -5051,7 +5077,8 @@ where it happened: one line with the reason, and what was composed again.</p>
 <li>Attaching a machine appends its <code>AGENTS.md</code> and memories in place; the
   bytes before them are unchanged.</li>
 <li>A skill loaded mid-round renders in place, and moves to the pinned area at
-  the next compaction.</li>
+  the next refresh point; a compaction since forever sessions phase 6 keeps it
+  in place or summarizes it (section 6.4).</li>
 <li>An agent change is a refresh point; a project change is not, and keeps
   the earlier <code>AGENTS.md</code> and memory turns until the next compaction.</li>
 <li>The refresh block: <code>engine_updated</code> when the round's <code>engine_build</code>
@@ -5121,6 +5148,16 @@ spec index.</p>
 <li><strong>The refresh row</strong> is a model-input row in both clients, its body
     listing the tools by name; the composed parts show on their own rows
     (the <code>AGENTS.md</code> and memory rows), so the row does not repeat them.</li>
+<li><strong>Forever sessions phase 6</strong> (2026-11-07) changed sections 6.1 and 6.4: a
+  native checkpoint composes <code>AGENTS.md</code> and memory afresh in the run that
+  compacts and pins nothing older, skills included. A checkpoint inside a run
+  then also composes the system prompt afresh (client protocol 1.91.0),
+  against phase 3 above, which made a refresh only a run's admission: the
+  run's prompt is no longer fixed by its <code>run_started</code>, but is its latest
+  <code>system_prompt_composed</code> when it has one. Only the prompt changes; the
+  run's permissions, models, and limits stay frozen. A refresh that is not a
+  checkpoint is still decided only at a run's admission. See that spec's
+  section 12.</li>
 </ul>
 
 

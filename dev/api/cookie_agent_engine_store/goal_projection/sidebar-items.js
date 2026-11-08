@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["goal_tools_offered","pending","producer_state_pending"],"struct":["GoalFold","GoalProducerFold","GoalProducerProjection","ProducerClaimRecord","ProducerMessageRecord"]};
+window.SIDEBAR_ITEMS = {"fn":["goal_tools_offered","pending","producer_state_pending"],"struct":["GoalFold","GoalProducerFold","GoalProducerProjection","ProducerClaimRecord","ProducerMessageRecord","SettledMessages"]};
