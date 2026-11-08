@@ -236,596 +236,630 @@
 <a href=#236 id=236 data-nosnippet>236</a>    <span class="doccomment">/// The runs that ended, oldest first, of those `terminal_runs` keeps: the
 <a href=#237 id=237 data-nosnippet>237</a>    /// newest [`SETTLED_KEPT`], and any a message it holds names.
 <a href=#238 id=238 data-nosnippet>238</a>    </span>terminal_order: VecDeque&lt;RunId&gt;,
-<a href=#239 id=239 data-nosnippet>239</a>}
-<a href=#240 id=240 data-nosnippet>240</a>
-<a href=#241 id=241 data-nosnippet>241</a><span class="doccomment">/// How many settled messages, and ended runs, a log's own fold keeps beyond what
-<a href=#242 id=242 data-nosnippet>242</a>/// it must: what settles is read back for a moment, as a cron job reads where its
-<a href=#243 id=243 data-nosnippet>243</a>/// message landed once that run ended.
-<a href=#244 id=244 data-nosnippet>244</a></span><span class="kw">const </span>SETTLED_KEPT: usize = <span class="number">16</span>;
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="doccomment">/// Of the messages held that settled, the sequence of the record at whose
+<a href=#240 id=240 data-nosnippet>240</a>    /// fold each was first found settled: a log's own fold lets go of them in
+<a href=#241 id=241 data-nosnippet>241</a>    /// that order, not in the order they were accepted.
+<a href=#242 id=242 data-nosnippet>242</a>    </span><span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
+<a href=#243 id=243 data-nosnippet>243</a>    </span>settled_at: HashMap&lt;ProducerMessageId, u64&gt;,
+<a href=#244 id=244 data-nosnippet>244</a>}
 <a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a><span class="kw">impl </span>GoalProducerFold {
-<a href=#247 id=247 data-nosnippet>247</a>    <span class="doccomment">/// The projection through the events observed so far.
-<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="attr">#[must_use]
-<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">pub fn </span>projection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;GoalProducerProjection&gt; {
-<a href=#250 id=250 data-nosnippet>250</a>        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.projection)
-<a href=#251 id=251 data-nosnippet>251</a>    }
+<a href=#246 id=246 data-nosnippet>246</a><span class="doccomment">/// How many settled messages, and ended runs, a log's own fold keeps beyond what
+<a href=#247 id=247 data-nosnippet>247</a>/// it must: what settles is read back for a moment, as a cron job reads where its
+<a href=#248 id=248 data-nosnippet>248</a>/// message landed once that run ended. A message settled is kept until this many
+<a href=#249 id=249 data-nosnippet>249</a>/// others settled after it, so one accepted early that settles late, or among
+<a href=#250 id=250 data-nosnippet>250</a>/// more than this many at one run's end, is still there just after.
+<a href=#251 id=251 data-nosnippet>251</a></span><span class="kw">const </span>SETTLED_KEPT: usize = <span class="number">16</span>;
 <a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// The message `id`.
-<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="attr">#[must_use]
-<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">pub fn </span>message(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>ProducerMessageId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ProducerMessageRecord&gt; {
-<a href=#256 id=256 data-nosnippet>256</a>        <span class="self">self</span>.message_indexes
-<a href=#257 id=257 data-nosnippet>257</a>            .get(id)
-<a href=#258 id=258 data-nosnippet>258</a>            .map(|index| <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index])
-<a href=#259 id=259 data-nosnippet>259</a>    }
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// Whether the user's goal is active or paused.
-<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="attr">#[must_use]
-<a href=#263 id=263 data-nosnippet>263</a>    </span><span class="kw">pub fn </span>goal_is_open(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#264 id=264 data-nosnippet>264</a>        <span class="self">self</span>.projection.goal_is_open()
-<a href=#265 id=265 data-nosnippet>265</a>    }
-<a href=#266 id=266 data-nosnippet>266</a>
-<a href=#267 id=267 data-nosnippet>267</a>    <span class="doccomment">/// Whether a message waits that no run admitted yet.
-<a href=#268 id=268 data-nosnippet>268</a>    </span><span class="attr">#[must_use]
-<a href=#269 id=269 data-nosnippet>269</a>    </span><span class="kw">pub fn </span>has_unadmitted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#270 id=270 data-nosnippet>270</a>        !<span class="self">self</span>.unadmitted.is_empty()
-<a href=#271 id=271 data-nosnippet>271</a>    }
-<a href=#272 id=272 data-nosnippet>272</a>
-<a href=#273 id=273 data-nosnippet>273</a>    <span class="kw">fn </span>projection_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>GoalProducerProjection {
-<a href=#274 id=274 data-nosnippet>274</a>        Arc::make_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>.projection)
-<a href=#275 id=275 data-nosnippet>275</a>    }
-<a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>    <span class="doccomment">/// Folds the next event of the log.
-<a href=#278 id=278 data-nosnippet>278</a>    </span><span class="kw">pub fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#280 id=280 data-nosnippet>280</a>            EventPayload::GoalActivated { selection, .. } =&gt; <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
-<a href=#281 id=281 data-nosnippet>281</a>                <span class="prelude-val">Ok</span>(()) =&gt; {
-<a href=#282 id=282 data-nosnippet>282</a>                    <span class="kw">let </span>goal = <span class="self">self</span>.goals.goal.clone();
-<a href=#283 id=283 data-nosnippet>283</a>                    <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
-<a href=#284 id=284 data-nosnippet>284</a>                    projection.selection = selection.clone();
-<a href=#285 id=285 data-nosnippet>285</a>                    projection.goal = goal;
-<a href=#286 id=286 data-nosnippet>286</a>                }
-<a href=#287 id=287 data-nosnippet>287</a>                <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
-<a href=#288 id=288 data-nosnippet>288</a>            },
-<a href=#289 id=289 data-nosnippet>289</a>            EventPayload::GoalChecklistRevised { .. } =&gt; <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
-<a href=#290 id=290 data-nosnippet>290</a>                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.projection_mut().goal = <span class="self">self</span>.goals.goal.clone(),
-<a href=#291 id=291 data-nosnippet>291</a>                <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
-<a href=#292 id=292 data-nosnippet>292</a>            },
-<a href=#293 id=293 data-nosnippet>293</a>            EventPayload::GoalLifecycleChanged { selection, .. } =&gt; {
-<a href=#294 id=294 data-nosnippet>294</a>                <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
-<a href=#295 id=295 data-nosnippet>295</a>                    <span class="prelude-val">Ok</span>(()) =&gt; {
-<a href=#296 id=296 data-nosnippet>296</a>                        <span class="kw">let </span>goal = <span class="self">self</span>.goals.goal.clone();
-<a href=#297 id=297 data-nosnippet>297</a>                        <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
-<a href=#298 id=298 data-nosnippet>298</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(selection) = selection {
-<a href=#299 id=299 data-nosnippet>299</a>                            projection.selection = <span class="prelude-val">Some</span>(selection.clone());
-<a href=#300 id=300 data-nosnippet>300</a>                        }
-<a href=#301 id=301 data-nosnippet>301</a>                        projection.goal = goal;
-<a href=#302 id=302 data-nosnippet>302</a>                    }
-<a href=#303 id=303 data-nosnippet>303</a>                    <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
-<a href=#304 id=304 data-nosnippet>304</a>                }
-<a href=#305 id=305 data-nosnippet>305</a>            }
-<a href=#306 id=306 data-nosnippet>306</a>            EventPayload::ProducerMessageAccepted {
-<a href=#307 id=307 data-nosnippet>307</a>                message_id,
-<a href=#308 id=308 data-nosnippet>308</a>                producer_owner,
-<a href=#309 id=309 data-nosnippet>309</a>                mode,
-<a href=#310 id=310 data-nosnippet>310</a>                idempotency_key,
-<a href=#311 id=311 data-nosnippet>311</a>                description,
-<a href=#312 id=312 data-nosnippet>312</a>                body,
-<a href=#313 id=313 data-nosnippet>313</a>                reminder,
-<a href=#314 id=314 data-nosnippet>314</a>                agent_hop,
-<a href=#315 id=315 data-nosnippet>315</a>                ..
-<a href=#316 id=316 data-nosnippet>316</a>            } =&gt; {
-<a href=#317 id=317 data-nosnippet>317</a>                <span class="kw">if </span>!valid_reminder_owner(producer_owner, reminder.as_ref()) {
-<a href=#318 id=318 data-nosnippet>318</a>                    <span class="self">self</span>.projection_mut()
-<a href=#319 id=319 data-nosnippet>319</a>                        .reject(event.seq, <span class="string">"invalid producer reminder ownership"</span>);
-<a href=#320 id=320 data-nosnippet>320</a>                    <span class="kw">return</span>;
-<a href=#321 id=321 data-nosnippet>321</a>                }
-<a href=#322 id=322 data-nosnippet>322</a>                <span class="kw">if </span>!valid_hop_owner(producer_owner, <span class="kw-2">*</span>agent_hop) {
-<a href=#323 id=323 data-nosnippet>323</a>                    <span class="self">self</span>.projection_mut()
-<a href=#324 id=324 data-nosnippet>324</a>                        .reject(event.seq, <span class="string">"invalid producer hop ownership"</span>);
-<a href=#325 id=325 data-nosnippet>325</a>                    <span class="kw">return</span>;
-<a href=#326 id=326 data-nosnippet>326</a>                }
-<a href=#327 id=327 data-nosnippet>327</a>                <span class="comment">// A retry of a key whose message settled and went: as an exact
-<a href=#328 id=328 data-nosnippet>328</a>                // retry of one held, it changes nothing.
-<a href=#329 id=329 data-nosnippet>329</a>                </span><span class="kw">if </span>!<span class="self">self</span>.projection.settled.keys.is_empty()
-<a href=#330 id=330 data-nosnippet>330</a>                    &amp;&amp; <span class="self">self
-<a href=#331 id=331 data-nosnippet>331</a>                        </span>.projection
-<a href=#332 id=332 data-nosnippet>332</a>                        .settled
-<a href=#333 id=333 data-nosnippet>333</a>                        .keys
-<a href=#334 id=334 data-nosnippet>334</a>                        .contains_key(<span class="kw-2">&amp;</span>key_digest(producer_owner, idempotency_key))
-<a href=#335 id=335 data-nosnippet>335</a>                {
-<a href=#336 id=336 data-nosnippet>336</a>                    <span class="kw">return</span>;
-<a href=#337 id=337 data-nosnippet>337</a>                }
-<a href=#338 id=338 data-nosnippet>338</a>                <span class="kw">let </span>dedup_key = (producer_owner.clone(), idempotency_key.clone());
-<a href=#339 id=339 data-nosnippet>339</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.dedup_indexes.get(<span class="kw-2">&amp;</span>dedup_key).copied() {
-<a href=#340 id=340 data-nosnippet>340</a>                    <span class="kw">let </span>prior = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
-<a href=#341 id=341 data-nosnippet>341</a>                    <span class="comment">// `agent_hop` is guard metadata, not payload: a replayed
-<a href=#342 id=342 data-nosnippet>342</a>                    // acceptance for the same key stays idempotent even when
-<a href=#343 id=343 data-nosnippet>343</a>                    // the stamped depth differs from the stored record.
-<a href=#344 id=344 data-nosnippet>344</a>                    </span><span class="kw">let </span>exact = prior.message_id == <span class="kw-2">*</span>message_id
-<a href=#345 id=345 data-nosnippet>345</a>                        &amp;&amp; prior.mode == <span class="kw-2">*</span>mode
-<a href=#346 id=346 data-nosnippet>346</a>                        &amp;&amp; prior.description == <span class="kw-2">*</span>description
-<a href=#347 id=347 data-nosnippet>347</a>                        &amp;&amp; prior.body == <span class="kw-2">*</span>body
-<a href=#348 id=348 data-nosnippet>348</a>                        &amp;&amp; prior.reminder == <span class="kw-2">*</span>reminder;
-<a href=#349 id=349 data-nosnippet>349</a>                    <span class="kw">if </span>exact {
-<a href=#350 id=350 data-nosnippet>350</a>                        <span class="kw">return</span>;
-<a href=#351 id=351 data-nosnippet>351</a>                    }
-<a href=#352 id=352 data-nosnippet>352</a>                    <span class="self">self</span>.projection_mut()
-<a href=#353 id=353 data-nosnippet>353</a>                        .reject(event.seq, <span class="string">"conflicting producer idempotency key"</span>);
-<a href=#354 id=354 data-nosnippet>354</a>                    <span class="kw">return</span>;
-<a href=#355 id=355 data-nosnippet>355</a>                }
-<a href=#356 id=356 data-nosnippet>356</a>                <span class="kw">if </span><span class="self">self</span>.message_indexes.contains_key(message_id) {
-<a href=#357 id=357 data-nosnippet>357</a>                    <span class="self">self</span>.projection_mut()
-<a href=#358 id=358 data-nosnippet>358</a>                        .reject(event.seq, <span class="string">"conflicting producer message id"</span>);
-<a href=#359 id=359 data-nosnippet>359</a>                    <span class="kw">return</span>;
-<a href=#360 id=360 data-nosnippet>360</a>                }
-<a href=#361 id=361 data-nosnippet>361</a>                <span class="kw">let </span>index = <span class="self">self</span>.projection.messages.len();
-<a href=#362 id=362 data-nosnippet>362</a>                <span class="self">self</span>.projection_mut().messages.push(ProducerMessageRecord {
-<a href=#363 id=363 data-nosnippet>363</a>                    message_id: <span class="kw-2">*</span>message_id,
-<a href=#364 id=364 data-nosnippet>364</a>                    producer_owner: producer_owner.clone(),
-<a href=#365 id=365 data-nosnippet>365</a>                    mode: <span class="kw-2">*</span>mode,
-<a href=#366 id=366 data-nosnippet>366</a>                    idempotency_key: idempotency_key.clone(),
-<a href=#367 id=367 data-nosnippet>367</a>                    description: description.clone(),
-<a href=#368 id=368 data-nosnippet>368</a>                    body: body.clone(),
-<a href=#369 id=369 data-nosnippet>369</a>                    reminder: <span class="kw-2">*</span>reminder,
-<a href=#370 id=370 data-nosnippet>370</a>                    agent_hop: <span class="kw-2">*</span>agent_hop,
-<a href=#371 id=371 data-nosnippet>371</a>                    accepted_seq: event.seq,
-<a href=#372 id=372 data-nosnippet>372</a>                    admission: <span class="prelude-val">None</span>,
-<a href=#373 id=373 data-nosnippet>373</a>                    claims: HashSet::new(),
-<a href=#374 id=374 data-nosnippet>374</a>                    consumed: <span class="bool-val">false</span>,
-<a href=#375 id=375 data-nosnippet>375</a>                    discarded: <span class="bool-val">false</span>,
-<a href=#376 id=376 data-nosnippet>376</a>                    discarded_seq: <span class="prelude-val">None</span>,
-<a href=#377 id=377 data-nosnippet>377</a>                    consumption_recorded: <span class="bool-val">false</span>,
-<a href=#378 id=378 data-nosnippet>378</a>                    consumed_run: <span class="prelude-val">None</span>,
-<a href=#379 id=379 data-nosnippet>379</a>                });
-<a href=#380 id=380 data-nosnippet>380</a>                <span class="self">self</span>.message_indexes.insert(<span class="kw-2">*</span>message_id, index);
-<a href=#381 id=381 data-nosnippet>381</a>                <span class="self">self</span>.dedup_indexes.insert(dedup_key, index);
-<a href=#382 id=382 data-nosnippet>382</a>                <span class="self">self</span>.unadmitted.insert(index);
-<a href=#383 id=383 data-nosnippet>383</a>            }
-<a href=#384 id=384 data-nosnippet>384</a>            EventPayload::ProducerMessageAdmitted { message_id } =&gt; {
-<a href=#385 id=385 data-nosnippet>385</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
-<a href=#386 id=386 data-nosnippet>386</a>                    <span class="self">self</span>.projection_mut()
-<a href=#387 id=387 data-nosnippet>387</a>                        .reject(event.seq, <span class="string">"producer admission is missing run id"</span>);
-<a href=#388 id=388 data-nosnippet>388</a>                    <span class="kw">return</span>;
-<a href=#389 id=389 data-nosnippet>389</a>                };
-<a href=#390 id=390 data-nosnippet>390</a>                <span class="kw">if </span><span class="self">self</span>.terminal_runs.contains(<span class="kw-2">&amp;</span>run_id) {
-<a href=#391 id=391 data-nosnippet>391</a>                    <span class="self">self</span>.projection_mut()
-<a href=#392 id=392 data-nosnippet>392</a>                        .reject(event.seq, <span class="string">"producer admission targets a terminal run"</span>);
-<a href=#393 id=393 data-nosnippet>393</a>                    <span class="kw">return</span>;
-<a href=#394 id=394 data-nosnippet>394</a>                }
-<a href=#395 id=395 data-nosnippet>395</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
-<a href=#396 id=396 data-nosnippet>396</a>                    <span class="self">self</span>.projection_mut()
-<a href=#397 id=397 data-nosnippet>397</a>                        .reject(event.seq, <span class="string">"producer admission has no accepted message"</span>);
-<a href=#398 id=398 data-nosnippet>398</a>                    <span class="kw">return</span>;
-<a href=#399 id=399 data-nosnippet>399</a>                };
-<a href=#400 id=400 data-nosnippet>400</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
-<a href=#401 id=401 data-nosnippet>401</a>                <span class="kw">let </span>replaceable = message.admission.is_some_and(|(prior_run, <span class="kw">_</span>)| {
-<a href=#402 id=402 data-nosnippet>402</a>                    prior_run != run_id &amp;&amp; <span class="self">self</span>.terminal_runs.contains(<span class="kw-2">&amp;</span>prior_run)
-<a href=#403 id=403 data-nosnippet>403</a>                });
-<a href=#404 id=404 data-nosnippet>404</a>                <span class="kw">if </span>message.consumed
-<a href=#405 id=405 data-nosnippet>405</a>                    || message.discarded_seq.is_some()
-<a href=#406 id=406 data-nosnippet>406</a>                    || (message.admission.is_some() &amp;&amp; !replaceable)
-<a href=#407 id=407 data-nosnippet>407</a>                {
-<a href=#408 id=408 data-nosnippet>408</a>                    <span class="self">self</span>.projection_mut()
-<a href=#409 id=409 data-nosnippet>409</a>                        .reject(event.seq, <span class="string">"invalid producer admission"</span>);
-<a href=#410 id=410 data-nosnippet>410</a>                    <span class="kw">return</span>;
-<a href=#411 id=411 data-nosnippet>411</a>                }
-<a href=#412 id=412 data-nosnippet>412</a>                <span class="self">self</span>.projection_mut().messages[index].admission = <span class="prelude-val">Some</span>((run_id, event.seq));
-<a href=#413 id=413 data-nosnippet>413</a>                <span class="self">self</span>.unadmitted.remove(<span class="kw-2">&amp;</span>index);
-<a href=#414 id=414 data-nosnippet>414</a>            }
-<a href=#415 id=415 data-nosnippet>415</a>            EventPayload::ProducerMessagesClaimed { message_ids } =&gt; {
-<a href=#416 id=416 data-nosnippet>416</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
-<a href=#417 id=417 data-nosnippet>417</a>                    <span class="self">self</span>.projection_mut()
-<a href=#418 id=418 data-nosnippet>418</a>                        .reject(event.seq, <span class="string">"producer claim is missing run id"</span>);
-<a href=#419 id=419 data-nosnippet>419</a>                    <span class="kw">return</span>;
-<a href=#420 id=420 data-nosnippet>420</a>                };
-<a href=#421 id=421 data-nosnippet>421</a>                <span class="kw">let </span>unique = message_ids.iter().copied().collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#422 id=422 data-nosnippet>422</a>                <span class="kw">let </span>indexes = message_ids
-<a href=#423 id=423 data-nosnippet>423</a>                    .iter()
-<a href=#424 id=424 data-nosnippet>424</a>                    .filter_map(|message_id| <span class="self">self</span>.message_indexes.get(message_id).copied())
-<a href=#425 id=425 data-nosnippet>425</a>                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#426 id=426 data-nosnippet>426</a>                <span class="kw">let </span>valid = !message_ids.is_empty()
-<a href=#427 id=427 data-nosnippet>427</a>                    &amp;&amp; unique.len() == message_ids.len()
-<a href=#428 id=428 data-nosnippet>428</a>                    &amp;&amp; indexes.len() == message_ids.len()
-<a href=#429 id=429 data-nosnippet>429</a>                    &amp;&amp; !<span class="self">self</span>.projection.claims.contains_key(<span class="kw-2">&amp;</span>event.seq)
-<a href=#430 id=430 data-nosnippet>430</a>                    &amp;&amp; indexes.iter().all(|index| {
-<a href=#431 id=431 data-nosnippet>431</a>                        <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index];
-<a href=#432 id=432 data-nosnippet>432</a>                        message.accepted_seq &lt; event.seq
-<a href=#433 id=433 data-nosnippet>433</a>                            &amp;&amp; !message.consumed
-<a href=#434 id=434 data-nosnippet>434</a>                            &amp;&amp; message.discarded_seq.is_none()
-<a href=#435 id=435 data-nosnippet>435</a>                            &amp;&amp; message
-<a href=#436 id=436 data-nosnippet>436</a>                                .admission
-<a href=#437 id=437 data-nosnippet>437</a>                                .is_some_and(|(admission_run, admission_seq)| {
-<a href=#438 id=438 data-nosnippet>438</a>                                    admission_run == run_id &amp;&amp; admission_seq &lt; event.seq
-<a href=#439 id=439 data-nosnippet>439</a>                                })
-<a href=#440 id=440 data-nosnippet>440</a>                    });
-<a href=#441 id=441 data-nosnippet>441</a>                <span class="kw">if </span>!valid {
-<a href=#442 id=442 data-nosnippet>442</a>                    <span class="self">self</span>.projection_mut()
-<a href=#443 id=443 data-nosnippet>443</a>                        .reject(event.seq, <span class="string">"invalid producer claim"</span>);
-<a href=#444 id=444 data-nosnippet>444</a>                    <span class="kw">return</span>;
-<a href=#445 id=445 data-nosnippet>445</a>                }
-<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">for </span>index <span class="kw">in </span>indexes {
-<a href=#447 id=447 data-nosnippet>447</a>                    <span class="self">self</span>.projection_mut().messages[index]
-<a href=#448 id=448 data-nosnippet>448</a>                        .claims
-<a href=#449 id=449 data-nosnippet>449</a>                        .insert(event.seq);
-<a href=#450 id=450 data-nosnippet>450</a>                }
-<a href=#451 id=451 data-nosnippet>451</a>                <span class="self">self</span>.projection_mut().claims.insert(
-<a href=#452 id=452 data-nosnippet>452</a>                    event.seq,
-<a href=#453 id=453 data-nosnippet>453</a>                    ProducerClaimRecord {
-<a href=#454 id=454 data-nosnippet>454</a>                        run_id,
-<a href=#455 id=455 data-nosnippet>455</a>                        message_ids: message_ids.clone(),
-<a href=#456 id=456 data-nosnippet>456</a>                    },
-<a href=#457 id=457 data-nosnippet>457</a>                );
-<a href=#458 id=458 data-nosnippet>458</a>            }
-<a href=#459 id=459 data-nosnippet>459</a>            EventPayload::ProducerMessagesReleased { claim_seq } =&gt; {
-<a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
-<a href=#461 id=461 data-nosnippet>461</a>                    <span class="self">self</span>.projection_mut()
-<a href=#462 id=462 data-nosnippet>462</a>                        .reject(event.seq, <span class="string">"producer release is missing run id"</span>);
-<a href=#463 id=463 data-nosnippet>463</a>                    <span class="kw">return</span>;
-<a href=#464 id=464 data-nosnippet>464</a>                };
-<a href=#465 id=465 data-nosnippet>465</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(claim) = <span class="self">self</span>.projection.claims.get(claim_seq) <span class="kw">else </span>{
-<a href=#466 id=466 data-nosnippet>466</a>                    <span class="self">self</span>.projection_mut()
-<a href=#467 id=467 data-nosnippet>467</a>                        .reject(event.seq, <span class="string">"producer release has no claim"</span>);
-<a href=#468 id=468 data-nosnippet>468</a>                    <span class="kw">return</span>;
-<a href=#469 id=469 data-nosnippet>469</a>                };
-<a href=#470 id=470 data-nosnippet>470</a>                <span class="kw">if </span><span class="kw-2">*</span>claim_seq == <span class="number">0 </span>|| claim.run_id != run_id {
-<a href=#471 id=471 data-nosnippet>471</a>                    <span class="self">self</span>.projection_mut()
-<a href=#472 id=472 data-nosnippet>472</a>                        .reject(event.seq, <span class="string">"producer release ownership is invalid"</span>);
-<a href=#473 id=473 data-nosnippet>473</a>                    <span class="kw">return</span>;
-<a href=#474 id=474 data-nosnippet>474</a>                }
-<a href=#475 id=475 data-nosnippet>475</a>                <span class="kw">let </span>message_ids = claim.message_ids.clone();
-<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw">for </span>message_id <span class="kw">in </span><span class="kw-2">&amp;</span>message_ids {
-<a href=#477 id=477 data-nosnippet>477</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() {
-<a href=#478 id=478 data-nosnippet>478</a>                        <span class="self">self</span>.projection_mut().messages[index]
-<a href=#479 id=479 data-nosnippet>479</a>                            .claims
-<a href=#480 id=480 data-nosnippet>480</a>                            .remove(claim_seq);
-<a href=#481 id=481 data-nosnippet>481</a>                    }
-<a href=#482 id=482 data-nosnippet>482</a>                }
-<a href=#483 id=483 data-nosnippet>483</a>                <span class="self">self</span>.projection_mut().claims.remove(claim_seq);
-<a href=#484 id=484 data-nosnippet>484</a>            }
-<a href=#485 id=485 data-nosnippet>485</a>            EventPayload::ModelTurnCommitted {
-<a href=#486 id=486 data-nosnippet>486</a>                input_through_seq, ..
-<a href=#487 id=487 data-nosnippet>487</a>            } =&gt; {
-<a href=#488 id=488 data-nosnippet>488</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{ <span class="kw">return </span>};
-<a href=#489 id=489 data-nosnippet>489</a>                <span class="kw">let </span>covered = |message: <span class="kw-2">&amp;</span>ProducerMessageRecord| {
-<a href=#490 id=490 data-nosnippet>490</a>                    !message.consumed
-<a href=#491 id=491 data-nosnippet>491</a>                        &amp;&amp; message
-<a href=#492 id=492 data-nosnippet>492</a>                            .admission
-<a href=#493 id=493 data-nosnippet>493</a>                            .is_some_and(|(admission_run, admission_seq)| {
-<a href=#494 id=494 data-nosnippet>494</a>                                admission_run == run_id &amp;&amp; admission_seq &lt;= <span class="kw-2">*</span>input_through_seq
-<a href=#495 id=495 data-nosnippet>495</a>                            })
-<a href=#496 id=496 data-nosnippet>496</a>                        &amp;&amp; message
-<a href=#497 id=497 data-nosnippet>497</a>                            .discarded_seq
-<a href=#498 id=498 data-nosnippet>498</a>                            .is_none_or(|discarded_seq| discarded_seq &gt; <span class="kw-2">*</span>input_through_seq)
-<a href=#499 id=499 data-nosnippet>499</a>                };
-<a href=#500 id=500 data-nosnippet>500</a>                <span class="comment">// Most turns consume nothing; they leave a shared projection
-<a href=#501 id=501 data-nosnippet>501</a>                // unshared.
-<a href=#502 id=502 data-nosnippet>502</a>                </span><span class="kw">if </span>!<span class="self">self</span>.projection.messages.iter().any(covered) {
-<a href=#503 id=503 data-nosnippet>503</a>                    <span class="kw">return</span>;
-<a href=#504 id=504 data-nosnippet>504</a>                }
-<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
-<a href=#506 id=506 data-nosnippet>506</a>                <span class="kw">for </span>message <span class="kw">in </span><span class="kw-2">&amp;mut </span>projection.messages {
-<a href=#507 id=507 data-nosnippet>507</a>                    <span class="kw">if </span>covered(message) {
-<a href=#508 id=508 data-nosnippet>508</a>                        message.discarded = <span class="bool-val">false</span>;
-<a href=#509 id=509 data-nosnippet>509</a>                        message.discarded_seq = <span class="prelude-val">None</span>;
-<a href=#510 id=510 data-nosnippet>510</a>                        message.consumed = <span class="bool-val">true</span>;
-<a href=#511 id=511 data-nosnippet>511</a>                        message.consumed_run = <span class="prelude-val">Some</span>(run_id);
-<a href=#512 id=512 data-nosnippet>512</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(reminder) = message.reminder {
-<a href=#513 id=513 data-nosnippet>513</a>                            projection.settled.continued_goals.insert(reminder.goal_id);
-<a href=#514 id=514 data-nosnippet>514</a>                        }
-<a href=#515 id=515 data-nosnippet>515</a>                    }
-<a href=#516 id=516 data-nosnippet>516</a>                }
-<a href=#517 id=517 data-nosnippet>517</a>            }
-<a href=#518 id=518 data-nosnippet>518</a>            EventPayload::ProducerMessageConsumed { message_id, run_id } =&gt; {
-<a href=#519 id=519 data-nosnippet>519</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
-<a href=#520 id=520 data-nosnippet>520</a>                    <span class="self">self</span>.projection_mut()
-<a href=#521 id=521 data-nosnippet>521</a>                        .reject(event.seq, <span class="string">"producer consumption has no accepted message"</span>);
-<a href=#522 id=522 data-nosnippet>522</a>                    <span class="kw">return</span>;
-<a href=#523 id=523 data-nosnippet>523</a>                };
-<a href=#524 id=524 data-nosnippet>524</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
-<a href=#525 id=525 data-nosnippet>525</a>                <span class="kw">if </span>event.run_id != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
-<a href=#526 id=526 data-nosnippet>526</a>                    || message.admission.map(|(run, <span class="kw">_</span>)| run) != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
-<a href=#527 id=527 data-nosnippet>527</a>                    || message.consumed_run != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
-<a href=#528 id=528 data-nosnippet>528</a>                    || message.consumption_recorded
-<a href=#529 id=529 data-nosnippet>529</a>                {
-<a href=#530 id=530 data-nosnippet>530</a>                    <span class="self">self</span>.projection_mut()
-<a href=#531 id=531 data-nosnippet>531</a>                        .reject(event.seq, <span class="string">"invalid producer consumption marker"</span>);
-<a href=#532 id=532 data-nosnippet>532</a>                    <span class="kw">return</span>;
-<a href=#533 id=533 data-nosnippet>533</a>                }
-<a href=#534 id=534 data-nosnippet>534</a>                <span class="self">self</span>.projection_mut().messages[index].consumption_recorded = <span class="bool-val">true</span>;
-<a href=#535 id=535 data-nosnippet>535</a>            }
-<a href=#536 id=536 data-nosnippet>536</a>            EventPayload::ProducerMessageDiscarded {
-<a href=#537 id=537 data-nosnippet>537</a>                message_id,
-<a href=#538 id=538 data-nosnippet>538</a>                reminder,
-<a href=#539 id=539 data-nosnippet>539</a>                producer_owner,
-<a href=#540 id=540 data-nosnippet>540</a>            } =&gt; {
-<a href=#541 id=541 data-nosnippet>541</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
-<a href=#542 id=542 data-nosnippet>542</a>                    <span class="self">self</span>.projection_mut()
-<a href=#543 id=543 data-nosnippet>543</a>                        .reject(event.seq, <span class="string">"producer discard has no accepted message"</span>);
-<a href=#544 id=544 data-nosnippet>544</a>                    <span class="kw">return</span>;
-<a href=#545 id=545 data-nosnippet>545</a>                };
-<a href=#546 id=546 data-nosnippet>546</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
-<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>identity_matches = producer_owner == <span class="kw-2">&amp;</span>message.producer_owner
-<a href=#548 id=548 data-nosnippet>548</a>                    &amp;&amp; reminder
-<a href=#549 id=549 data-nosnippet>549</a>                        .as_ref()
-<a href=#550 id=550 data-nosnippet>550</a>                        .is_none_or(|identity| message.reminder.as_ref() == <span class="prelude-val">Some</span>(identity));
-<a href=#551 id=551 data-nosnippet>551</a>                <span class="kw">if </span>!identity_matches || message.consumed || !message.claims.is_empty() {
-<a href=#552 id=552 data-nosnippet>552</a>                    <span class="self">self</span>.projection_mut()
-<a href=#553 id=553 data-nosnippet>553</a>                        .reject(event.seq, <span class="string">"invalid producer message discard"</span>);
-<a href=#554 id=554 data-nosnippet>554</a>                    <span class="kw">return</span>;
-<a href=#555 id=555 data-nosnippet>555</a>                }
-<a href=#556 id=556 data-nosnippet>556</a>                <span class="kw">if </span>message.discarded_seq.is_none() {
-<a href=#557 id=557 data-nosnippet>557</a>                    <span class="self">self</span>.projection_mut().messages[index].discarded = <span class="bool-val">true</span>;
-<a href=#558 id=558 data-nosnippet>558</a>                    <span class="self">self</span>.projection_mut().messages[index].discarded_seq = <span class="prelude-val">Some</span>(event.seq);
-<a href=#559 id=559 data-nosnippet>559</a>                    <span class="self">self</span>.unadmitted.remove(<span class="kw-2">&amp;</span>index);
-<a href=#560 id=560 data-nosnippet>560</a>                }
-<a href=#561 id=561 data-nosnippet>561</a>            }
-<a href=#562 id=562 data-nosnippet>562</a>            EventPayload::RunFinished { .. } =&gt; {
-<a href=#563 id=563 data-nosnippet>563</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(run_id) = event.run_id
-<a href=#564 id=564 data-nosnippet>564</a>                    &amp;&amp; <span class="self">self</span>.terminal_runs.insert(run_id)
-<a href=#565 id=565 data-nosnippet>565</a>                {
-<a href=#566 id=566 data-nosnippet>566</a>                    <span class="self">self</span>.terminal_order.push_back(run_id);
+<a href=#253 id=253 data-nosnippet>253</a><span class="kw">impl </span>GoalProducerFold {
+<a href=#254 id=254 data-nosnippet>254</a>    <span class="doccomment">/// The projection through the events observed so far.
+<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="attr">#[must_use]
+<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">pub fn </span>projection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;GoalProducerProjection&gt; {
+<a href=#257 id=257 data-nosnippet>257</a>        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.projection)
+<a href=#258 id=258 data-nosnippet>258</a>    }
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="doccomment">/// The message `id`.
+<a href=#261 id=261 data-nosnippet>261</a>    </span><span class="attr">#[must_use]
+<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">pub fn </span>message(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>ProducerMessageId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ProducerMessageRecord&gt; {
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="self">self</span>.message_indexes
+<a href=#264 id=264 data-nosnippet>264</a>            .get(id)
+<a href=#265 id=265 data-nosnippet>265</a>            .map(|index| <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index])
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="doccomment">/// Whether the user's goal is active or paused.
+<a href=#269 id=269 data-nosnippet>269</a>    </span><span class="attr">#[must_use]
+<a href=#270 id=270 data-nosnippet>270</a>    </span><span class="kw">pub fn </span>goal_is_open(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="self">self</span>.projection.goal_is_open()
+<a href=#272 id=272 data-nosnippet>272</a>    }
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>    <span class="doccomment">/// Whether a message waits that no run admitted yet.
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="attr">#[must_use]
+<a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">pub fn </span>has_unadmitted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#277 id=277 data-nosnippet>277</a>        !<span class="self">self</span>.unadmitted.is_empty()
+<a href=#278 id=278 data-nosnippet>278</a>    }
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">fn </span>projection_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>GoalProducerProjection {
+<a href=#281 id=281 data-nosnippet>281</a>        Arc::make_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>.projection)
+<a href=#282 id=282 data-nosnippet>282</a>    }
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a>    <span class="doccomment">/// Folds the next event of the log.
+<a href=#285 id=285 data-nosnippet>285</a>    </span><span class="kw">pub fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#287 id=287 data-nosnippet>287</a>            EventPayload::GoalActivated { selection, .. } =&gt; <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
+<a href=#288 id=288 data-nosnippet>288</a>                <span class="prelude-val">Ok</span>(()) =&gt; {
+<a href=#289 id=289 data-nosnippet>289</a>                    <span class="kw">let </span>goal = <span class="self">self</span>.goals.goal.clone();
+<a href=#290 id=290 data-nosnippet>290</a>                    <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
+<a href=#291 id=291 data-nosnippet>291</a>                    projection.selection = selection.clone();
+<a href=#292 id=292 data-nosnippet>292</a>                    projection.goal = goal;
+<a href=#293 id=293 data-nosnippet>293</a>                }
+<a href=#294 id=294 data-nosnippet>294</a>                <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
+<a href=#295 id=295 data-nosnippet>295</a>            },
+<a href=#296 id=296 data-nosnippet>296</a>            EventPayload::GoalChecklistRevised { .. } =&gt; <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
+<a href=#297 id=297 data-nosnippet>297</a>                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.projection_mut().goal = <span class="self">self</span>.goals.goal.clone(),
+<a href=#298 id=298 data-nosnippet>298</a>                <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
+<a href=#299 id=299 data-nosnippet>299</a>            },
+<a href=#300 id=300 data-nosnippet>300</a>            EventPayload::GoalLifecycleChanged { selection, .. } =&gt; {
+<a href=#301 id=301 data-nosnippet>301</a>                <span class="kw">match </span><span class="self">self</span>.goals.observe(event) {
+<a href=#302 id=302 data-nosnippet>302</a>                    <span class="prelude-val">Ok</span>(()) =&gt; {
+<a href=#303 id=303 data-nosnippet>303</a>                        <span class="kw">let </span>goal = <span class="self">self</span>.goals.goal.clone();
+<a href=#304 id=304 data-nosnippet>304</a>                        <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
+<a href=#305 id=305 data-nosnippet>305</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(selection) = selection {
+<a href=#306 id=306 data-nosnippet>306</a>                            projection.selection = <span class="prelude-val">Some</span>(selection.clone());
+<a href=#307 id=307 data-nosnippet>307</a>                        }
+<a href=#308 id=308 data-nosnippet>308</a>                        projection.goal = goal;
+<a href=#309 id=309 data-nosnippet>309</a>                    }
+<a href=#310 id=310 data-nosnippet>310</a>                    <span class="prelude-val">Err</span>(reason) =&gt; <span class="self">self</span>.projection_mut().reject(event.seq, reason),
+<a href=#311 id=311 data-nosnippet>311</a>                }
+<a href=#312 id=312 data-nosnippet>312</a>            }
+<a href=#313 id=313 data-nosnippet>313</a>            EventPayload::ProducerMessageAccepted {
+<a href=#314 id=314 data-nosnippet>314</a>                message_id,
+<a href=#315 id=315 data-nosnippet>315</a>                producer_owner,
+<a href=#316 id=316 data-nosnippet>316</a>                mode,
+<a href=#317 id=317 data-nosnippet>317</a>                idempotency_key,
+<a href=#318 id=318 data-nosnippet>318</a>                description,
+<a href=#319 id=319 data-nosnippet>319</a>                body,
+<a href=#320 id=320 data-nosnippet>320</a>                reminder,
+<a href=#321 id=321 data-nosnippet>321</a>                agent_hop,
+<a href=#322 id=322 data-nosnippet>322</a>                ..
+<a href=#323 id=323 data-nosnippet>323</a>            } =&gt; {
+<a href=#324 id=324 data-nosnippet>324</a>                <span class="kw">if </span>!valid_reminder_owner(producer_owner, reminder.as_ref()) {
+<a href=#325 id=325 data-nosnippet>325</a>                    <span class="self">self</span>.projection_mut()
+<a href=#326 id=326 data-nosnippet>326</a>                        .reject(event.seq, <span class="string">"invalid producer reminder ownership"</span>);
+<a href=#327 id=327 data-nosnippet>327</a>                    <span class="kw">return</span>;
+<a href=#328 id=328 data-nosnippet>328</a>                }
+<a href=#329 id=329 data-nosnippet>329</a>                <span class="kw">if </span>!valid_hop_owner(producer_owner, <span class="kw-2">*</span>agent_hop) {
+<a href=#330 id=330 data-nosnippet>330</a>                    <span class="self">self</span>.projection_mut()
+<a href=#331 id=331 data-nosnippet>331</a>                        .reject(event.seq, <span class="string">"invalid producer hop ownership"</span>);
+<a href=#332 id=332 data-nosnippet>332</a>                    <span class="kw">return</span>;
+<a href=#333 id=333 data-nosnippet>333</a>                }
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="comment">// A retry of a key whose message settled and went: as an exact
+<a href=#335 id=335 data-nosnippet>335</a>                // retry of one held, it changes nothing.
+<a href=#336 id=336 data-nosnippet>336</a>                </span><span class="kw">if </span>!<span class="self">self</span>.projection.settled.keys.is_empty()
+<a href=#337 id=337 data-nosnippet>337</a>                    &amp;&amp; <span class="self">self
+<a href=#338 id=338 data-nosnippet>338</a>                        </span>.projection
+<a href=#339 id=339 data-nosnippet>339</a>                        .settled
+<a href=#340 id=340 data-nosnippet>340</a>                        .keys
+<a href=#341 id=341 data-nosnippet>341</a>                        .contains_key(<span class="kw-2">&amp;</span>key_digest(producer_owner, idempotency_key))
+<a href=#342 id=342 data-nosnippet>342</a>                {
+<a href=#343 id=343 data-nosnippet>343</a>                    <span class="kw">return</span>;
+<a href=#344 id=344 data-nosnippet>344</a>                }
+<a href=#345 id=345 data-nosnippet>345</a>                <span class="kw">let </span>dedup_key = (producer_owner.clone(), idempotency_key.clone());
+<a href=#346 id=346 data-nosnippet>346</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.dedup_indexes.get(<span class="kw-2">&amp;</span>dedup_key).copied() {
+<a href=#347 id=347 data-nosnippet>347</a>                    <span class="kw">let </span>prior = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
+<a href=#348 id=348 data-nosnippet>348</a>                    <span class="comment">// `agent_hop` is guard metadata, not payload: a replayed
+<a href=#349 id=349 data-nosnippet>349</a>                    // acceptance for the same key stays idempotent even when
+<a href=#350 id=350 data-nosnippet>350</a>                    // the stamped depth differs from the stored record.
+<a href=#351 id=351 data-nosnippet>351</a>                    </span><span class="kw">let </span>exact = prior.message_id == <span class="kw-2">*</span>message_id
+<a href=#352 id=352 data-nosnippet>352</a>                        &amp;&amp; prior.mode == <span class="kw-2">*</span>mode
+<a href=#353 id=353 data-nosnippet>353</a>                        &amp;&amp; prior.description == <span class="kw-2">*</span>description
+<a href=#354 id=354 data-nosnippet>354</a>                        &amp;&amp; prior.body == <span class="kw-2">*</span>body
+<a href=#355 id=355 data-nosnippet>355</a>                        &amp;&amp; prior.reminder == <span class="kw-2">*</span>reminder;
+<a href=#356 id=356 data-nosnippet>356</a>                    <span class="kw">if </span>exact {
+<a href=#357 id=357 data-nosnippet>357</a>                        <span class="kw">return</span>;
+<a href=#358 id=358 data-nosnippet>358</a>                    }
+<a href=#359 id=359 data-nosnippet>359</a>                    <span class="self">self</span>.projection_mut()
+<a href=#360 id=360 data-nosnippet>360</a>                        .reject(event.seq, <span class="string">"conflicting producer idempotency key"</span>);
+<a href=#361 id=361 data-nosnippet>361</a>                    <span class="kw">return</span>;
+<a href=#362 id=362 data-nosnippet>362</a>                }
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">if </span><span class="self">self</span>.message_indexes.contains_key(message_id) {
+<a href=#364 id=364 data-nosnippet>364</a>                    <span class="self">self</span>.projection_mut()
+<a href=#365 id=365 data-nosnippet>365</a>                        .reject(event.seq, <span class="string">"conflicting producer message id"</span>);
+<a href=#366 id=366 data-nosnippet>366</a>                    <span class="kw">return</span>;
+<a href=#367 id=367 data-nosnippet>367</a>                }
+<a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">let </span>index = <span class="self">self</span>.projection.messages.len();
+<a href=#369 id=369 data-nosnippet>369</a>                <span class="self">self</span>.projection_mut().messages.push(ProducerMessageRecord {
+<a href=#370 id=370 data-nosnippet>370</a>                    message_id: <span class="kw-2">*</span>message_id,
+<a href=#371 id=371 data-nosnippet>371</a>                    producer_owner: producer_owner.clone(),
+<a href=#372 id=372 data-nosnippet>372</a>                    mode: <span class="kw-2">*</span>mode,
+<a href=#373 id=373 data-nosnippet>373</a>                    idempotency_key: idempotency_key.clone(),
+<a href=#374 id=374 data-nosnippet>374</a>                    description: description.clone(),
+<a href=#375 id=375 data-nosnippet>375</a>                    body: body.clone(),
+<a href=#376 id=376 data-nosnippet>376</a>                    reminder: <span class="kw-2">*</span>reminder,
+<a href=#377 id=377 data-nosnippet>377</a>                    agent_hop: <span class="kw-2">*</span>agent_hop,
+<a href=#378 id=378 data-nosnippet>378</a>                    accepted_seq: event.seq,
+<a href=#379 id=379 data-nosnippet>379</a>                    admission: <span class="prelude-val">None</span>,
+<a href=#380 id=380 data-nosnippet>380</a>                    claims: HashSet::new(),
+<a href=#381 id=381 data-nosnippet>381</a>                    consumed: <span class="bool-val">false</span>,
+<a href=#382 id=382 data-nosnippet>382</a>                    discarded: <span class="bool-val">false</span>,
+<a href=#383 id=383 data-nosnippet>383</a>                    discarded_seq: <span class="prelude-val">None</span>,
+<a href=#384 id=384 data-nosnippet>384</a>                    consumption_recorded: <span class="bool-val">false</span>,
+<a href=#385 id=385 data-nosnippet>385</a>                    consumed_run: <span class="prelude-val">None</span>,
+<a href=#386 id=386 data-nosnippet>386</a>                });
+<a href=#387 id=387 data-nosnippet>387</a>                <span class="self">self</span>.message_indexes.insert(<span class="kw-2">*</span>message_id, index);
+<a href=#388 id=388 data-nosnippet>388</a>                <span class="self">self</span>.dedup_indexes.insert(dedup_key, index);
+<a href=#389 id=389 data-nosnippet>389</a>                <span class="self">self</span>.unadmitted.insert(index);
+<a href=#390 id=390 data-nosnippet>390</a>            }
+<a href=#391 id=391 data-nosnippet>391</a>            EventPayload::ProducerMessageAdmitted { message_id } =&gt; {
+<a href=#392 id=392 data-nosnippet>392</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
+<a href=#393 id=393 data-nosnippet>393</a>                    <span class="self">self</span>.projection_mut()
+<a href=#394 id=394 data-nosnippet>394</a>                        .reject(event.seq, <span class="string">"producer admission is missing run id"</span>);
+<a href=#395 id=395 data-nosnippet>395</a>                    <span class="kw">return</span>;
+<a href=#396 id=396 data-nosnippet>396</a>                };
+<a href=#397 id=397 data-nosnippet>397</a>                <span class="kw">if </span><span class="self">self</span>.terminal_runs.contains(<span class="kw-2">&amp;</span>run_id) {
+<a href=#398 id=398 data-nosnippet>398</a>                    <span class="self">self</span>.projection_mut()
+<a href=#399 id=399 data-nosnippet>399</a>                        .reject(event.seq, <span class="string">"producer admission targets a terminal run"</span>);
+<a href=#400 id=400 data-nosnippet>400</a>                    <span class="kw">return</span>;
+<a href=#401 id=401 data-nosnippet>401</a>                }
+<a href=#402 id=402 data-nosnippet>402</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
+<a href=#403 id=403 data-nosnippet>403</a>                    <span class="self">self</span>.projection_mut()
+<a href=#404 id=404 data-nosnippet>404</a>                        .reject(event.seq, <span class="string">"producer admission has no accepted message"</span>);
+<a href=#405 id=405 data-nosnippet>405</a>                    <span class="kw">return</span>;
+<a href=#406 id=406 data-nosnippet>406</a>                };
+<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
+<a href=#408 id=408 data-nosnippet>408</a>                <span class="kw">let </span>replaceable = message.admission.is_some_and(|(prior_run, <span class="kw">_</span>)| {
+<a href=#409 id=409 data-nosnippet>409</a>                    prior_run != run_id &amp;&amp; <span class="self">self</span>.terminal_runs.contains(<span class="kw-2">&amp;</span>prior_run)
+<a href=#410 id=410 data-nosnippet>410</a>                });
+<a href=#411 id=411 data-nosnippet>411</a>                <span class="kw">if </span>message.consumed
+<a href=#412 id=412 data-nosnippet>412</a>                    || message.discarded_seq.is_some()
+<a href=#413 id=413 data-nosnippet>413</a>                    || (message.admission.is_some() &amp;&amp; !replaceable)
+<a href=#414 id=414 data-nosnippet>414</a>                {
+<a href=#415 id=415 data-nosnippet>415</a>                    <span class="self">self</span>.projection_mut()
+<a href=#416 id=416 data-nosnippet>416</a>                        .reject(event.seq, <span class="string">"invalid producer admission"</span>);
+<a href=#417 id=417 data-nosnippet>417</a>                    <span class="kw">return</span>;
+<a href=#418 id=418 data-nosnippet>418</a>                }
+<a href=#419 id=419 data-nosnippet>419</a>                <span class="self">self</span>.projection_mut().messages[index].admission = <span class="prelude-val">Some</span>((run_id, event.seq));
+<a href=#420 id=420 data-nosnippet>420</a>                <span class="self">self</span>.unadmitted.remove(<span class="kw-2">&amp;</span>index);
+<a href=#421 id=421 data-nosnippet>421</a>            }
+<a href=#422 id=422 data-nosnippet>422</a>            EventPayload::ProducerMessagesClaimed { message_ids } =&gt; {
+<a href=#423 id=423 data-nosnippet>423</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
+<a href=#424 id=424 data-nosnippet>424</a>                    <span class="self">self</span>.projection_mut()
+<a href=#425 id=425 data-nosnippet>425</a>                        .reject(event.seq, <span class="string">"producer claim is missing run id"</span>);
+<a href=#426 id=426 data-nosnippet>426</a>                    <span class="kw">return</span>;
+<a href=#427 id=427 data-nosnippet>427</a>                };
+<a href=#428 id=428 data-nosnippet>428</a>                <span class="kw">let </span>unique = message_ids.iter().copied().collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#429 id=429 data-nosnippet>429</a>                <span class="kw">let </span>indexes = message_ids
+<a href=#430 id=430 data-nosnippet>430</a>                    .iter()
+<a href=#431 id=431 data-nosnippet>431</a>                    .filter_map(|message_id| <span class="self">self</span>.message_indexes.get(message_id).copied())
+<a href=#432 id=432 data-nosnippet>432</a>                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#433 id=433 data-nosnippet>433</a>                <span class="kw">let </span>valid = !message_ids.is_empty()
+<a href=#434 id=434 data-nosnippet>434</a>                    &amp;&amp; unique.len() == message_ids.len()
+<a href=#435 id=435 data-nosnippet>435</a>                    &amp;&amp; indexes.len() == message_ids.len()
+<a href=#436 id=436 data-nosnippet>436</a>                    &amp;&amp; !<span class="self">self</span>.projection.claims.contains_key(<span class="kw-2">&amp;</span>event.seq)
+<a href=#437 id=437 data-nosnippet>437</a>                    &amp;&amp; indexes.iter().all(|index| {
+<a href=#438 id=438 data-nosnippet>438</a>                        <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index];
+<a href=#439 id=439 data-nosnippet>439</a>                        message.accepted_seq &lt; event.seq
+<a href=#440 id=440 data-nosnippet>440</a>                            &amp;&amp; !message.consumed
+<a href=#441 id=441 data-nosnippet>441</a>                            &amp;&amp; message.discarded_seq.is_none()
+<a href=#442 id=442 data-nosnippet>442</a>                            &amp;&amp; message
+<a href=#443 id=443 data-nosnippet>443</a>                                .admission
+<a href=#444 id=444 data-nosnippet>444</a>                                .is_some_and(|(admission_run, admission_seq)| {
+<a href=#445 id=445 data-nosnippet>445</a>                                    admission_run == run_id &amp;&amp; admission_seq &lt; event.seq
+<a href=#446 id=446 data-nosnippet>446</a>                                })
+<a href=#447 id=447 data-nosnippet>447</a>                    });
+<a href=#448 id=448 data-nosnippet>448</a>                <span class="kw">if </span>!valid {
+<a href=#449 id=449 data-nosnippet>449</a>                    <span class="self">self</span>.projection_mut()
+<a href=#450 id=450 data-nosnippet>450</a>                        .reject(event.seq, <span class="string">"invalid producer claim"</span>);
+<a href=#451 id=451 data-nosnippet>451</a>                    <span class="kw">return</span>;
+<a href=#452 id=452 data-nosnippet>452</a>                }
+<a href=#453 id=453 data-nosnippet>453</a>                <span class="kw">for </span>index <span class="kw">in </span>indexes {
+<a href=#454 id=454 data-nosnippet>454</a>                    <span class="self">self</span>.projection_mut().messages[index]
+<a href=#455 id=455 data-nosnippet>455</a>                        .claims
+<a href=#456 id=456 data-nosnippet>456</a>                        .insert(event.seq);
+<a href=#457 id=457 data-nosnippet>457</a>                }
+<a href=#458 id=458 data-nosnippet>458</a>                <span class="self">self</span>.projection_mut().claims.insert(
+<a href=#459 id=459 data-nosnippet>459</a>                    event.seq,
+<a href=#460 id=460 data-nosnippet>460</a>                    ProducerClaimRecord {
+<a href=#461 id=461 data-nosnippet>461</a>                        run_id,
+<a href=#462 id=462 data-nosnippet>462</a>                        message_ids: message_ids.clone(),
+<a href=#463 id=463 data-nosnippet>463</a>                    },
+<a href=#464 id=464 data-nosnippet>464</a>                );
+<a href=#465 id=465 data-nosnippet>465</a>            }
+<a href=#466 id=466 data-nosnippet>466</a>            EventPayload::ProducerMessagesReleased { claim_seq } =&gt; {
+<a href=#467 id=467 data-nosnippet>467</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{
+<a href=#468 id=468 data-nosnippet>468</a>                    <span class="self">self</span>.projection_mut()
+<a href=#469 id=469 data-nosnippet>469</a>                        .reject(event.seq, <span class="string">"producer release is missing run id"</span>);
+<a href=#470 id=470 data-nosnippet>470</a>                    <span class="kw">return</span>;
+<a href=#471 id=471 data-nosnippet>471</a>                };
+<a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(claim) = <span class="self">self</span>.projection.claims.get(claim_seq) <span class="kw">else </span>{
+<a href=#473 id=473 data-nosnippet>473</a>                    <span class="self">self</span>.projection_mut()
+<a href=#474 id=474 data-nosnippet>474</a>                        .reject(event.seq, <span class="string">"producer release has no claim"</span>);
+<a href=#475 id=475 data-nosnippet>475</a>                    <span class="kw">return</span>;
+<a href=#476 id=476 data-nosnippet>476</a>                };
+<a href=#477 id=477 data-nosnippet>477</a>                <span class="kw">if </span><span class="kw-2">*</span>claim_seq == <span class="number">0 </span>|| claim.run_id != run_id {
+<a href=#478 id=478 data-nosnippet>478</a>                    <span class="self">self</span>.projection_mut()
+<a href=#479 id=479 data-nosnippet>479</a>                        .reject(event.seq, <span class="string">"producer release ownership is invalid"</span>);
+<a href=#480 id=480 data-nosnippet>480</a>                    <span class="kw">return</span>;
+<a href=#481 id=481 data-nosnippet>481</a>                }
+<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">let </span>message_ids = claim.message_ids.clone();
+<a href=#483 id=483 data-nosnippet>483</a>                <span class="kw">for </span>message_id <span class="kw">in </span><span class="kw-2">&amp;</span>message_ids {
+<a href=#484 id=484 data-nosnippet>484</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() {
+<a href=#485 id=485 data-nosnippet>485</a>                        <span class="self">self</span>.projection_mut().messages[index]
+<a href=#486 id=486 data-nosnippet>486</a>                            .claims
+<a href=#487 id=487 data-nosnippet>487</a>                            .remove(claim_seq);
+<a href=#488 id=488 data-nosnippet>488</a>                    }
+<a href=#489 id=489 data-nosnippet>489</a>                }
+<a href=#490 id=490 data-nosnippet>490</a>                <span class="self">self</span>.projection_mut().claims.remove(claim_seq);
+<a href=#491 id=491 data-nosnippet>491</a>            }
+<a href=#492 id=492 data-nosnippet>492</a>            EventPayload::ModelTurnCommitted {
+<a href=#493 id=493 data-nosnippet>493</a>                input_through_seq, ..
+<a href=#494 id=494 data-nosnippet>494</a>            } =&gt; {
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(run_id) = event.run_id <span class="kw">else </span>{ <span class="kw">return </span>};
+<a href=#496 id=496 data-nosnippet>496</a>                <span class="kw">let </span>covered = |message: <span class="kw-2">&amp;</span>ProducerMessageRecord| {
+<a href=#497 id=497 data-nosnippet>497</a>                    !message.consumed
+<a href=#498 id=498 data-nosnippet>498</a>                        &amp;&amp; message
+<a href=#499 id=499 data-nosnippet>499</a>                            .admission
+<a href=#500 id=500 data-nosnippet>500</a>                            .is_some_and(|(admission_run, admission_seq)| {
+<a href=#501 id=501 data-nosnippet>501</a>                                admission_run == run_id &amp;&amp; admission_seq &lt;= <span class="kw-2">*</span>input_through_seq
+<a href=#502 id=502 data-nosnippet>502</a>                            })
+<a href=#503 id=503 data-nosnippet>503</a>                        &amp;&amp; message
+<a href=#504 id=504 data-nosnippet>504</a>                            .discarded_seq
+<a href=#505 id=505 data-nosnippet>505</a>                            .is_none_or(|discarded_seq| discarded_seq &gt; <span class="kw-2">*</span>input_through_seq)
+<a href=#506 id=506 data-nosnippet>506</a>                };
+<a href=#507 id=507 data-nosnippet>507</a>                <span class="comment">// Most turns consume nothing; they leave a shared projection
+<a href=#508 id=508 data-nosnippet>508</a>                // unshared.
+<a href=#509 id=509 data-nosnippet>509</a>                </span><span class="kw">if </span>!<span class="self">self</span>.projection.messages.iter().any(covered) {
+<a href=#510 id=510 data-nosnippet>510</a>                    <span class="kw">return</span>;
+<a href=#511 id=511 data-nosnippet>511</a>                }
+<a href=#512 id=512 data-nosnippet>512</a>                <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
+<a href=#513 id=513 data-nosnippet>513</a>                <span class="kw">for </span>message <span class="kw">in </span><span class="kw-2">&amp;mut </span>projection.messages {
+<a href=#514 id=514 data-nosnippet>514</a>                    <span class="kw">if </span>covered(message) {
+<a href=#515 id=515 data-nosnippet>515</a>                        message.discarded = <span class="bool-val">false</span>;
+<a href=#516 id=516 data-nosnippet>516</a>                        message.discarded_seq = <span class="prelude-val">None</span>;
+<a href=#517 id=517 data-nosnippet>517</a>                        message.consumed = <span class="bool-val">true</span>;
+<a href=#518 id=518 data-nosnippet>518</a>                        message.consumed_run = <span class="prelude-val">Some</span>(run_id);
+<a href=#519 id=519 data-nosnippet>519</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(reminder) = message.reminder {
+<a href=#520 id=520 data-nosnippet>520</a>                            projection.settled.continued_goals.insert(reminder.goal_id);
+<a href=#521 id=521 data-nosnippet>521</a>                        }
+<a href=#522 id=522 data-nosnippet>522</a>                    }
+<a href=#523 id=523 data-nosnippet>523</a>                }
+<a href=#524 id=524 data-nosnippet>524</a>            }
+<a href=#525 id=525 data-nosnippet>525</a>            EventPayload::ProducerMessageConsumed { message_id, run_id } =&gt; {
+<a href=#526 id=526 data-nosnippet>526</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
+<a href=#527 id=527 data-nosnippet>527</a>                    <span class="self">self</span>.projection_mut()
+<a href=#528 id=528 data-nosnippet>528</a>                        .reject(event.seq, <span class="string">"producer consumption has no accepted message"</span>);
+<a href=#529 id=529 data-nosnippet>529</a>                    <span class="kw">return</span>;
+<a href=#530 id=530 data-nosnippet>530</a>                };
+<a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
+<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">if </span>event.run_id != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
+<a href=#533 id=533 data-nosnippet>533</a>                    || message.admission.map(|(run, <span class="kw">_</span>)| run) != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
+<a href=#534 id=534 data-nosnippet>534</a>                    || message.consumed_run != <span class="prelude-val">Some</span>(<span class="kw-2">*</span>run_id)
+<a href=#535 id=535 data-nosnippet>535</a>                    || message.consumption_recorded
+<a href=#536 id=536 data-nosnippet>536</a>                {
+<a href=#537 id=537 data-nosnippet>537</a>                    <span class="self">self</span>.projection_mut()
+<a href=#538 id=538 data-nosnippet>538</a>                        .reject(event.seq, <span class="string">"invalid producer consumption marker"</span>);
+<a href=#539 id=539 data-nosnippet>539</a>                    <span class="kw">return</span>;
+<a href=#540 id=540 data-nosnippet>540</a>                }
+<a href=#541 id=541 data-nosnippet>541</a>                <span class="self">self</span>.projection_mut().messages[index].consumption_recorded = <span class="bool-val">true</span>;
+<a href=#542 id=542 data-nosnippet>542</a>            }
+<a href=#543 id=543 data-nosnippet>543</a>            EventPayload::ProducerMessageDiscarded {
+<a href=#544 id=544 data-nosnippet>544</a>                message_id,
+<a href=#545 id=545 data-nosnippet>545</a>                reminder,
+<a href=#546 id=546 data-nosnippet>546</a>                producer_owner,
+<a href=#547 id=547 data-nosnippet>547</a>            } =&gt; {
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.message_indexes.get(message_id).copied() <span class="kw">else </span>{
+<a href=#549 id=549 data-nosnippet>549</a>                    <span class="self">self</span>.projection_mut()
+<a href=#550 id=550 data-nosnippet>550</a>                        .reject(event.seq, <span class="string">"producer discard has no accepted message"</span>);
+<a href=#551 id=551 data-nosnippet>551</a>                    <span class="kw">return</span>;
+<a href=#552 id=552 data-nosnippet>552</a>                };
+<a href=#553 id=553 data-nosnippet>553</a>                <span class="kw">let </span>message = <span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[index];
+<a href=#554 id=554 data-nosnippet>554</a>                <span class="kw">let </span>identity_matches = producer_owner == <span class="kw-2">&amp;</span>message.producer_owner
+<a href=#555 id=555 data-nosnippet>555</a>                    &amp;&amp; reminder
+<a href=#556 id=556 data-nosnippet>556</a>                        .as_ref()
+<a href=#557 id=557 data-nosnippet>557</a>                        .is_none_or(|identity| message.reminder.as_ref() == <span class="prelude-val">Some</span>(identity));
+<a href=#558 id=558 data-nosnippet>558</a>                <span class="kw">if </span>!identity_matches || message.consumed || !message.claims.is_empty() {
+<a href=#559 id=559 data-nosnippet>559</a>                    <span class="self">self</span>.projection_mut()
+<a href=#560 id=560 data-nosnippet>560</a>                        .reject(event.seq, <span class="string">"invalid producer message discard"</span>);
+<a href=#561 id=561 data-nosnippet>561</a>                    <span class="kw">return</span>;
+<a href=#562 id=562 data-nosnippet>562</a>                }
+<a href=#563 id=563 data-nosnippet>563</a>                <span class="kw">if </span>message.discarded_seq.is_none() {
+<a href=#564 id=564 data-nosnippet>564</a>                    <span class="self">self</span>.projection_mut().messages[index].discarded = <span class="bool-val">true</span>;
+<a href=#565 id=565 data-nosnippet>565</a>                    <span class="self">self</span>.projection_mut().messages[index].discarded_seq = <span class="prelude-val">Some</span>(event.seq);
+<a href=#566 id=566 data-nosnippet>566</a>                    <span class="self">self</span>.unadmitted.remove(<span class="kw-2">&amp;</span>index);
 <a href=#567 id=567 data-nosnippet>567</a>                }
 <a href=#568 id=568 data-nosnippet>568</a>            }
-<a href=#569 id=569 data-nosnippet>569</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#570 id=570 data-nosnippet>570</a>        }
-<a href=#571 id=571 data-nosnippet>571</a>    }
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="doccomment">/// [`Self::observe`] for a log's own fold, which lets go of what settled, at
-<a href=#574 id=574 data-nosnippet>574</a>    /// each committed turn and run's end, so it holds what is open and not what
-<a href=#575 id=575 data-nosnippet>575</a>    /// the log grew to (`docs/site/specs/forever-sessions.md` section 6). A fold
-<a href=#576 id=576 data-nosnippet>576</a>    /// for a model's history ([`GoalProducerProjection::from_events`]) keeps every
-<a href=#577 id=577 data-nosnippet>577</a>    /// message, whose bodies are the history.
-<a href=#578 id=578 data-nosnippet>578</a>    </span><span class="kw">pub fn </span>observe_letting_go(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
-<a href=#579 id=579 data-nosnippet>579</a>        <span class="self">self</span>.observe(event);
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="kw">if </span><span class="macro">matches!</span>(
-<a href=#581 id=581 data-nosnippet>581</a>            event.payload,
-<a href=#582 id=582 data-nosnippet>582</a>            EventPayload::RunFinished { .. } | EventPayload::ModelTurnCommitted { .. }
-<a href=#583 id=583 data-nosnippet>583</a>        ) {
-<a href=#584 id=584 data-nosnippet>584</a>            <span class="self">self</span>.let_go_settled();
-<a href=#585 id=585 data-nosnippet>585</a>        }
-<a href=#586 id=586 data-nosnippet>586</a>    }
-<a href=#587 id=587 data-nosnippet>587</a>
-<a href=#588 id=588 data-nosnippet>588</a>    <span class="doccomment">/// Lets go of the messages that settled, but for the newest [`SETTLED_KEPT`]:
-<a href=#589 id=589 data-nosnippet>589</a>    /// those consumed and recorded, or discarded, with no claim, whose run ended,
-<a href=#590 id=590 data-nosnippet>590</a>    /// so no record can change them. Their keys stay, as a digest, and so does
-<a href=#591 id=591 data-nosnippet>591</a>    /// whether one was a goal's consumed reminder. Then of the ended runs, those
-<a href=#592 id=592 data-nosnippet>592</a>    /// no message held names, but for the newest [`SETTLED_KEPT`]: a message is
-<a href=#593 id=593 data-nosnippet>593</a>    /// admitted to the run that starts, so only a held message asks of an older one.
-<a href=#594 id=594 data-nosnippet>594</a>    </span><span class="kw">fn </span>let_go_settled(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">let </span>ended = |run: <span class="kw-2">&amp;</span>RunId| <span class="self">self</span>.terminal_runs.contains(run);
-<a href=#596 id=596 data-nosnippet>596</a>        <span class="kw">let </span><span class="kw-2">mut </span>settled = <span class="self">self
-<a href=#597 id=597 data-nosnippet>597</a>            </span>.projection
-<a href=#598 id=598 data-nosnippet>598</a>            .messages
-<a href=#599 id=599 data-nosnippet>599</a>            .iter()
-<a href=#600 id=600 data-nosnippet>600</a>            .enumerate()
-<a href=#601 id=601 data-nosnippet>601</a>            .filter(|(<span class="kw">_</span>, message)| {
-<a href=#602 id=602 data-nosnippet>602</a>                message.claims.is_empty()
-<a href=#603 id=603 data-nosnippet>603</a>                    &amp;&amp; ((message.consumed
-<a href=#604 id=604 data-nosnippet>604</a>                        &amp;&amp; message.consumption_recorded
-<a href=#605 id=605 data-nosnippet>605</a>                        &amp;&amp; message.consumed_run.as_ref().is_none_or(ended))
-<a href=#606 id=606 data-nosnippet>606</a>                        || (message.discarded
-<a href=#607 id=607 data-nosnippet>607</a>                            &amp;&amp; message.admission.as_ref().is_none_or(|(run, <span class="kw">_</span>)| ended(run))))
-<a href=#608 id=608 data-nosnippet>608</a>            })
-<a href=#609 id=609 data-nosnippet>609</a>            .map(|(index, message)| (message.accepted_seq, index))
-<a href=#610 id=610 data-nosnippet>610</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">if </span>settled.len() &gt; SETTLED_KEPT {
-<a href=#612 id=612 data-nosnippet>612</a>            settled.sort_unstable();
-<a href=#613 id=613 data-nosnippet>613</a>            settled.truncate(settled.len() - SETTLED_KEPT);
-<a href=#614 id=614 data-nosnippet>614</a>            <span class="kw">let </span>gone = settled
-<a href=#615 id=615 data-nosnippet>615</a>                .into_iter()
-<a href=#616 id=616 data-nosnippet>616</a>                .map(|(<span class="kw">_</span>, index)| index)
-<a href=#617 id=617 data-nosnippet>617</a>                .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
-<a href=#619 id=619 data-nosnippet>619</a>            <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
-<a href=#620 id=620 data-nosnippet>620</a>            <span class="kw">let </span><span class="kw-2">mut </span>keys = Vec::new();
-<a href=#621 id=621 data-nosnippet>621</a>            projection.messages.retain(|message| {
-<a href=#622 id=622 data-nosnippet>622</a>                <span class="kw">let </span>kept = !gone.contains(<span class="kw-2">&amp;</span>index);
-<a href=#623 id=623 data-nosnippet>623</a>                <span class="kw">if </span>!kept {
-<a href=#624 id=624 data-nosnippet>624</a>                    keys.push((
-<a href=#625 id=625 data-nosnippet>625</a>                        key_digest(<span class="kw-2">&amp;</span>message.producer_owner, <span class="kw-2">&amp;</span>message.idempotency_key),
-<a href=#626 id=626 data-nosnippet>626</a>                        message.message_id,
-<a href=#627 id=627 data-nosnippet>627</a>                    ));
-<a href=#628 id=628 data-nosnippet>628</a>                }
-<a href=#629 id=629 data-nosnippet>629</a>                index += <span class="number">1</span>;
-<a href=#630 id=630 data-nosnippet>630</a>                kept
-<a href=#631 id=631 data-nosnippet>631</a>            });
-<a href=#632 id=632 data-nosnippet>632</a>            projection.settled.keys.extend(keys);
-<a href=#633 id=633 data-nosnippet>633</a>            <span class="self">self</span>.message_indexes.clear();
-<a href=#634 id=634 data-nosnippet>634</a>            <span class="self">self</span>.dedup_indexes.clear();
-<a href=#635 id=635 data-nosnippet>635</a>            <span class="self">self</span>.unadmitted.clear();
-<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">for </span>(index, message) <span class="kw">in </span><span class="self">self</span>.projection.messages.iter().enumerate() {
-<a href=#637 id=637 data-nosnippet>637</a>                <span class="self">self</span>.message_indexes.insert(message.message_id, index);
-<a href=#638 id=638 data-nosnippet>638</a>                <span class="self">self</span>.dedup_indexes.insert(
-<a href=#639 id=639 data-nosnippet>639</a>                    (
-<a href=#640 id=640 data-nosnippet>640</a>                        message.producer_owner.clone(),
-<a href=#641 id=641 data-nosnippet>641</a>                        message.idempotency_key.clone(),
-<a href=#642 id=642 data-nosnippet>642</a>                    ),
-<a href=#643 id=643 data-nosnippet>643</a>                    index,
-<a href=#644 id=644 data-nosnippet>644</a>                );
-<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">if </span>message.admission.is_none() &amp;&amp; message.discarded_seq.is_none() {
-<a href=#646 id=646 data-nosnippet>646</a>                    <span class="self">self</span>.unadmitted.insert(index);
-<a href=#647 id=647 data-nosnippet>647</a>                }
-<a href=#648 id=648 data-nosnippet>648</a>            }
-<a href=#649 id=649 data-nosnippet>649</a>        }
-<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">if </span><span class="self">self</span>.terminal_order.len() &gt; SETTLED_KEPT {
-<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw">let </span>named = <span class="self">self
-<a href=#652 id=652 data-nosnippet>652</a>                </span>.projection
-<a href=#653 id=653 data-nosnippet>653</a>                .messages
-<a href=#654 id=654 data-nosnippet>654</a>                .iter()
-<a href=#655 id=655 data-nosnippet>655</a>                .flat_map(|message| {
-<a href=#656 id=656 data-nosnippet>656</a>                    message
-<a href=#657 id=657 data-nosnippet>657</a>                        .admission
-<a href=#658 id=658 data-nosnippet>658</a>                        .map(|(run, <span class="kw">_</span>)| run)
-<a href=#659 id=659 data-nosnippet>659</a>                        .into_iter()
-<a href=#660 id=660 data-nosnippet>660</a>                        .chain(message.consumed_run)
-<a href=#661 id=661 data-nosnippet>661</a>                })
-<a href=#662 id=662 data-nosnippet>662</a>                .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#663 id=663 data-nosnippet>663</a>            <span class="kw">let </span>beyond = <span class="self">self</span>.terminal_order.len() - SETTLED_KEPT;
-<a href=#664 id=664 data-nosnippet>664</a>            <span class="kw">let </span><span class="kw-2">mut </span>kept = VecDeque::with_capacity(<span class="self">self</span>.terminal_order.len());
-<a href=#665 id=665 data-nosnippet>665</a>            <span class="kw">for </span>(position, run) <span class="kw">in </span><span class="self">self</span>.terminal_order.drain(..).enumerate() {
-<a href=#666 id=666 data-nosnippet>666</a>                <span class="kw">if </span>position &gt;= beyond || named.contains(<span class="kw-2">&amp;</span>run) {
-<a href=#667 id=667 data-nosnippet>667</a>                    kept.push_back(run);
-<a href=#668 id=668 data-nosnippet>668</a>                } <span class="kw">else </span>{
-<a href=#669 id=669 data-nosnippet>669</a>                    <span class="self">self</span>.terminal_runs.remove(<span class="kw-2">&amp;</span>run);
-<a href=#670 id=670 data-nosnippet>670</a>                }
-<a href=#671 id=671 data-nosnippet>671</a>            }
-<a href=#672 id=672 data-nosnippet>672</a>            <span class="self">self</span>.terminal_order = kept;
-<a href=#673 id=673 data-nosnippet>673</a>        }
-<a href=#674 id=674 data-nosnippet>674</a>    }
-<a href=#675 id=675 data-nosnippet>675</a>}
-<a href=#676 id=676 data-nosnippet>676</a>
-<a href=#677 id=677 data-nosnippet>677</a><span class="doccomment">/// The goal part of a session's log: its current goal, after the
-<a href=#678 id=678 data-nosnippet>678</a>/// activations, checklist revisions, and lifecycle changes that were valid
-<a href=#679 id=679 data-nosnippet>679</a>/// where they stand. Shared by the producer projection and the session
-<a href=#680 id=680 data-nosnippet>680</a>/// projection, which reports an active goal in `SessionMeta::waiting_on`.
-<a href=#681 id=681 data-nosnippet>681</a></span><span class="attr">#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-<a href=#682 id=682 data-nosnippet>682</a></span><span class="kw">pub struct </span>GoalFold {
-<a href=#683 id=683 data-nosnippet>683</a>    <span class="kw">pub </span>goal: <span class="prelude-ty">Option</span>&lt;GoalState&gt;,
-<a href=#684 id=684 data-nosnippet>684</a>    <span class="doccomment">/// The latest revision of every goal the log activated.
-<a href=#685 id=685 data-nosnippet>685</a>    </span><span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
-<a href=#686 id=686 data-nosnippet>686</a>    </span>revisions: HashMap&lt;GoalId, u64&gt;,
-<a href=#687 id=687 data-nosnippet>687</a>}
-<a href=#688 id=688 data-nosnippet>688</a>
-<a href=#689 id=689 data-nosnippet>689</a><span class="kw">impl </span>GoalFold {
-<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Applies `event` when it is a goal event, or says why it is invalid
-<a href=#691 id=691 data-nosnippet>691</a>    /// and leaves the fold unchanged. Any other event is ignored.
-<a href=#692 id=692 data-nosnippet>692</a>    </span><span class="kw">pub fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#694 id=694 data-nosnippet>694</a>            EventPayload::GoalActivated {
-<a href=#695 id=695 data-nosnippet>695</a>                goal_id,
-<a href=#696 id=696 data-nosnippet>696</a>                objective,
-<a href=#697 id=697 data-nosnippet>697</a>                revision,
-<a href=#698 id=698 data-nosnippet>698</a>                ..
-<a href=#699 id=699 data-nosnippet>699</a>            } =&gt; {
-<a href=#700 id=700 data-nosnippet>700</a>                <span class="kw">let </span>replaceable = <span class="self">self
-<a href=#701 id=701 data-nosnippet>701</a>                    </span>.goal
-<a href=#702 id=702 data-nosnippet>702</a>                    .as_ref()
-<a href=#703 id=703 data-nosnippet>703</a>                    .is_none_or(|goal| is_terminal(goal.status));
-<a href=#704 id=704 data-nosnippet>704</a>                <span class="kw">let </span>distinct = <span class="self">self
-<a href=#705 id=705 data-nosnippet>705</a>                    </span>.goal
-<a href=#706 id=706 data-nosnippet>706</a>                    .as_ref()
-<a href=#707 id=707 data-nosnippet>707</a>                    .is_none_or(|goal| goal.goal_id != <span class="kw-2">*</span>goal_id);
-<a href=#708 id=708 data-nosnippet>708</a>                <span class="kw">let </span>unseen = !<span class="self">self</span>.revisions.contains_key(goal_id);
-<a href=#709 id=709 data-nosnippet>709</a>                <span class="kw">if </span>objective.trim().is_empty() || !replaceable || !distinct || !unseen {
-<a href=#710 id=710 data-nosnippet>710</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal activation"</span>);
-<a href=#711 id=711 data-nosnippet>711</a>                }
-<a href=#712 id=712 data-nosnippet>712</a>                <span class="self">self</span>.goal = <span class="prelude-val">Some</span>(GoalState {
-<a href=#713 id=713 data-nosnippet>713</a>                    goal_id: <span class="kw-2">*</span>goal_id,
-<a href=#714 id=714 data-nosnippet>714</a>                    objective: objective.clone(),
-<a href=#715 id=715 data-nosnippet>715</a>                    status: GoalStatus::Active,
-<a href=#716 id=716 data-nosnippet>716</a>                    items: Vec::new(),
-<a href=#717 id=717 data-nosnippet>717</a>                    revision: <span class="kw-2">*</span>revision,
-<a href=#718 id=718 data-nosnippet>718</a>                });
-<a href=#719 id=719 data-nosnippet>719</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
-<a href=#720 id=720 data-nosnippet>720</a>            }
-<a href=#721 id=721 data-nosnippet>721</a>            EventPayload::GoalChecklistRevised {
-<a href=#722 id=722 data-nosnippet>722</a>                goal_id,
-<a href=#723 id=723 data-nosnippet>723</a>                items,
-<a href=#724 id=724 data-nosnippet>724</a>                revision,
-<a href=#725 id=725 data-nosnippet>725</a>            } =&gt; {
-<a href=#726 id=726 data-nosnippet>726</a>                <span class="kw">let </span>valid_items = items.iter().all(|item| !item.description.trim().is_empty());
-<a href=#727 id=727 data-nosnippet>727</a>                <span class="kw">let </span>valid = valid_items
-<a href=#728 id=728 data-nosnippet>728</a>                    &amp;&amp; <span class="self">self</span>.goal.as_ref().is_some_and(|goal| {
-<a href=#729 id=729 data-nosnippet>729</a>                        goal.goal_id == <span class="kw-2">*</span>goal_id
-<a href=#730 id=730 data-nosnippet>730</a>                            &amp;&amp; !is_terminal(goal.status)
-<a href=#731 id=731 data-nosnippet>731</a>                            &amp;&amp; <span class="kw-2">*</span>revision &gt; goal.revision
-<a href=#732 id=732 data-nosnippet>732</a>                    });
-<a href=#733 id=733 data-nosnippet>733</a>                <span class="kw">if </span>!valid {
-<a href=#734 id=734 data-nosnippet>734</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal checklist revision"</span>);
-<a href=#735 id=735 data-nosnippet>735</a>                }
-<a href=#736 id=736 data-nosnippet>736</a>                <span class="kw">let </span>goal = <span class="self">self</span>.goal.as_mut().expect(<span class="string">"validated current goal"</span>);
-<a href=#737 id=737 data-nosnippet>737</a>                goal.items = items.clone();
-<a href=#738 id=738 data-nosnippet>738</a>                goal.revision = <span class="kw-2">*</span>revision;
-<a href=#739 id=739 data-nosnippet>739</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
-<a href=#740 id=740 data-nosnippet>740</a>            }
-<a href=#741 id=741 data-nosnippet>741</a>            EventPayload::GoalLifecycleChanged {
-<a href=#742 id=742 data-nosnippet>742</a>                goal_id,
-<a href=#743 id=743 data-nosnippet>743</a>                status,
-<a href=#744 id=744 data-nosnippet>744</a>                revision,
-<a href=#745 id=745 data-nosnippet>745</a>                selection,
-<a href=#746 id=746 data-nosnippet>746</a>            } =&gt; {
-<a href=#747 id=747 data-nosnippet>747</a>                <span class="kw">let </span>valid = <span class="self">self</span>.goal.as_ref().is_some_and(|goal| {
-<a href=#748 id=748 data-nosnippet>748</a>                    goal.goal_id == <span class="kw-2">*</span>goal_id
-<a href=#749 id=749 data-nosnippet>749</a>                        &amp;&amp; <span class="kw-2">*</span>revision &gt; goal.revision
-<a href=#750 id=750 data-nosnippet>750</a>                        &amp;&amp; valid_lifecycle_change(goal, <span class="kw-2">*</span>status)
-<a href=#751 id=751 data-nosnippet>751</a>                        &amp;&amp; (selection.is_none() || <span class="kw-2">*</span>status == GoalStatus::Active)
+<a href=#569 id=569 data-nosnippet>569</a>            EventPayload::RunFinished { .. } =&gt; {
+<a href=#570 id=570 data-nosnippet>570</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(run_id) = event.run_id
+<a href=#571 id=571 data-nosnippet>571</a>                    &amp;&amp; <span class="self">self</span>.terminal_runs.insert(run_id)
+<a href=#572 id=572 data-nosnippet>572</a>                {
+<a href=#573 id=573 data-nosnippet>573</a>                    <span class="self">self</span>.terminal_order.push_back(run_id);
+<a href=#574 id=574 data-nosnippet>574</a>                }
+<a href=#575 id=575 data-nosnippet>575</a>            }
+<a href=#576 id=576 data-nosnippet>576</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#577 id=577 data-nosnippet>577</a>        }
+<a href=#578 id=578 data-nosnippet>578</a>    }
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="doccomment">/// [`Self::observe`] for a log's own fold, which lets go of what settled, at
+<a href=#581 id=581 data-nosnippet>581</a>    /// each committed turn and run's end, so it holds what is open and not what
+<a href=#582 id=582 data-nosnippet>582</a>    /// the log grew to (`docs/site/specs/forever-sessions.md` section 6). A fold
+<a href=#583 id=583 data-nosnippet>583</a>    /// for a model's history ([`GoalProducerProjection::from_events`]) keeps every
+<a href=#584 id=584 data-nosnippet>584</a>    /// message, whose bodies are the history.
+<a href=#585 id=585 data-nosnippet>585</a>    </span><span class="kw">pub fn </span>observe_letting_go(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
+<a href=#586 id=586 data-nosnippet>586</a>        <span class="self">self</span>.observe(event);
+<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">if </span><span class="macro">matches!</span>(
+<a href=#588 id=588 data-nosnippet>588</a>            event.payload,
+<a href=#589 id=589 data-nosnippet>589</a>            EventPayload::RunFinished { .. } | EventPayload::ModelTurnCommitted { .. }
+<a href=#590 id=590 data-nosnippet>590</a>        ) {
+<a href=#591 id=591 data-nosnippet>591</a>            <span class="self">self</span>.let_go_settled(event.seq);
+<a href=#592 id=592 data-nosnippet>592</a>        }
+<a href=#593 id=593 data-nosnippet>593</a>    }
+<a href=#594 id=594 data-nosnippet>594</a>
+<a href=#595 id=595 data-nosnippet>595</a>    <span class="doccomment">/// Lets go of the messages that settled, those consumed and recorded, or
+<a href=#596 id=596 data-nosnippet>596</a>    /// discarded, with no claim, whose run ended, so no record can change them,
+<a href=#597 id=597 data-nosnippet>597</a>    /// once [`SETTLED_KEPT`] others settled after them: what settled at the record
+<a href=#598 id=598 data-nosnippet>598</a>    /// `seq` is kept, whenever it was accepted. Their keys stay, as a digest, and
+<a href=#599 id=599 data-nosnippet>599</a>    /// so does whether one was a goal's consumed reminder. Then of the ended runs,
+<a href=#600 id=600 data-nosnippet>600</a>    /// those no message held names, but for the newest [`SETTLED_KEPT`]: a message
+<a href=#601 id=601 data-nosnippet>601</a>    /// is admitted to the run that starts, so only a held message asks of an older one.
+<a href=#602 id=602 data-nosnippet>602</a>    </span><span class="kw">fn </span>let_go_settled(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seq: u64) {
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span>ended = |run: <span class="kw-2">&amp;</span>RunId| <span class="self">self</span>.terminal_runs.contains(run);
+<a href=#604 id=604 data-nosnippet>604</a>        <span class="kw">let </span>settled_at = <span class="kw-2">&amp;mut </span><span class="self">self</span>.settled_at;
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">let </span><span class="kw-2">mut </span>settled = <span class="self">self
+<a href=#606 id=606 data-nosnippet>606</a>            </span>.projection
+<a href=#607 id=607 data-nosnippet>607</a>            .messages
+<a href=#608 id=608 data-nosnippet>608</a>            .iter()
+<a href=#609 id=609 data-nosnippet>609</a>            .enumerate()
+<a href=#610 id=610 data-nosnippet>610</a>            .filter(|(<span class="kw">_</span>, message)| {
+<a href=#611 id=611 data-nosnippet>611</a>                message.claims.is_empty()
+<a href=#612 id=612 data-nosnippet>612</a>                    &amp;&amp; ((message.consumed
+<a href=#613 id=613 data-nosnippet>613</a>                        &amp;&amp; message.consumption_recorded
+<a href=#614 id=614 data-nosnippet>614</a>                        &amp;&amp; message.consumed_run.as_ref().is_none_or(ended))
+<a href=#615 id=615 data-nosnippet>615</a>                        || (message.discarded
+<a href=#616 id=616 data-nosnippet>616</a>                            &amp;&amp; message.admission.as_ref().is_none_or(|(run, <span class="kw">_</span>)| ended(run))))
+<a href=#617 id=617 data-nosnippet>617</a>            })
+<a href=#618 id=618 data-nosnippet>618</a>            .map(|(index, message)| (<span class="kw-2">*</span>settled_at.entry(message.message_id).or_insert(seq), index))
+<a href=#619 id=619 data-nosnippet>619</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#620 id=620 data-nosnippet>620</a>        <span class="comment">// No valid record opens a settled message again; should one, it is
+<a href=#621 id=621 data-nosnippet>621</a>        // found settled anew when it settles again.
+<a href=#622 id=622 data-nosnippet>622</a>        </span><span class="kw">if </span>settled_at.len() != settled.len() {
+<a href=#623 id=623 data-nosnippet>623</a>            <span class="kw">let </span>held = settled
+<a href=#624 id=624 data-nosnippet>624</a>                .iter()
+<a href=#625 id=625 data-nosnippet>625</a>                .map(|(<span class="kw">_</span>, index)| <span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index].message_id)
+<a href=#626 id=626 data-nosnippet>626</a>                .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#627 id=627 data-nosnippet>627</a>            settled_at.retain(|message, <span class="kw">_</span>| held.contains(message));
+<a href=#628 id=628 data-nosnippet>628</a>        }
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span><span class="kw-2">mut </span>gone = HashSet::new();
+<a href=#630 id=630 data-nosnippet>630</a>        <span class="kw">if </span>settled.len() &gt; SETTLED_KEPT {
+<a href=#631 id=631 data-nosnippet>631</a>            <span class="comment">// Newest first: a message goes once SETTLED_KEPT settled after it.
+<a href=#632 id=632 data-nosnippet>632</a>            </span>settled.sort_unstable_by_key(|(at, <span class="kw">_</span>)| std::cmp::Reverse(<span class="kw-2">*</span>at));
+<a href=#633 id=633 data-nosnippet>633</a>            <span class="kw">let </span><span class="kw-2">mut </span>later = <span class="number">0</span>;
+<a href=#634 id=634 data-nosnippet>634</a>            <span class="kw">for </span>group <span class="kw">in </span>settled.chunk_by(|left, right| left.<span class="number">0 </span>== right.<span class="number">0</span>) {
+<a href=#635 id=635 data-nosnippet>635</a>                <span class="kw">if </span>later &gt;= SETTLED_KEPT {
+<a href=#636 id=636 data-nosnippet>636</a>                    gone.extend(group.iter().map(|(<span class="kw">_</span>, index)| <span class="kw-2">*</span>index));
+<a href=#637 id=637 data-nosnippet>637</a>                }
+<a href=#638 id=638 data-nosnippet>638</a>                later += group.len();
+<a href=#639 id=639 data-nosnippet>639</a>            }
+<a href=#640 id=640 data-nosnippet>640</a>        }
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">if </span>!gone.is_empty() {
+<a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">for </span>index <span class="kw">in </span><span class="kw-2">&amp;</span>gone {
+<a href=#643 id=643 data-nosnippet>643</a>                <span class="self">self</span>.settled_at
+<a href=#644 id=644 data-nosnippet>644</a>                    .remove(<span class="kw-2">&amp;</span><span class="self">self</span>.projection.messages[<span class="kw-2">*</span>index].message_id);
+<a href=#645 id=645 data-nosnippet>645</a>            }
+<a href=#646 id=646 data-nosnippet>646</a>            <span class="kw">let </span>projection = <span class="self">self</span>.projection_mut();
+<a href=#647 id=647 data-nosnippet>647</a>            <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+<a href=#648 id=648 data-nosnippet>648</a>            <span class="kw">let </span><span class="kw-2">mut </span>keys = Vec::new();
+<a href=#649 id=649 data-nosnippet>649</a>            projection.messages.retain(|message| {
+<a href=#650 id=650 data-nosnippet>650</a>                <span class="kw">let </span>kept = !gone.contains(<span class="kw-2">&amp;</span>index);
+<a href=#651 id=651 data-nosnippet>651</a>                <span class="kw">if </span>!kept {
+<a href=#652 id=652 data-nosnippet>652</a>                    keys.push((
+<a href=#653 id=653 data-nosnippet>653</a>                        key_digest(<span class="kw-2">&amp;</span>message.producer_owner, <span class="kw-2">&amp;</span>message.idempotency_key),
+<a href=#654 id=654 data-nosnippet>654</a>                        message.message_id,
+<a href=#655 id=655 data-nosnippet>655</a>                    ));
+<a href=#656 id=656 data-nosnippet>656</a>                }
+<a href=#657 id=657 data-nosnippet>657</a>                index += <span class="number">1</span>;
+<a href=#658 id=658 data-nosnippet>658</a>                kept
+<a href=#659 id=659 data-nosnippet>659</a>            });
+<a href=#660 id=660 data-nosnippet>660</a>            projection.settled.keys.extend(keys);
+<a href=#661 id=661 data-nosnippet>661</a>            <span class="self">self</span>.message_indexes.clear();
+<a href=#662 id=662 data-nosnippet>662</a>            <span class="self">self</span>.dedup_indexes.clear();
+<a href=#663 id=663 data-nosnippet>663</a>            <span class="self">self</span>.unadmitted.clear();
+<a href=#664 id=664 data-nosnippet>664</a>            <span class="kw">for </span>(index, message) <span class="kw">in </span><span class="self">self</span>.projection.messages.iter().enumerate() {
+<a href=#665 id=665 data-nosnippet>665</a>                <span class="self">self</span>.message_indexes.insert(message.message_id, index);
+<a href=#666 id=666 data-nosnippet>666</a>                <span class="self">self</span>.dedup_indexes.insert(
+<a href=#667 id=667 data-nosnippet>667</a>                    (
+<a href=#668 id=668 data-nosnippet>668</a>                        message.producer_owner.clone(),
+<a href=#669 id=669 data-nosnippet>669</a>                        message.idempotency_key.clone(),
+<a href=#670 id=670 data-nosnippet>670</a>                    ),
+<a href=#671 id=671 data-nosnippet>671</a>                    index,
+<a href=#672 id=672 data-nosnippet>672</a>                );
+<a href=#673 id=673 data-nosnippet>673</a>                <span class="kw">if </span>message.admission.is_none() &amp;&amp; message.discarded_seq.is_none() {
+<a href=#674 id=674 data-nosnippet>674</a>                    <span class="self">self</span>.unadmitted.insert(index);
+<a href=#675 id=675 data-nosnippet>675</a>                }
+<a href=#676 id=676 data-nosnippet>676</a>            }
+<a href=#677 id=677 data-nosnippet>677</a>        }
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="self">self</span>.let_go_ended_runs();
+<a href=#679 id=679 data-nosnippet>679</a>    }
+<a href=#680 id=680 data-nosnippet>680</a>
+<a href=#681 id=681 data-nosnippet>681</a>    <span class="doccomment">/// Of the ended runs, lets go of those no message held names, but for the
+<a href=#682 id=682 data-nosnippet>682</a>    /// newest [`SETTLED_KEPT`].
+<a href=#683 id=683 data-nosnippet>683</a>    </span><span class="kw">fn </span>let_go_ended_runs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">if </span><span class="self">self</span>.terminal_order.len() &gt; SETTLED_KEPT {
+<a href=#685 id=685 data-nosnippet>685</a>            <span class="kw">let </span>named = <span class="self">self
+<a href=#686 id=686 data-nosnippet>686</a>                </span>.projection
+<a href=#687 id=687 data-nosnippet>687</a>                .messages
+<a href=#688 id=688 data-nosnippet>688</a>                .iter()
+<a href=#689 id=689 data-nosnippet>689</a>                .flat_map(|message| {
+<a href=#690 id=690 data-nosnippet>690</a>                    message
+<a href=#691 id=691 data-nosnippet>691</a>                        .admission
+<a href=#692 id=692 data-nosnippet>692</a>                        .map(|(run, <span class="kw">_</span>)| run)
+<a href=#693 id=693 data-nosnippet>693</a>                        .into_iter()
+<a href=#694 id=694 data-nosnippet>694</a>                        .chain(message.consumed_run)
+<a href=#695 id=695 data-nosnippet>695</a>                })
+<a href=#696 id=696 data-nosnippet>696</a>                .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#697 id=697 data-nosnippet>697</a>            <span class="kw">let </span>beyond = <span class="self">self</span>.terminal_order.len() - SETTLED_KEPT;
+<a href=#698 id=698 data-nosnippet>698</a>            <span class="kw">let </span><span class="kw-2">mut </span>kept = VecDeque::with_capacity(<span class="self">self</span>.terminal_order.len());
+<a href=#699 id=699 data-nosnippet>699</a>            <span class="kw">for </span>(position, run) <span class="kw">in </span><span class="self">self</span>.terminal_order.drain(..).enumerate() {
+<a href=#700 id=700 data-nosnippet>700</a>                <span class="kw">if </span>position &gt;= beyond || named.contains(<span class="kw-2">&amp;</span>run) {
+<a href=#701 id=701 data-nosnippet>701</a>                    kept.push_back(run);
+<a href=#702 id=702 data-nosnippet>702</a>                } <span class="kw">else </span>{
+<a href=#703 id=703 data-nosnippet>703</a>                    <span class="self">self</span>.terminal_runs.remove(<span class="kw-2">&amp;</span>run);
+<a href=#704 id=704 data-nosnippet>704</a>                }
+<a href=#705 id=705 data-nosnippet>705</a>            }
+<a href=#706 id=706 data-nosnippet>706</a>            <span class="self">self</span>.terminal_order = kept;
+<a href=#707 id=707 data-nosnippet>707</a>        }
+<a href=#708 id=708 data-nosnippet>708</a>    }
+<a href=#709 id=709 data-nosnippet>709</a>}
+<a href=#710 id=710 data-nosnippet>710</a>
+<a href=#711 id=711 data-nosnippet>711</a><span class="doccomment">/// The goal part of a session's log: its current goal, after the
+<a href=#712 id=712 data-nosnippet>712</a>/// activations, checklist revisions, and lifecycle changes that were valid
+<a href=#713 id=713 data-nosnippet>713</a>/// where they stand. Shared by the producer projection and the session
+<a href=#714 id=714 data-nosnippet>714</a>/// projection, which reports an active goal in `SessionMeta::waiting_on`.
+<a href=#715 id=715 data-nosnippet>715</a></span><span class="attr">#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+<a href=#716 id=716 data-nosnippet>716</a></span><span class="kw">pub struct </span>GoalFold {
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">pub </span>goal: <span class="prelude-ty">Option</span>&lt;GoalState&gt;,
+<a href=#718 id=718 data-nosnippet>718</a>    <span class="doccomment">/// The latest revision of every goal the log activated.
+<a href=#719 id=719 data-nosnippet>719</a>    </span><span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
+<a href=#720 id=720 data-nosnippet>720</a>    </span>revisions: HashMap&lt;GoalId, u64&gt;,
+<a href=#721 id=721 data-nosnippet>721</a>}
+<a href=#722 id=722 data-nosnippet>722</a>
+<a href=#723 id=723 data-nosnippet>723</a><span class="kw">impl </span>GoalFold {
+<a href=#724 id=724 data-nosnippet>724</a>    <span class="doccomment">/// Applies `event` when it is a goal event, or says why it is invalid
+<a href=#725 id=725 data-nosnippet>725</a>    /// and leaves the fold unchanged. Any other event is ignored.
+<a href=#726 id=726 data-nosnippet>726</a>    </span><span class="kw">pub fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+<a href=#727 id=727 data-nosnippet>727</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#728 id=728 data-nosnippet>728</a>            EventPayload::GoalActivated {
+<a href=#729 id=729 data-nosnippet>729</a>                goal_id,
+<a href=#730 id=730 data-nosnippet>730</a>                objective,
+<a href=#731 id=731 data-nosnippet>731</a>                revision,
+<a href=#732 id=732 data-nosnippet>732</a>                ..
+<a href=#733 id=733 data-nosnippet>733</a>            } =&gt; {
+<a href=#734 id=734 data-nosnippet>734</a>                <span class="kw">let </span>replaceable = <span class="self">self
+<a href=#735 id=735 data-nosnippet>735</a>                    </span>.goal
+<a href=#736 id=736 data-nosnippet>736</a>                    .as_ref()
+<a href=#737 id=737 data-nosnippet>737</a>                    .is_none_or(|goal| is_terminal(goal.status));
+<a href=#738 id=738 data-nosnippet>738</a>                <span class="kw">let </span>distinct = <span class="self">self
+<a href=#739 id=739 data-nosnippet>739</a>                    </span>.goal
+<a href=#740 id=740 data-nosnippet>740</a>                    .as_ref()
+<a href=#741 id=741 data-nosnippet>741</a>                    .is_none_or(|goal| goal.goal_id != <span class="kw-2">*</span>goal_id);
+<a href=#742 id=742 data-nosnippet>742</a>                <span class="kw">let </span>unseen = !<span class="self">self</span>.revisions.contains_key(goal_id);
+<a href=#743 id=743 data-nosnippet>743</a>                <span class="kw">if </span>objective.trim().is_empty() || !replaceable || !distinct || !unseen {
+<a href=#744 id=744 data-nosnippet>744</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal activation"</span>);
+<a href=#745 id=745 data-nosnippet>745</a>                }
+<a href=#746 id=746 data-nosnippet>746</a>                <span class="self">self</span>.goal = <span class="prelude-val">Some</span>(GoalState {
+<a href=#747 id=747 data-nosnippet>747</a>                    goal_id: <span class="kw-2">*</span>goal_id,
+<a href=#748 id=748 data-nosnippet>748</a>                    objective: objective.clone(),
+<a href=#749 id=749 data-nosnippet>749</a>                    status: GoalStatus::Active,
+<a href=#750 id=750 data-nosnippet>750</a>                    items: Vec::new(),
+<a href=#751 id=751 data-nosnippet>751</a>                    revision: <span class="kw-2">*</span>revision,
 <a href=#752 id=752 data-nosnippet>752</a>                });
-<a href=#753 id=753 data-nosnippet>753</a>                <span class="kw">if </span>!valid {
-<a href=#754 id=754 data-nosnippet>754</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal lifecycle transition"</span>);
-<a href=#755 id=755 data-nosnippet>755</a>                }
-<a href=#756 id=756 data-nosnippet>756</a>                <span class="kw">let </span>goal = <span class="self">self</span>.goal.as_mut().expect(<span class="string">"validated current goal"</span>);
-<a href=#757 id=757 data-nosnippet>757</a>                goal.status = <span class="kw-2">*</span>status;
-<a href=#758 id=758 data-nosnippet>758</a>                goal.revision = <span class="kw-2">*</span>revision;
-<a href=#759 id=759 data-nosnippet>759</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
-<a href=#760 id=760 data-nosnippet>760</a>            }
-<a href=#761 id=761 data-nosnippet>761</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#762 id=762 data-nosnippet>762</a>        }
-<a href=#763 id=763 data-nosnippet>763</a>        <span class="prelude-val">Ok</span>(())
-<a href=#764 id=764 data-nosnippet>764</a>    }
-<a href=#765 id=765 data-nosnippet>765</a>
-<a href=#766 id=766 data-nosnippet>766</a>    <span class="doccomment">/// Whether the current goal is active, so goal mode keeps scheduling
-<a href=#767 id=767 data-nosnippet>767</a>    /// runs. A paused, completed, or cancelled goal schedules none.
-<a href=#768 id=768 data-nosnippet>768</a>    </span><span class="attr">#[must_use]
-<a href=#769 id=769 data-nosnippet>769</a>    </span><span class="kw">pub fn </span>is_active(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#770 id=770 data-nosnippet>770</a>        <span class="self">self</span>.goal
-<a href=#771 id=771 data-nosnippet>771</a>            .as_ref()
-<a href=#772 id=772 data-nosnippet>772</a>            .is_some_and(|goal| goal.status == GoalStatus::Active)
-<a href=#773 id=773 data-nosnippet>773</a>    }
-<a href=#774 id=774 data-nosnippet>774</a>}
-<a href=#775 id=775 data-nosnippet>775</a>
-<a href=#776 id=776 data-nosnippet>776</a><span class="kw">fn </span>is_terminal(status: GoalStatus) -&gt; bool {
-<a href=#777 id=777 data-nosnippet>777</a>    <span class="macro">matches!</span>(status, GoalStatus::Completed | GoalStatus::Cancelled)
-<a href=#778 id=778 data-nosnippet>778</a>}
-<a href=#779 id=779 data-nosnippet>779</a>
-<a href=#780 id=780 data-nosnippet>780</a><span class="kw">fn </span>valid_lifecycle_change(goal: <span class="kw-2">&amp;</span>GoalState, status: GoalStatus) -&gt; bool {
-<a href=#781 id=781 data-nosnippet>781</a>    <span class="kw">match </span>(goal.status, status) {
-<a href=#782 id=782 data-nosnippet>782</a>        (GoalStatus::Active, GoalStatus::Paused | GoalStatus::Cancelled)
-<a href=#783 id=783 data-nosnippet>783</a>        | (GoalStatus::Paused, GoalStatus::Active | GoalStatus::Cancelled) =&gt; <span class="bool-val">true</span>,
-<a href=#784 id=784 data-nosnippet>784</a>        (GoalStatus::Active | GoalStatus::Paused, GoalStatus::Completed) =&gt; {
-<a href=#785 id=785 data-nosnippet>785</a>            !goal.items.is_empty() &amp;&amp; goal.items.iter().all(|item| item.finished)
-<a href=#786 id=786 data-nosnippet>786</a>        }
-<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#788 id=788 data-nosnippet>788</a>    }
-<a href=#789 id=789 data-nosnippet>789</a>}
-<a href=#790 id=790 data-nosnippet>790</a>
-<a href=#791 id=791 data-nosnippet>791</a><span class="kw">fn </span>valid_reminder_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, reminder: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>GoalReminderIdentity&gt;) -&gt; bool {
-<a href=#792 id=792 data-nosnippet>792</a>    <span class="kw">match </span>(owner, reminder) {
-<a href=#793 id=793 data-nosnippet>793</a>        (ProducerOwner::Goal { goal_id }, <span class="prelude-val">Some</span>(reminder)) =&gt; <span class="kw-2">*</span>goal_id == reminder.goal_id,
-<a href=#794 id=794 data-nosnippet>794</a>        (ProducerOwner::Goal { .. }, <span class="prelude-val">None</span>) | (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; <span class="bool-val">false</span>,
-<a href=#795 id=795 data-nosnippet>795</a>        (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#796 id=796 data-nosnippet>796</a>    }
-<a href=#797 id=797 data-nosnippet>797</a>}
-<a href=#798 id=798 data-nosnippet>798</a>
-<a href=#799 id=799 data-nosnippet>799</a><span class="doccomment">/// Hop metadata belongs exclusively to agent mail. A malformed durable event
-<a href=#800 id=800 data-nosnippet>800</a>/// that stamps it onto plugin, goal, or delegation mail is quarantined so it
-<a href=#801 id=801 data-nosnippet>801</a>/// cannot inflate an agent chain it never joined.
-<a href=#802 id=802 data-nosnippet>802</a></span><span class="kw">const fn </span>valid_hop_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, agent_hop: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; bool {
-<a href=#803 id=803 data-nosnippet>803</a>    agent_hop.is_some() == <span class="macro">matches!</span>(owner, ProducerOwner::Agent { .. })
-<a href=#804 id=804 data-nosnippet>804</a>}
-<a href=#805 id=805 data-nosnippet>805</a>
-<a href=#806 id=806 data-nosnippet>806</a><span class="doccomment">/// Whether a log's producer state needs reconciliation after a restart: an active goal, an unread message, or a message consumed without its
-<a href=#807 id=807 data-nosnippet>807</a>/// consumption record.
-<a href=#808 id=808 data-nosnippet>808</a></span><span class="kw">pub fn </span>producer_state_pending(projection: <span class="kw-2">&amp;</span>GoalProducerProjection) -&gt; bool {
-<a href=#809 id=809 data-nosnippet>809</a>    projection.goal.is_some()
-<a href=#810 id=810 data-nosnippet>810</a>        || projection
-<a href=#811 id=811 data-nosnippet>811</a>            .messages
-<a href=#812 id=812 data-nosnippet>812</a>            .iter()
-<a href=#813 id=813 data-nosnippet>813</a>            .any(|message| pending(message) || (message.consumed &amp;&amp; !message.consumption_recorded))
-<a href=#814 id=814 data-nosnippet>814</a>}
-<a href=#815 id=815 data-nosnippet>815</a>
-<a href=#816 id=816 data-nosnippet>816</a><span class="doccomment">/// Whether a message is accepted but neither consumed nor discarded: mail
-<a href=#817 id=817 data-nosnippet>817</a>/// addressed to the session that it still owes a wake.
-<a href=#818 id=818 data-nosnippet>818</a>///
-<a href=#819 id=819 data-nosnippet>819</a>/// This is the race-free "a wake is owed" signal: `ProducerMessageAccepted` is
-<a href=#820 id=820 data-nosnippet>820</a>/// durable before a send reports success, and a message stays pending through
-<a href=#821 id=821 data-nosnippet>821</a>/// the whole window before its consumer's `RunStarted` flips session status to
-<a href=#822 id=822 data-nosnippet>822</a>/// `Running` (it clears only when a committed model turn has actually consumed
-<a href=#823 id=823 data-nosnippet>823</a>/// it). Liveness checks therefore cannot miss a steered finished child in the
-<a href=#824 id=824 data-nosnippet>824</a>/// gap between acceptance and run admission.
-<a href=#825 id=825 data-nosnippet>825</a></span><span class="kw">pub fn </span>pending(message: <span class="kw-2">&amp;</span>ProducerMessageRecord) -&gt; bool {
-<a href=#826 id=826 data-nosnippet>826</a>    !message.consumed &amp;&amp; !message.discarded
-<a href=#827 id=827 data-nosnippet>827</a>}
-<a href=#828 id=828 data-nosnippet>828</a>
-<a href=#829 id=829 data-nosnippet>829</a><span class="attr">#[cfg(test)]
-<a href=#830 id=830 data-nosnippet>830</a></span><span class="kw">mod </span>tests;
+<a href=#753 id=753 data-nosnippet>753</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
+<a href=#754 id=754 data-nosnippet>754</a>            }
+<a href=#755 id=755 data-nosnippet>755</a>            EventPayload::GoalChecklistRevised {
+<a href=#756 id=756 data-nosnippet>756</a>                goal_id,
+<a href=#757 id=757 data-nosnippet>757</a>                items,
+<a href=#758 id=758 data-nosnippet>758</a>                revision,
+<a href=#759 id=759 data-nosnippet>759</a>            } =&gt; {
+<a href=#760 id=760 data-nosnippet>760</a>                <span class="kw">let </span>valid_items = items.iter().all(|item| !item.description.trim().is_empty());
+<a href=#761 id=761 data-nosnippet>761</a>                <span class="kw">let </span>valid = valid_items
+<a href=#762 id=762 data-nosnippet>762</a>                    &amp;&amp; <span class="self">self</span>.goal.as_ref().is_some_and(|goal| {
+<a href=#763 id=763 data-nosnippet>763</a>                        goal.goal_id == <span class="kw-2">*</span>goal_id
+<a href=#764 id=764 data-nosnippet>764</a>                            &amp;&amp; !is_terminal(goal.status)
+<a href=#765 id=765 data-nosnippet>765</a>                            &amp;&amp; <span class="kw-2">*</span>revision &gt; goal.revision
+<a href=#766 id=766 data-nosnippet>766</a>                    });
+<a href=#767 id=767 data-nosnippet>767</a>                <span class="kw">if </span>!valid {
+<a href=#768 id=768 data-nosnippet>768</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal checklist revision"</span>);
+<a href=#769 id=769 data-nosnippet>769</a>                }
+<a href=#770 id=770 data-nosnippet>770</a>                <span class="kw">let </span>goal = <span class="self">self</span>.goal.as_mut().expect(<span class="string">"validated current goal"</span>);
+<a href=#771 id=771 data-nosnippet>771</a>                goal.items = items.clone();
+<a href=#772 id=772 data-nosnippet>772</a>                goal.revision = <span class="kw-2">*</span>revision;
+<a href=#773 id=773 data-nosnippet>773</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
+<a href=#774 id=774 data-nosnippet>774</a>            }
+<a href=#775 id=775 data-nosnippet>775</a>            EventPayload::GoalLifecycleChanged {
+<a href=#776 id=776 data-nosnippet>776</a>                goal_id,
+<a href=#777 id=777 data-nosnippet>777</a>                status,
+<a href=#778 id=778 data-nosnippet>778</a>                revision,
+<a href=#779 id=779 data-nosnippet>779</a>                selection,
+<a href=#780 id=780 data-nosnippet>780</a>            } =&gt; {
+<a href=#781 id=781 data-nosnippet>781</a>                <span class="kw">let </span>valid = <span class="self">self</span>.goal.as_ref().is_some_and(|goal| {
+<a href=#782 id=782 data-nosnippet>782</a>                    goal.goal_id == <span class="kw-2">*</span>goal_id
+<a href=#783 id=783 data-nosnippet>783</a>                        &amp;&amp; <span class="kw-2">*</span>revision &gt; goal.revision
+<a href=#784 id=784 data-nosnippet>784</a>                        &amp;&amp; valid_lifecycle_change(goal, <span class="kw-2">*</span>status)
+<a href=#785 id=785 data-nosnippet>785</a>                        &amp;&amp; (selection.is_none() || <span class="kw-2">*</span>status == GoalStatus::Active)
+<a href=#786 id=786 data-nosnippet>786</a>                });
+<a href=#787 id=787 data-nosnippet>787</a>                <span class="kw">if </span>!valid {
+<a href=#788 id=788 data-nosnippet>788</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"invalid goal lifecycle transition"</span>);
+<a href=#789 id=789 data-nosnippet>789</a>                }
+<a href=#790 id=790 data-nosnippet>790</a>                <span class="kw">let </span>goal = <span class="self">self</span>.goal.as_mut().expect(<span class="string">"validated current goal"</span>);
+<a href=#791 id=791 data-nosnippet>791</a>                goal.status = <span class="kw-2">*</span>status;
+<a href=#792 id=792 data-nosnippet>792</a>                goal.revision = <span class="kw-2">*</span>revision;
+<a href=#793 id=793 data-nosnippet>793</a>                <span class="self">self</span>.revisions.insert(<span class="kw-2">*</span>goal_id, <span class="kw-2">*</span>revision);
+<a href=#794 id=794 data-nosnippet>794</a>            }
+<a href=#795 id=795 data-nosnippet>795</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#796 id=796 data-nosnippet>796</a>        }
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="prelude-val">Ok</span>(())
+<a href=#798 id=798 data-nosnippet>798</a>    }
+<a href=#799 id=799 data-nosnippet>799</a>
+<a href=#800 id=800 data-nosnippet>800</a>    <span class="doccomment">/// Whether the current goal is active, so goal mode keeps scheduling
+<a href=#801 id=801 data-nosnippet>801</a>    /// runs. A paused, completed, or cancelled goal schedules none.
+<a href=#802 id=802 data-nosnippet>802</a>    </span><span class="attr">#[must_use]
+<a href=#803 id=803 data-nosnippet>803</a>    </span><span class="kw">pub fn </span>is_active(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#804 id=804 data-nosnippet>804</a>        <span class="self">self</span>.goal
+<a href=#805 id=805 data-nosnippet>805</a>            .as_ref()
+<a href=#806 id=806 data-nosnippet>806</a>            .is_some_and(|goal| goal.status == GoalStatus::Active)
+<a href=#807 id=807 data-nosnippet>807</a>    }
+<a href=#808 id=808 data-nosnippet>808</a>}
+<a href=#809 id=809 data-nosnippet>809</a>
+<a href=#810 id=810 data-nosnippet>810</a><span class="kw">fn </span>is_terminal(status: GoalStatus) -&gt; bool {
+<a href=#811 id=811 data-nosnippet>811</a>    <span class="macro">matches!</span>(status, GoalStatus::Completed | GoalStatus::Cancelled)
+<a href=#812 id=812 data-nosnippet>812</a>}
+<a href=#813 id=813 data-nosnippet>813</a>
+<a href=#814 id=814 data-nosnippet>814</a><span class="kw">fn </span>valid_lifecycle_change(goal: <span class="kw-2">&amp;</span>GoalState, status: GoalStatus) -&gt; bool {
+<a href=#815 id=815 data-nosnippet>815</a>    <span class="kw">match </span>(goal.status, status) {
+<a href=#816 id=816 data-nosnippet>816</a>        (GoalStatus::Active, GoalStatus::Paused | GoalStatus::Cancelled)
+<a href=#817 id=817 data-nosnippet>817</a>        | (GoalStatus::Paused, GoalStatus::Active | GoalStatus::Cancelled) =&gt; <span class="bool-val">true</span>,
+<a href=#818 id=818 data-nosnippet>818</a>        (GoalStatus::Active | GoalStatus::Paused, GoalStatus::Completed) =&gt; {
+<a href=#819 id=819 data-nosnippet>819</a>            !goal.items.is_empty() &amp;&amp; goal.items.iter().all(|item| item.finished)
+<a href=#820 id=820 data-nosnippet>820</a>        }
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#822 id=822 data-nosnippet>822</a>    }
+<a href=#823 id=823 data-nosnippet>823</a>}
+<a href=#824 id=824 data-nosnippet>824</a>
+<a href=#825 id=825 data-nosnippet>825</a><span class="kw">fn </span>valid_reminder_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, reminder: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>GoalReminderIdentity&gt;) -&gt; bool {
+<a href=#826 id=826 data-nosnippet>826</a>    <span class="kw">match </span>(owner, reminder) {
+<a href=#827 id=827 data-nosnippet>827</a>        (ProducerOwner::Goal { goal_id }, <span class="prelude-val">Some</span>(reminder)) =&gt; <span class="kw-2">*</span>goal_id == reminder.goal_id,
+<a href=#828 id=828 data-nosnippet>828</a>        (ProducerOwner::Goal { .. }, <span class="prelude-val">None</span>) | (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; <span class="bool-val">false</span>,
+<a href=#829 id=829 data-nosnippet>829</a>        (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#830 id=830 data-nosnippet>830</a>    }
+<a href=#831 id=831 data-nosnippet>831</a>}
+<a href=#832 id=832 data-nosnippet>832</a>
+<a href=#833 id=833 data-nosnippet>833</a><span class="doccomment">/// Hop metadata belongs exclusively to agent mail. A malformed durable event
+<a href=#834 id=834 data-nosnippet>834</a>/// that stamps it onto plugin, goal, or delegation mail is quarantined so it
+<a href=#835 id=835 data-nosnippet>835</a>/// cannot inflate an agent chain it never joined.
+<a href=#836 id=836 data-nosnippet>836</a></span><span class="kw">const fn </span>valid_hop_owner(owner: <span class="kw-2">&amp;</span>ProducerOwner, agent_hop: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; bool {
+<a href=#837 id=837 data-nosnippet>837</a>    agent_hop.is_some() == <span class="macro">matches!</span>(owner, ProducerOwner::Agent { .. })
+<a href=#838 id=838 data-nosnippet>838</a>}
+<a href=#839 id=839 data-nosnippet>839</a>
+<a href=#840 id=840 data-nosnippet>840</a><span class="doccomment">/// Whether a log's producer state needs reconciliation after a restart: an active goal, an unread message, or a message consumed without its
+<a href=#841 id=841 data-nosnippet>841</a>/// consumption record.
+<a href=#842 id=842 data-nosnippet>842</a></span><span class="kw">pub fn </span>producer_state_pending(projection: <span class="kw-2">&amp;</span>GoalProducerProjection) -&gt; bool {
+<a href=#843 id=843 data-nosnippet>843</a>    projection.goal.is_some()
+<a href=#844 id=844 data-nosnippet>844</a>        || projection
+<a href=#845 id=845 data-nosnippet>845</a>            .messages
+<a href=#846 id=846 data-nosnippet>846</a>            .iter()
+<a href=#847 id=847 data-nosnippet>847</a>            .any(|message| pending(message) || (message.consumed &amp;&amp; !message.consumption_recorded))
+<a href=#848 id=848 data-nosnippet>848</a>}
+<a href=#849 id=849 data-nosnippet>849</a>
+<a href=#850 id=850 data-nosnippet>850</a><span class="doccomment">/// Whether a message is accepted but neither consumed nor discarded: mail
+<a href=#851 id=851 data-nosnippet>851</a>/// addressed to the session that it still owes a wake.
+<a href=#852 id=852 data-nosnippet>852</a>///
+<a href=#853 id=853 data-nosnippet>853</a>/// This is the race-free "a wake is owed" signal: `ProducerMessageAccepted` is
+<a href=#854 id=854 data-nosnippet>854</a>/// durable before a send reports success, and a message stays pending through
+<a href=#855 id=855 data-nosnippet>855</a>/// the whole window before its consumer's `RunStarted` flips session status to
+<a href=#856 id=856 data-nosnippet>856</a>/// `Running` (it clears only when a committed model turn has actually consumed
+<a href=#857 id=857 data-nosnippet>857</a>/// it). Liveness checks therefore cannot miss a steered finished child in the
+<a href=#858 id=858 data-nosnippet>858</a>/// gap between acceptance and run admission.
+<a href=#859 id=859 data-nosnippet>859</a></span><span class="kw">pub fn </span>pending(message: <span class="kw-2">&amp;</span>ProducerMessageRecord) -&gt; bool {
+<a href=#860 id=860 data-nosnippet>860</a>    !message.consumed &amp;&amp; !message.discarded
+<a href=#861 id=861 data-nosnippet>861</a>}
+<a href=#862 id=862 data-nosnippet>862</a>
+<a href=#863 id=863 data-nosnippet>863</a><span class="attr">#[cfg(test)]
+<a href=#864 id=864 data-nosnippet>864</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

@@ -32,7 +32,7 @@
 <a href=#32 id=32 data-nosnippet>32</a>/// or the file's shape does: a different one means folding the log from its
 <a href=#33 id=33 data-nosnippet>33</a>/// start. The test `the_folds_of_the_golden_logs_match_their_recorded_digest`
 <a href=#34 id=34 data-nosnippet>34</a>/// says when.
-<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub const </span>STATE_VERSION: u32 = <span class="number">9</span>;
+<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub const </span>STATE_VERSION: u32 = <span class="number">10</span>;
 <a href=#36 id=36 data-nosnippet>36</a>
 <a href=#37 id=37 data-nosnippet>37</a><span class="doccomment">/// How much of a log comes between two writes of [`STATE_FILE`] on a run's way,
 <a href=#38 id=38 data-nosnippet>38</a>/// so a long run is covered and a turn does not pay for a write.
@@ -538,226 +538,267 @@
 <a href=#538 id=538 data-nosnippet>538</a>    <span class="comment">// A native model's context starts at a sequence, which need not be a record's.
 <a href=#539 id=539 data-nosnippet>539</a>    </span><span class="kw">let </span>index = lines.starts.partition_point(|(seq, <span class="kw">_</span>)| <span class="kw-2">*</span>seq &lt; window);
 <a href=#540 id=540 data-nosnippet>540</a>    <span class="kw">let </span>(first, start) = <span class="kw-2">*</span>lines.starts.get(index)<span class="question-mark">?</span>;
-<a href=#541 id=541 data-nosnippet>541</a>    <span class="kw">let </span><span class="kw-2">mut </span>cursor = LineCursor::open(path, <span class="number">0</span>)<span class="question-mark">?</span>;
-<a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">let </span>creation = <span class="kw">loop </span>{
-<a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">if </span>cursor.next()<span class="question-mark">? </span>!= Next::Line {
-<a href=#544 id=544 data-nosnippet>544</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#545 id=545 data-nosnippet>545</a>        }
-<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>line = <span class="kw-2">&amp;</span>cursor.line[..cursor.line.len() - <span class="number">1</span>];
-<a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">if </span>!line.is_empty() {
-<a href=#548 id=548 data-nosnippet>548</a>            <span class="kw">let </span><span class="kw-2">mut </span>reader = LineReader::new(path);
-<a href=#549 id=549 data-nosnippet>549</a>            <span class="kw">break </span>reader.read(<span class="number">0</span>, line, fetch).ok()<span class="question-mark">?</span>.record<span class="question-mark">?</span>;
-<a href=#550 id=550 data-nosnippet>550</a>        }
-<a href=#551 id=551 data-nosnippet>551</a>    };
-<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">if </span>creation.session_id != session_id {
-<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#554 id=554 data-nosnippet>554</a>    }
-<a href=#555 id=555 data-nosnippet>555</a>    <span class="comment">// The byte before the window's line ends the line before it.
-<a href=#556 id=556 data-nosnippet>556</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>before = [<span class="number">0_u8</span>];
-<a href=#557 id=557 data-nosnippet>557</a>    <span class="kw">let </span><span class="kw-2">mut </span>file = fs::File::open(path).ok()<span class="question-mark">?</span>;
-<a href=#558 id=558 data-nosnippet>558</a>    file.seek(io::SeekFrom::Start(start.checked_sub(<span class="number">1</span>)<span class="question-mark">?</span>)).ok()<span class="question-mark">?</span>;
-<a href=#559 id=559 data-nosnippet>559</a>    file.read_exact(<span class="kw-2">&amp;mut </span>before).ok()<span class="question-mark">?</span>;
-<a href=#560 id=560 data-nosnippet>560</a>    (before == <span class="kw-2">*</span><span class="string">b"\n"</span>).then_some((<span class="prelude-val">Some</span>(Arc::new(creation)), start, first))
-<a href=#561 id=561 data-nosnippet>561</a>}
-<a href=#562 id=562 data-nosnippet>562</a>
-<a href=#563 id=563 data-nosnippet>563</a><span class="doccomment">/// Folds the log at `path` from its start, one record at a time, holding what the
-<a href=#564 id=564 data-nosnippet>564</a>/// window holds and no more. `None` when the log is damaged or of an older format,
-<a href=#565 id=565 data-nosnippet>565</a>/// which only the whole read deals with.
-<a href=#566 id=566 data-nosnippet>566</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fold_file(
-<a href=#567 id=567 data-nosnippet>567</a>    path: <span class="kw-2">&amp;</span>Path,
-<a href=#568 id=568 data-nosnippet>568</a>    session_id: SessionId,
-<a href=#569 id=569 data-nosnippet>569</a>    torn_tail: TornTail,
-<a href=#570 id=570 data-nosnippet>570</a>) -&gt; <span class="prelude-ty">Option</span>&lt;OpenedLog&gt; {
-<a href=#571 id=571 data-nosnippet>571</a>    <span class="kw">let </span>blob_dir = blobs::tree_blob_dir(path);
-<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">let </span><span class="kw-2">mut </span>fetch = |digest: <span class="kw-2">&amp;</span>str| blobs::read(<span class="kw-2">&amp;</span>blob_dir, digest);
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">let </span><span class="kw-2">mut </span>cursor = LineCursor::open(path, <span class="number">0</span>)<span class="question-mark">?</span>;
-<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">let </span><span class="kw-2">mut </span>storage = EventStorage::new(Vec::new());
-<a href=#575 id=575 data-nosnippet>575</a>    storage.lines = <span class="prelude-val">Some</span>(LineIndex::default());
-<a href=#576 id=576 data-nosnippet>576</a>    <span class="kw">let </span><span class="kw-2">mut </span>folding = Folding {
-<a href=#577 id=577 data-nosnippet>577</a>        path,
-<a href=#578 id=578 data-nosnippet>578</a>        session_id,
-<a href=#579 id=579 data-nosnippet>579</a>        storage,
-<a href=#580 id=580 data-nosnippet>580</a>        validation: ValidationState::default(),
-<a href=#581 id=581 data-nosnippet>581</a>        projection: <span class="prelude-val">None</span>,
-<a href=#582 id=582 data-nosnippet>582</a>        fresh: <span class="bool-val">true</span>,
-<a href=#583 id=583 data-nosnippet>583</a>        reader: LineReader::new(path),
-<a href=#584 id=584 data-nosnippet>584</a>    };
-<a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
-<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">let </span>next = <span class="kw">loop </span>{
-<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">let </span>line_start = cursor.position;
-<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>next = cursor.next()<span class="question-mark">?</span>;
-<a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">if </span>next != Next::Line {
-<a href=#590 id=590 data-nosnippet>590</a>            <span class="kw">break </span>next;
-<a href=#591 id=591 data-nosnippet>591</a>        }
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>length = cursor.line.len() <span class="kw">as </span>u64;
-<a href=#593 id=593 data-nosnippet>593</a>        <span class="kw">let </span>line = <span class="kw-2">&amp;</span>cursor.line[..cursor.line.len() - <span class="number">1</span>];
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">if </span>line.is_empty() {
-<a href=#595 id=595 data-nosnippet>595</a>            folding.storage.lines.as_mut()<span class="question-mark">?</span>.push(<span class="prelude-val">None</span>, length);
-<a href=#596 id=596 data-nosnippet>596</a>            <span class="kw">continue</span>;
-<a href=#597 id=597 data-nosnippet>597</a>        }
-<a href=#598 id=598 data-nosnippet>598</a>        folding.read(index, line_start, line, length, <span class="kw-2">&amp;mut </span>fetch)<span class="question-mark">?</span>;
-<a href=#599 id=599 data-nosnippet>599</a>        index += <span class="number">1</span>;
-<a href=#600 id=600 data-nosnippet>600</a>    };
-<a href=#601 id=601 data-nosnippet>601</a>    folding.storage.creation.as_ref()<span class="question-mark">?</span>;
-<a href=#602 id=602 data-nosnippet>602</a>    <span class="kw">let </span>torn = settle_torn_tail(path, <span class="kw-2">&amp;</span>cursor, <span class="kw-2">&amp;</span>next, torn_tail)<span class="question-mark">?</span>;
-<a href=#603 id=603 data-nosnippet>603</a>    <span class="attr">#[cfg(any(test, feature = <span class="string">"test-support"</span>))]
-<a href=#604 id=604 data-nosnippet>604</a>    </span>EVENT_LOG_PARSES.with(|parses| parses.set(parses.get() + <span class="number">1</span>));
-<a href=#605 id=605 data-nosnippet>605</a>    <span class="kw">let </span>next_seq = folding.observed_tip().saturating_add(<span class="number">1</span>).max(<span class="number">1</span>);
-<a href=#606 id=606 data-nosnippet>606</a>    <span class="kw">let </span>diagnostics = folding.reader.diagnostics;
-<a href=#607 id=607 data-nosnippet>607</a>    <span class="kw">let </span><span class="kw-2">mut </span>projection = folding.projection;
-<a href=#608 id=608 data-nosnippet>608</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(projection) = <span class="kw-2">&amp;mut </span>projection {
-<a href=#609 id=609 data-nosnippet>609</a>        projection.finish_read(next_seq - <span class="number">1</span>, <span class="kw-2">&amp;</span>diagnostics);
-<a href=#610 id=610 data-nosnippet>610</a>    }
-<a href=#611 id=611 data-nosnippet>611</a>    <span class="kw">let </span>raw = Arc::make_mut(<span class="kw-2">&amp;mut </span>folding.storage.raw);
-<a href=#612 id=612 data-nosnippet>612</a>    <span class="kw">if </span>raw
-<a href=#613 id=613 data-nosnippet>613</a>        .lines
-<a href=#614 id=614 data-nosnippet>614</a>        .iter()
-<a href=#615 id=615 data-nosnippet>615</a>        .any(|line| <span class="macro">matches!</span>(line.bytes, RawBytes::InFile { .. }))
-<a href=#616 id=616 data-nosnippet>616</a>    {
-<a href=#617 id=617 data-nosnippet>617</a>        raw.file = <span class="prelude-val">Some</span>(Arc::from(path));
-<a href=#618 id=618 data-nosnippet>618</a>    }
-<a href=#619 id=619 data-nosnippet>619</a>    <span class="prelude-val">Some</span>(OpenedLog {
-<a href=#620 id=620 data-nosnippet>620</a>        storage: folding.storage,
-<a href=#621 id=621 data-nosnippet>621</a>        validation: folding.validation,
-<a href=#622 id=622 data-nosnippet>622</a>        initial_taint: ValidationTaint::default(),
-<a href=#623 id=623 data-nosnippet>623</a>        diagnostics,
-<a href=#624 id=624 data-nosnippet>624</a>        next_seq,
-<a href=#625 id=625 data-nosnippet>625</a>        torn_tail: torn,
-<a href=#626 id=626 data-nosnippet>626</a>        projection,
-<a href=#627 id=627 data-nosnippet>627</a>        state_covers: <span class="prelude-val">None</span>,
-<a href=#628 id=628 data-nosnippet>628</a>    })
-<a href=#629 id=629 data-nosnippet>629</a>}
-<a href=#630 id=630 data-nosnippet>630</a>
-<a href=#631 id=631 data-nosnippet>631</a><span class="kw">impl </span>EventLog {
-<a href=#632 id=632 data-nosnippet>632</a>    <span class="doccomment">/// How much of the log came since [`STATE_FILE`] was last written, if this log
-<a href=#633 id=633 data-nosnippet>633</a>    /// should have one: it has a window, an ACP agent's or a native model's
-<a href=#634 id=634 data-nosnippet>634</a>    /// context (sections 4.2 and 5.6), a file this process owns, and at least
-<a href=#635 id=635 data-nosnippet>635</a>    /// [`STATE_MIN_LOG_BYTES`] of it. A native log that holds itself whole, having
-<a href=#636 id=636 data-nosnippet>636</a>    /// no checkpoint, has none.
-<a href=#637 id=637 data-nosnippet>637</a>    </span><span class="attr">#[must_use]
-<a href=#638 id=638 data-nosnippet>638</a>    </span><span class="kw">pub fn </span>state_behind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">if </span><span class="self">self</span>.read_only || <span class="self">self</span>.converted || <span class="self">self</span>.render_only.is_some() || !<span class="self">self</span>.is_persisted() {
-<a href=#640 id=640 data-nosnippet>640</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#641 id=641 data-nosnippet>641</a>        }
-<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>storage = <span class="self">self</span>.storage();
-<a href=#643 id=643 data-nosnippet>643</a>        storage.window<span class="question-mark">?</span>;
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">if </span>storage.index.window_start.is_none() &amp;&amp; !storage.context {
-<a href=#645 id=645 data-nosnippet>645</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#646 id=646 data-nosnippet>646</a>        }
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>len = storage.lines.as_ref()<span class="question-mark">?</span>.len;
-<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">if </span>len &lt; state_min_log_bytes() {
-<a href=#649 id=649 data-nosnippet>649</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#650 id=650 data-nosnippet>650</a>        }
-<a href=#651 id=651 data-nosnippet>651</a>        <span class="prelude-val">Some</span>(len.saturating_sub(<span class="self">self</span>.state_written.load(Ordering::Acquire)))
-<a href=#652 id=652 data-nosnippet>652</a>    }
-<a href=#653 id=653 data-nosnippet>653</a>
-<a href=#654 id=654 data-nosnippet>654</a>    <span class="doccomment">/// Whether a committed turn should write [`STATE_FILE`] now.
-<a href=#655 id=655 data-nosnippet>655</a>    </span><span class="attr">#[must_use]
-<a href=#656 id=656 data-nosnippet>656</a>    </span><span class="kw">pub fn </span>state_due_after_turn(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="self">self</span>.state_behind()
-<a href=#658 id=658 data-nosnippet>658</a>            .is_some_and(|behind| behind &gt; WRITE_AFTER_BYTES)
-<a href=#659 id=659 data-nosnippet>659</a>    }
-<a href=#660 id=660 data-nosnippet>660</a>
-<a href=#661 id=661 data-nosnippet>661</a>    <span class="doccomment">/// What [`STATE_FILE`] holds as of this log's tip, with `projection`, this
-<a href=#662 id=662 data-nosnippet>662</a>    /// log's. `None` when this log should not have one, or its layout or tip do
-<a href=#663 id=663 data-nosnippet>663</a>    /// not allow it: the tip is not a record it holds, or a sequence jumped
-<a href=#664 id=664 data-nosnippet>664</a>    /// without a record of damage, which a parse would find and this log did not.
-<a href=#665 id=665 data-nosnippet>665</a>    /// The caller holds off appends, so `projection` is of the same moment.
+<a href=#541 id=541 data-nosnippet>541</a>    <span class="comment">// The index holds every line from the window on, so a sequence between the
+<a href=#542 id=542 data-nosnippet>542</a>    // two is one the file skips. One that starts later would open a window
+<a href=#543 id=543 data-nosnippet>543</a>    // missing its first records, which a build wrote for a while.
+<a href=#544 id=544 data-nosnippet>544</a>    </span><span class="kw">if </span>first &gt; window
+<a href=#545 id=545 data-nosnippet>545</a>        &amp;&amp; !lines
+<a href=#546 id=546 data-nosnippet>546</a>            .gaps
+<a href=#547 id=547 data-nosnippet>547</a>            .iter()
+<a href=#548 id=548 data-nosnippet>548</a>            .any(|(skipped, through)| <span class="kw-2">*</span>skipped &lt;= window &amp;&amp; first - <span class="number">1 </span>&lt;= <span class="kw-2">*</span>through)
+<a href=#549 id=549 data-nosnippet>549</a>    {
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#551 id=551 data-nosnippet>551</a>    }
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">let </span><span class="kw-2">mut </span>cursor = LineCursor::open(path, <span class="number">0</span>)<span class="question-mark">?</span>;
+<a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">let </span>creation = <span class="kw">loop </span>{
+<a href=#554 id=554 data-nosnippet>554</a>        <span class="kw">if </span>cursor.next()<span class="question-mark">? </span>!= Next::Line {
+<a href=#555 id=555 data-nosnippet>555</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#556 id=556 data-nosnippet>556</a>        }
+<a href=#557 id=557 data-nosnippet>557</a>        <span class="kw">let </span>line = <span class="kw-2">&amp;</span>cursor.line[..cursor.line.len() - <span class="number">1</span>];
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">if </span>!line.is_empty() {
+<a href=#559 id=559 data-nosnippet>559</a>            <span class="kw">let </span><span class="kw-2">mut </span>reader = LineReader::new(path);
+<a href=#560 id=560 data-nosnippet>560</a>            <span class="kw">break </span>reader.read(<span class="number">0</span>, line, fetch).ok()<span class="question-mark">?</span>.record<span class="question-mark">?</span>;
+<a href=#561 id=561 data-nosnippet>561</a>        }
+<a href=#562 id=562 data-nosnippet>562</a>    };
+<a href=#563 id=563 data-nosnippet>563</a>    <span class="kw">if </span>creation.session_id != session_id {
+<a href=#564 id=564 data-nosnippet>564</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#565 id=565 data-nosnippet>565</a>    }
+<a href=#566 id=566 data-nosnippet>566</a>    <span class="comment">// The byte before the window's line ends the line before it.
+<a href=#567 id=567 data-nosnippet>567</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>before = [<span class="number">0_u8</span>];
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">let </span><span class="kw-2">mut </span>file = fs::File::open(path).ok()<span class="question-mark">?</span>;
+<a href=#569 id=569 data-nosnippet>569</a>    file.seek(io::SeekFrom::Start(start.checked_sub(<span class="number">1</span>)<span class="question-mark">?</span>)).ok()<span class="question-mark">?</span>;
+<a href=#570 id=570 data-nosnippet>570</a>    file.read_exact(<span class="kw-2">&amp;mut </span>before).ok()<span class="question-mark">?</span>;
+<a href=#571 id=571 data-nosnippet>571</a>    (before == <span class="kw-2">*</span><span class="string">b"\n"</span>).then_some((<span class="prelude-val">Some</span>(Arc::new(creation)), start, first))
+<a href=#572 id=572 data-nosnippet>572</a>}
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a><span class="doccomment">/// Folds the log at `path` from its start, one record at a time, holding what the
+<a href=#575 id=575 data-nosnippet>575</a>/// window holds and no more. `None` when the log is damaged or of an older format,
+<a href=#576 id=576 data-nosnippet>576</a>/// which only the whole read deals with.
+<a href=#577 id=577 data-nosnippet>577</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fold_file(
+<a href=#578 id=578 data-nosnippet>578</a>    path: <span class="kw-2">&amp;</span>Path,
+<a href=#579 id=579 data-nosnippet>579</a>    session_id: SessionId,
+<a href=#580 id=580 data-nosnippet>580</a>    torn_tail: TornTail,
+<a href=#581 id=581 data-nosnippet>581</a>) -&gt; <span class="prelude-ty">Option</span>&lt;OpenedLog&gt; {
+<a href=#582 id=582 data-nosnippet>582</a>    <span class="kw">let </span>blob_dir = blobs::tree_blob_dir(path);
+<a href=#583 id=583 data-nosnippet>583</a>    <span class="kw">let </span><span class="kw-2">mut </span>fetch = |digest: <span class="kw-2">&amp;</span>str| blobs::read(<span class="kw-2">&amp;</span>blob_dir, digest);
+<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">let </span><span class="kw-2">mut </span>cursor = LineCursor::open(path, <span class="number">0</span>)<span class="question-mark">?</span>;
+<a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">let </span><span class="kw-2">mut </span>storage = EventStorage::new(Vec::new());
+<a href=#586 id=586 data-nosnippet>586</a>    storage.lines = <span class="prelude-val">Some</span>(LineIndex::default());
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">let </span><span class="kw-2">mut </span>folding = Folding {
+<a href=#588 id=588 data-nosnippet>588</a>        path,
+<a href=#589 id=589 data-nosnippet>589</a>        session_id,
+<a href=#590 id=590 data-nosnippet>590</a>        storage,
+<a href=#591 id=591 data-nosnippet>591</a>        validation: ValidationState::default(),
+<a href=#592 id=592 data-nosnippet>592</a>        projection: <span class="prelude-val">None</span>,
+<a href=#593 id=593 data-nosnippet>593</a>        fresh: <span class="bool-val">true</span>,
+<a href=#594 id=594 data-nosnippet>594</a>        reader: LineReader::new(path),
+<a href=#595 id=595 data-nosnippet>595</a>    };
+<a href=#596 id=596 data-nosnippet>596</a>    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">let </span>next = <span class="kw">loop </span>{
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">let </span>line_start = cursor.position;
+<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">let </span>next = cursor.next()<span class="question-mark">?</span>;
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">if </span>next != Next::Line {
+<a href=#601 id=601 data-nosnippet>601</a>            <span class="kw">break </span>next;
+<a href=#602 id=602 data-nosnippet>602</a>        }
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span>length = cursor.line.len() <span class="kw">as </span>u64;
+<a href=#604 id=604 data-nosnippet>604</a>        <span class="kw">let </span>line = <span class="kw-2">&amp;</span>cursor.line[..cursor.line.len() - <span class="number">1</span>];
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">if </span>line.is_empty() {
+<a href=#606 id=606 data-nosnippet>606</a>            folding.storage.lines.as_mut()<span class="question-mark">?</span>.push(<span class="prelude-val">None</span>, length);
+<a href=#607 id=607 data-nosnippet>607</a>            <span class="kw">continue</span>;
+<a href=#608 id=608 data-nosnippet>608</a>        }
+<a href=#609 id=609 data-nosnippet>609</a>        folding.read(index, line_start, line, length, <span class="kw-2">&amp;mut </span>fetch)<span class="question-mark">?</span>;
+<a href=#610 id=610 data-nosnippet>610</a>        index += <span class="number">1</span>;
+<a href=#611 id=611 data-nosnippet>611</a>    };
+<a href=#612 id=612 data-nosnippet>612</a>    folding.storage.creation.as_ref()<span class="question-mark">?</span>;
+<a href=#613 id=613 data-nosnippet>613</a>    <span class="kw">let </span>torn = settle_torn_tail(path, <span class="kw-2">&amp;</span>cursor, <span class="kw-2">&amp;</span>next, torn_tail)<span class="question-mark">?</span>;
+<a href=#614 id=614 data-nosnippet>614</a>    <span class="attr">#[cfg(any(test, feature = <span class="string">"test-support"</span>))]
+<a href=#615 id=615 data-nosnippet>615</a>    </span>EVENT_LOG_PARSES.with(|parses| parses.set(parses.get() + <span class="number">1</span>));
+<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">let </span>next_seq = folding.observed_tip().saturating_add(<span class="number">1</span>).max(<span class="number">1</span>);
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">let </span>diagnostics = folding.reader.diagnostics;
+<a href=#618 id=618 data-nosnippet>618</a>    <span class="kw">let </span><span class="kw-2">mut </span>projection = folding.projection;
+<a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(projection) = <span class="kw-2">&amp;mut </span>projection {
+<a href=#620 id=620 data-nosnippet>620</a>        projection.finish_read(next_seq - <span class="number">1</span>, <span class="kw-2">&amp;</span>diagnostics);
+<a href=#621 id=621 data-nosnippet>621</a>    }
+<a href=#622 id=622 data-nosnippet>622</a>    <span class="kw">let </span>raw = Arc::make_mut(<span class="kw-2">&amp;mut </span>folding.storage.raw);
+<a href=#623 id=623 data-nosnippet>623</a>    <span class="kw">if </span>raw
+<a href=#624 id=624 data-nosnippet>624</a>        .lines
+<a href=#625 id=625 data-nosnippet>625</a>        .iter()
+<a href=#626 id=626 data-nosnippet>626</a>        .any(|line| <span class="macro">matches!</span>(line.bytes, RawBytes::InFile { .. }))
+<a href=#627 id=627 data-nosnippet>627</a>    {
+<a href=#628 id=628 data-nosnippet>628</a>        raw.file = <span class="prelude-val">Some</span>(Arc::from(path));
+<a href=#629 id=629 data-nosnippet>629</a>    }
+<a href=#630 id=630 data-nosnippet>630</a>    <span class="prelude-val">Some</span>(OpenedLog {
+<a href=#631 id=631 data-nosnippet>631</a>        storage: folding.storage,
+<a href=#632 id=632 data-nosnippet>632</a>        validation: folding.validation,
+<a href=#633 id=633 data-nosnippet>633</a>        initial_taint: ValidationTaint::default(),
+<a href=#634 id=634 data-nosnippet>634</a>        diagnostics,
+<a href=#635 id=635 data-nosnippet>635</a>        next_seq,
+<a href=#636 id=636 data-nosnippet>636</a>        torn_tail: torn,
+<a href=#637 id=637 data-nosnippet>637</a>        projection,
+<a href=#638 id=638 data-nosnippet>638</a>        state_covers: <span class="prelude-val">None</span>,
+<a href=#639 id=639 data-nosnippet>639</a>    })
+<a href=#640 id=640 data-nosnippet>640</a>}
+<a href=#641 id=641 data-nosnippet>641</a>
+<a href=#642 id=642 data-nosnippet>642</a><span class="kw">impl </span>EventLog {
+<a href=#643 id=643 data-nosnippet>643</a>    <span class="doccomment">/// How much of the log came since [`STATE_FILE`] was last written, if this log
+<a href=#644 id=644 data-nosnippet>644</a>    /// should have one: it has a window, an ACP agent's or a native model's
+<a href=#645 id=645 data-nosnippet>645</a>    /// context (sections 4.2 and 5.6), a file this process owns, and at least
+<a href=#646 id=646 data-nosnippet>646</a>    /// [`STATE_MIN_LOG_BYTES`] of it. A native log that holds itself whole, having
+<a href=#647 id=647 data-nosnippet>647</a>    /// no checkpoint, has none.
+<a href=#648 id=648 data-nosnippet>648</a>    </span><span class="attr">#[must_use]
+<a href=#649 id=649 data-nosnippet>649</a>    </span><span class="kw">pub fn </span>state_behind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">if </span><span class="self">self</span>.read_only || <span class="self">self</span>.converted || <span class="self">self</span>.render_only.is_some() || !<span class="self">self</span>.is_persisted() {
+<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#652 id=652 data-nosnippet>652</a>        }
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>storage = <span class="self">self</span>.storage();
+<a href=#654 id=654 data-nosnippet>654</a>        storage.window<span class="question-mark">?</span>;
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">if </span>storage.index.window_start.is_none() &amp;&amp; !storage.context {
+<a href=#656 id=656 data-nosnippet>656</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#657 id=657 data-nosnippet>657</a>        }
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>len = storage.lines.as_ref()<span class="question-mark">?</span>.len;
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">if </span>len &lt; state_min_log_bytes() {
+<a href=#660 id=660 data-nosnippet>660</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#661 id=661 data-nosnippet>661</a>        }
+<a href=#662 id=662 data-nosnippet>662</a>        <span class="prelude-val">Some</span>(len.saturating_sub(<span class="self">self</span>.state_written.load(Ordering::Acquire)))
+<a href=#663 id=663 data-nosnippet>663</a>    }
+<a href=#664 id=664 data-nosnippet>664</a>
+<a href=#665 id=665 data-nosnippet>665</a>    <span class="doccomment">/// Whether a committed turn should write [`STATE_FILE`] now.
 <a href=#666 id=666 data-nosnippet>666</a>    </span><span class="attr">#[must_use]
-<a href=#667 id=667 data-nosnippet>667</a>    </span><span class="kw">pub fn </span>state_file(<span class="kw-2">&amp;</span><span class="self">self</span>, projection: <span class="kw-2">&amp;</span>ProjectionFolds) -&gt; <span class="prelude-ty">Option</span>&lt;StateFile&gt; {
-<a href=#668 id=668 data-nosnippet>668</a>        <span class="self">self</span>.state_behind()<span class="question-mark">?</span>;
-<a href=#669 id=669 data-nosnippet>669</a>        <span class="kw">let </span>_append = <span class="self">self
-<a href=#670 id=670 data-nosnippet>670</a>            </span>.append
-<a href=#671 id=671 data-nosnippet>671</a>            .lock()
-<a href=#672 id=672 data-nosnippet>672</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
-<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>storage = <span class="self">self</span>.storage();
-<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span>lines = storage.lines.as_ref()<span class="question-mark">?</span>;
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>tip = storage.all.last()<span class="question-mark">?</span>;
-<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>(last, offset) = <span class="kw-2">*</span>lines.starts.last()<span class="question-mark">?</span>;
-<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">let </span>next_seq = <span class="self">self</span>.next_seq.load(Ordering::Acquire);
-<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw">if </span>last != tip.seq || next_seq != tip.seq + <span class="number">1 </span>|| projection.meta.last_event_seq != tip.seq {
-<a href=#679 id=679 data-nosnippet>679</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#680 id=680 data-nosnippet>680</a>        }
-<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>initial_taint = <span class="self">self</span>.initial_taint();
-<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>unexplained = lines
-<a href=#683 id=683 data-nosnippet>683</a>            .gaps
-<a href=#684 id=684 data-nosnippet>684</a>            .iter()
-<a href=#685 id=685 data-nosnippet>685</a>            .any(|gap| !initial_taint.broad.contains(gap));
-<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">if </span>unexplained {
-<a href=#687 id=687 data-nosnippet>687</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#688 id=688 data-nosnippet>688</a>        }
-<a href=#689 id=689 data-nosnippet>689</a>        <span class="prelude-val">Some</span>(StateFile {
-<a href=#690 id=690 data-nosnippet>690</a>            version: STATE_VERSION,
-<a href=#691 id=691 data-nosnippet>691</a>            history_format: cookie_agent_protocol::HISTORY_FORMAT,
-<a href=#692 id=692 data-nosnippet>692</a>            session_id: <span class="self">self</span>.session_id,
-<a href=#693 id=693 data-nosnippet>693</a>            at: StateAt {
-<a href=#694 id=694 data-nosnippet>694</a>                seq: tip.seq,
-<a href=#695 id=695 data-nosnippet>695</a>                timestamp: tip.timestamp,
-<a href=#696 id=696 data-nosnippet>696</a>                offset,
-<a href=#697 id=697 data-nosnippet>697</a>            },
-<a href=#698 id=698 data-nosnippet>698</a>            folds: LogFolds::of(
-<a href=#699 id=699 data-nosnippet>699</a>                <span class="kw-2">&amp;</span>storage,
-<a href=#700 id=700 data-nosnippet>700</a>                <span class="self">self</span>.validation
-<a href=#701 id=701 data-nosnippet>701</a>                    .lock()
-<a href=#702 id=702 data-nosnippet>702</a>                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#703 id=703 data-nosnippet>703</a>                    .clone(),
-<a href=#704 id=704 data-nosnippet>704</a>                initial_taint,
-<a href=#705 id=705 data-nosnippet>705</a>                <span class="self">self</span>.diagnostics.clone(),
-<a href=#706 id=706 data-nosnippet>706</a>                <span class="self">self</span>.render_only.clone(),
-<a href=#707 id=707 data-nosnippet>707</a>                next_seq,
-<a href=#708 id=708 data-nosnippet>708</a>                projection.clone(),
-<a href=#709 id=709 data-nosnippet>709</a>            )<span class="question-mark">?</span>,
-<a href=#710 id=710 data-nosnippet>710</a>        })
-<a href=#711 id=711 data-nosnippet>711</a>    }
-<a href=#712 id=712 data-nosnippet>712</a>
-<a href=#713 id=713 data-nosnippet>713</a>    <span class="doccomment">/// Notes that `state`, this log's, is now in [`STATE_FILE`].
-<a href=#714 id=714 data-nosnippet>714</a>    </span><span class="kw">pub fn </span>note_state_written(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;</span>StateFile) {
-<a href=#715 id=715 data-nosnippet>715</a>        <span class="self">self</span>.state_written
-<a href=#716 id=716 data-nosnippet>716</a>            .store(state.folds.lines.len, Ordering::Release);
-<a href=#717 id=717 data-nosnippet>717</a>    }
-<a href=#718 id=718 data-nosnippet>718</a>}
-<a href=#719 id=719 data-nosnippet>719</a>
-<a href=#720 id=720 data-nosnippet>720</a><span class="kw">impl </span>StateFile {
-<a href=#721 id=721 data-nosnippet>721</a>    <span class="doccomment">/// The file's bytes. Two equal states give the same ones.
-<a href=#722 id=722 data-nosnippet>722</a>    </span><span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, serde_json::Error&gt; {
-<a href=#723 id=723 data-nosnippet>723</a>        serde_json::to_vec(<span class="self">self</span>)
-<a href=#724 id=724 data-nosnippet>724</a>    }
-<a href=#725 id=725 data-nosnippet>725</a>}
-<a href=#726 id=726 data-nosnippet>726</a>
-<a href=#727 id=727 data-nosnippet>727</a><span class="kw">impl </span>LogFolds {
-<a href=#728 id=728 data-nosnippet>728</a>    <span class="kw">fn </span>of(
-<a href=#729 id=729 data-nosnippet>729</a>        storage: <span class="kw-2">&amp;</span>EventStorage,
-<a href=#730 id=730 data-nosnippet>730</a>        validation: ValidationState,
-<a href=#731 id=731 data-nosnippet>731</a>        initial_taint: ValidationTaint,
-<a href=#732 id=732 data-nosnippet>732</a>        diagnostics: Vec&lt;EventLoadDiagnostic&gt;,
-<a href=#733 id=733 data-nosnippet>733</a>        render_only: <span class="prelude-ty">Option</span>&lt;RenderOnly&gt;,
-<a href=#734 id=734 data-nosnippet>734</a>        next_seq: u64,
-<a href=#735 id=735 data-nosnippet>735</a>        projection: ProjectionFolds,
-<a href=#736 id=736 data-nosnippet>736</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
-<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">let </span>lines = storage.lines.clone()<span class="question-mark">?</span>;
-<a href=#738 id=738 data-nosnippet>738</a>        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
-<a href=#739 id=739 data-nosnippet>739</a>            window: storage.window,
-<a href=#740 id=740 data-nosnippet>740</a>            context: storage.context,
-<a href=#741 id=741 data-nosnippet>741</a>            pinned: storage.all[..storage.window_position()].to_vec(),
-<a href=#742 id=742 data-nosnippet>742</a>            view_start: storage.view_start.clone(),
-<a href=#743 id=743 data-nosnippet>743</a>            refused: Arc::clone(<span class="kw-2">&amp;</span>storage.refused),
-<a href=#744 id=744 data-nosnippet>744</a>            index: storage.index.clone(),
-<a href=#745 id=745 data-nosnippet>745</a>            physical_model_turns: storage.physical_model_turns,
-<a href=#746 id=746 data-nosnippet>746</a>            raw: StoredRaw::of(<span class="kw-2">&amp;</span>storage.raw, <span class="kw-2">&amp;</span>lines)<span class="question-mark">?</span>,
-<a href=#747 id=747 data-nosnippet>747</a>            lines,
-<a href=#748 id=748 data-nosnippet>748</a>            validation,
-<a href=#749 id=749 data-nosnippet>749</a>            initial_taint,
-<a href=#750 id=750 data-nosnippet>750</a>            diagnostics,
-<a href=#751 id=751 data-nosnippet>751</a>            render_only,
-<a href=#752 id=752 data-nosnippet>752</a>            next_seq,
-<a href=#753 id=753 data-nosnippet>753</a>            projection,
-<a href=#754 id=754 data-nosnippet>754</a>        })
-<a href=#755 id=755 data-nosnippet>755</a>    }
-<a href=#756 id=756 data-nosnippet>756</a>}
-<a href=#757 id=757 data-nosnippet>757</a>
-<a href=#758 id=758 data-nosnippet>758</a><span class="attr">#[cfg(any(test, feature = <span class="string">"test-support"</span>))]
-<a href=#759 id=759 data-nosnippet>759</a></span><span class="kw">mod </span>reference;
+<a href=#667 id=667 data-nosnippet>667</a>    </span><span class="kw">pub fn </span>state_due_after_turn(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#668 id=668 data-nosnippet>668</a>        <span class="self">self</span>.state_behind()
+<a href=#669 id=669 data-nosnippet>669</a>            .is_some_and(|behind| behind &gt; WRITE_AFTER_BYTES)
+<a href=#670 id=670 data-nosnippet>670</a>    }
+<a href=#671 id=671 data-nosnippet>671</a>
+<a href=#672 id=672 data-nosnippet>672</a>    <span class="doccomment">/// What [`STATE_FILE`] holds as of this log's tip, with `projection`, this
+<a href=#673 id=673 data-nosnippet>673</a>    /// log's. `None` when this log should not have one, or its layout or tip do
+<a href=#674 id=674 data-nosnippet>674</a>    /// not allow it: the tip is not a record it holds, or a sequence jumped
+<a href=#675 id=675 data-nosnippet>675</a>    /// without a record of damage, which a parse would find and this log did not.
+<a href=#676 id=676 data-nosnippet>676</a>    /// The caller holds off appends, so `projection` is of the same moment.
+<a href=#677 id=677 data-nosnippet>677</a>    </span><span class="attr">#[must_use]
+<a href=#678 id=678 data-nosnippet>678</a>    </span><span class="kw">pub fn </span>state_file(<span class="kw-2">&amp;</span><span class="self">self</span>, projection: <span class="kw-2">&amp;</span>ProjectionFolds) -&gt; <span class="prelude-ty">Option</span>&lt;StateFile&gt; {
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="self">self</span>.state_behind()<span class="question-mark">?</span>;
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>_append = <span class="self">self
+<a href=#681 id=681 data-nosnippet>681</a>            </span>.append
+<a href=#682 id=682 data-nosnippet>682</a>            .lock()
+<a href=#683 id=683 data-nosnippet>683</a>            .unwrap_or_else(|poisoned| poisoned.into_inner());
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">let </span>storage = <span class="self">self</span>.storage();
+<a href=#685 id=685 data-nosnippet>685</a>        <span class="kw">let </span>lines = storage.lines.as_ref()<span class="question-mark">?</span>;
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>tip = storage.all.last()<span class="question-mark">?</span>;
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>(last, offset) = <span class="kw-2">*</span>lines.starts.last()<span class="question-mark">?</span>;
+<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>next_seq = <span class="self">self</span>.next_seq.load(Ordering::Acquire);
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">if </span>last != tip.seq || next_seq != tip.seq + <span class="number">1 </span>|| projection.meta.last_event_seq != tip.seq {
+<a href=#690 id=690 data-nosnippet>690</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#691 id=691 data-nosnippet>691</a>        }
+<a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">let </span>initial_taint = <span class="self">self</span>.initial_taint();
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>unexplained = lines
+<a href=#694 id=694 data-nosnippet>694</a>            .gaps
+<a href=#695 id=695 data-nosnippet>695</a>            .iter()
+<a href=#696 id=696 data-nosnippet>696</a>            .any(|gap| !initial_taint.broad.contains(gap));
+<a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">if </span>unexplained {
+<a href=#698 id=698 data-nosnippet>698</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#699 id=699 data-nosnippet>699</a>        }
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="prelude-val">Some</span>(StateFile {
+<a href=#701 id=701 data-nosnippet>701</a>            version: STATE_VERSION,
+<a href=#702 id=702 data-nosnippet>702</a>            history_format: cookie_agent_protocol::HISTORY_FORMAT,
+<a href=#703 id=703 data-nosnippet>703</a>            session_id: <span class="self">self</span>.session_id,
+<a href=#704 id=704 data-nosnippet>704</a>            at: StateAt {
+<a href=#705 id=705 data-nosnippet>705</a>                seq: tip.seq,
+<a href=#706 id=706 data-nosnippet>706</a>                timestamp: tip.timestamp,
+<a href=#707 id=707 data-nosnippet>707</a>                offset,
+<a href=#708 id=708 data-nosnippet>708</a>            },
+<a href=#709 id=709 data-nosnippet>709</a>            folds: LogFolds::of(
+<a href=#710 id=710 data-nosnippet>710</a>                <span class="kw-2">&amp;</span>storage,
+<a href=#711 id=711 data-nosnippet>711</a>                <span class="self">self</span>.validation
+<a href=#712 id=712 data-nosnippet>712</a>                    .lock()
+<a href=#713 id=713 data-nosnippet>713</a>                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#714 id=714 data-nosnippet>714</a>                    .clone(),
+<a href=#715 id=715 data-nosnippet>715</a>                initial_taint,
+<a href=#716 id=716 data-nosnippet>716</a>                <span class="self">self</span>.diagnostics.clone(),
+<a href=#717 id=717 data-nosnippet>717</a>                <span class="self">self</span>.render_only.clone(),
+<a href=#718 id=718 data-nosnippet>718</a>                next_seq,
+<a href=#719 id=719 data-nosnippet>719</a>                projection.clone(),
+<a href=#720 id=720 data-nosnippet>720</a>            )<span class="question-mark">?</span>,
+<a href=#721 id=721 data-nosnippet>721</a>        })
+<a href=#722 id=722 data-nosnippet>722</a>    }
+<a href=#723 id=723 data-nosnippet>723</a>
+<a href=#724 id=724 data-nosnippet>724</a>    <span class="doccomment">/// On an owned open: removes [`STATE_FILE`] when this log did not open from
+<a href=#725 id=725 data-nosnippet>725</a>    /// it, as it does not match the log, or when the log is shorter than the
+<a href=#726 id=726 data-nosnippet>726</a>    /// least that has one ([`STATE_MIN_LOG_BYTES`]), though it matches. Nothing
+<a href=#727 id=727 data-nosnippet>727</a>    /// else would: such a file is read at every open and thrown away, and only a
+<a href=#728 id=728 data-nosnippet>728</a>    /// log that is due one writes it again. A removal that fails leaves it for
+<a href=#729 id=729 data-nosnippet>729</a>    /// the next owned open.
+<a href=#730 id=730 data-nosnippet>730</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>settle_state_file(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>short = <span class="self">self
+<a href=#732 id=732 data-nosnippet>732</a>            </span>.storage()
+<a href=#733 id=733 data-nosnippet>733</a>            .lines
+<a href=#734 id=734 data-nosnippet>734</a>            .as_ref()
+<a href=#735 id=735 data-nosnippet>735</a>            .is_none_or(|lines| lines.len &lt; state_min_log_bytes());
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">if </span>!short &amp;&amp; <span class="self">self</span>.state_written.load(Ordering::Acquire) &gt; <span class="number">0 </span>{
+<a href=#737 id=737 data-nosnippet>737</a>            <span class="kw">return</span>;
+<a href=#738 id=738 data-nosnippet>738</a>        }
+<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(directory) = <span class="self">self</span>.path.parent() <span class="kw">else </span>{
+<a href=#740 id=740 data-nosnippet>740</a>            <span class="kw">return</span>;
+<a href=#741 id=741 data-nosnippet>741</a>        };
+<a href=#742 id=742 data-nosnippet>742</a>        <span class="kw">let </span>path = directory.join(STATE_FILE);
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">match </span>fs::remove_file(<span class="kw-2">&amp;</span>path) {
+<a href=#744 id=744 data-nosnippet>744</a>            <span class="prelude-val">Ok</span>(()) =&gt; {}
+<a href=#745 id=745 data-nosnippet>745</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.kind() == io::ErrorKind::NotFound =&gt; {}
+<a href=#746 id=746 data-nosnippet>746</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#747 id=747 data-nosnippet>747</a>                <span class="macro">eprintln!</span>(<span class="string">"{}: could not be removed: {error}"</span>, path.display());
+<a href=#748 id=748 data-nosnippet>748</a>                <span class="kw">return</span>;
+<a href=#749 id=749 data-nosnippet>749</a>            }
+<a href=#750 id=750 data-nosnippet>750</a>        }
+<a href=#751 id=751 data-nosnippet>751</a>        <span class="self">self</span>.state_written.store(<span class="number">0</span>, Ordering::Release);
+<a href=#752 id=752 data-nosnippet>752</a>    }
+<a href=#753 id=753 data-nosnippet>753</a>
+<a href=#754 id=754 data-nosnippet>754</a>    <span class="doccomment">/// Notes that `state`, this log's, is now in [`STATE_FILE`].
+<a href=#755 id=755 data-nosnippet>755</a>    </span><span class="kw">pub fn </span>note_state_written(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;</span>StateFile) {
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="self">self</span>.state_written
+<a href=#757 id=757 data-nosnippet>757</a>            .store(state.folds.lines.len, Ordering::Release);
+<a href=#758 id=758 data-nosnippet>758</a>    }
+<a href=#759 id=759 data-nosnippet>759</a>}
 <a href=#760 id=760 data-nosnippet>760</a>
-<a href=#761 id=761 data-nosnippet>761</a><span class="attr">#[cfg(test)]
-<a href=#762 id=762 data-nosnippet>762</a></span><span class="kw">mod </span>tests;
+<a href=#761 id=761 data-nosnippet>761</a><span class="kw">impl </span>StateFile {
+<a href=#762 id=762 data-nosnippet>762</a>    <span class="doccomment">/// The file's bytes. Two equal states give the same ones.
+<a href=#763 id=763 data-nosnippet>763</a>    </span><span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, serde_json::Error&gt; {
+<a href=#764 id=764 data-nosnippet>764</a>        serde_json::to_vec(<span class="self">self</span>)
+<a href=#765 id=765 data-nosnippet>765</a>    }
+<a href=#766 id=766 data-nosnippet>766</a>}
+<a href=#767 id=767 data-nosnippet>767</a>
+<a href=#768 id=768 data-nosnippet>768</a><span class="kw">impl </span>LogFolds {
+<a href=#769 id=769 data-nosnippet>769</a>    <span class="kw">fn </span>of(
+<a href=#770 id=770 data-nosnippet>770</a>        storage: <span class="kw-2">&amp;</span>EventStorage,
+<a href=#771 id=771 data-nosnippet>771</a>        validation: ValidationState,
+<a href=#772 id=772 data-nosnippet>772</a>        initial_taint: ValidationTaint,
+<a href=#773 id=773 data-nosnippet>773</a>        diagnostics: Vec&lt;EventLoadDiagnostic&gt;,
+<a href=#774 id=774 data-nosnippet>774</a>        render_only: <span class="prelude-ty">Option</span>&lt;RenderOnly&gt;,
+<a href=#775 id=775 data-nosnippet>775</a>        next_seq: u64,
+<a href=#776 id=776 data-nosnippet>776</a>        projection: ProjectionFolds,
+<a href=#777 id=777 data-nosnippet>777</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+<a href=#778 id=778 data-nosnippet>778</a>        <span class="kw">let </span>lines = storage.lines.clone()<span class="question-mark">?</span>;
+<a href=#779 id=779 data-nosnippet>779</a>        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
+<a href=#780 id=780 data-nosnippet>780</a>            window: storage.window,
+<a href=#781 id=781 data-nosnippet>781</a>            context: storage.context,
+<a href=#782 id=782 data-nosnippet>782</a>            pinned: storage.all[..storage.window_position()].to_vec(),
+<a href=#783 id=783 data-nosnippet>783</a>            view_start: storage.view_start.clone(),
+<a href=#784 id=784 data-nosnippet>784</a>            refused: Arc::clone(<span class="kw-2">&amp;</span>storage.refused),
+<a href=#785 id=785 data-nosnippet>785</a>            index: storage.index.clone(),
+<a href=#786 id=786 data-nosnippet>786</a>            physical_model_turns: storage.physical_model_turns,
+<a href=#787 id=787 data-nosnippet>787</a>            raw: StoredRaw::of(<span class="kw-2">&amp;</span>storage.raw, <span class="kw-2">&amp;</span>lines)<span class="question-mark">?</span>,
+<a href=#788 id=788 data-nosnippet>788</a>            lines,
+<a href=#789 id=789 data-nosnippet>789</a>            validation,
+<a href=#790 id=790 data-nosnippet>790</a>            initial_taint,
+<a href=#791 id=791 data-nosnippet>791</a>            diagnostics,
+<a href=#792 id=792 data-nosnippet>792</a>            render_only,
+<a href=#793 id=793 data-nosnippet>793</a>            next_seq,
+<a href=#794 id=794 data-nosnippet>794</a>            projection,
+<a href=#795 id=795 data-nosnippet>795</a>        })
+<a href=#796 id=796 data-nosnippet>796</a>    }
+<a href=#797 id=797 data-nosnippet>797</a>}
+<a href=#798 id=798 data-nosnippet>798</a>
+<a href=#799 id=799 data-nosnippet>799</a><span class="attr">#[cfg(any(test, feature = <span class="string">"test-support"</span>))]
+<a href=#800 id=800 data-nosnippet>800</a></span><span class="kw">mod </span>reference;
+<a href=#801 id=801 data-nosnippet>801</a>
+<a href=#802 id=802 data-nosnippet>802</a><span class="attr">#[cfg(test)]
+<a href=#803 id=803 data-nosnippet>803</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

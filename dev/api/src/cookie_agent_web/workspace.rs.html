@@ -3009,275 +3009,296 @@
 <a href=#3009 id=3009 data-nosnippet>3009</a>    }
 <a href=#3010 id=3010 data-nosnippet>3010</a>
 <a href=#3011 id=3011 data-nosnippet>3011</a>    <span class="doccomment">/// Reads the history the viewed session's row of history not loaded
-<a href=#3012 id=3012 data-nosnippet>3012</a>    /// stands for (`events.page`), unless a page is being read.
-<a href=#3013 id=3013 data-nosnippet>3013</a>    </span><span class="kw">pub fn </span>load_history(<span class="self">self</span>, before: u64) {
-<a href=#3014 id=3014 data-nosnippet>3014</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected.get_untracked() <span class="kw">else </span>{
-<a href=#3015 id=3015 data-nosnippet>3015</a>            <span class="kw">return</span>;
-<a href=#3016 id=3016 data-nosnippet>3016</a>        };
-<a href=#3017 id=3017 data-nosnippet>3017</a>        <span class="kw">let </span>params = <span class="self">self</span>.update_store(|store| store.request_history(session_id, before));
-<a href=#3018 id=3018 data-nosnippet>3018</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(params), <span class="prelude-val">Some</span>(client)) = (params, <span class="self">self</span>.client()) <span class="kw">else </span>{
-<a href=#3019 id=3019 data-nosnippet>3019</a>            <span class="kw">return</span>;
-<a href=#3020 id=3020 data-nosnippet>3020</a>        };
-<a href=#3021 id=3021 data-nosnippet>3021</a>        spawn_local(<span class="kw">async move </span>{
-<a href=#3022 id=3022 data-nosnippet>3022</a>            <span class="kw">let </span>page = client
-<a href=#3023 id=3023 data-nosnippet>3023</a>                .events_page(params)
-<a href=#3024 id=3024 data-nosnippet>3024</a>                .<span class="kw">await
-<a href=#3025 id=3025 data-nosnippet>3025</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error));
-<a href=#3026 id=3026 data-nosnippet>3026</a>            <span class="kw">crate</span>::browser::page_arriving(before);
-<a href=#3027 id=3027 data-nosnippet>3027</a>            <span class="self">self</span>.update_store(|store| store.apply_history_page(session_id, before, page));
-<a href=#3028 id=3028 data-nosnippet>3028</a>        });
-<a href=#3029 id=3029 data-nosnippet>3029</a>    }
-<a href=#3030 id=3030 data-nosnippet>3030</a>
-<a href=#3031 id=3031 data-nosnippet>3031</a>    <span class="doccomment">/// Reads a call's result the display view cut, whole (`event.read`).
-<a href=#3032 id=3032 data-nosnippet>3032</a>    </span><span class="kw">pub fn </span>load_cut_result(<span class="self">self</span>, call_id: ToolCallId) {
-<a href=#3033 id=3033 data-nosnippet>3033</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected.get_untracked() <span class="kw">else </span>{
-<a href=#3034 id=3034 data-nosnippet>3034</a>            <span class="kw">return</span>;
-<a href=#3035 id=3035 data-nosnippet>3035</a>        };
-<a href=#3036 id=3036 data-nosnippet>3036</a>        <span class="kw">let </span>params = <span class="self">self</span>.update_store(|store| store.request_cut_result(session_id, call_id));
-<a href=#3037 id=3037 data-nosnippet>3037</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(params), <span class="prelude-val">Some</span>(client)) = (params, <span class="self">self</span>.client()) <span class="kw">else </span>{
-<a href=#3038 id=3038 data-nosnippet>3038</a>            <span class="kw">return</span>;
-<a href=#3039 id=3039 data-nosnippet>3039</a>        };
-<a href=#3040 id=3040 data-nosnippet>3040</a>        spawn_local(<span class="kw">async move </span>{
-<a href=#3041 id=3041 data-nosnippet>3041</a>            <span class="kw">let </span>read = client
-<a href=#3042 id=3042 data-nosnippet>3042</a>                .read_event(params)
-<a href=#3043 id=3043 data-nosnippet>3043</a>                .<span class="kw">await
-<a href=#3044 id=3044 data-nosnippet>3044</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error));
-<a href=#3045 id=3045 data-nosnippet>3045</a>            <span class="self">self</span>.update_store(|store| store.apply_cut_result(session_id, call_id, read));
-<a href=#3046 id=3046 data-nosnippet>3046</a>        });
-<a href=#3047 id=3047 data-nosnippet>3047</a>    }
-<a href=#3048 id=3048 data-nosnippet>3048</a>
-<a href=#3049 id=3049 data-nosnippet>3049</a>    <span class="doccomment">/// Opens or puts away the complete content of a cut display block.
-<a href=#3050 id=3050 data-nosnippet>3050</a>    </span><span class="kw">pub fn </span>toggle_full_content(<span class="self">self</span>, call_id: ToolCallId, block: usize) {
-<a href=#3051 id=3051 data-nosnippet>3051</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected.get_untracked() <span class="kw">else </span>{
-<a href=#3052 id=3052 data-nosnippet>3052</a>            <span class="kw">return</span>;
-<a href=#3053 id=3053 data-nosnippet>3053</a>        };
-<a href=#3054 id=3054 data-nosnippet>3054</a>        <span class="kw">let </span>read = <span class="self">self</span>.update_store(|store| {
-<a href=#3055 id=3055 data-nosnippet>3055</a>            store
-<a href=#3056 id=3056 data-nosnippet>3056</a>                .sessions
-<a href=#3057 id=3057 data-nosnippet>3057</a>                .get_mut(<span class="kw-2">&amp;</span>session_id)
-<a href=#3058 id=3058 data-nosnippet>3058</a>                .and_then(|state| state.toggle_full_content(call_id, block))
-<a href=#3059 id=3059 data-nosnippet>3059</a>        });
-<a href=#3060 id=3060 data-nosnippet>3060</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(read), <span class="prelude-val">Some</span>(client)) = (read, <span class="self">self</span>.client()) <span class="kw">else </span>{
-<a href=#3061 id=3061 data-nosnippet>3061</a>            <span class="kw">return</span>;
-<a href=#3062 id=3062 data-nosnippet>3062</a>        };
-<a href=#3063 id=3063 data-nosnippet>3063</a>        spawn_local(<span class="kw">async move </span>{
-<a href=#3064 id=3064 data-nosnippet>3064</a>            <span class="kw">let </span>state = FullContentState::of_read(
-<a href=#3065 id=3065 data-nosnippet>3065</a>                client
-<a href=#3066 id=3066 data-nosnippet>3066</a>                    .read_artifact(ArtifactReadParams {
-<a href=#3067 id=3067 data-nosnippet>3067</a>                        session_id,
-<a href=#3068 id=3068 data-nosnippet>3068</a>                        sha256: read.artifact.sha256.clone(),
-<a href=#3069 id=3069 data-nosnippet>3069</a>                        offset: <span class="number">0</span>,
-<a href=#3070 id=3070 data-nosnippet>3070</a>                        length: read.length,
-<a href=#3071 id=3071 data-nosnippet>3071</a>                    })
-<a href=#3072 id=3072 data-nosnippet>3072</a>                    .<span class="kw">await
-<a href=#3073 id=3073 data-nosnippet>3073</a>                    </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error)),
-<a href=#3074 id=3074 data-nosnippet>3074</a>            );
-<a href=#3075 id=3075 data-nosnippet>3075</a>            <span class="self">self</span>.update_store(|store| {
-<a href=#3076 id=3076 data-nosnippet>3076</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(session) = store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
-<a href=#3077 id=3077 data-nosnippet>3077</a>                    session.finish_full_content(call_id, block, state);
-<a href=#3078 id=3078 data-nosnippet>3078</a>                }
-<a href=#3079 id=3079 data-nosnippet>3079</a>            });
+<a href=#3012 id=3012 data-nosnippet>3012</a>    /// stands for (`events.page`), unless a page is being read. While the
+<a href=#3013 id=3013 data-nosnippet>3013</a>    /// page reconnects nothing is read: a row marked loading then would wait
+<a href=#3014 id=3014 data-nosnippet>3014</a>    /// for an answer nothing asked for, and refuse every later read.
+<a href=#3015 id=3015 data-nosnippet>3015</a>    </span><span class="kw">pub fn </span>load_history(<span class="self">self</span>, before: u64) {
+<a href=#3016 id=3016 data-nosnippet>3016</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(session_id), <span class="prelude-val">Some</span>(client)) = (<span class="self">self</span>.selected.get_untracked(), <span class="self">self</span>.client())
+<a href=#3017 id=3017 data-nosnippet>3017</a>        <span class="kw">else </span>{
+<a href=#3018 id=3018 data-nosnippet>3018</a>            <span class="kw">return</span>;
+<a href=#3019 id=3019 data-nosnippet>3019</a>        };
+<a href=#3020 id=3020 data-nosnippet>3020</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(params) = <span class="self">self</span>.update_store(|store| store.request_history(session_id, before))
+<a href=#3021 id=3021 data-nosnippet>3021</a>        <span class="kw">else </span>{
+<a href=#3022 id=3022 data-nosnippet>3022</a>            <span class="kw">return</span>;
+<a href=#3023 id=3023 data-nosnippet>3023</a>        };
+<a href=#3024 id=3024 data-nosnippet>3024</a>        spawn_local(<span class="kw">async move </span>{
+<a href=#3025 id=3025 data-nosnippet>3025</a>            <span class="kw">let </span>page = client
+<a href=#3026 id=3026 data-nosnippet>3026</a>                .events_page(params)
+<a href=#3027 id=3027 data-nosnippet>3027</a>                .<span class="kw">await
+<a href=#3028 id=3028 data-nosnippet>3028</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error));
+<a href=#3029 id=3029 data-nosnippet>3029</a>            <span class="kw">let </span>arrived =
+<a href=#3030 id=3030 data-nosnippet>3030</a>                <span class="self">self</span>.update_store(|store| store.apply_history_page(session_id, before, page));
+<a href=#3031 id=3031 data-nosnippet>3031</a>            <span class="comment">// Its rows draw in the next frames. A page that did not go in,
+<a href=#3032 id=3032 data-nosnippet>3032</a>            // or is for a session no longer shown, draws nothing, and the
+<a href=#3033 id=3033 data-nosnippet>3033</a>            // transcript shown keeps its anchoring.
+<a href=#3034 id=3034 data-nosnippet>3034</a>            </span><span class="kw">if </span>arrived &amp;&amp; <span class="self">self</span>.selected.get_untracked() == <span class="prelude-val">Some</span>(session_id) {
+<a href=#3035 id=3035 data-nosnippet>3035</a>                <span class="kw">crate</span>::browser::page_arriving(before);
+<a href=#3036 id=3036 data-nosnippet>3036</a>            }
+<a href=#3037 id=3037 data-nosnippet>3037</a>        });
+<a href=#3038 id=3038 data-nosnippet>3038</a>    }
+<a href=#3039 id=3039 data-nosnippet>3039</a>
+<a href=#3040 id=3040 data-nosnippet>3040</a>    <span class="doccomment">/// Reads a call's result the display view cut, whole (`event.read`),
+<a href=#3041 id=3041 data-nosnippet>3041</a>    /// unless the page reconnects ([`Self::load_history`]).
+<a href=#3042 id=3042 data-nosnippet>3042</a>    </span><span class="kw">pub fn </span>load_cut_result(<span class="self">self</span>, call_id: ToolCallId) {
+<a href=#3043 id=3043 data-nosnippet>3043</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(session_id), <span class="prelude-val">Some</span>(client)) = (<span class="self">self</span>.selected.get_untracked(), <span class="self">self</span>.client())
+<a href=#3044 id=3044 data-nosnippet>3044</a>        <span class="kw">else </span>{
+<a href=#3045 id=3045 data-nosnippet>3045</a>            <span class="kw">return</span>;
+<a href=#3046 id=3046 data-nosnippet>3046</a>        };
+<a href=#3047 id=3047 data-nosnippet>3047</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(params) = <span class="self">self</span>.update_store(|store| store.request_cut_result(session_id, call_id))
+<a href=#3048 id=3048 data-nosnippet>3048</a>        <span class="kw">else </span>{
+<a href=#3049 id=3049 data-nosnippet>3049</a>            <span class="kw">return</span>;
+<a href=#3050 id=3050 data-nosnippet>3050</a>        };
+<a href=#3051 id=3051 data-nosnippet>3051</a>        spawn_local(<span class="kw">async move </span>{
+<a href=#3052 id=3052 data-nosnippet>3052</a>            <span class="kw">let </span>read = client
+<a href=#3053 id=3053 data-nosnippet>3053</a>                .read_event(params)
+<a href=#3054 id=3054 data-nosnippet>3054</a>                .<span class="kw">await
+<a href=#3055 id=3055 data-nosnippet>3055</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error));
+<a href=#3056 id=3056 data-nosnippet>3056</a>            <span class="self">self</span>.update_store(|store| store.apply_cut_result(session_id, call_id, read));
+<a href=#3057 id=3057 data-nosnippet>3057</a>        });
+<a href=#3058 id=3058 data-nosnippet>3058</a>    }
+<a href=#3059 id=3059 data-nosnippet>3059</a>
+<a href=#3060 id=3060 data-nosnippet>3060</a>    <span class="doccomment">/// Opens or puts away the complete content of a cut display block. While
+<a href=#3061 id=3061 data-nosnippet>3061</a>    /// the page reconnects, loaded content still goes away, but nothing
+<a href=#3062 id=3062 data-nosnippet>3062</a>    /// starts a read ([`Self::load_history`]).
+<a href=#3063 id=3063 data-nosnippet>3063</a>    </span><span class="kw">pub fn </span>toggle_full_content(<span class="self">self</span>, call_id: ToolCallId, block: usize) {
+<a href=#3064 id=3064 data-nosnippet>3064</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(session_id) = <span class="self">self</span>.selected.get_untracked() <span class="kw">else </span>{
+<a href=#3065 id=3065 data-nosnippet>3065</a>            <span class="kw">return</span>;
+<a href=#3066 id=3066 data-nosnippet>3066</a>        };
+<a href=#3067 id=3067 data-nosnippet>3067</a>        <span class="kw">let </span>client = <span class="self">self</span>.client();
+<a href=#3068 id=3068 data-nosnippet>3068</a>        <span class="kw">let </span>read = <span class="self">self</span>.update_store(|store| {
+<a href=#3069 id=3069 data-nosnippet>3069</a>            <span class="kw">let </span>state = store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id)<span class="question-mark">?</span>;
+<a href=#3070 id=3070 data-nosnippet>3070</a>            <span class="kw">let </span>loaded = state.tools.get(<span class="kw-2">&amp;</span>call_id).is_some_and(|tool| {
+<a href=#3071 id=3071 data-nosnippet>3071</a>                <span class="macro">matches!</span>(
+<a href=#3072 id=3072 data-nosnippet>3072</a>                    tool.full_content(block),
+<a href=#3073 id=3073 data-nosnippet>3073</a>                    <span class="prelude-val">Some</span>(FullContentState::Loaded { .. })
+<a href=#3074 id=3074 data-nosnippet>3074</a>                )
+<a href=#3075 id=3075 data-nosnippet>3075</a>            });
+<a href=#3076 id=3076 data-nosnippet>3076</a>            <span class="kw">if </span>client.is_none() &amp;&amp; !loaded {
+<a href=#3077 id=3077 data-nosnippet>3077</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#3078 id=3078 data-nosnippet>3078</a>            }
+<a href=#3079 id=3079 data-nosnippet>3079</a>            state.toggle_full_content(call_id, block)
 <a href=#3080 id=3080 data-nosnippet>3080</a>        });
-<a href=#3081 id=3081 data-nosnippet>3081</a>    }
-<a href=#3082 id=3082 data-nosnippet>3082</a>
-<a href=#3083 id=3083 data-nosnippet>3083</a>    <span class="doccomment">/// Sets the lowest diagnostic level the transcript shows, kept in the
-<a href=#3084 id=3084 data-nosnippet>3084</a>    /// browser.
-<a href=#3085 id=3085 data-nosnippet>3085</a>    </span><span class="kw">pub fn </span>set_level(<span class="self">self</span>, level: EventLevel) {
-<a href=#3086 id=3086 data-nosnippet>3086</a>        browser::store(EVENT_LEVEL_KEY, level.name());
-<a href=#3087 id=3087 data-nosnippet>3087</a>        <span class="self">self</span>.level.set(level);
-<a href=#3088 id=3088 data-nosnippet>3088</a>    }
-<a href=#3089 id=3089 data-nosnippet>3089</a>
-<a href=#3090 id=3090 data-nosnippet>3090</a>    <span class="doccomment">/// Shows agent work as `mode` in the transcript, kept in the browser.
-<a href=#3091 id=3091 data-nosnippet>3091</a>    </span><span class="kw">pub fn </span>set_transcript(<span class="self">self</span>, mode: cookie_agent_client_state::transcript_mode::TranscriptMode) {
-<a href=#3092 id=3092 data-nosnippet>3092</a>        browser::store(<span class="kw">crate</span>::connect::TRANSCRIPT_KEY, mode.name());
-<a href=#3093 id=3093 data-nosnippet>3093</a>        <span class="self">self</span>.show_transcript(mode);
-<a href=#3094 id=3094 data-nosnippet>3094</a>    }
-<a href=#3095 id=3095 data-nosnippet>3095</a>
-<a href=#3096 id=3096 data-nosnippet>3096</a>    <span class="doccomment">/// Shows agent work as `mode`, as this tab or another set it. A switch
-<a href=#3097 id=3097 data-nosnippet>3097</a>    /// to the reduced mode folds every work row again.
-<a href=#3098 id=3098 data-nosnippet>3098</a>    </span><span class="kw">pub fn </span>show_transcript(<span class="self">self</span>, mode: cookie_agent_client_state::transcript_mode::TranscriptMode) {
-<a href=#3099 id=3099 data-nosnippet>3099</a>        <span class="kw">if </span>mode == cookie_agent_client_state::transcript_mode::TranscriptMode::Reduced {
-<a href=#3100 id=3100 data-nosnippet>3100</a>            <span class="self">self</span>.expanded.update(|expanded| {
-<a href=#3101 id=3101 data-nosnippet>3101</a>                <span class="kw">for </span>blocks <span class="kw">in </span>expanded.values_mut() {
-<a href=#3102 id=3102 data-nosnippet>3102</a>                    blocks.fold_work();
-<a href=#3103 id=3103 data-nosnippet>3103</a>                }
-<a href=#3104 id=3104 data-nosnippet>3104</a>            });
-<a href=#3105 id=3105 data-nosnippet>3105</a>        }
-<a href=#3106 id=3106 data-nosnippet>3106</a>        <span class="self">self</span>.transcript.set(mode);
-<a href=#3107 id=3107 data-nosnippet>3107</a>    }
-<a href=#3108 id=3108 data-nosnippet>3108</a>
-<a href=#3109 id=3109 data-nosnippet>3109</a>    <span class="doccomment">/// Opens the sheet of a ⋮ menu entry.
-<a href=#3110 id=3110 data-nosnippet>3110</a>    </span><span class="kw">pub fn </span>run_command(<span class="self">self</span>, command: <span class="kw">crate</span>::commands::Command) {
-<a href=#3111 id=3111 data-nosnippet>3111</a>        <span class="kw">use </span><span class="kw">crate</span>::commands::Command;
-<a href=#3112 id=3112 data-nosnippet>3112</a>        <span class="kw">match </span>command {
-<a href=#3113 id=3113 data-nosnippet>3113</a>            Command::Rename =&gt; <span class="self">self</span>.begin_title_edit(),
-<a href=#3114 id=3114 data-nosnippet>3114</a>            Command::Share =&gt; <span class="self">self</span>.open_session_share_dialog(),
-<a href=#3115 id=3115 data-nosnippet>3115</a>            Command::Compact =&gt; {
-<a href=#3116 id=3116 data-nosnippet>3116</a>                <span class="kw">if </span><span class="self">self</span>.selected.get_untracked().is_none() || <span class="self">self</span>.new_session.get_untracked() {
-<a href=#3117 id=3117 data-nosnippet>3117</a>                    <span class="self">self</span>.status
-<a href=#3118 id=3118 data-nosnippet>3118</a>                        .set(<span class="string">"select a session before compacting context"</span>.into());
-<a href=#3119 id=3119 data-nosnippet>3119</a>                    <span class="kw">return</span>;
-<a href=#3120 id=3120 data-nosnippet>3120</a>                }
-<a href=#3121 id=3121 data-nosnippet>3121</a>                <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Compact));
-<a href=#3122 id=3122 data-nosnippet>3122</a>            }
-<a href=#3123 id=3123 data-nosnippet>3123</a>            Command::Goal =&gt; <span class="self">self</span>.goal_command(<span class="kw">crate</span>::goal::GoalCommand::Show),
-<a href=#3124 id=3124 data-nosnippet>3124</a>            Command::Schedule =&gt; <span class="self">self</span>.schedule_prompt(),
-<a href=#3125 id=3125 data-nosnippet>3125</a>            Command::Skills =&gt; <span class="self">self</span>.open_skills(String::new()),
-<a href=#3126 id=3126 data-nosnippet>3126</a>            Command::Background =&gt; <span class="self">self</span>.open_background(),
-<a href=#3127 id=3127 data-nosnippet>3127</a>            Command::Runtime =&gt; <span class="self">self</span>.open_runtimes(),
-<a href=#3128 id=3128 data-nosnippet>3128</a>            Command::Permissions =&gt; <span class="self">self</span>.open_permissions(),
-<a href=#3129 id=3129 data-nosnippet>3129</a>            Command::Usage =&gt; {
-<a href=#3130 id=3130 data-nosnippet>3130</a>                <span class="self">self</span>.load_usage();
-<a href=#3131 id=3131 data-nosnippet>3131</a>                <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Usage));
-<a href=#3132 id=3132 data-nosnippet>3132</a>            }
-<a href=#3133 id=3133 data-nosnippet>3133</a>            Command::Events =&gt; <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Events)),
-<a href=#3134 id=3134 data-nosnippet>3134</a>            Command::Preset =&gt; <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Presets)),
-<a href=#3135 id=3135 data-nosnippet>3135</a>        }
-<a href=#3136 id=3136 data-nosnippet>3136</a>    }
-<a href=#3137 id=3137 data-nosnippet>3137</a>
-<a href=#3138 id=3138 data-nosnippet>3138</a>    <span class="doccomment">/// A media block's bytes, read in chunks, with its media type.
-<a href=#3139 id=3139 data-nosnippet>3139</a>    /// The asset `asset` of `store` as it is now; `None` once it is gone.
-<a href=#3140 id=3140 data-nosnippet>3140</a>    </span><span class="kw">pub async fn </span>get_asset(
-<a href=#3141 id=3141 data-nosnippet>3141</a>        <span class="self">self</span>,
-<a href=#3142 id=3142 data-nosnippet>3142</a>        store: cookie_agent_protocol::AssetStore,
-<a href=#3143 id=3143 data-nosnippet>3143</a>        asset: cookie_agent_protocol::AssetId,
-<a href=#3144 id=3144 data-nosnippet>3144</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::Asset&gt;, String&gt; {
-<a href=#3145 id=3145 data-nosnippet>3145</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(client) = <span class="self">self</span>.client() <span class="kw">else </span>{
-<a href=#3146 id=3146 data-nosnippet>3146</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
-<a href=#3147 id=3147 data-nosnippet>3147</a>        };
-<a href=#3148 id=3148 data-nosnippet>3148</a>        <span class="kw">match </span>client.get_asset(store, asset).<span class="kw">await </span>{
-<a href=#3149 id=3149 data-nosnippet>3149</a>            <span class="prelude-val">Ok</span>(result) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(result.asset)),
-<a href=#3150 id=3150 data-nosnippet>3150</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.is(<span class="kw-2">&amp;</span>cookie_agent_protocol::errors::ASSET_NOT_FOUND) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-<a href=#3151 id=3151 data-nosnippet>3151</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(<span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error)),
-<a href=#3152 id=3152 data-nosnippet>3152</a>        }
-<a href=#3153 id=3153 data-nosnippet>3153</a>    }
-<a href=#3154 id=3154 data-nosnippet>3154</a>
-<a href=#3155 id=3155 data-nosnippet>3155</a>    <span class="doccomment">/// An asset's whole content, its digest, and its media type, read one
-<a href=#3156 id=3156 data-nosnippet>3156</a>    /// content: a chunk of content written in between starts the read over.
-<a href=#3157 id=3157 data-nosnippet>3157</a>    </span><span class="kw">pub async fn </span>read_asset_bytes(
-<a href=#3158 id=3158 data-nosnippet>3158</a>        <span class="self">self</span>,
-<a href=#3159 id=3159 data-nosnippet>3159</a>        store: cookie_agent_protocol::AssetStore,
-<a href=#3160 id=3160 data-nosnippet>3160</a>        asset: cookie_agent_protocol::AssetId,
-<a href=#3161 id=3161 data-nosnippet>3161</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, String, String), String&gt; {
-<a href=#3162 id=3162 data-nosnippet>3162</a>        <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
-<a href=#3163 id=3163 data-nosnippet>3163</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(client) = <span class="self">self</span>.client() <span class="kw">else </span>{
-<a href=#3164 id=3164 data-nosnippet>3164</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
-<a href=#3165 id=3165 data-nosnippet>3165</a>        };
-<a href=#3166 id=3166 data-nosnippet>3166</a>        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-<a href=#3167 id=3167 data-nosnippet>3167</a>        <span class="kw">let </span><span class="kw-2">mut </span>digest: <span class="prelude-ty">Option</span>&lt;String&gt; = <span class="prelude-val">None</span>;
-<a href=#3168 id=3168 data-nosnippet>3168</a>        <span class="kw">loop </span>{
-<a href=#3169 id=3169 data-nosnippet>3169</a>            <span class="kw">let </span>read = client
-<a href=#3170 id=3170 data-nosnippet>3170</a>                .read_asset(cookie_agent_protocol::AssetReadParams {
-<a href=#3171 id=3171 data-nosnippet>3171</a>                    store: store.clone(),
-<a href=#3172 id=3172 data-nosnippet>3172</a>                    asset,
-<a href=#3173 id=3173 data-nosnippet>3173</a>                    offset: bytes.len() <span class="kw">as </span>u64,
-<a href=#3174 id=3174 data-nosnippet>3174</a>                    length: cookie_agent_protocol::ASSET_CHUNK_BYTES,
-<a href=#3175 id=3175 data-nosnippet>3175</a>                })
-<a href=#3176 id=3176 data-nosnippet>3176</a>                .<span class="kw">await
-<a href=#3177 id=3177 data-nosnippet>3177</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
-<a href=#3178 id=3178 data-nosnippet>3178</a>            <span class="kw">if </span>digest.as_ref().is_some_and(|digest| <span class="kw-2">*</span>digest != read.sha256) {
-<a href=#3179 id=3179 data-nosnippet>3179</a>                bytes.clear();
-<a href=#3180 id=3180 data-nosnippet>3180</a>                digest = <span class="prelude-val">None</span>;
-<a href=#3181 id=3181 data-nosnippet>3181</a>                <span class="kw">continue</span>;
-<a href=#3182 id=3182 data-nosnippet>3182</a>            }
-<a href=#3183 id=3183 data-nosnippet>3183</a>            digest = <span class="prelude-val">Some</span>(read.sha256.clone());
-<a href=#3184 id=3184 data-nosnippet>3184</a>            <span class="kw">let </span>chunk = base64::engine::general_purpose::STANDARD
-<a href=#3185 id=3185 data-nosnippet>3185</a>                .decode(read.data)
-<a href=#3186 id=3186 data-nosnippet>3186</a>                .map_err(|error| error.to_string())<span class="question-mark">?</span>;
-<a href=#3187 id=3187 data-nosnippet>3187</a>            <span class="kw">let </span>done = chunk.is_empty() || bytes.len() + chunk.len() &gt;= read.total_bytes <span class="kw">as </span>usize;
-<a href=#3188 id=3188 data-nosnippet>3188</a>            bytes.extend(chunk);
-<a href=#3189 id=3189 data-nosnippet>3189</a>            <span class="kw">if </span>done {
-<a href=#3190 id=3190 data-nosnippet>3190</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>((bytes, read.sha256, read.media_type));
-<a href=#3191 id=3191 data-nosnippet>3191</a>            }
-<a href=#3192 id=3192 data-nosnippet>3192</a>        }
-<a href=#3193 id=3193 data-nosnippet>3193</a>    }
-<a href=#3194 id=3194 data-nosnippet>3194</a>
-<a href=#3195 id=3195 data-nosnippet>3195</a>    <span class="kw">pub async fn </span>read_media(<span class="self">self</span>, sha256: String) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, String), String&gt; {
-<a href=#3196 id=3196 data-nosnippet>3196</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(client), <span class="prelude-val">Some</span>(session_id)) = (<span class="self">self</span>.client(), <span class="self">self</span>.selected.get_untracked())
-<a href=#3197 id=3197 data-nosnippet>3197</a>        <span class="kw">else </span>{
-<a href=#3198 id=3198 data-nosnippet>3198</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
-<a href=#3199 id=3199 data-nosnippet>3199</a>        };
-<a href=#3200 id=3200 data-nosnippet>3200</a>        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-<a href=#3201 id=3201 data-nosnippet>3201</a>        <span class="kw">loop </span>{
-<a href=#3202 id=3202 data-nosnippet>3202</a>            <span class="kw">let </span>read = client
-<a href=#3203 id=3203 data-nosnippet>3203</a>                .read_artifact(ArtifactReadParams {
-<a href=#3204 id=3204 data-nosnippet>3204</a>                    session_id,
-<a href=#3205 id=3205 data-nosnippet>3205</a>                    sha256: sha256.clone(),
-<a href=#3206 id=3206 data-nosnippet>3206</a>                    offset: bytes.len() <span class="kw">as </span>u64,
-<a href=#3207 id=3207 data-nosnippet>3207</a>                    length: cookie_agent_protocol::ARTIFACT_CHUNK_BYTES,
-<a href=#3208 id=3208 data-nosnippet>3208</a>                })
-<a href=#3209 id=3209 data-nosnippet>3209</a>                .<span class="kw">await
-<a href=#3210 id=3210 data-nosnippet>3210</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
-<a href=#3211 id=3211 data-nosnippet>3211</a>            <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
-<a href=#3212 id=3212 data-nosnippet>3212</a>            <span class="kw">let </span>chunk = base64::engine::general_purpose::STANDARD
-<a href=#3213 id=3213 data-nosnippet>3213</a>                .decode(read.data)
-<a href=#3214 id=3214 data-nosnippet>3214</a>                .map_err(|error| error.to_string())<span class="question-mark">?</span>;
-<a href=#3215 id=3215 data-nosnippet>3215</a>            <span class="kw">let </span>done = chunk.is_empty() || bytes.len() + chunk.len() &gt;= read.total_bytes <span class="kw">as </span>usize;
-<a href=#3216 id=3216 data-nosnippet>3216</a>            bytes.extend(chunk);
-<a href=#3217 id=3217 data-nosnippet>3217</a>            <span class="kw">if </span>done {
-<a href=#3218 id=3218 data-nosnippet>3218</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>((bytes, read.media_type));
-<a href=#3219 id=3219 data-nosnippet>3219</a>            }
-<a href=#3220 id=3220 data-nosnippet>3220</a>        }
-<a href=#3221 id=3221 data-nosnippet>3221</a>    }
-<a href=#3222 id=3222 data-nosnippet>3222</a>}
-<a href=#3223 id=3223 data-nosnippet>3223</a>
-<a href=#3224 id=3224 data-nosnippet>3224</a><span class="doccomment">/// The level a stored `/events` choice names; the TUI's default without
-<a href=#3225 id=3225 data-nosnippet>3225</a>/// one.
-<a href=#3226 id=3226 data-nosnippet>3226</a></span><span class="kw">pub fn </span>level_from_storage(stored: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; EventLevel {
-<a href=#3227 id=3227 data-nosnippet>3227</a>    <span class="kw">match </span>stored {
-<a href=#3228 id=3228 data-nosnippet>3228</a>        <span class="prelude-val">Some</span>(<span class="string">"debug"</span>) =&gt; EventLevel::Debug,
-<a href=#3229 id=3229 data-nosnippet>3229</a>        <span class="prelude-val">Some</span>(<span class="string">"info"</span>) =&gt; EventLevel::Info,
-<a href=#3230 id=3230 data-nosnippet>3230</a>        <span class="prelude-val">Some</span>(<span class="string">"warning"</span>) =&gt; EventLevel::Warning,
-<a href=#3231 id=3231 data-nosnippet>3231</a>        <span class="prelude-val">Some</span>(<span class="string">"error"</span>) =&gt; EventLevel::Error,
-<a href=#3232 id=3232 data-nosnippet>3232</a>        <span class="kw">_ </span>=&gt; EventLevel::DEFAULT_MINIMUM,
-<a href=#3233 id=3233 data-nosnippet>3233</a>    }
-<a href=#3234 id=3234 data-nosnippet>3234</a>}
-<a href=#3235 id=3235 data-nosnippet>3235</a>
-<a href=#3236 id=3236 data-nosnippet>3236</a><span class="kw">fn </span>client_run_id() -&gt; ClientRunId {
-<a href=#3237 id=3237 data-nosnippet>3237</a>    ClientRunId::new(<span class="macro">format!</span>(<span class="string">"web-{}"</span>, uuid::Uuid::now_v7())).expect(<span class="string">"a bounded client run id"</span>)
-<a href=#3238 id=3238 data-nosnippet>3238</a>}
-<a href=#3239 id=3239 data-nosnippet>3239</a>
-<a href=#3240 id=3240 data-nosnippet>3240</a><span class="doccomment">/// The last activity of the newest session older than `older` that counts
-<a href=#3241 id=3241 data-nosnippet>3241</a>/// by its activity, a month of sessions at a time; `None` when there is
-<a href=#3242 id=3242 data-nosnippet>3242</a>/// none, or a page fails.
-<a href=#3243 id=3243 data-nosnippet>3243</a></span><span class="kw">async fn </span>newest_older(
-<a href=#3244 id=3244 data-nosnippet>3244</a>    client: <span class="kw-2">&amp;</span>Client,
-<a href=#3245 id=3245 data-nosnippet>3245</a>    <span class="kw-2">mut </span>older: <span class="prelude-ty">Option</span>&lt;jiff::Timestamp&gt;,
-<a href=#3246 id=3246 data-nosnippet>3246</a>) -&gt; <span class="prelude-ty">Option</span>&lt;jiff::Timestamp&gt; {
-<a href=#3247 id=3247 data-nosnippet>3247</a>    <span class="comment">// A month a page: a few years at most.
-<a href=#3248 id=3248 data-nosnippet>3248</a>    </span><span class="kw">for _ in </span><span class="number">0</span>..<span class="number">36 </span>{
-<a href=#3249 id=3249 data-nosnippet>3249</a>        <span class="kw">let </span>page = client
-<a href=#3250 id=3250 data-nosnippet>3250</a>            .list_sessions(SessionListParams {
-<a href=#3251 id=3251 data-nosnippet>3251</a>                before: <span class="prelude-val">Some</span>(older<span class="question-mark">?</span>),
-<a href=#3252 id=3252 data-nosnippet>3252</a>                ..SessionListParams::default()
-<a href=#3253 id=3253 data-nosnippet>3253</a>            })
-<a href=#3254 id=3254 data-nosnippet>3254</a>            .<span class="kw">await
-<a href=#3255 id=3255 data-nosnippet>3255</a>            </span>.ok()<span class="question-mark">?</span>;
-<a href=#3256 id=3256 data-nosnippet>3256</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(newest) =
-<a href=#3257 id=3257 data-nosnippet>3257</a>            cookie_agent_client_state::session_window::newest_activity(<span class="kw-2">&amp;</span>page.sessions)
-<a href=#3258 id=3258 data-nosnippet>3258</a>        {
-<a href=#3259 id=3259 data-nosnippet>3259</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(newest);
-<a href=#3260 id=3260 data-nosnippet>3260</a>        }
-<a href=#3261 id=3261 data-nosnippet>3261</a>        older = page.older;
-<a href=#3262 id=3262 data-nosnippet>3262</a>    }
-<a href=#3263 id=3263 data-nosnippet>3263</a>    <span class="prelude-val">None
-<a href=#3264 id=3264 data-nosnippet>3264</a></span>}
-<a href=#3265 id=3265 data-nosnippet>3265</a>
-<a href=#3266 id=3266 data-nosnippet>3266</a><span class="attr">#[cfg(test)]
-<a href=#3267 id=3267 data-nosnippet>3267</a></span><span class="kw">mod </span>tests {
-<a href=#3268 id=3268 data-nosnippet>3268</a>    <span class="kw">use </span>cookie_agent_client_state::EventLevel;
-<a href=#3269 id=3269 data-nosnippet>3269</a>
-<a href=#3270 id=3270 data-nosnippet>3270</a>    <span class="kw">use </span><span class="kw">super</span>::level_from_storage;
-<a href=#3271 id=3271 data-nosnippet>3271</a>
-<a href=#3272 id=3272 data-nosnippet>3272</a>    <span class="attr">#[test]
-<a href=#3273 id=3273 data-nosnippet>3273</a>    </span><span class="kw">fn </span>a_stored_level_wins_over_the_shared_default() {
-<a href=#3274 id=3274 data-nosnippet>3274</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"info"</span>)), EventLevel::Info);
-<a href=#3275 id=3275 data-nosnippet>3275</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"debug"</span>)), EventLevel::Debug);
-<a href=#3276 id=3276 data-nosnippet>3276</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">None</span>), EventLevel::DEFAULT_MINIMUM);
-<a href=#3277 id=3277 data-nosnippet>3277</a>        <span class="macro">assert_eq!</span>(
-<a href=#3278 id=3278 data-nosnippet>3278</a>            level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"loud"</span>)),
-<a href=#3279 id=3279 data-nosnippet>3279</a>            EventLevel::DEFAULT_MINIMUM
-<a href=#3280 id=3280 data-nosnippet>3280</a>        );
-<a href=#3281 id=3281 data-nosnippet>3281</a>    }
-<a href=#3282 id=3282 data-nosnippet>3282</a>}
+<a href=#3081 id=3081 data-nosnippet>3081</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(read), <span class="prelude-val">Some</span>(client)) = (read, client) <span class="kw">else </span>{
+<a href=#3082 id=3082 data-nosnippet>3082</a>            <span class="kw">return</span>;
+<a href=#3083 id=3083 data-nosnippet>3083</a>        };
+<a href=#3084 id=3084 data-nosnippet>3084</a>        spawn_local(<span class="kw">async move </span>{
+<a href=#3085 id=3085 data-nosnippet>3085</a>            <span class="kw">let </span>state = FullContentState::of_read(
+<a href=#3086 id=3086 data-nosnippet>3086</a>                client
+<a href=#3087 id=3087 data-nosnippet>3087</a>                    .read_artifact(ArtifactReadParams {
+<a href=#3088 id=3088 data-nosnippet>3088</a>                        session_id,
+<a href=#3089 id=3089 data-nosnippet>3089</a>                        sha256: read.artifact.sha256.clone(),
+<a href=#3090 id=3090 data-nosnippet>3090</a>                        offset: <span class="number">0</span>,
+<a href=#3091 id=3091 data-nosnippet>3091</a>                        length: read.length,
+<a href=#3092 id=3092 data-nosnippet>3092</a>                    })
+<a href=#3093 id=3093 data-nosnippet>3093</a>                    .<span class="kw">await
+<a href=#3094 id=3094 data-nosnippet>3094</a>                    </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error)),
+<a href=#3095 id=3095 data-nosnippet>3095</a>            );
+<a href=#3096 id=3096 data-nosnippet>3096</a>            <span class="self">self</span>.update_store(|store| {
+<a href=#3097 id=3097 data-nosnippet>3097</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(session) = store.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
+<a href=#3098 id=3098 data-nosnippet>3098</a>                    session.finish_full_content(call_id, block, state);
+<a href=#3099 id=3099 data-nosnippet>3099</a>                }
+<a href=#3100 id=3100 data-nosnippet>3100</a>            });
+<a href=#3101 id=3101 data-nosnippet>3101</a>        });
+<a href=#3102 id=3102 data-nosnippet>3102</a>    }
+<a href=#3103 id=3103 data-nosnippet>3103</a>
+<a href=#3104 id=3104 data-nosnippet>3104</a>    <span class="doccomment">/// Sets the lowest diagnostic level the transcript shows, kept in the
+<a href=#3105 id=3105 data-nosnippet>3105</a>    /// browser.
+<a href=#3106 id=3106 data-nosnippet>3106</a>    </span><span class="kw">pub fn </span>set_level(<span class="self">self</span>, level: EventLevel) {
+<a href=#3107 id=3107 data-nosnippet>3107</a>        browser::store(EVENT_LEVEL_KEY, level.name());
+<a href=#3108 id=3108 data-nosnippet>3108</a>        <span class="self">self</span>.level.set(level);
+<a href=#3109 id=3109 data-nosnippet>3109</a>    }
+<a href=#3110 id=3110 data-nosnippet>3110</a>
+<a href=#3111 id=3111 data-nosnippet>3111</a>    <span class="doccomment">/// Shows agent work as `mode` in the transcript, kept in the browser.
+<a href=#3112 id=3112 data-nosnippet>3112</a>    </span><span class="kw">pub fn </span>set_transcript(<span class="self">self</span>, mode: cookie_agent_client_state::transcript_mode::TranscriptMode) {
+<a href=#3113 id=3113 data-nosnippet>3113</a>        browser::store(<span class="kw">crate</span>::connect::TRANSCRIPT_KEY, mode.name());
+<a href=#3114 id=3114 data-nosnippet>3114</a>        <span class="self">self</span>.show_transcript(mode);
+<a href=#3115 id=3115 data-nosnippet>3115</a>    }
+<a href=#3116 id=3116 data-nosnippet>3116</a>
+<a href=#3117 id=3117 data-nosnippet>3117</a>    <span class="doccomment">/// Shows agent work as `mode`, as this tab or another set it. A switch
+<a href=#3118 id=3118 data-nosnippet>3118</a>    /// to the reduced mode folds every work row again.
+<a href=#3119 id=3119 data-nosnippet>3119</a>    </span><span class="kw">pub fn </span>show_transcript(<span class="self">self</span>, mode: cookie_agent_client_state::transcript_mode::TranscriptMode) {
+<a href=#3120 id=3120 data-nosnippet>3120</a>        <span class="kw">if </span>mode == cookie_agent_client_state::transcript_mode::TranscriptMode::Reduced {
+<a href=#3121 id=3121 data-nosnippet>3121</a>            <span class="self">self</span>.expanded.update(|expanded| {
+<a href=#3122 id=3122 data-nosnippet>3122</a>                <span class="kw">for </span>blocks <span class="kw">in </span>expanded.values_mut() {
+<a href=#3123 id=3123 data-nosnippet>3123</a>                    blocks.fold_work();
+<a href=#3124 id=3124 data-nosnippet>3124</a>                }
+<a href=#3125 id=3125 data-nosnippet>3125</a>            });
+<a href=#3126 id=3126 data-nosnippet>3126</a>        }
+<a href=#3127 id=3127 data-nosnippet>3127</a>        <span class="self">self</span>.transcript.set(mode);
+<a href=#3128 id=3128 data-nosnippet>3128</a>    }
+<a href=#3129 id=3129 data-nosnippet>3129</a>
+<a href=#3130 id=3130 data-nosnippet>3130</a>    <span class="doccomment">/// Opens the sheet of a ⋮ menu entry.
+<a href=#3131 id=3131 data-nosnippet>3131</a>    </span><span class="kw">pub fn </span>run_command(<span class="self">self</span>, command: <span class="kw">crate</span>::commands::Command) {
+<a href=#3132 id=3132 data-nosnippet>3132</a>        <span class="kw">use </span><span class="kw">crate</span>::commands::Command;
+<a href=#3133 id=3133 data-nosnippet>3133</a>        <span class="kw">match </span>command {
+<a href=#3134 id=3134 data-nosnippet>3134</a>            Command::Rename =&gt; <span class="self">self</span>.begin_title_edit(),
+<a href=#3135 id=3135 data-nosnippet>3135</a>            Command::Share =&gt; <span class="self">self</span>.open_session_share_dialog(),
+<a href=#3136 id=3136 data-nosnippet>3136</a>            Command::Compact =&gt; {
+<a href=#3137 id=3137 data-nosnippet>3137</a>                <span class="kw">if </span><span class="self">self</span>.selected.get_untracked().is_none() || <span class="self">self</span>.new_session.get_untracked() {
+<a href=#3138 id=3138 data-nosnippet>3138</a>                    <span class="self">self</span>.status
+<a href=#3139 id=3139 data-nosnippet>3139</a>                        .set(<span class="string">"select a session before compacting context"</span>.into());
+<a href=#3140 id=3140 data-nosnippet>3140</a>                    <span class="kw">return</span>;
+<a href=#3141 id=3141 data-nosnippet>3141</a>                }
+<a href=#3142 id=3142 data-nosnippet>3142</a>                <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Compact));
+<a href=#3143 id=3143 data-nosnippet>3143</a>            }
+<a href=#3144 id=3144 data-nosnippet>3144</a>            Command::Goal =&gt; <span class="self">self</span>.goal_command(<span class="kw">crate</span>::goal::GoalCommand::Show),
+<a href=#3145 id=3145 data-nosnippet>3145</a>            Command::Schedule =&gt; <span class="self">self</span>.schedule_prompt(),
+<a href=#3146 id=3146 data-nosnippet>3146</a>            Command::Skills =&gt; <span class="self">self</span>.open_skills(String::new()),
+<a href=#3147 id=3147 data-nosnippet>3147</a>            Command::Background =&gt; <span class="self">self</span>.open_background(),
+<a href=#3148 id=3148 data-nosnippet>3148</a>            Command::Runtime =&gt; <span class="self">self</span>.open_runtimes(),
+<a href=#3149 id=3149 data-nosnippet>3149</a>            Command::Permissions =&gt; <span class="self">self</span>.open_permissions(),
+<a href=#3150 id=3150 data-nosnippet>3150</a>            Command::Usage =&gt; {
+<a href=#3151 id=3151 data-nosnippet>3151</a>                <span class="self">self</span>.load_usage();
+<a href=#3152 id=3152 data-nosnippet>3152</a>                <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Usage));
+<a href=#3153 id=3153 data-nosnippet>3153</a>            }
+<a href=#3154 id=3154 data-nosnippet>3154</a>            Command::Events =&gt; <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Events)),
+<a href=#3155 id=3155 data-nosnippet>3155</a>            Command::Preset =&gt; <span class="self">self</span>.panel.set(<span class="prelude-val">Some</span>(Panel::Presets)),
+<a href=#3156 id=3156 data-nosnippet>3156</a>        }
+<a href=#3157 id=3157 data-nosnippet>3157</a>    }
+<a href=#3158 id=3158 data-nosnippet>3158</a>
+<a href=#3159 id=3159 data-nosnippet>3159</a>    <span class="doccomment">/// A media block's bytes, read in chunks, with its media type.
+<a href=#3160 id=3160 data-nosnippet>3160</a>    /// The asset `asset` of `store` as it is now; `None` once it is gone.
+<a href=#3161 id=3161 data-nosnippet>3161</a>    </span><span class="kw">pub async fn </span>get_asset(
+<a href=#3162 id=3162 data-nosnippet>3162</a>        <span class="self">self</span>,
+<a href=#3163 id=3163 data-nosnippet>3163</a>        store: cookie_agent_protocol::AssetStore,
+<a href=#3164 id=3164 data-nosnippet>3164</a>        asset: cookie_agent_protocol::AssetId,
+<a href=#3165 id=3165 data-nosnippet>3165</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;cookie_agent_protocol::Asset&gt;, String&gt; {
+<a href=#3166 id=3166 data-nosnippet>3166</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(client) = <span class="self">self</span>.client() <span class="kw">else </span>{
+<a href=#3167 id=3167 data-nosnippet>3167</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
+<a href=#3168 id=3168 data-nosnippet>3168</a>        };
+<a href=#3169 id=3169 data-nosnippet>3169</a>        <span class="kw">match </span>client.get_asset(store, asset).<span class="kw">await </span>{
+<a href=#3170 id=3170 data-nosnippet>3170</a>            <span class="prelude-val">Ok</span>(result) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(result.asset)),
+<a href=#3171 id=3171 data-nosnippet>3171</a>            <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.is(<span class="kw-2">&amp;</span>cookie_agent_protocol::errors::ASSET_NOT_FOUND) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+<a href=#3172 id=3172 data-nosnippet>3172</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(<span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error)),
+<a href=#3173 id=3173 data-nosnippet>3173</a>        }
+<a href=#3174 id=3174 data-nosnippet>3174</a>    }
+<a href=#3175 id=3175 data-nosnippet>3175</a>
+<a href=#3176 id=3176 data-nosnippet>3176</a>    <span class="doccomment">/// An asset's whole content, its digest, and its media type, read one
+<a href=#3177 id=3177 data-nosnippet>3177</a>    /// content: a chunk of content written in between starts the read over.
+<a href=#3178 id=3178 data-nosnippet>3178</a>    </span><span class="kw">pub async fn </span>read_asset_bytes(
+<a href=#3179 id=3179 data-nosnippet>3179</a>        <span class="self">self</span>,
+<a href=#3180 id=3180 data-nosnippet>3180</a>        store: cookie_agent_protocol::AssetStore,
+<a href=#3181 id=3181 data-nosnippet>3181</a>        asset: cookie_agent_protocol::AssetId,
+<a href=#3182 id=3182 data-nosnippet>3182</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, String, String), String&gt; {
+<a href=#3183 id=3183 data-nosnippet>3183</a>        <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
+<a href=#3184 id=3184 data-nosnippet>3184</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(client) = <span class="self">self</span>.client() <span class="kw">else </span>{
+<a href=#3185 id=3185 data-nosnippet>3185</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
+<a href=#3186 id=3186 data-nosnippet>3186</a>        };
+<a href=#3187 id=3187 data-nosnippet>3187</a>        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
+<a href=#3188 id=3188 data-nosnippet>3188</a>        <span class="kw">let </span><span class="kw-2">mut </span>digest: <span class="prelude-ty">Option</span>&lt;String&gt; = <span class="prelude-val">None</span>;
+<a href=#3189 id=3189 data-nosnippet>3189</a>        <span class="kw">loop </span>{
+<a href=#3190 id=3190 data-nosnippet>3190</a>            <span class="kw">let </span>read = client
+<a href=#3191 id=3191 data-nosnippet>3191</a>                .read_asset(cookie_agent_protocol::AssetReadParams {
+<a href=#3192 id=3192 data-nosnippet>3192</a>                    store: store.clone(),
+<a href=#3193 id=3193 data-nosnippet>3193</a>                    asset,
+<a href=#3194 id=3194 data-nosnippet>3194</a>                    offset: bytes.len() <span class="kw">as </span>u64,
+<a href=#3195 id=3195 data-nosnippet>3195</a>                    length: cookie_agent_protocol::ASSET_CHUNK_BYTES,
+<a href=#3196 id=3196 data-nosnippet>3196</a>                })
+<a href=#3197 id=3197 data-nosnippet>3197</a>                .<span class="kw">await
+<a href=#3198 id=3198 data-nosnippet>3198</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
+<a href=#3199 id=3199 data-nosnippet>3199</a>            <span class="kw">if </span>digest.as_ref().is_some_and(|digest| <span class="kw-2">*</span>digest != read.sha256) {
+<a href=#3200 id=3200 data-nosnippet>3200</a>                bytes.clear();
+<a href=#3201 id=3201 data-nosnippet>3201</a>                digest = <span class="prelude-val">None</span>;
+<a href=#3202 id=3202 data-nosnippet>3202</a>                <span class="kw">continue</span>;
+<a href=#3203 id=3203 data-nosnippet>3203</a>            }
+<a href=#3204 id=3204 data-nosnippet>3204</a>            digest = <span class="prelude-val">Some</span>(read.sha256.clone());
+<a href=#3205 id=3205 data-nosnippet>3205</a>            <span class="kw">let </span>chunk = base64::engine::general_purpose::STANDARD
+<a href=#3206 id=3206 data-nosnippet>3206</a>                .decode(read.data)
+<a href=#3207 id=3207 data-nosnippet>3207</a>                .map_err(|error| error.to_string())<span class="question-mark">?</span>;
+<a href=#3208 id=3208 data-nosnippet>3208</a>            <span class="kw">let </span>done = chunk.is_empty() || bytes.len() + chunk.len() &gt;= read.total_bytes <span class="kw">as </span>usize;
+<a href=#3209 id=3209 data-nosnippet>3209</a>            bytes.extend(chunk);
+<a href=#3210 id=3210 data-nosnippet>3210</a>            <span class="kw">if </span>done {
+<a href=#3211 id=3211 data-nosnippet>3211</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>((bytes, read.sha256, read.media_type));
+<a href=#3212 id=3212 data-nosnippet>3212</a>            }
+<a href=#3213 id=3213 data-nosnippet>3213</a>        }
+<a href=#3214 id=3214 data-nosnippet>3214</a>    }
+<a href=#3215 id=3215 data-nosnippet>3215</a>
+<a href=#3216 id=3216 data-nosnippet>3216</a>    <span class="kw">pub async fn </span>read_media(<span class="self">self</span>, sha256: String) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, String), String&gt; {
+<a href=#3217 id=3217 data-nosnippet>3217</a>        <span class="kw">let </span>(<span class="prelude-val">Some</span>(client), <span class="prelude-val">Some</span>(session_id)) = (<span class="self">self</span>.client(), <span class="self">self</span>.selected.get_untracked())
+<a href=#3218 id=3218 data-nosnippet>3218</a>        <span class="kw">else </span>{
+<a href=#3219 id=3219 data-nosnippet>3219</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"not connected"</span>.into());
+<a href=#3220 id=3220 data-nosnippet>3220</a>        };
+<a href=#3221 id=3221 data-nosnippet>3221</a>        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
+<a href=#3222 id=3222 data-nosnippet>3222</a>        <span class="kw">loop </span>{
+<a href=#3223 id=3223 data-nosnippet>3223</a>            <span class="kw">let </span>read = client
+<a href=#3224 id=3224 data-nosnippet>3224</a>                .read_artifact(ArtifactReadParams {
+<a href=#3225 id=3225 data-nosnippet>3225</a>                    session_id,
+<a href=#3226 id=3226 data-nosnippet>3226</a>                    sha256: sha256.clone(),
+<a href=#3227 id=3227 data-nosnippet>3227</a>                    offset: bytes.len() <span class="kw">as </span>u64,
+<a href=#3228 id=3228 data-nosnippet>3228</a>                    length: cookie_agent_protocol::ARTIFACT_CHUNK_BYTES,
+<a href=#3229 id=3229 data-nosnippet>3229</a>                })
+<a href=#3230 id=3230 data-nosnippet>3230</a>                .<span class="kw">await
+<a href=#3231 id=3231 data-nosnippet>3231</a>                </span>.map_err(|error| <span class="kw">crate</span>::errors::describe_full(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>;
+<a href=#3232 id=3232 data-nosnippet>3232</a>            <span class="kw">use </span>base64::Engine <span class="kw">as _</span>;
+<a href=#3233 id=3233 data-nosnippet>3233</a>            <span class="kw">let </span>chunk = base64::engine::general_purpose::STANDARD
+<a href=#3234 id=3234 data-nosnippet>3234</a>                .decode(read.data)
+<a href=#3235 id=3235 data-nosnippet>3235</a>                .map_err(|error| error.to_string())<span class="question-mark">?</span>;
+<a href=#3236 id=3236 data-nosnippet>3236</a>            <span class="kw">let </span>done = chunk.is_empty() || bytes.len() + chunk.len() &gt;= read.total_bytes <span class="kw">as </span>usize;
+<a href=#3237 id=3237 data-nosnippet>3237</a>            bytes.extend(chunk);
+<a href=#3238 id=3238 data-nosnippet>3238</a>            <span class="kw">if </span>done {
+<a href=#3239 id=3239 data-nosnippet>3239</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>((bytes, read.media_type));
+<a href=#3240 id=3240 data-nosnippet>3240</a>            }
+<a href=#3241 id=3241 data-nosnippet>3241</a>        }
+<a href=#3242 id=3242 data-nosnippet>3242</a>    }
+<a href=#3243 id=3243 data-nosnippet>3243</a>}
+<a href=#3244 id=3244 data-nosnippet>3244</a>
+<a href=#3245 id=3245 data-nosnippet>3245</a><span class="doccomment">/// The level a stored `/events` choice names; the TUI's default without
+<a href=#3246 id=3246 data-nosnippet>3246</a>/// one.
+<a href=#3247 id=3247 data-nosnippet>3247</a></span><span class="kw">pub fn </span>level_from_storage(stored: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; EventLevel {
+<a href=#3248 id=3248 data-nosnippet>3248</a>    <span class="kw">match </span>stored {
+<a href=#3249 id=3249 data-nosnippet>3249</a>        <span class="prelude-val">Some</span>(<span class="string">"debug"</span>) =&gt; EventLevel::Debug,
+<a href=#3250 id=3250 data-nosnippet>3250</a>        <span class="prelude-val">Some</span>(<span class="string">"info"</span>) =&gt; EventLevel::Info,
+<a href=#3251 id=3251 data-nosnippet>3251</a>        <span class="prelude-val">Some</span>(<span class="string">"warning"</span>) =&gt; EventLevel::Warning,
+<a href=#3252 id=3252 data-nosnippet>3252</a>        <span class="prelude-val">Some</span>(<span class="string">"error"</span>) =&gt; EventLevel::Error,
+<a href=#3253 id=3253 data-nosnippet>3253</a>        <span class="kw">_ </span>=&gt; EventLevel::DEFAULT_MINIMUM,
+<a href=#3254 id=3254 data-nosnippet>3254</a>    }
+<a href=#3255 id=3255 data-nosnippet>3255</a>}
+<a href=#3256 id=3256 data-nosnippet>3256</a>
+<a href=#3257 id=3257 data-nosnippet>3257</a><span class="kw">fn </span>client_run_id() -&gt; ClientRunId {
+<a href=#3258 id=3258 data-nosnippet>3258</a>    ClientRunId::new(<span class="macro">format!</span>(<span class="string">"web-{}"</span>, uuid::Uuid::now_v7())).expect(<span class="string">"a bounded client run id"</span>)
+<a href=#3259 id=3259 data-nosnippet>3259</a>}
+<a href=#3260 id=3260 data-nosnippet>3260</a>
+<a href=#3261 id=3261 data-nosnippet>3261</a><span class="doccomment">/// The last activity of the newest session older than `older` that counts
+<a href=#3262 id=3262 data-nosnippet>3262</a>/// by its activity, a month of sessions at a time; `None` when there is
+<a href=#3263 id=3263 data-nosnippet>3263</a>/// none, or a page fails.
+<a href=#3264 id=3264 data-nosnippet>3264</a></span><span class="kw">async fn </span>newest_older(
+<a href=#3265 id=3265 data-nosnippet>3265</a>    client: <span class="kw-2">&amp;</span>Client,
+<a href=#3266 id=3266 data-nosnippet>3266</a>    <span class="kw-2">mut </span>older: <span class="prelude-ty">Option</span>&lt;jiff::Timestamp&gt;,
+<a href=#3267 id=3267 data-nosnippet>3267</a>) -&gt; <span class="prelude-ty">Option</span>&lt;jiff::Timestamp&gt; {
+<a href=#3268 id=3268 data-nosnippet>3268</a>    <span class="comment">// A month a page: a few years at most.
+<a href=#3269 id=3269 data-nosnippet>3269</a>    </span><span class="kw">for _ in </span><span class="number">0</span>..<span class="number">36 </span>{
+<a href=#3270 id=3270 data-nosnippet>3270</a>        <span class="kw">let </span>page = client
+<a href=#3271 id=3271 data-nosnippet>3271</a>            .list_sessions(SessionListParams {
+<a href=#3272 id=3272 data-nosnippet>3272</a>                before: <span class="prelude-val">Some</span>(older<span class="question-mark">?</span>),
+<a href=#3273 id=3273 data-nosnippet>3273</a>                ..SessionListParams::default()
+<a href=#3274 id=3274 data-nosnippet>3274</a>            })
+<a href=#3275 id=3275 data-nosnippet>3275</a>            .<span class="kw">await
+<a href=#3276 id=3276 data-nosnippet>3276</a>            </span>.ok()<span class="question-mark">?</span>;
+<a href=#3277 id=3277 data-nosnippet>3277</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(newest) =
+<a href=#3278 id=3278 data-nosnippet>3278</a>            cookie_agent_client_state::session_window::newest_activity(<span class="kw-2">&amp;</span>page.sessions)
+<a href=#3279 id=3279 data-nosnippet>3279</a>        {
+<a href=#3280 id=3280 data-nosnippet>3280</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(newest);
+<a href=#3281 id=3281 data-nosnippet>3281</a>        }
+<a href=#3282 id=3282 data-nosnippet>3282</a>        older = page.older;
+<a href=#3283 id=3283 data-nosnippet>3283</a>    }
+<a href=#3284 id=3284 data-nosnippet>3284</a>    <span class="prelude-val">None
+<a href=#3285 id=3285 data-nosnippet>3285</a></span>}
+<a href=#3286 id=3286 data-nosnippet>3286</a>
+<a href=#3287 id=3287 data-nosnippet>3287</a><span class="attr">#[cfg(test)]
+<a href=#3288 id=3288 data-nosnippet>3288</a></span><span class="kw">mod </span>tests {
+<a href=#3289 id=3289 data-nosnippet>3289</a>    <span class="kw">use </span>cookie_agent_client_state::EventLevel;
+<a href=#3290 id=3290 data-nosnippet>3290</a>
+<a href=#3291 id=3291 data-nosnippet>3291</a>    <span class="kw">use </span><span class="kw">super</span>::level_from_storage;
+<a href=#3292 id=3292 data-nosnippet>3292</a>
+<a href=#3293 id=3293 data-nosnippet>3293</a>    <span class="attr">#[test]
+<a href=#3294 id=3294 data-nosnippet>3294</a>    </span><span class="kw">fn </span>a_stored_level_wins_over_the_shared_default() {
+<a href=#3295 id=3295 data-nosnippet>3295</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"info"</span>)), EventLevel::Info);
+<a href=#3296 id=3296 data-nosnippet>3296</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"debug"</span>)), EventLevel::Debug);
+<a href=#3297 id=3297 data-nosnippet>3297</a>        <span class="macro">assert_eq!</span>(level_from_storage(<span class="prelude-val">None</span>), EventLevel::DEFAULT_MINIMUM);
+<a href=#3298 id=3298 data-nosnippet>3298</a>        <span class="macro">assert_eq!</span>(
+<a href=#3299 id=3299 data-nosnippet>3299</a>            level_from_storage(<span class="prelude-val">Some</span>(<span class="string">"loud"</span>)),
+<a href=#3300 id=3300 data-nosnippet>3300</a>            EventLevel::DEFAULT_MINIMUM
+<a href=#3301 id=3301 data-nosnippet>3301</a>        );
+<a href=#3302 id=3302 data-nosnippet>3302</a>    }
+<a href=#3303 id=3303 data-nosnippet>3303</a>}
 </code></pre></div></section></main></body></html>

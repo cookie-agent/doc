@@ -7043,8 +7043,9 @@ compared with a fold of the whole file exactly, as before. The producer fold is 
 <li><em>Turns, their models, usage, call owners:</em> the native loop commits a turn, starts its calls, and
     records its usage at once (<code>model_loop.rs</code>), so each names the latest turn: the last 16 stay.</li>
 <li><em>Attempts:</em> lifecycle records name the attempt in flight; a replay's base is the attempt the run's
-    loop evaluated last (<code>ReplayEvaluationBase</code> holds only that one), so the latest 16 that ended hold
-    it; an abandon follows its commit at once.</li>
+    loop evaluated last (<code>ReplayEvaluationBase</code> holds only that one), which each run keeps whatever
+    its age (corrected after review, below: the latest 16 that ended did not always hold it); an
+    abandon follows its commit at once.</li>
 <li><em>Calls:</em> a late completion, a background job's end, and a link name an open call, which stays. An
     ended call is named again only by an elision, which native compaction writes from the model context
     (<code>stage_tool_output_elision</code>), so of calls in view: those whose end is in the window, which is
@@ -7450,6 +7451,159 @@ MB of logs (blobs 287.3 MB). By log size: 27 logs under 200 KB had 4.1 MB of fil
 grows with a log: a native checkpoint's records (memory 6.7 KB, <code>AGENTS.md</code> 0.7 KB a record at the
 median, and a composed prompt of at most 7 KB when it changed), and the reviewer's log, at 2 to 6 KB
 a review in the golden scenario.</p>
+<p><strong>Fixes after review (2026-11-08).</strong></p>
+<ul>
+<li><strong>A pass that ends before what a native window holds.</strong> A range ending before the window,
+  its creation left out, started at the window's position after the pinned records and ended
+  at 0, so <code>History::held</code> sliced backwards: an <code>events.page</code> with <code>before</code> of 1 or less on a
+  native window with pins panicked, as did a range ending before it starts on any log.
+  <code>History::new</code> now starts no later than it ends, for both of a pass's constructors
+  (<code>a_pass_ending_before_what_a_native_window_holds_gives_only_what_precedes_it</code>).</li>
+<li><strong>A log gone native validates as a reopening's first model context does.</strong> <code>read_whole</code>
+  validates a log whole again when its agent turned native after an ACP agent's window let go
+  of what settled, but a revert's fold (<code>fold_prefix</code>), which reads such a log whole for its
+  model and drops the window, kept its record-at-a-time validation, and so did the rebuild after
+  a refused append or a failed write (<code>rebuilt_validation</code>) of a log that had read itself whole.
+  With the window gone nothing read it whole again, so a compaction's elision of a call the ACP
+  agent ended was refused ("tool elision appeared before its start"). Both now validate whole
+  when the log is native and the record-at-a-time pass let go of anything, as <code>read_whole</code> does
+  (<code>a_log_gone_native_validates_as_its_file_after_a_revert_and_a_refused_append</code>).
+  <code>assert_window_reads_as_reopened</code> no longer skips a log holding its records whose validation
+  let go, and for a native model's log it also compares validation under the native rule, which
+  keeps the calls in view; with the fixes turned off it fails right after the revert.</li>
+<li><strong>A run keeps its replay base.</strong> Phase 7 held that the latest 16 attempts that ended hold a
+  replay's base, but an attempt abandoned before its stream started ends without an evaluation and
+  does not move the base, so with unlimited overload retries 17 such attempts let the base go and
+  the next <code>model_replay_evaluated</code> was refused, failing the run. Each run's validation now notes
+  the attempt it evaluated last (<code>RunAttribution::replay_base</code>), and that attempt stays while its
+  run does, beside the latest 16 that ended. A record at a time and a whole read keep the same, as
+  an attempt becomes a base only while it is in flight
+  (<code>a_replay_base_stays_however_many_attempts_end_after_it_unevaluated</code>). <code>STATE_VERSION</code> rose from
+  9 to 10, the digest test insisting.</li>
+<li><strong>A <code>state.json</code> whose line index misses its window folds from the start.</strong> <code>window_start</code> took
+  the first line the index holds at or after the window without checking the index reached it,
+  so a file whose index starts later, or skips the window's line, opened a window missing its
+  first records. An intermediate build wrote such files, and only scratch copies ran it. Now a
+  sequence between the window and the first line the index holds must be one the file skips
+  (<code>LineIndex::gaps</code>), or the file is a mismatch
+  (<code>a_state_file_whose_line_index_misses_its_window_folds_the_log_from_its_start</code>). A stricter
+  check of validity changes nothing a fold gives, so the digest held and <code>STATE_VERSION</code> did not
+  rise for it.</li>
+<li><strong>A state write racing a revert is left out.</strong> <code>refresh_state</code> took the state under the session's
+  slot, let go of it, and wrote and noted it after; a revert in between removed the file and noted
+  nothing written, then the rename in flight put back the file from before the cut, which no
+  longer matches, and noted the log written as far as it then was, holding writes off until the
+  log grew past that again. The cut count is now taken before the state, and the write is left
+  out, or only its note when a revert comes between the check and the rename
+  (<code>write_state_unless_cut</code>, which the reviewer's log uses too;
+  <code>a_state_write_racing_a_revert_leaves_neither_its_file_nor_its_note</code>, through a test-only seam
+  between taking the state and writing it).</li>
+<li><strong>An owned open removes a <code>state.json</code> it has no use for.</strong> A file that no longer matched its
+  log, or one beside a log under <code>STATE_MIN_LOG_BYTES</code>, was read and parsed at every open and
+  thrown away, and nothing rewrote or removed it. An owned open (<code>open_owned</code>, the parse it falls
+  back on, and <code>owned_from_read_only</code>, so a reviewer's log too) now removes the file when the log
+  did not open from it or is shorter than that, and notes nothing written
+  (<code>an_owned_open_removes_a_state_file_that_does_not_match_or_is_not_wanted</code>). A read-only open
+  leaves it alone. Two checks of <code>state_file/tests.rs</code> write their file again before an open, as
+  the owned open before them now removes it.</li>
+<li><strong>An owned open sweeps the temporaries a crash left.</strong> A crash between staging a cache's
+  temporary and renaming it (<code>replace_cache_file</code>) left <code>.&lt;name&gt;.&lt;uuid&gt;.tmp</code> in the session's
+  folder for good. An owned open of the session now removes those of <code>state.json</code>, <code>view.json</code>,
+  and <code>metadata</code>, which share the naming, and an owned open of its reviewer log those of the
+  reviewer's <code>state.json</code>, once older than five minutes, so a write in flight keeps its own
+  (<code>an_owned_open_sweeps_the_temporaries_a_crash_left</code>).</li>
+<li><strong>A revert past its cut completes in memory.</strong> Once <code>truncate_after</code> cut the file, a failure to
+  read the line index again returned early: a windowed log had its records, index, and window
+  replaced but kept its validation and <code>next_seq</code>, and the second cut count was skipped, so the
+  next append took a sequence past the cut (in the test, the file ended at 876 and the next
+  append was 879) and validated against the old state. What else could fail there did the same:
+  the cut's sync, the blobs' sync (<code>Durability::cut</code>), and a log holding its records validating
+  what stays. Now what stays is validated before the cut, as a windowed log's fold already was;
+  an index that cannot be read again is dropped, as a window's move drops it, so a pass reads
+  from the file's start and no state file is written; and a failed sync after the cut is logged,
+  leaving it to the next sync, which covers the same file
+  (<code>a_revert_that_cannot_read_its_line_index_again_completes_without_it</code>, through a test-only
+  failure of the next line scan; the syncs' failures were not provoked).</li>
+<li><strong>A reviewer log leaves memory only with its session.</strong> <code>SessionStore::evict</code> let go of the
+  session's reviewer log before <code>evict_locked</code> said whether the session left memory, which it
+  does not when it is not resident, and an error before it (<code>flush_stale_meta_cache</code>) left it
+  resident too. The log was then gone from the store while the session stayed: a review's
+  <code>append_reviewer</code> found none (<code>Missing</code>, so its turn was not recorded), and the next lookup
+  opened a second log on the same file while the first could still be held. Two writers needed
+  more: an append through the first, already looked up, racing a revert or fork that opened the
+  second, whose owned open could cut the first's record in flight as a torn tail or append under
+  the same sequence. Not seen, but nothing prevented it. The state file is still written before
+  any lock, and the log is let go of only once the session left memory
+  (<code>an_eviction_that_evicts_nothing_keeps_the_reviewer_log</code>). The engine's own first-turn memory
+  is the engine's to clear.</li>
+</ul>
+<p><strong>Fixes after review (2026-11-08), engine.</strong></p>
+<ul>
+<li><strong>A message that just settled stays in the producer fold.</strong> The fold kept the newest 16 settled
+  messages by when they were accepted, so one accepted early that settled after 16 or more accepted
+  later (a run taking many subagent reports, delegation completions, or agent mail) went in the same
+  fold that settled it, and a cron fire never found where its prompt landed: its run's end was never
+  recorded, <code>max_consecutive_failures</code> never counted, and every later run's end tried again. The fold
+  now records the record at which each message it holds settled (<code>settled_at</code>) and lets one go only
+  once 16 others settled after it, so what settled together stays together until then. The other
+  readers of settled messages read open ones, a key (<code>accepted</code>), or the fold's settled keys, but for
+  a producer's discard of its own message that settled long ago, which answers that it is not found.
+  <code>STATE_VERSION</code> rose from 9 to 10 with the replay base above, and the digest with both
+  (<code>a_message_that_just_settled_is_kept_whatever_its_acceptance</code>,
+  <code>a_fire_settling_with_many_later_messages_records_its_run_end</code>).</li>
+<li><strong>A compaction that records nothing leaves memory unseen.</strong> A checkpoint takes its memory snapshot as
+  compaction starts, and taking it marked every memory it showed as seen by the session (and read, for
+  the read times) before anything was recorded. A compaction that then recorded nothing (nothing to
+  summarise, a failed or empty summary, budgets that do not fit, a commit that does not validate) left
+  the model its old memory turn while <code>memory_write</code> took the newer revision as seen, and let a
+  replacement over another session's or the user's edit through. Taking a snapshot now marks nothing:
+  <code>saw_memories</code> marks what it showed once its record is appended, at a run's admission, a checkpoint's
+  commit, and a machine's memories added in place or in <code>attach_machine</code>'s result; the last marks only
+  the machine memories it shows, not the user's, agent's, or project's memories its snapshot read
+  (<code>a_compaction_that_records_nothing_leaves_memory_unseen</code>).</li>
+<li><strong>A failed first review's turn goes with what it read.</strong> The turn was kept in memory with the session
+  log's cut count, which is the open log's own and starts at zero when a log opens again, and nothing
+  forgot it: a revert, then the session leaving memory, let the next review take a turn showing reverted
+  events and read on from its old cut, skipping new ones. A revert of the session now forgets it, and so
+  do the session leaving memory and its deletion (<code>Engine::forget_reviews</code>), which also drop the
+  session's review gate when no review holds it; a turn whose review read the log before a revert is not
+  kept (<code>a_failed_first_reviews_turn_does_not_outlive_a_revert_and_a_reopen</code>).</li>
+<li><strong>A reviewer turn's cut never goes back.</strong> Reviews of one session take its gate after their
+  <code>approval_requested</code> is appended, so two at once may take it out of order, and the earlier request's
+  turn then recorded its own cut, before the later turn's: the next review read the records between the
+  two again, showing user inputs and finalized approvals twice. A review whose cut is before the
+  thread's last now reads nothing new and records that later cut
+  (<code>a_review_that_waited_for_a_later_cut_does_not_move_the_position_back</code>). No path found reaches it as
+  built: a native run asks its approvals in model order before running its calls, the one nested
+  approval (a fork skill's <code>delegate_subagent</code>, <code>execute_tool</code> from <code>skills.rs</code>) runs from the
+  <code>skill</code> tool, which is exclusive and so runs after the parallel calls, one at a time, and an ACP
+  session's approvals are never reviewed. The gate admits concurrent reviews, so the turn keeps its
+  order whatever calls it.</li>
+<li><strong>What a machine attached in place added folds into a fresh checkpoint.</strong> Its <code>agent_md_loaded</code> and
+  <code>memory_loaded</code> with <code>in_place</code> rendered where they were recorded whenever no <code>context_refreshed</code>
+  followed them, so after a checkpoint with <code>context_fresh</code>, which reads <code>AGENTS.md</code> from every
+  attachment and memory for every machine of the session, the attached machine's showed twice: in the
+  turns before the conversation and again in the kept tail. They now render in place only after the
+  latest refresh and the latest such checkpoint, as the frozen context spec's section 6.1 says
+  (<code>in_place_additions_fold_into_a_fresh_checkpoints_top_turns</code>); section 5.3's check of the whole log
+  against <code>model_context_events()</code> holds, as both go through the same rule. As a checkpoint now folds
+  them, its fallback for an attachment whose runtime is away keeps such a machine's in-place
+  <code>AGENTS.md</code> as its current record, which no test covers on its own; a memory snapshot that cannot be
+  read is written again as before, without the in-place machine memories.</li>
+<li><strong>A subagent's report of a run its projection let go of is delivered.</strong> <code>deliver_subagent_report</code> read
+  the run's status from <code>projection.runs</code> and took a run it did not find as nothing to report, so a
+  report that waited, retrying, while an ACP child ended more than 16 runs was dropped. It reads
+  <code>run_outcome</code>, as the other readers of an older run do, and so does a cron fire's settling of its run
+  (<code>a_report_of_a_run_the_child_let_go_of_is_still_delivered</code>, with a test hook that holds a report's
+  delivery).</li>
+<li><strong>An ACP <code>/compact</code> finds its run's end after a racing revert.</strong> It read the log's tip before starting
+  the agent's <code>compact</code> run and looked for the run's <code>run_finished</code> only after that tip, so a revert in
+  between, which reuses the sequences it cuts, left it waiting forever. It now reads from the run's own
+  <code>run_started</code>, taken once the run started (the whole log should another run have followed it already),
+  and a run that a later revert cut away ends the wait as not compacted
+  (<code>a_compaction_after_a_racing_revert_finds_its_run_end</code>, with a test hook that holds the compaction
+  before its run).</li>
+</ul>
 
 
 
