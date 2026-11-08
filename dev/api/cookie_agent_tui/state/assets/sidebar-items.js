@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AssetKind"],"fn":["asset_link","asset_place","assets_matching","attachment_link","shown_assets","total_bytes"],"struct":["AssetFilter","AssetPlace"]};
+window.SIDEBAR_ITEMS = {"enum":["AssetKind"],"fn":["asset_link","asset_place","assets_matching","attachment_link","is_document","shown_assets","total_bytes"],"struct":["AssetFilter","AssetPlace"]};
