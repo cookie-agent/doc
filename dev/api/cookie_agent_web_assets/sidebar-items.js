@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["VIEWER_PATH","VIEWER_POLICY"],"fn":["assets","content_security_policy","get","is_built"],"struct":["Asset"]};
+window.SIDEBAR_ITEMS = {"constant":["PDF_VIEWER_PATH","PDF_VIEWER_POLICY","VIEWER_PATH","VIEWER_POLICY"],"fn":["assets","content_security_policy","get","is_built","policy_of"],"struct":["Asset"]};
