@@ -174,14 +174,63 @@
 <a href=#174 id=174 data-nosnippet>174</a>    });
 <a href=#175 id=175 data-nosnippet>175</a>}
 <a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// Fits `line` once the badges it is drawing now are on the page. The row
-<a href=#178 id=178 data-nosnippet>178</a>/// may be gone by then (a list redrawn twice within a frame), and its
-<a href=#179 id=179 data-nosnippet>179</a>/// `line` disposed with it: nothing to fit.
-<a href=#180 id=180 data-nosnippet>180</a></span><span class="kw">pub fn </span>fit_soon(line: NodeRef&lt;leptos::html::Span&gt;) {
-<a href=#181 id=181 data-nosnippet>181</a>    request_animation_frame(<span class="kw">move </span>|| {
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = line.try_get_untracked().flatten() {
-<a href=#183 id=183 data-nosnippet>183</a>            fit(<span class="kw-2">&amp;</span>element.into());
-<a href=#184 id=184 data-nosnippet>184</a>        }
-<a href=#185 id=185 data-nosnippet>185</a>    });
-<a href=#186 id=186 data-nosnippet>186</a>}
+<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// Fits the machines of the finished work rows within `within`: their
+<a href=#178 id=178 data-nosnippet>178</a>/// names while the row's label shows whole beside them, else their dots
+<a href=#179 id=179 data-nosnippet>179</a>/// alone. Every row is shown its names, then measured, then switched, so
+<a href=#180 id=180 data-nosnippet>180</a>/// that they all take one layout.
+<a href=#181 id=181 data-nosnippet>181</a></span><span class="kw">pub fn </span>fit_work_machines(within: <span class="kw-2">&amp;</span>web_sys::Element) {
+<a href=#182 id=182 data-nosnippet>182</a>    <span class="kw">use </span>wasm_bindgen::JsCast <span class="kw">as _</span>;
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(list) = within.query_selector_all(<span class="string">"[data-work-machines-fit]"</span>) <span class="kw">else </span>{
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="kw">return</span>;
+<a href=#185 id=185 data-nosnippet>185</a>    };
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="kw">let </span>pairs = (<span class="number">0</span>..list.length())
+<a href=#187 id=187 data-nosnippet>187</a>        .filter_map(|index| list.item(index))
+<a href=#188 id=188 data-nosnippet>188</a>        .filter_map(|node| node.dyn_into::&lt;web_sys::Element&gt;().ok())
+<a href=#189 id=189 data-nosnippet>189</a>        .filter_map(|fit| {
+<a href=#190 id=190 data-nosnippet>190</a>            <span class="kw">let </span>child = |selector: <span class="kw-2">&amp;</span>str| {
+<a href=#191 id=191 data-nosnippet>191</a>                fit.query_selector(selector)
+<a href=#192 id=192 data-nosnippet>192</a>                    .ok()
+<a href=#193 id=193 data-nosnippet>193</a>                    .flatten()
+<a href=#194 id=194 data-nosnippet>194</a>                    .and_then(|node| node.dyn_into::&lt;web_sys::HtmlElement&gt;().ok())
+<a href=#195 id=195 data-nosnippet>195</a>            };
+<a href=#196 id=196 data-nosnippet>196</a>            <span class="prelude-val">Some</span>((
+<a href=#197 id=197 data-nosnippet>197</a>                fit.clone(),
+<a href=#198 id=198 data-nosnippet>198</a>                child(<span class="string">"[data-work-machines]"</span>)<span class="question-mark">?</span>,
+<a href=#199 id=199 data-nosnippet>199</a>                child(<span class="string">"[data-work-machines-merged]"</span>)<span class="question-mark">?</span>,
+<a href=#200 id=200 data-nosnippet>200</a>            ))
+<a href=#201 id=201 data-nosnippet>201</a>        })
+<a href=#202 id=202 data-nosnippet>202</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">for </span>(<span class="kw">_</span>, names, dots) <span class="kw">in </span><span class="kw-2">&amp;</span>pairs {
+<a href=#204 id=204 data-nosnippet>204</a>        names.set_hidden(<span class="bool-val">false</span>);
+<a href=#205 id=205 data-nosnippet>205</a>        dots.set_hidden(<span class="bool-val">true</span>);
+<a href=#206 id=206 data-nosnippet>206</a>    }
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">let </span>cut = pairs
+<a href=#208 id=208 data-nosnippet>208</a>        .iter()
+<a href=#209 id=209 data-nosnippet>209</a>        .map(|(fit, <span class="kw">_</span>, <span class="kw">_</span>)| {
+<a href=#210 id=210 data-nosnippet>210</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(line) = fit.parent_element() <span class="kw">else </span>{
+<a href=#211 id=211 data-nosnippet>211</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#212 id=212 data-nosnippet>212</a>            };
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">let </span>label = line.query_selector(<span class="string">"[data-work-label]"</span>).ok().flatten();
+<a href=#214 id=214 data-nosnippet>214</a>            label.is_some_and(|label| label.scroll_width() &gt; label.client_width())
+<a href=#215 id=215 data-nosnippet>215</a>                || line.scroll_width() &gt; line.client_width() + <span class="number">1
+<a href=#216 id=216 data-nosnippet>216</a>        </span>})
+<a href=#217 id=217 data-nosnippet>217</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">for </span>((<span class="kw">_</span>, names, dots), cut) <span class="kw">in </span>pairs.iter().zip(cut) {
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">if </span>cut {
+<a href=#220 id=220 data-nosnippet>220</a>            names.set_hidden(<span class="bool-val">true</span>);
+<a href=#221 id=221 data-nosnippet>221</a>            dots.set_hidden(<span class="bool-val">false</span>);
+<a href=#222 id=222 data-nosnippet>222</a>        }
+<a href=#223 id=223 data-nosnippet>223</a>    }
+<a href=#224 id=224 data-nosnippet>224</a>}
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a><span class="doccomment">/// Fits `line` once the badges it is drawing now are on the page. The row
+<a href=#227 id=227 data-nosnippet>227</a>/// may be gone by then (a list redrawn twice within a frame), and its
+<a href=#228 id=228 data-nosnippet>228</a>/// `line` disposed with it: nothing to fit.
+<a href=#229 id=229 data-nosnippet>229</a></span><span class="kw">pub fn </span>fit_soon(line: NodeRef&lt;leptos::html::Span&gt;) {
+<a href=#230 id=230 data-nosnippet>230</a>    request_animation_frame(<span class="kw">move </span>|| {
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(element) = line.try_get_untracked().flatten() {
+<a href=#232 id=232 data-nosnippet>232</a>            fit(<span class="kw-2">&amp;</span>element.into());
+<a href=#233 id=233 data-nosnippet>233</a>        }
+<a href=#234 id=234 data-nosnippet>234</a>    });
+<a href=#235 id=235 data-nosnippet>235</a>}
 </code></pre></div></section></main></body></html>
