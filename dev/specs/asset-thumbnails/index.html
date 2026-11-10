@@ -4747,8 +4747,8 @@
 
 
 <h1 id="asset-thumbnails">Asset thumbnails<a class="headerlink" href="#asset-thumbnails" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>implemented</strong> (2026-11-10; client protocol 1.93.0). User decisions
-of 2026-11-10. This revises <a href="../asset-opening/">Opening assets</a> section 3 (the
+<p>Status: <strong>implemented</strong> (2026-11-10; client protocol 1.93.0, and 1.94.0 for
+the browser's cache of section 5). User decisions of 2026-11-10. This revises <a href="../asset-opening/">Opening assets</a> section 3 (the
 Assets tab's cards) and section 6.2 (a PDF's thumbnail).</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>The Assets tab drew each card from the asset itself: once a card came within
@@ -4777,7 +4777,9 @@ waited behind those reads, and read again what was still in flight.</p>
 <p><code>asset.thumbnail { store, asset }</code> returns <code>{ sha256, thumbnail? }</code>:
 <code>sha256</code> is the content the answer is about, and <code>thumbnail</code> an
 <code>AssetThumbnail</code> (<code>media_type</code>, base64 <code>data</code>, <code>width</code>, <code>height</code>), absent
-when there is none. A thumbnail is a JPEG (quality 80), or a PNG when a pixel
+when there is none. Without one, <code>retry_later</code> (client protocol 1.94.0) says
+whether asking again later may give one: a missing or slow tool, or content
+gone while it was read. Otherwise the content never has one. A thumbnail is a JPEG (quality 80), or a PNG when a pixel
 of the picture is not opaque, whose longer side is at most 768 pixels
 (<code>ASSET_THUMBNAIL_MAX_EDGE</code>), enough for a card on a 2× screen. A smaller
 picture keeps its size. A guest of a conversation share may ask for the
@@ -4807,17 +4809,27 @@ assets it may read, as it may <code>asset.read</code> them.</p>
 <h2 id="5-the-web-client">5. The web client<a class="headerlink" href="#5-the-web-client" title="Permanent link">&para;</a></h2>
 <ul>
 <li>A tab card (<code>data-asset-view="tile"</code>) starts as its icon card. Once it
-  comes within a screen of the view it asks <code>asset.thumbnail</code> and, when
-  there is one, shows it filling the card (a PDF's top first, a video with a
-  play mark). Thumbnails stay in memory by content, up to 16 MiB, and
-  contents without one are remembered, so drawing the list again asks
-  nothing.</li>
-<li>A Markdown card reads its first 8 KiB with one <code>asset.read</code>; so does a
-  Markdown card in the chat.</li>
-<li>The PDF viewer's thumbnail mode, and the page count it showed on a card,
-  are gone: the asset page's reader is its only mode.</li>
-<li>Opening an asset reads it whole, as before; nothing else is reading.</li>
+  comes within a screen of the view it shows its thumbnail, a PDF's top
+  first and a video with a play mark, from wherever it is known first:</li>
+<li><strong>this page</strong>, by content, up to 16 MiB of thumbnails and every
+     content without one;</li>
+<li><strong>the browser</strong> (user decision 2026-11-10): the Cache Storage cache
+     <code>cookie-asset-thumbnails-1</code>, one entry per content <code>sha256</code>, the
+     thumbnail or an empty entry for content that never has one. A
+     thumbnail is named by its content, so an entry never goes stale. It
+     holds at most 1,000 entries; past that the oldest tenth goes. Cache
+     Storage exists only on HTTPS or <code>localhost</code>; elsewhere only the page
+     keeps them. The service worker still caches nothing;</li>
+<li><strong>the daemon</strong>, <code>asset.thumbnail</code>, whose answer the page and the
+     browser then keep, except a <code>retry_later</code> miss, which only the page
+     keeps until it loads again.</li>
 </ul>
+<p>So a load asks the daemon only about content the browser has not seen.
+- A Markdown card reads its first 8 KiB with one <code>asset.read</code>; so does a
+  Markdown card in the chat.
+- The PDF viewer's thumbnail mode, and the page count it showed on a card,
+  are gone: the asset page's reader is its only mode.
+- Opening an asset reads it whole, as before; nothing else is reading.</p>
 <h2 id="6-not-done">6. Not done<a class="headerlink" href="#6-not-done" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Thumbnails for the chat's cards, which still read the asset: a reply
