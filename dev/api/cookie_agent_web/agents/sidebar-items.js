@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["agent_groups","agent_id","agent_summary"],"struct":["AgentEntry","AgentGroup","AgentSummary"]};
+window.SIDEBAR_ITEMS = {"fn":["agent_groups","agent_id","agent_summary","set_front_matter"],"struct":["AgentEntry","AgentGroup","AgentSummary"]};

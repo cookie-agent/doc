@@ -182,130 +182,227 @@
 <a href=#182 id=182 data-nosnippet>182</a>    }
 <a href=#183 id=183 data-nosnippet>183</a>}
 <a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a><span class="doccomment">/// How long ago a time was, in the largest whole unit under a week, else
-<a href=#186 id=186 data-nosnippet>186</a>/// its UTC date.
-<a href=#187 id=187 data-nosnippet>187</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-<a href=#188 id=188 data-nosnippet>188</a></span><span class="kw">enum </span>Ago {
-<a href=#189 id=189 data-nosnippet>189</a>    JustNow,
-<a href=#190 id=190 data-nosnippet>190</a>    Minutes(i64),
-<a href=#191 id=191 data-nosnippet>191</a>    Hours(i64),
-<a href=#192 id=192 data-nosnippet>192</a>    Days(i64),
-<a href=#193 id=193 data-nosnippet>193</a>    On(Date),
-<a href=#194 id=194 data-nosnippet>194</a>}
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a><span class="kw">impl </span>Ago {
-<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">fn </span>of(now: Timestamp, then: Timestamp) -&gt; <span class="self">Self </span>{
-<a href=#198 id=198 data-nosnippet>198</a>        <span class="kw">let </span>seconds = now.as_second().saturating_sub(then.as_second());
-<a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">match </span>seconds {
-<a href=#200 id=200 data-nosnippet>200</a>            ..<span class="number">60 </span>=&gt; <span class="self">Self</span>::JustNow,
-<a href=#201 id=201 data-nosnippet>201</a>            <span class="number">60</span>..<span class="number">3_600 </span>=&gt; <span class="self">Self</span>::Minutes(seconds / <span class="number">60</span>),
-<a href=#202 id=202 data-nosnippet>202</a>            <span class="number">3_600</span>..<span class="number">86_400 </span>=&gt; <span class="self">Self</span>::Hours(seconds / <span class="number">3_600</span>),
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="number">86_400</span>..<span class="number">604_800 </span>=&gt; <span class="self">Self</span>::Days(seconds / <span class="number">86_400</span>),
-<a href=#204 id=204 data-nosnippet>204</a>            <span class="kw">_ </span>=&gt; <span class="self">Self</span>::On(jiff::tz::TimeZone::UTC.to_datetime(then).date()),
-<a href=#205 id=205 data-nosnippet>205</a>        }
-<a href=#206 id=206 data-nosnippet>206</a>    }
-<a href=#207 id=207 data-nosnippet>207</a>}
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a><span class="attr">#[cfg(test)]
-<a href=#210 id=210 data-nosnippet>210</a></span><span class="kw">mod </span>tests {
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">use </span>std::time::Duration;
-<a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">use </span>jiff::{SignedDuration, Timestamp, civil::date};
-<a href=#214 id=214 data-nosnippet>214</a>
-<a href=#215 id=215 data-nosnippet>215</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="attr">#[test]
-<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>counts_group_every_three_digits_from_the_right() {
-<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">for </span>count <span class="kw">in </span>[<span class="number">0</span>, <span class="number">7</span>, <span class="number">999</span>, <span class="number">1_000</span>, <span class="number">12_345</span>, <span class="number">999_999</span>, <span class="number">12_345_678</span>, u64::MAX] {
-<a href=#220 id=220 data-nosnippet>220</a>            <span class="kw">let </span>text = format_count(count);
-<a href=#221 id=221 data-nosnippet>221</a>            <span class="macro">assert_eq!</span>(text.replace(<span class="string">','</span>, <span class="string">""</span>), count.to_string(), <span class="string">"{text}"</span>);
-<a href=#222 id=222 data-nosnippet>222</a>            <span class="kw">let </span>groups = text.split(<span class="string">','</span>).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#223 id=223 data-nosnippet>223</a>            <span class="macro">assert!</span>((<span class="number">1</span>..=<span class="number">3</span>).contains(<span class="kw-2">&amp;</span>groups[<span class="number">0</span>].len()), <span class="string">"{text}"</span>);
-<a href=#224 id=224 data-nosnippet>224</a>            <span class="macro">assert!</span>(groups[<span class="number">1</span>..].iter().all(|group| group.len() == <span class="number">3</span>), <span class="string">"{text}"</span>);
-<a href=#225 id=225 data-nosnippet>225</a>        }
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert!</span>(!format_count(<span class="number">999</span>).contains(<span class="string">','</span>));
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="macro">assert!</span>(format_count(<span class="number">1_000</span>).contains(<span class="string">','</span>));
-<a href=#228 id=228 data-nosnippet>228</a>    }
-<a href=#229 id=229 data-nosnippet>229</a>
-<a href=#230 id=230 data-nosnippet>230</a>    <span class="attr">#[test]
-<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">fn </span>token_counts_turn_to_thousands_at_a_thousand() {
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">999</span>), <span class="prelude-val">None</span>);
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">1_000</span>), <span class="prelude-val">Some</span>(<span class="number">1.0</span>));
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">12_500</span>), <span class="prelude-val">Some</span>(<span class="number">12.5</span>));
-<a href=#235 id=235 data-nosnippet>235</a>        <span class="macro">assert_eq!</span>(format_token_count(<span class="number">999</span>), <span class="number">999</span>.to_string());
-<a href=#236 id=236 data-nosnippet>236</a>    }
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="attr">#[test]
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">fn </span>short_counts_change_unit_and_drop_the_tenth_at_each_boundary() {
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">let </span>short = |whole, tenth, unit| Shortened { whole, tenth, unit };
-<a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">use </span>Magnitude::<span class="kw-2">*</span>;
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">999</span>), short(<span class="number">999</span>, <span class="prelude-val">None</span>, Ones));
-<a href=#243 id=243 data-nosnippet>243</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_000</span>), short(<span class="number">1</span>, <span class="prelude-val">None</span>, Thousands));
-<a href=#244 id=244 data-nosnippet>244</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_250</span>), short(<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="number">2</span>), Thousands));
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">9_999</span>), short(<span class="number">9</span>, <span class="prelude-val">Some</span>(<span class="number">9</span>), Thousands));
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">10_000</span>), short(<span class="number">10</span>, <span class="prelude-val">None</span>, Thousands));
-<a href=#247 id=247 data-nosnippet>247</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">10_999</span>), short(<span class="number">10</span>, <span class="prelude-val">None</span>, Thousands));
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">999_999</span>), short(<span class="number">999</span>, <span class="prelude-val">None</span>, Thousands));
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_000_000</span>), short(<span class="number">1</span>, <span class="prelude-val">None</span>, Millions));
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_500_000</span>), short(<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="number">5</span>), Millions));
-<a href=#251 id=251 data-nosnippet>251</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">12_000_000</span>), short(<span class="number">12</span>, <span class="prelude-val">None</span>, Millions));
-<a href=#252 id=252 data-nosnippet>252</a>        <span class="comment">// Every short form fits in four characters.
-<a href=#253 id=253 data-nosnippet>253</a>        </span><span class="kw">for </span>count <span class="kw">in </span>[<span class="number">999</span>, <span class="number">1_250</span>, <span class="number">9_999</span>, <span class="number">999_999</span>, <span class="number">9_999_999</span>, <span class="number">99_999_999</span>] {
-<a href=#254 id=254 data-nosnippet>254</a>            <span class="macro">assert!</span>(compact_count(count).chars().count() &lt;= <span class="number">4</span>, <span class="string">"{count}"</span>);
-<a href=#255 id=255 data-nosnippet>255</a>        }
-<a href=#256 id=256 data-nosnippet>256</a>    }
-<a href=#257 id=257 data-nosnippet>257</a>
-<a href=#258 id=258 data-nosnippet>258</a>    <span class="attr">#[test]
-<a href=#259 id=259 data-nosnippet>259</a>    </span><span class="kw">fn </span>costs_keep_four_decimals_below_a_cent() {
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.0099</span>), <span class="number">4</span>);
-<a href=#261 id=261 data-nosnippet>261</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.01</span>), <span class="number">2</span>);
-<a href=#262 id=262 data-nosnippet>262</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">12.5</span>), <span class="number">2</span>);
-<a href=#263 id=263 data-nosnippet>263</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.0</span>), <span class="number">4</span>);
-<a href=#264 id=264 data-nosnippet>264</a>    }
+<a href=#185 id=185 data-nosnippet>185</a><span class="doccomment">/// [`relative_time`] for a list's narrow column: "now", "5m", "3h", "2d",
+<a href=#186 id=186 data-nosnippet>186</a>/// else the month and day ("Nov 3").
+<a href=#187 id=187 data-nosnippet>187</a></span><span class="kw">pub fn </span>short_relative_time(now: Timestamp, then: Timestamp) -&gt; String {
+<a href=#188 id=188 data-nosnippet>188</a>    <span class="kw">const </span>MONTHS: [<span class="kw-2">&amp;</span>str; <span class="number">12</span>] = [
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="string">"Jan"</span>, <span class="string">"Feb"</span>, <span class="string">"Mar"</span>, <span class="string">"Apr"</span>, <span class="string">"May"</span>, <span class="string">"Jun"</span>, <span class="string">"Jul"</span>, <span class="string">"Aug"</span>, <span class="string">"Sep"</span>, <span class="string">"Oct"</span>, <span class="string">"Nov"</span>, <span class="string">"Dec"</span>,
+<a href=#190 id=190 data-nosnippet>190</a>    ];
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">match </span>Ago::of(now, then) {
+<a href=#192 id=192 data-nosnippet>192</a>        Ago::JustNow =&gt; <span class="string">"now"</span>.to_owned(),
+<a href=#193 id=193 data-nosnippet>193</a>        Ago::Minutes(minutes) =&gt; <span class="macro">format!</span>(<span class="string">"{minutes}m"</span>),
+<a href=#194 id=194 data-nosnippet>194</a>        Ago::Hours(hours) =&gt; <span class="macro">format!</span>(<span class="string">"{hours}h"</span>),
+<a href=#195 id=195 data-nosnippet>195</a>        Ago::Days(days) =&gt; <span class="macro">format!</span>(<span class="string">"{days}d"</span>),
+<a href=#196 id=196 data-nosnippet>196</a>        Ago::On(date) =&gt; <span class="macro">format!</span>(
+<a href=#197 id=197 data-nosnippet>197</a>            <span class="string">"{} {}"</span>,
+<a href=#198 id=198 data-nosnippet>198</a>            MONTHS[usize::try_from(date.month() - <span class="number">1</span>).unwrap_or(<span class="number">0</span>)],
+<a href=#199 id=199 data-nosnippet>199</a>            date.day()
+<a href=#200 id=200 data-nosnippet>200</a>        ),
+<a href=#201 id=201 data-nosnippet>201</a>    }
+<a href=#202 id=202 data-nosnippet>202</a>}
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a><span class="doccomment">/// A piece of a line [`code_spans`] split: plain text, or the inside of a
+<a href=#205 id=205 data-nosnippet>205</a>/// Markdown code span.
+<a href=#206 id=206 data-nosnippet>206</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+<a href=#207 id=207 data-nosnippet>207</a></span><span class="kw">pub enum </span>Span&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#208 id=208 data-nosnippet>208</a>    Text(<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str),
+<a href=#209 id=209 data-nosnippet>209</a>    Code(<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str),
+<a href=#210 id=210 data-nosnippet>210</a>}
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a><span class="doccomment">/// Splits a line of text at its Markdown code spans, so a client can draw
+<a href=#213 id=213 data-nosnippet>213</a>/// `` `cookie daemon restart` `` as code instead of showing its backticks
+<a href=#214 id=214 data-nosnippet>214</a>/// (a configuration diagnostic, an ACP agent's tool title). A span is a
+<a href=#215 id=215 data-nosnippet>215</a>/// backtick, some text, and the next backtick; a backtick with no partner,
+<a href=#216 id=216 data-nosnippet>216</a>/// or a pair with nothing between, stays as written.
+<a href=#217 id=217 data-nosnippet>217</a></span><span class="kw">pub fn </span>code_spans(line: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;Span&lt;<span class="lifetime">'_</span>&gt;&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">let </span><span class="kw-2">mut </span>spans = Vec::new();
+<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">let </span><span class="kw-2">mut </span>text_start = <span class="number">0</span>;
+<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">let </span><span class="kw-2">mut </span>at = <span class="number">0</span>;
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(open) = line[at..].find(<span class="string">'`'</span>).map(|offset| at + offset) {
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(close) = line[open + <span class="number">1</span>..].find(<span class="string">'`'</span>).map(|offset| open + <span class="number">1 </span>+ offset) <span class="kw">else </span>{
+<a href=#223 id=223 data-nosnippet>223</a>            <span class="kw">break</span>;
+<a href=#224 id=224 data-nosnippet>224</a>        };
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">if </span>close == open + <span class="number">1 </span>{
+<a href=#226 id=226 data-nosnippet>226</a>            at = close + <span class="number">1</span>;
+<a href=#227 id=227 data-nosnippet>227</a>            <span class="kw">continue</span>;
+<a href=#228 id=228 data-nosnippet>228</a>        }
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="kw">if </span>open &gt; text_start {
+<a href=#230 id=230 data-nosnippet>230</a>            spans.push(Span::Text(<span class="kw-2">&amp;</span>line[text_start..open]));
+<a href=#231 id=231 data-nosnippet>231</a>        }
+<a href=#232 id=232 data-nosnippet>232</a>        spans.push(Span::Code(<span class="kw-2">&amp;</span>line[open + <span class="number">1</span>..close]));
+<a href=#233 id=233 data-nosnippet>233</a>        text_start = close + <span class="number">1</span>;
+<a href=#234 id=234 data-nosnippet>234</a>        at = close + <span class="number">1</span>;
+<a href=#235 id=235 data-nosnippet>235</a>    }
+<a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">if </span>text_start &lt; line.len() {
+<a href=#237 id=237 data-nosnippet>237</a>        spans.push(Span::Text(<span class="kw-2">&amp;</span>line[text_start..]));
+<a href=#238 id=238 data-nosnippet>238</a>    }
+<a href=#239 id=239 data-nosnippet>239</a>    spans
+<a href=#240 id=240 data-nosnippet>240</a>}
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a><span class="doccomment">/// How long ago a time was, in the largest whole unit under a week, else
+<a href=#243 id=243 data-nosnippet>243</a>/// its UTC date.
+<a href=#244 id=244 data-nosnippet>244</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+<a href=#245 id=245 data-nosnippet>245</a></span><span class="kw">enum </span>Ago {
+<a href=#246 id=246 data-nosnippet>246</a>    JustNow,
+<a href=#247 id=247 data-nosnippet>247</a>    Minutes(i64),
+<a href=#248 id=248 data-nosnippet>248</a>    Hours(i64),
+<a href=#249 id=249 data-nosnippet>249</a>    Days(i64),
+<a href=#250 id=250 data-nosnippet>250</a>    On(Date),
+<a href=#251 id=251 data-nosnippet>251</a>}
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a><span class="kw">impl </span>Ago {
+<a href=#254 id=254 data-nosnippet>254</a>    <span class="kw">fn </span>of(now: Timestamp, then: Timestamp) -&gt; <span class="self">Self </span>{
+<a href=#255 id=255 data-nosnippet>255</a>        <span class="kw">let </span>seconds = now.as_second().saturating_sub(then.as_second());
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">match </span>seconds {
+<a href=#257 id=257 data-nosnippet>257</a>            ..<span class="number">60 </span>=&gt; <span class="self">Self</span>::JustNow,
+<a href=#258 id=258 data-nosnippet>258</a>            <span class="number">60</span>..<span class="number">3_600 </span>=&gt; <span class="self">Self</span>::Minutes(seconds / <span class="number">60</span>),
+<a href=#259 id=259 data-nosnippet>259</a>            <span class="number">3_600</span>..<span class="number">86_400 </span>=&gt; <span class="self">Self</span>::Hours(seconds / <span class="number">3_600</span>),
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="number">86_400</span>..<span class="number">604_800 </span>=&gt; <span class="self">Self</span>::Days(seconds / <span class="number">86_400</span>),
+<a href=#261 id=261 data-nosnippet>261</a>            <span class="kw">_ </span>=&gt; <span class="self">Self</span>::On(jiff::tz::TimeZone::UTC.to_datetime(then).date()),
+<a href=#262 id=262 data-nosnippet>262</a>        }
+<a href=#263 id=263 data-nosnippet>263</a>    }
+<a href=#264 id=264 data-nosnippet>264</a>}
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="attr">#[test]
-<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">fn </span>a_compact_cost_that_rounds_to_no_cents_is_not_zero() {
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="macro">assert!</span>(under_half_a_cent(<span class="number">0.004</span>));
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="macro">assert!</span>(!under_half_a_cent(<span class="number">0.005</span>), <span class="string">"rounds up to a cent"</span>);
-<a href=#270 id=270 data-nosnippet>270</a>        <span class="macro">assert!</span>(!under_half_a_cent(<span class="number">0.0</span>), <span class="string">"nothing is nothing"</span>);
-<a href=#271 id=271 data-nosnippet>271</a>        <span class="macro">assert_ne!</span>(compact_cost(<span class="number">0.004</span>), compact_cost(<span class="number">0.0</span>));
-<a href=#272 id=272 data-nosnippet>272</a>    }
+<a href=#266 id=266 data-nosnippet>266</a><span class="attr">#[cfg(test)]
+<a href=#267 id=267 data-nosnippet>267</a></span><span class="kw">mod </span>tests {
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">use </span>std::time::Duration;
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw">use </span>jiff::{SignedDuration, Timestamp, civil::date};
+<a href=#271 id=271 data-nosnippet>271</a>
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#273 id=273 data-nosnippet>273</a>
 <a href=#274 id=274 data-nosnippet>274</a>    <span class="attr">#[test]
-<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>elapsed_times_turn_over_at_the_minute_and_the_hour() {
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">0</span>), Elapsed::Seconds(<span class="number">0</span>));
-<a href=#277 id=277 data-nosnippet>277</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">59</span>), Elapsed::Seconds(<span class="number">59</span>));
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">60</span>), Elapsed::Minutes(<span class="number">1</span>, <span class="number">0</span>));
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">83</span>), Elapsed::Minutes(<span class="number">1</span>, <span class="number">23</span>));
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_599</span>), Elapsed::Minutes(<span class="number">59</span>, <span class="number">59</span>));
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_600</span>), Elapsed::Hours(<span class="number">1</span>, <span class="number">0</span>));
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_600 </span>+ <span class="number">4 </span>* <span class="number">60 </span>+ <span class="number">59</span>), Elapsed::Hours(<span class="number">1</span>, <span class="number">4</span>));
-<a href=#283 id=283 data-nosnippet>283</a>        <span class="macro">assert_eq!</span>(
-<a href=#284 id=284 data-nosnippet>284</a>            format_elapsed(Duration::from_millis(<span class="number">59_999</span>)),
-<a href=#285 id=285 data-nosnippet>285</a>            format_elapsed(Duration::from_secs(<span class="number">59</span>)),
-<a href=#286 id=286 data-nosnippet>286</a>            <span class="string">"fractions of a second round down"
-<a href=#287 id=287 data-nosnippet>287</a>        </span>);
-<a href=#288 id=288 data-nosnippet>288</a>    }
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="attr">#[test]
-<a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">fn </span>relative_times_step_from_minutes_to_a_date() {
-<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).expect(<span class="string">"timestamp"</span>);
-<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">let </span>ago = |seconds: i64| {
-<a href=#294 id=294 data-nosnippet>294</a>            Ago::of(
-<a href=#295 id=295 data-nosnippet>295</a>                now,
-<a href=#296 id=296 data-nosnippet>296</a>                now.checked_sub(SignedDuration::from_secs(seconds))
-<a href=#297 id=297 data-nosnippet>297</a>                    .expect(<span class="string">"timestamp"</span>),
-<a href=#298 id=298 data-nosnippet>298</a>            )
-<a href=#299 id=299 data-nosnippet>299</a>        };
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">59</span>), Ago::JustNow);
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="macro">assert_eq!</span>(ago(-<span class="number">30</span>), Ago::JustNow, <span class="string">"a later clock is just now"</span>);
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">60</span>), Ago::Minutes(<span class="number">1</span>));
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">3_599</span>), Ago::Minutes(<span class="number">59</span>));
-<a href=#304 id=304 data-nosnippet>304</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">3_600</span>), Ago::Hours(<span class="number">1</span>));
-<a href=#305 id=305 data-nosnippet>305</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">86_399</span>), Ago::Hours(<span class="number">23</span>));
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">86_400</span>), Ago::Days(<span class="number">1</span>));
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">604_799</span>), Ago::Days(<span class="number">6</span>));
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">604_800</span>), Ago::On(date(<span class="number">2027</span>, <span class="number">1</span>, <span class="number">8</span>)));
-<a href=#309 id=309 data-nosnippet>309</a>    }
-<a href=#310 id=310 data-nosnippet>310</a>}
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>counts_group_every_three_digits_from_the_right() {
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">for </span>count <span class="kw">in </span>[<span class="number">0</span>, <span class="number">7</span>, <span class="number">999</span>, <span class="number">1_000</span>, <span class="number">12_345</span>, <span class="number">999_999</span>, <span class="number">12_345_678</span>, u64::MAX] {
+<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">let </span>text = format_count(count);
+<a href=#278 id=278 data-nosnippet>278</a>            <span class="macro">assert_eq!</span>(text.replace(<span class="string">','</span>, <span class="string">""</span>), count.to_string(), <span class="string">"{text}"</span>);
+<a href=#279 id=279 data-nosnippet>279</a>            <span class="kw">let </span>groups = text.split(<span class="string">','</span>).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#280 id=280 data-nosnippet>280</a>            <span class="macro">assert!</span>((<span class="number">1</span>..=<span class="number">3</span>).contains(<span class="kw-2">&amp;</span>groups[<span class="number">0</span>].len()), <span class="string">"{text}"</span>);
+<a href=#281 id=281 data-nosnippet>281</a>            <span class="macro">assert!</span>(groups[<span class="number">1</span>..].iter().all(|group| group.len() == <span class="number">3</span>), <span class="string">"{text}"</span>);
+<a href=#282 id=282 data-nosnippet>282</a>        }
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="macro">assert!</span>(!format_count(<span class="number">999</span>).contains(<span class="string">','</span>));
+<a href=#284 id=284 data-nosnippet>284</a>        <span class="macro">assert!</span>(format_count(<span class="number">1_000</span>).contains(<span class="string">','</span>));
+<a href=#285 id=285 data-nosnippet>285</a>    }
+<a href=#286 id=286 data-nosnippet>286</a>
+<a href=#287 id=287 data-nosnippet>287</a>    <span class="attr">#[test]
+<a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">fn </span>token_counts_turn_to_thousands_at_a_thousand() {
+<a href=#289 id=289 data-nosnippet>289</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">999</span>), <span class="prelude-val">None</span>);
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">1_000</span>), <span class="prelude-val">Some</span>(<span class="number">1.0</span>));
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="macro">assert_eq!</span>(token_thousands(<span class="number">12_500</span>), <span class="prelude-val">Some</span>(<span class="number">12.5</span>));
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="macro">assert_eq!</span>(format_token_count(<span class="number">999</span>), <span class="number">999</span>.to_string());
+<a href=#293 id=293 data-nosnippet>293</a>    }
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="attr">#[test]
+<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">fn </span>short_counts_change_unit_and_drop_the_tenth_at_each_boundary() {
+<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span>short = |whole, tenth, unit| Shortened { whole, tenth, unit };
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="kw">use </span>Magnitude::<span class="kw-2">*</span>;
+<a href=#299 id=299 data-nosnippet>299</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">999</span>), short(<span class="number">999</span>, <span class="prelude-val">None</span>, Ones));
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_000</span>), short(<span class="number">1</span>, <span class="prelude-val">None</span>, Thousands));
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_250</span>), short(<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="number">2</span>), Thousands));
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">9_999</span>), short(<span class="number">9</span>, <span class="prelude-val">Some</span>(<span class="number">9</span>), Thousands));
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">10_000</span>), short(<span class="number">10</span>, <span class="prelude-val">None</span>, Thousands));
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">10_999</span>), short(<span class="number">10</span>, <span class="prelude-val">None</span>, Thousands));
+<a href=#305 id=305 data-nosnippet>305</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">999_999</span>), short(<span class="number">999</span>, <span class="prelude-val">None</span>, Thousands));
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_000_000</span>), short(<span class="number">1</span>, <span class="prelude-val">None</span>, Millions));
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">1_500_000</span>), short(<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="number">5</span>), Millions));
+<a href=#308 id=308 data-nosnippet>308</a>        <span class="macro">assert_eq!</span>(Shortened::of(<span class="number">12_000_000</span>), short(<span class="number">12</span>, <span class="prelude-val">None</span>, Millions));
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="comment">// Every short form fits in four characters.
+<a href=#310 id=310 data-nosnippet>310</a>        </span><span class="kw">for </span>count <span class="kw">in </span>[<span class="number">999</span>, <span class="number">1_250</span>, <span class="number">9_999</span>, <span class="number">999_999</span>, <span class="number">9_999_999</span>, <span class="number">99_999_999</span>] {
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="macro">assert!</span>(compact_count(count).chars().count() &lt;= <span class="number">4</span>, <span class="string">"{count}"</span>);
+<a href=#312 id=312 data-nosnippet>312</a>        }
+<a href=#313 id=313 data-nosnippet>313</a>    }
+<a href=#314 id=314 data-nosnippet>314</a>
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="attr">#[test]
+<a href=#316 id=316 data-nosnippet>316</a>    </span><span class="kw">fn </span>costs_keep_four_decimals_below_a_cent() {
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.0099</span>), <span class="number">4</span>);
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.01</span>), <span class="number">2</span>);
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">12.5</span>), <span class="number">2</span>);
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="macro">assert_eq!</span>(cost_decimals(<span class="number">0.0</span>), <span class="number">4</span>);
+<a href=#321 id=321 data-nosnippet>321</a>    }
+<a href=#322 id=322 data-nosnippet>322</a>
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="attr">#[test]
+<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">fn </span>a_compact_cost_that_rounds_to_no_cents_is_not_zero() {
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="macro">assert!</span>(under_half_a_cent(<span class="number">0.004</span>));
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="macro">assert!</span>(!under_half_a_cent(<span class="number">0.005</span>), <span class="string">"rounds up to a cent"</span>);
+<a href=#327 id=327 data-nosnippet>327</a>        <span class="macro">assert!</span>(!under_half_a_cent(<span class="number">0.0</span>), <span class="string">"nothing is nothing"</span>);
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="macro">assert_ne!</span>(compact_cost(<span class="number">0.004</span>), compact_cost(<span class="number">0.0</span>));
+<a href=#329 id=329 data-nosnippet>329</a>    }
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="attr">#[test]
+<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">fn </span>elapsed_times_turn_over_at_the_minute_and_the_hour() {
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">0</span>), Elapsed::Seconds(<span class="number">0</span>));
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">59</span>), Elapsed::Seconds(<span class="number">59</span>));
+<a href=#335 id=335 data-nosnippet>335</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">60</span>), Elapsed::Minutes(<span class="number">1</span>, <span class="number">0</span>));
+<a href=#336 id=336 data-nosnippet>336</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">83</span>), Elapsed::Minutes(<span class="number">1</span>, <span class="number">23</span>));
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_599</span>), Elapsed::Minutes(<span class="number">59</span>, <span class="number">59</span>));
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_600</span>), Elapsed::Hours(<span class="number">1</span>, <span class="number">0</span>));
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="macro">assert_eq!</span>(Elapsed::of(<span class="number">3_600 </span>+ <span class="number">4 </span>* <span class="number">60 </span>+ <span class="number">59</span>), Elapsed::Hours(<span class="number">1</span>, <span class="number">4</span>));
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="macro">assert_eq!</span>(
+<a href=#341 id=341 data-nosnippet>341</a>            format_elapsed(Duration::from_millis(<span class="number">59_999</span>)),
+<a href=#342 id=342 data-nosnippet>342</a>            format_elapsed(Duration::from_secs(<span class="number">59</span>)),
+<a href=#343 id=343 data-nosnippet>343</a>            <span class="string">"fractions of a second round down"
+<a href=#344 id=344 data-nosnippet>344</a>        </span>);
+<a href=#345 id=345 data-nosnippet>345</a>    }
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="attr">#[test]
+<a href=#348 id=348 data-nosnippet>348</a>    </span><span class="kw">fn </span>relative_times_step_from_minutes_to_a_date() {
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>now = Timestamp::from_second(<span class="number">1_800_000_000</span>).expect(<span class="string">"timestamp"</span>);
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">let </span>ago = |seconds: i64| {
+<a href=#351 id=351 data-nosnippet>351</a>            Ago::of(
+<a href=#352 id=352 data-nosnippet>352</a>                now,
+<a href=#353 id=353 data-nosnippet>353</a>                now.checked_sub(SignedDuration::from_secs(seconds))
+<a href=#354 id=354 data-nosnippet>354</a>                    .expect(<span class="string">"timestamp"</span>),
+<a href=#355 id=355 data-nosnippet>355</a>            )
+<a href=#356 id=356 data-nosnippet>356</a>        };
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">59</span>), Ago::JustNow);
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="macro">assert_eq!</span>(ago(-<span class="number">30</span>), Ago::JustNow, <span class="string">"a later clock is just now"</span>);
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">60</span>), Ago::Minutes(<span class="number">1</span>));
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">3_599</span>), Ago::Minutes(<span class="number">59</span>));
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">3_600</span>), Ago::Hours(<span class="number">1</span>));
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">86_399</span>), Ago::Hours(<span class="number">23</span>));
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">86_400</span>), Ago::Days(<span class="number">1</span>));
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">604_799</span>), Ago::Days(<span class="number">6</span>));
+<a href=#365 id=365 data-nosnippet>365</a>        <span class="macro">assert_eq!</span>(ago(<span class="number">604_800</span>), Ago::On(date(<span class="number">2027</span>, <span class="number">1</span>, <span class="number">8</span>)));
+<a href=#366 id=366 data-nosnippet>366</a>    }
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="attr">#[test]
+<a href=#369 id=369 data-nosnippet>369</a>    </span><span class="kw">fn </span>code_spans_split_at_backtick_pairs() {
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="macro">assert_eq!</span>(
+<a href=#371 id=371 data-nosnippet>371</a>            code_spans(<span class="string">"Run `cargo test` then `git push`."</span>),
+<a href=#372 id=372 data-nosnippet>372</a>            [
+<a href=#373 id=373 data-nosnippet>373</a>                Span::Text(<span class="string">"Run "</span>),
+<a href=#374 id=374 data-nosnippet>374</a>                Span::Code(<span class="string">"cargo test"</span>),
+<a href=#375 id=375 data-nosnippet>375</a>                Span::Text(<span class="string">" then "</span>),
+<a href=#376 id=376 data-nosnippet>376</a>                Span::Code(<span class="string">"git push"</span>),
+<a href=#377 id=377 data-nosnippet>377</a>                Span::Text(<span class="string">"."</span>),
+<a href=#378 id=378 data-nosnippet>378</a>            ]
+<a href=#379 id=379 data-nosnippet>379</a>        );
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="macro">assert_eq!</span>(code_spans(<span class="string">"`a`"</span>), [Span::Code(<span class="string">"a"</span>)]);
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="macro">assert_eq!</span>(code_spans(<span class="string">"plain"</span>), [Span::Text(<span class="string">"plain"</span>)]);
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="macro">assert!</span>(code_spans(<span class="string">""</span>).is_empty());
+<a href=#383 id=383 data-nosnippet>383</a>    }
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a>    <span class="attr">#[test]
+<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">fn </span>code_spans_keep_unpaired_and_empty_backticks() {
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="macro">assert_eq!</span>(code_spans(<span class="string">"it's `open"</span>), [Span::Text(<span class="string">"it's `open"</span>)]);
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="macro">assert_eq!</span>(code_spans(<span class="string">"a `` b"</span>), [Span::Text(<span class="string">"a `` b"</span>)]);
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="macro">assert_eq!</span>(
+<a href=#390 id=390 data-nosnippet>390</a>            code_spans(<span class="string">"`x` and `y"</span>),
+<a href=#391 id=391 data-nosnippet>391</a>            [Span::Code(<span class="string">"x"</span>), Span::Text(<span class="string">" and `y"</span>)]
+<a href=#392 id=392 data-nosnippet>392</a>        );
+<a href=#393 id=393 data-nosnippet>393</a>    }
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="attr">#[test]
+<a href=#396 id=396 data-nosnippet>396</a>    </span><span class="kw">fn </span>short_relative_times_step_like_the_long_ones() {
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>now: Timestamp = <span class="string">"2026-11-12T12:00:00Z"</span>.parse().expect(<span class="string">"a time"</span>);
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>ago = |seconds: i64| now - SignedDuration::from_secs(seconds);
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">59</span>)), <span class="string">"now"</span>);
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">60</span>)), <span class="string">"1m"</span>);
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">3_599</span>)), <span class="string">"59m"</span>);
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">3_600</span>)), <span class="string">"1h"</span>);
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">86_400</span>)), <span class="string">"1d"</span>);
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">604_799</span>)), <span class="string">"6d"</span>);
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="macro">assert_eq!</span>(short_relative_time(now, ago(<span class="number">604_800</span>)), <span class="string">"Nov 5"</span>);
+<a href=#406 id=406 data-nosnippet>406</a>    }
+<a href=#407 id=407 data-nosnippet>407</a>}
 </code></pre></div></section></main></body></html>

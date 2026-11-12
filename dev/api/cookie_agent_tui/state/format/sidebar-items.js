@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compact_cost","compact_count","format_clock_elapsed","format_cost","format_cost_usd","format_count","format_elapsed","format_percent","format_token_count","relative_time"]};
+window.SIDEBAR_ITEMS = {"enum":["Span"],"fn":["code_spans","compact_cost","compact_count","format_clock_elapsed","format_cost","format_cost_usd","format_count","format_elapsed","format_percent","format_token_count","relative_time","short_relative_time"]};
