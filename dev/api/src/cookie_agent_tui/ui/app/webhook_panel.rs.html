@@ -1,0 +1,1384 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/tui/src/ui/app/webhook_panel.rs`."><title>webhook_panel.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="cookie_agent_tui" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_tui/ui/app/</div>webhook_panel.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The `/webhooks` panel (`docs/site/specs/webhooks.md` section 14): the
+<a href=#2 id=2 data-nosnippet>2</a>//! daemon's webhooks with their target, state, check, last outcome, and
+<a href=#3 id=3 data-nosnippet>3</a>//! request counts; the selected webhook's details (its URL first) and
+<a href=#4 id=4 data-nosnippet>4</a>//! history; one event's request; and creating, editing, enabling or
+<a href=#5 id=5 data-nosnippet>5</a>//! disabling, testing, rotating, revealing the secret, copying the URL, and
+<a href=#6 id=6 data-nosnippet>6</a>//! deleting webhooks. A webhook is created and edited as a short form in
+<a href=#7 id=7 data-nosnippet>7</a>//! `$VISUAL` or `$EDITOR` through the editor handoff `/cron` uses.
+<a href=#8 id=8 data-nosnippet>8</a>
+<a href=#9 id=9 data-nosnippet>9</a></span><span class="kw">use </span>cookie_agent_client_state::{
+<a href=#10 id=10 data-nosnippet>10</a>    cron::CronDetail,
+<a href=#11 id=11 data-nosnippet>11</a>    memory::message_of,
+<a href=#12 id=12 data-nosnippet>12</a>    webhook::{
+<a href=#13 id=13 data-nosnippet>13</a>        OutcomeKind, WebhookDraft, check_label, counts_summary, daemon_has_webhooks, detail_lines,
+<a href=#14 id=14 data-nosnippet>14</a>        event_outcome, event_time, events_newest_first, last_outcome, state_label, target_label,
+<a href=#15 id=15 data-nosnippet>15</a>        update_changes_anything, url_looks_private, webhook_title, webhook_url,
+<a href=#16 id=16 data-nosnippet>16</a>    },
+<a href=#17 id=17 data-nosnippet>17</a>};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>cookie_agent_protocol::{
+<a href=#19 id=19 data-nosnippet>19</a>    CronActor, SessionId, SessionOrigin, Webhook, WebhookEventResult, WebhookId, WebhookRotate,
+<a href=#20 id=20 data-nosnippet>20</a>    WebhookTarget, WebhookTemplate, WebhookTestParams, WebhookUpdateParams, WebhooksListResult,
+<a href=#21 id=21 data-nosnippet>21</a>};
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>crossterm::event::{KeyCode, KeyEvent};
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span>jiff::tz::TimeZone;
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use </span>ratatui::{
+<a href=#25 id=25 data-nosnippet>25</a>    Frame,
+<a href=#26 id=26 data-nosnippet>26</a>    layout::{Constraint, Direction, Layout, Rect},
+<a href=#27 id=27 data-nosnippet>27</a>    text::{Line, Span},
+<a href=#28 id=28 data-nosnippet>28</a>    widgets::{Clear, List, ListItem, ListState, Paragraph, Wrap},
+<a href=#29 id=29 data-nosnippet>29</a>};
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">use super</span>::{App, Modal, RpcUpdate, centered, paint_panel};
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">use </span><span class="kw">crate</span>::theme::Theme;
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a><span class="doccomment">/// The mark of a session a webhook started, in the session list.
+<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">const </span>WEBHOOK_RUN_MARK: <span class="kw-2">&amp;</span>str = <span class="string">"⚡"</span>;
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a><span class="doccomment">/// A webhook form to open in the editor; the event loop runs the editor
+<a href=#38 id=38 data-nosnippet>38</a>/// and hands the result to [`App::finish_webhook_edit`].
+<a href=#39 id=39 data-nosnippet>39</a></span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
+<a href=#40 id=40 data-nosnippet>40</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>WebhookEditRequest {
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// The webhook edited; `None` creates one.
+<a href=#42 id=42 data-nosnippet>42</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) webhook: <span class="prelude-ty">Option</span>&lt;Webhook&gt;,
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// The form the text was made from; its target is fixed.
+<a href=#44 id=44 data-nosnippet>44</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) draft: WebhookDraft,
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) text: String,
+<a href=#46 id=46 data-nosnippet>46</a>    <span class="doccomment">/// The form as it was opened.
+<a href=#47 id=47 data-nosnippet>47</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) original: String,
+<a href=#48 id=48 data-nosnippet>48</a>}
+<a href=#49 id=49 data-nosnippet>49</a>
+<a href=#50 id=50 data-nosnippet>50</a><span class="doccomment">/// An action the panel offers, by key or by button.
+<a href=#51 id=51 data-nosnippet>51</a></span><span class="attr">#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+<a href=#52 id=52 data-nosnippet>52</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">enum </span>WebhookAction {
+<a href=#53 id=53 data-nosnippet>53</a>    Edit,
+<a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// A webhook that delivers into the session on screen.
+<a href=#55 id=55 data-nosnippet>55</a>    </span>NewHere,
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// A webhook that starts new sessions.
+<a href=#57 id=57 data-nosnippet>57</a>    </span>NewSessions,
+<a href=#58 id=58 data-nosnippet>58</a>    Enable,
+<a href=#59 id=59 data-nosnippet>59</a>    Disable,
+<a href=#60 id=60 data-nosnippet>60</a>    Test,
+<a href=#61 id=61 data-nosnippet>61</a>    CopyUrl,
+<a href=#62 id=62 data-nosnippet>62</a>    RevealSecret,
+<a href=#63 id=63 data-nosnippet>63</a>    RotateUrl,
+<a href=#64 id=64 data-nosnippet>64</a>    RotateSecret,
+<a href=#65 id=65 data-nosnippet>65</a>    Events,
+<a href=#66 id=66 data-nosnippet>66</a>    Delete,
+<a href=#67 id=67 data-nosnippet>67</a>    Confirm,
+<a href=#68 id=68 data-nosnippet>68</a>    CopySecret,
+<a href=#69 id=69 data-nosnippet>69</a>    OlderEvent,
+<a href=#70 id=70 data-nosnippet>70</a>    NewerEvent,
+<a href=#71 id=71 data-nosnippet>71</a>    Cancel,
+<a href=#72 id=72 data-nosnippet>72</a>    EditAgain,
+<a href=#73 id=73 data-nosnippet>73</a>}
+<a href=#74 id=74 data-nosnippet>74</a>
+<a href=#75 id=75 data-nosnippet>75</a><span class="kw">impl </span>WebhookAction {
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">const fn </span>key_label(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="self">Self</span>::Edit | <span class="self">Self</span>::EditAgain =&gt; <span class="string">"e"</span>,
+<a href=#79 id=79 data-nosnippet>79</a>            <span class="self">Self</span>::NewHere =&gt; <span class="string">"n"</span>,
+<a href=#80 id=80 data-nosnippet>80</a>            <span class="self">Self</span>::NewSessions =&gt; <span class="string">"s"</span>,
+<a href=#81 id=81 data-nosnippet>81</a>            <span class="self">Self</span>::Enable | <span class="self">Self</span>::Disable =&gt; <span class="string">"t"</span>,
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="self">Self</span>::Test =&gt; <span class="string">"p"</span>,
+<a href=#83 id=83 data-nosnippet>83</a>            <span class="self">Self</span>::CopyUrl | <span class="self">Self</span>::CopySecret =&gt; <span class="string">"c"</span>,
+<a href=#84 id=84 data-nosnippet>84</a>            <span class="self">Self</span>::RevealSecret =&gt; <span class="string">"r"</span>,
+<a href=#85 id=85 data-nosnippet>85</a>            <span class="self">Self</span>::RotateUrl =&gt; <span class="string">"u"</span>,
+<a href=#86 id=86 data-nosnippet>86</a>            <span class="self">Self</span>::RotateSecret =&gt; <span class="string">"k"</span>,
+<a href=#87 id=87 data-nosnippet>87</a>            <span class="self">Self</span>::Events =&gt; <span class="string">"v"</span>,
+<a href=#88 id=88 data-nosnippet>88</a>            <span class="self">Self</span>::Delete =&gt; <span class="string">"d"</span>,
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="self">Self</span>::Confirm =&gt; <span class="string">"y"</span>,
+<a href=#90 id=90 data-nosnippet>90</a>            <span class="self">Self</span>::OlderEvent =&gt; <span class="string">"←"</span>,
+<a href=#91 id=91 data-nosnippet>91</a>            <span class="self">Self</span>::NewerEvent =&gt; <span class="string">"→"</span>,
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="self">Self</span>::Cancel =&gt; <span class="string">"esc"</span>,
+<a href=#93 id=93 data-nosnippet>93</a>        }
+<a href=#94 id=94 data-nosnippet>94</a>    }
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">const fn </span>label(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#98 id=98 data-nosnippet>98</a>            <span class="self">Self</span>::Edit =&gt; <span class="string">"edit"</span>,
+<a href=#99 id=99 data-nosnippet>99</a>            <span class="self">Self</span>::NewHere =&gt; <span class="string">"new for this session"</span>,
+<a href=#100 id=100 data-nosnippet>100</a>            <span class="self">Self</span>::NewSessions =&gt; <span class="string">"new for new sessions"</span>,
+<a href=#101 id=101 data-nosnippet>101</a>            <span class="self">Self</span>::Enable =&gt; <span class="string">"enable"</span>,
+<a href=#102 id=102 data-nosnippet>102</a>            <span class="self">Self</span>::Disable =&gt; <span class="string">"disable"</span>,
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="self">Self</span>::Test =&gt; <span class="string">"send a test event"</span>,
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="self">Self</span>::CopyUrl =&gt; <span class="string">"copy URL"</span>,
+<a href=#105 id=105 data-nosnippet>105</a>            <span class="self">Self</span>::RevealSecret =&gt; <span class="string">"show secret"</span>,
+<a href=#106 id=106 data-nosnippet>106</a>            <span class="self">Self</span>::RotateUrl =&gt; <span class="string">"new URL"</span>,
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="self">Self</span>::RotateSecret =&gt; <span class="string">"new secret"</span>,
+<a href=#108 id=108 data-nosnippet>108</a>            <span class="self">Self</span>::Events =&gt; <span class="string">"events"</span>,
+<a href=#109 id=109 data-nosnippet>109</a>            <span class="self">Self</span>::Delete =&gt; <span class="string">"delete"</span>,
+<a href=#110 id=110 data-nosnippet>110</a>            <span class="self">Self</span>::Confirm =&gt; <span class="string">"confirm"</span>,
+<a href=#111 id=111 data-nosnippet>111</a>            <span class="self">Self</span>::CopySecret =&gt; <span class="string">"copy secret"</span>,
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">Self</span>::OlderEvent =&gt; <span class="string">"older"</span>,
+<a href=#113 id=113 data-nosnippet>113</a>            <span class="self">Self</span>::NewerEvent =&gt; <span class="string">"newer"</span>,
+<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">Self</span>::Cancel =&gt; <span class="string">"close"</span>,
+<a href=#115 id=115 data-nosnippet>115</a>            <span class="self">Self</span>::EditAgain =&gt; <span class="string">"edit again"</span>,
+<a href=#116 id=116 data-nosnippet>116</a>        }
+<a href=#117 id=117 data-nosnippet>117</a>    }
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// The key that runs the action, as a terminal reports it.
+<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">fn </span>matches(<span class="self">self</span>, code: KeyCode) -&gt; bool {
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="self">Self</span>::Cancel =&gt; code == KeyCode::Esc,
+<a href=#123 id=123 data-nosnippet>123</a>            <span class="self">Self</span>::OlderEvent =&gt; code == KeyCode::Left,
+<a href=#124 id=124 data-nosnippet>124</a>            <span class="self">Self</span>::NewerEvent =&gt; code == KeyCode::Right,
+<a href=#125 id=125 data-nosnippet>125</a>            <span class="kw">_ </span>=&gt; <span class="macro">matches!</span>(code, KeyCode::Char(key) <span class="kw">if </span><span class="self">self</span>.key_label() == key.to_string()),
+<a href=#126 id=126 data-nosnippet>126</a>        }
+<a href=#127 id=127 data-nosnippet>127</a>    }
+<a href=#128 id=128 data-nosnippet>128</a>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a><span class="doccomment">/// What waits for a `y`: a delete or a rotation of the webhook.
+<a href=#131 id=131 data-nosnippet>131</a></span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
+<a href=#132 id=132 data-nosnippet>132</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">enum </span>WebhookConfirm {
+<a href=#133 id=133 data-nosnippet>133</a>    Delete(Webhook),
+<a href=#134 id=134 data-nosnippet>134</a>    Rotate(Webhook, WebhookRotate),
+<a href=#135 id=135 data-nosnippet>135</a>}
+<a href=#136 id=136 data-nosnippet>136</a>
+<a href=#137 id=137 data-nosnippet>137</a><span class="doccomment">/// One event of a webhook's history, opened to its request.
+<a href=#138 id=138 data-nosnippet>138</a></span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
+<a href=#139 id=139 data-nosnippet>139</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>EventView {
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) webhook: WebhookId,
+<a href=#141 id=141 data-nosnippet>141</a>    <span class="doccomment">/// Its place among the webhook's events, newest first.
+<a href=#142 id=142 data-nosnippet>142</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) index: usize,
+<a href=#143 id=143 data-nosnippet>143</a>    <span class="doccomment">/// `webhooks.event`, or why it failed; `None` until it answers.
+<a href=#144 id=144 data-nosnippet>144</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) request: <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;WebhookEventResult, String&gt;&gt;,
+<a href=#145 id=145 data-nosnippet>145</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) scroll: u16,
+<a href=#146 id=146 data-nosnippet>146</a>}
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a><span class="doccomment">/// Where the panel's clickable parts landed this frame.
+<a href=#149 id=149 data-nosnippet>149</a></span><span class="attr">#[derive(Clone, Debug, Default)]
+<a href=#150 id=150 data-nosnippet>150</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>WebhookHits {
+<a href=#151 id=151 data-nosnippet>151</a>    <span class="doccomment">/// (row rect, webhook index).
+<a href=#152 id=152 data-nosnippet>152</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) rows: Vec&lt;(Rect, usize)&gt;,
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) actions: Vec&lt;(Rect, WebhookAction)&gt;,
+<a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// The details that name a session: the target and the creating one.
+<a href=#155 id=155 data-nosnippet>155</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) sessions: Vec&lt;(Rect, SessionId)&gt;,
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// (history row rect, event index, newest first).
+<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) events: Vec&lt;(Rect, usize)&gt;,
+<a href=#158 id=158 data-nosnippet>158</a>}
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a><span class="attr">#[derive(Default)]
+<a href=#161 id=161 data-nosnippet>161</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">struct </span>WebhookPanelState {
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="doccomment">/// `webhooks.list`, or why it failed; `None` until it answers.
+<a href=#163 id=163 data-nosnippet>163</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) listing: <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;WebhooksListResult, String&gt;&gt;,
+<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) selection: ListState,
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) refresh: <span class="kw">super</span>::ListingRefresh,
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) confirm: <span class="prelude-ty">Option</span>&lt;WebhookConfirm&gt;,
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="doccomment">/// A form the panel or the daemon refused, with why.
+<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) pending: <span class="prelude-ty">Option</span>&lt;(WebhookEditRequest, String)&gt;,
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="doccomment">/// The webhook to select once the listing has it: one just created.
+<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) focus: <span class="prelude-ty">Option</span>&lt;WebhookId&gt;,
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="doccomment">/// A secret on show, with the webhook it is of: after a create or a
+<a href=#172 id=172 data-nosnippet>172</a>    /// rotation, which return it once, or when asked for.
+<a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) secret: <span class="prelude-ty">Option</span>&lt;(String, String)&gt;,
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) event: <span class="prelude-ty">Option</span>&lt;EventView&gt;,
+<a href=#175 id=175 data-nosnippet>175</a>    listing_revision: u64,
+<a href=#176 id=176 data-nosnippet>176</a>    targets: <span class="prelude-ty">Option</span>&lt;((u64, u64, usize), Vec&lt;String&gt;)&gt;,
+<a href=#177 id=177 data-nosnippet>177</a>}
+<a href=#178 id=178 data-nosnippet>178</a>
+<a href=#179 id=179 data-nosnippet>179</a><span class="kw">impl </span>WebhookPanelState {
+<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>webhooks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Webhook] {
+<a href=#181 id=181 data-nosnippet>181</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.listing {
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(listing)) =&gt; <span class="kw-2">&amp;</span>listing.webhooks,
+<a href=#183 id=183 data-nosnippet>183</a>            <span class="kw">_ </span>=&gt; <span class="kw-2">&amp;</span>[],
+<a href=#184 id=184 data-nosnippet>184</a>        }
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>selected_webhook(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Webhook&gt; {
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="self">self</span>.webhooks().get(<span class="self">self</span>.selection.selected()<span class="question-mark">?</span>)
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">fn </span>public_base(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.listing {
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(listing)) =&gt; listing.public_base.as_deref(),
+<a href=#194 id=194 data-nosnippet>194</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#195 id=195 data-nosnippet>195</a>        }
+<a href=#196 id=196 data-nosnippet>196</a>    }
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// The actions the panel offers now; `here` is whether a session is
+<a href=#199 id=199 data-nosnippet>199</a>    /// on screen to deliver into.
+<a href=#200 id=200 data-nosnippet>200</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>actions(<span class="kw-2">&amp;</span><span class="self">self</span>, here: bool) -&gt; Vec&lt;WebhookAction&gt; {
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">use </span>WebhookAction <span class="kw">as </span>A;
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="kw">if </span><span class="self">self</span>.pending.is_some() {
+<a href=#203 id=203 data-nosnippet>203</a>            <span class="kw">return </span><span class="macro">vec!</span>[A::EditAgain, A::Cancel];
+<a href=#204 id=204 data-nosnippet>204</a>        }
+<a href=#205 id=205 data-nosnippet>205</a>        <span class="kw">if </span><span class="self">self</span>.confirm.is_some() {
+<a href=#206 id=206 data-nosnippet>206</a>            <span class="kw">return </span><span class="macro">vec!</span>[A::Confirm, A::Cancel];
+<a href=#207 id=207 data-nosnippet>207</a>        }
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">if </span><span class="self">self</span>.secret.is_some() {
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">return </span><span class="macro">vec!</span>[A::CopySecret, A::Cancel];
+<a href=#210 id=210 data-nosnippet>210</a>        }
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(view) = <span class="kw-2">&amp;</span><span class="self">self</span>.event {
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="kw">let </span>count = <span class="self">self
+<a href=#213 id=213 data-nosnippet>213</a>                </span>.webhooks()
+<a href=#214 id=214 data-nosnippet>214</a>                .iter()
+<a href=#215 id=215 data-nosnippet>215</a>                .find(|webhook| webhook.id == view.webhook)
+<a href=#216 id=216 data-nosnippet>216</a>                .map_or(<span class="number">0</span>, |webhook| webhook.history.len());
+<a href=#217 id=217 data-nosnippet>217</a>            <span class="kw">let </span><span class="kw-2">mut </span>actions = Vec::new();
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="kw">if </span>view.index + <span class="number">1 </span>&lt; count {
+<a href=#219 id=219 data-nosnippet>219</a>                actions.push(A::OlderEvent);
+<a href=#220 id=220 data-nosnippet>220</a>            }
+<a href=#221 id=221 data-nosnippet>221</a>            <span class="kw">if </span>view.index &gt; <span class="number">0 </span>{
+<a href=#222 id=222 data-nosnippet>222</a>                actions.push(A::NewerEvent);
+<a href=#223 id=223 data-nosnippet>223</a>            }
+<a href=#224 id=224 data-nosnippet>224</a>            actions.push(A::Cancel);
+<a href=#225 id=225 data-nosnippet>225</a>            <span class="kw">return </span>actions;
+<a href=#226 id=226 data-nosnippet>226</a>        }
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.listing, <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>))) {
+<a href=#228 id=228 data-nosnippet>228</a>            <span class="kw">return </span>Vec::new();
+<a href=#229 id=229 data-nosnippet>229</a>        }
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span><span class="kw-2">mut </span>actions = Vec::new();
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = <span class="self">self</span>.selected_webhook() {
+<a href=#232 id=232 data-nosnippet>232</a>            actions.push(A::Edit);
+<a href=#233 id=233 data-nosnippet>233</a>            actions.push(A::CopyUrl);
+<a href=#234 id=234 data-nosnippet>234</a>            actions.push(A::Test);
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">if </span>!webhook.history.is_empty() {
+<a href=#236 id=236 data-nosnippet>236</a>                actions.push(A::Events);
+<a href=#237 id=237 data-nosnippet>237</a>            }
+<a href=#238 id=238 data-nosnippet>238</a>            actions.push(<span class="kw">if </span>webhook.enabled {
+<a href=#239 id=239 data-nosnippet>239</a>                A::Disable
+<a href=#240 id=240 data-nosnippet>240</a>            } <span class="kw">else </span>{
+<a href=#241 id=241 data-nosnippet>241</a>                A::Enable
+<a href=#242 id=242 data-nosnippet>242</a>            });
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">if </span>webhook.verify.is_some() {
+<a href=#244 id=244 data-nosnippet>244</a>                actions.push(A::RevealSecret);
+<a href=#245 id=245 data-nosnippet>245</a>                actions.push(A::RotateSecret);
+<a href=#246 id=246 data-nosnippet>246</a>            }
+<a href=#247 id=247 data-nosnippet>247</a>            actions.push(A::RotateUrl);
+<a href=#248 id=248 data-nosnippet>248</a>            actions.push(A::Delete);
+<a href=#249 id=249 data-nosnippet>249</a>        }
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">if </span>here {
+<a href=#251 id=251 data-nosnippet>251</a>            actions.push(A::NewHere);
+<a href=#252 id=252 data-nosnippet>252</a>        }
+<a href=#253 id=253 data-nosnippet>253</a>        actions.push(A::NewSessions);
+<a href=#254 id=254 data-nosnippet>254</a>        actions
+<a href=#255 id=255 data-nosnippet>255</a>    }
+<a href=#256 id=256 data-nosnippet>256</a>
+<a href=#257 id=257 data-nosnippet>257</a>    <span class="kw">fn </span>install(<span class="kw-2">&amp;mut </span><span class="self">self</span>, listing: <span class="prelude-ty">Result</span>&lt;WebhooksListResult, String&gt;) {
+<a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">let </span>selected = <span class="self">self</span>.selected_webhook().map(|webhook| webhook.id.clone());
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="self">self</span>.listing = <span class="prelude-val">Some</span>(listing);
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="self">self</span>.listing_revision = <span class="self">self</span>.listing_revision.wrapping_add(<span class="number">1</span>);
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>count = <span class="self">self</span>.webhooks().len();
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">let </span>index_of = |id: <span class="kw-2">&amp;</span>WebhookId| <span class="self">self</span>.webhooks().iter().position(|hook| hook.id == <span class="kw-2">*</span>id);
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self</span>.focus.as_ref().and_then(index_of) {
+<a href=#264 id=264 data-nosnippet>264</a>            <span class="self">self</span>.focus = <span class="prelude-val">None</span>;
+<a href=#265 id=265 data-nosnippet>265</a>            <span class="self">self</span>.selection.select(<span class="prelude-val">Some</span>(index));
+<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">return</span>;
+<a href=#267 id=267 data-nosnippet>267</a>        }
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = selected.as_ref().and_then(index_of) {
+<a href=#269 id=269 data-nosnippet>269</a>            <span class="self">self</span>.selection.select(<span class="prelude-val">Some</span>(index));
+<a href=#270 id=270 data-nosnippet>270</a>            <span class="kw">return</span>;
+<a href=#271 id=271 data-nosnippet>271</a>        }
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="self">self</span>.selection
+<a href=#273 id=273 data-nosnippet>273</a>            .select((count &gt; <span class="number">0</span>).then(|| <span class="self">self</span>.selection.selected().unwrap_or(<span class="number">0</span>).min(count - <span class="number">1</span>)));
+<a href=#274 id=274 data-nosnippet>274</a>    }
+<a href=#275 id=275 data-nosnippet>275</a>}
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a><span class="doccomment">/// A webhook's row: title, target, state, check, last outcome, counts.
+<a href=#278 id=278 data-nosnippet>278</a></span><span class="kw">fn </span>row_line(webhook: <span class="kw-2">&amp;</span>Webhook, target: <span class="kw-2">&amp;</span>str, theme: <span class="kw-2">&amp;</span>Theme) -&gt; Line&lt;<span class="lifetime">'static</span>&gt; {
+<a href=#279 id=279 data-nosnippet>279</a>    <span class="kw">let </span>outcome = last_outcome(webhook);
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">let </span>outcome_style = <span class="kw">if </span>outcome == <span class="prelude-val">Some</span>(OutcomeKind::Failed) {
+<a href=#281 id=281 data-nosnippet>281</a>        theme.error()
+<a href=#282 id=282 data-nosnippet>282</a>    } <span class="kw">else </span>{
+<a href=#283 id=283 data-nosnippet>283</a>        theme.muted()
+<a href=#284 id=284 data-nosnippet>284</a>    };
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">let </span>last = webhook.history.last().map_or_else(
+<a href=#286 id=286 data-nosnippet>286</a>        || <span class="string">"no events"</span>.to_owned(),
+<a href=#287 id=287 data-nosnippet>287</a>        |event| <span class="macro">format!</span>(<span class="string">"last {}"</span>, event_outcome(event)),
+<a href=#288 id=288 data-nosnippet>288</a>    );
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">let </span>counts = counts_summary(<span class="kw-2">&amp;</span>webhook.counts);
+<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">let </span><span class="kw-2">mut </span>spans = <span class="macro">vec!</span>[
+<a href=#291 id=291 data-nosnippet>291</a>        Span::styled(webhook_title(webhook), theme.body()),
+<a href=#292 id=292 data-nosnippet>292</a>        Span::styled(<span class="macro">format!</span>(<span class="string">"  → {target}"</span>), theme.muted()),
+<a href=#293 id=293 data-nosnippet>293</a>        Span::styled(
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="macro">format!</span>(<span class="string">"  {}"</span>, state_label(webhook)),
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="kw">if </span>webhook.enabled {
+<a href=#296 id=296 data-nosnippet>296</a>                theme.muted()
+<a href=#297 id=297 data-nosnippet>297</a>            } <span class="kw">else </span>{
+<a href=#298 id=298 data-nosnippet>298</a>                theme.warning()
+<a href=#299 id=299 data-nosnippet>299</a>            },
+<a href=#300 id=300 data-nosnippet>300</a>        ),
+<a href=#301 id=301 data-nosnippet>301</a>        Span::styled(
+<a href=#302 id=302 data-nosnippet>302</a>            <span class="macro">format!</span>(<span class="string">"  {}"</span>, check_label(webhook.verify.as_ref())),
+<a href=#303 id=303 data-nosnippet>303</a>            theme.muted(),
+<a href=#304 id=304 data-nosnippet>304</a>        ),
+<a href=#305 id=305 data-nosnippet>305</a>        Span::styled(<span class="macro">format!</span>(<span class="string">"  {last}"</span>), outcome_style),
+<a href=#306 id=306 data-nosnippet>306</a>    ];
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">if </span>!counts.is_empty() {
+<a href=#308 id=308 data-nosnippet>308</a>        spans.push(Span::styled(<span class="macro">format!</span>(<span class="string">"  {counts}"</span>), theme.muted()));
+<a href=#309 id=309 data-nosnippet>309</a>    }
+<a href=#310 id=310 data-nosnippet>310</a>    Line::from(spans)
+<a href=#311 id=311 data-nosnippet>311</a>}
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a><span class="doccomment">/// The URL a webhook is reached at, or its path when the TUI knows no page
+<a href=#314 id=314 data-nosnippet>314</a>/// address (a daemon inside this process), and whether the address looks
+<a href=#315 id=315 data-nosnippet>315</a>/// private.
+<a href=#316 id=316 data-nosnippet>316</a></span><span class="kw">fn </span>url_of(panel: <span class="kw-2">&amp;</span>WebhookPanelState, webhook: <span class="kw-2">&amp;</span>Webhook, page: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; (String, bool) {
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">let </span>public = panel.public_base();
+<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">match </span>(public, page) {
+<a href=#319 id=319 data-nosnippet>319</a>        (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; (webhook.path.clone(), <span class="bool-val">true</span>),
+<a href=#320 id=320 data-nosnippet>320</a>        (public, page) =&gt; {
+<a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">let </span>page = page.unwrap_or_default();
+<a href=#322 id=322 data-nosnippet>322</a>            (
+<a href=#323 id=323 data-nosnippet>323</a>                webhook_url(public, page, <span class="kw-2">&amp;</span>webhook.path),
+<a href=#324 id=324 data-nosnippet>324</a>                url_looks_private(public, page),
+<a href=#325 id=325 data-nosnippet>325</a>            )
+<a href=#326 id=326 data-nosnippet>326</a>        }
+<a href=#327 id=327 data-nosnippet>327</a>    }
+<a href=#328 id=328 data-nosnippet>328</a>}
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a><span class="doccomment">/// The details pane's text, below the details that link to a session.
+<a href=#331 id=331 data-nosnippet>331</a></span><span class="kw">fn </span>detail_text(
+<a href=#332 id=332 data-nosnippet>332</a>    panel: <span class="kw-2">&amp;</span>WebhookPanelState,
+<a href=#333 id=333 data-nosnippet>333</a>    details: <span class="kw-2">&amp;</span>[CronDetail],
+<a href=#334 id=334 data-nosnippet>334</a>    private: bool,
+<a href=#335 id=335 data-nosnippet>335</a>    here: bool,
+<a href=#336 id=336 data-nosnippet>336</a>) -&gt; String {
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, message)) = <span class="kw-2">&amp;</span>panel.pending {
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"Not saved: {message}\n\ne edits your form again; Esc drops it."</span>);
+<a href=#339 id=339 data-nosnippet>339</a>    }
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>panel.confirm {
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="prelude-val">Some</span>(WebhookConfirm::Delete(webhook)) =&gt; {
+<a href=#342 id=342 data-nosnippet>342</a>            <span class="kw">return </span><span class="macro">format!</span>(
+<a href=#343 id=343 data-nosnippet>343</a>                <span class="string">"Delete {}? Its URL stops working at once; its sessions stay. y deletes; Esc cancels."</span>,
+<a href=#344 id=344 data-nosnippet>344</a>                webhook_title(webhook)
+<a href=#345 id=345 data-nosnippet>345</a>            );
+<a href=#346 id=346 data-nosnippet>346</a>        }
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="prelude-val">Some</span>(WebhookConfirm::Rotate(webhook, WebhookRotate::Url)) =&gt; {
+<a href=#348 id=348 data-nosnippet>348</a>            <span class="kw">return </span><span class="macro">format!</span>(
+<a href=#349 id=349 data-nosnippet>349</a>                <span class="string">"Give {} a new URL? The old one stops working at once, so the sender needs the new one. y confirms; Esc cancels."</span>,
+<a href=#350 id=350 data-nosnippet>350</a>                webhook_title(webhook)
+<a href=#351 id=351 data-nosnippet>351</a>            );
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="prelude-val">Some</span>(WebhookConfirm::Rotate(webhook, WebhookRotate::Secret)) =&gt; {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">return </span><span class="macro">format!</span>(
+<a href=#355 id=355 data-nosnippet>355</a>                <span class="string">"Make a new secret for {}? Requests signed with the old one are refused at once. y confirms; Esc cancels."</span>,
+<a href=#356 id=356 data-nosnippet>356</a>                webhook_title(webhook)
+<a href=#357 id=357 data-nosnippet>357</a>            );
+<a href=#358 id=358 data-nosnippet>358</a>        }
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="prelude-val">None </span>=&gt; {}
+<a href=#360 id=360 data-nosnippet>360</a>    }
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>((title, secret)) = <span class="kw-2">&amp;</span>panel.secret {
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw">return </span><span class="macro">format!</span>(
+<a href=#363 id=363 data-nosnippet>363</a>            <span class="string">"The secret of {title}:\n\n{secret}\n\nGive it to the sender. c copies it; Esc hides it."
+<a href=#364 id=364 data-nosnippet>364</a>        </span>);
+<a href=#365 id=365 data-nosnippet>365</a>    }
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>panel.listing {
+<a href=#367 id=367 data-nosnippet>367</a>        <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="string">"Loading webhooks..."</span>.into(),
+<a href=#368 id=368 data-nosnippet>368</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"Webhooks are unavailable: {error}"</span>),
+<a href=#369 id=369 data-nosnippet>369</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) =&gt; {}
+<a href=#370 id=370 data-nosnippet>370</a>    }
+<a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(webhook) = panel.selected_webhook() <span class="kw">else </span>{
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>into = <span class="kw">if </span>here {
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="string">"n makes one that delivers into this session, s one that starts new sessions."
+<a href=#374 id=374 data-nosnippet>374</a>        </span>} <span class="kw">else </span>{
+<a href=#375 id=375 data-nosnippet>375</a>            <span class="string">"s makes one that starts a new session per event, or per thread key."
+<a href=#376 id=376 data-nosnippet>376</a>        </span>};
+<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"No webhooks yet. {into}"</span>);
+<a href=#378 id=378 data-nosnippet>378</a>    };
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">let </span><span class="kw-2">mut </span>lines: Vec&lt;String&gt; = details
+<a href=#380 id=380 data-nosnippet>380</a>        .iter()
+<a href=#381 id=381 data-nosnippet>381</a>        .filter(|detail| detail.session.is_none())
+<a href=#382 id=382 data-nosnippet>382</a>        .map(|detail| <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, detail.label, detail.value))
+<a href=#383 id=383 data-nosnippet>383</a>        .collect();
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="kw">if </span>private {
+<a href=#385 id=385 data-nosnippet>385</a>        lines.insert(
+<a href=#386 id=386 data-nosnippet>386</a>            <span class="number">2</span>.min(lines.len()),
+<a href=#387 id=387 data-nosnippet>387</a>            <span class="string">"! This URL works only where cookie's page can be reached; set [public] url for senders on the internet."</span>.into(),
+<a href=#388 id=388 data-nosnippet>388</a>        );
+<a href=#389 id=389 data-nosnippet>389</a>    }
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(prompt) = <span class="kw-2">&amp;</span>webhook.prompt {
+<a href=#391 id=391 data-nosnippet>391</a>        lines.push(String::new());
+<a href=#392 id=392 data-nosnippet>392</a>        lines.push(prompt.clone());
+<a href=#393 id=393 data-nosnippet>393</a>    }
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">if let </span>WebhookTarget::New(WebhookTemplate {
+<a href=#395 id=395 data-nosnippet>395</a>        thread_prompt: <span class="prelude-val">Some</span>(thread_prompt),
+<a href=#396 id=396 data-nosnippet>396</a>        ..
+<a href=#397 id=397 data-nosnippet>397</a>    }) = <span class="kw-2">&amp;</span>webhook.target
+<a href=#398 id=398 data-nosnippet>398</a>    {
+<a href=#399 id=399 data-nosnippet>399</a>        lines.push(String::new());
+<a href=#400 id=400 data-nosnippet>400</a>        lines.push(<span class="string">"Thread prompt:"</span>.into());
+<a href=#401 id=401 data-nosnippet>401</a>        lines.push(thread_prompt.clone());
+<a href=#402 id=402 data-nosnippet>402</a>    }
+<a href=#403 id=403 data-nosnippet>403</a>    lines.join(<span class="string">"\n"</span>)
+<a href=#404 id=404 data-nosnippet>404</a>}
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a><span class="doccomment">/// Whether the details pane shows the selected webhook's details.
+<a href=#407 id=407 data-nosnippet>407</a></span><span class="kw">fn </span>shows_details(panel: <span class="kw-2">&amp;</span>WebhookPanelState) -&gt; bool {
+<a href=#408 id=408 data-nosnippet>408</a>    panel.pending.is_none()
+<a href=#409 id=409 data-nosnippet>409</a>        &amp;&amp; panel.confirm.is_none()
+<a href=#410 id=410 data-nosnippet>410</a>        &amp;&amp; panel.secret.is_none()
+<a href=#411 id=411 data-nosnippet>411</a>        &amp;&amp; <span class="macro">matches!</span>(panel.listing, <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)))
+<a href=#412 id=412 data-nosnippet>412</a>        &amp;&amp; panel.selected_webhook().is_some()
+<a href=#413 id=413 data-nosnippet>413</a>}
+<a href=#414 id=414 data-nosnippet>414</a>
+<a href=#415 id=415 data-nosnippet>415</a><span class="doccomment">/// The history pane's lines, newest first.
+<a href=#416 id=416 data-nosnippet>416</a></span><span class="kw">fn </span>history_lines(webhook: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Webhook&gt;) -&gt; Vec&lt;String&gt; {
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(webhook) = webhook <span class="kw">else </span>{
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">return </span>Vec::new();
+<a href=#419 id=419 data-nosnippet>419</a>    };
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="kw">if </span>webhook.history.is_empty() {
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">return </span><span class="macro">vec!</span>[<span class="string">"No events yet. p sends a test event."</span>.into()];
+<a href=#422 id=422 data-nosnippet>422</a>    }
+<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">let </span>zone = TimeZone::system();
+<a href=#424 id=424 data-nosnippet>424</a>    events_newest_first(webhook)
+<a href=#425 id=425 data-nosnippet>425</a>        .map(|event| {
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="kw">let </span>thread = event
+<a href=#427 id=427 data-nosnippet>427</a>                .thread_key
+<a href=#428 id=428 data-nosnippet>428</a>                .as_ref()
+<a href=#429 id=429 data-nosnippet>429</a>                .map_or_else(String::new, |key| <span class="macro">format!</span>(<span class="string">"  thread {key}"</span>));
+<a href=#430 id=430 data-nosnippet>430</a>            <span class="kw">let </span>test = <span class="kw">if </span>event.test { <span class="string">"  test" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="macro">format!</span>(
+<a href=#432 id=432 data-nosnippet>432</a>                <span class="string">"{}  {}{thread}{test}"</span>,
+<a href=#433 id=433 data-nosnippet>433</a>                event_time(event, <span class="kw-2">&amp;</span>zone),
+<a href=#434 id=434 data-nosnippet>434</a>                event_outcome(event)
+<a href=#435 id=435 data-nosnippet>435</a>            )
+<a href=#436 id=436 data-nosnippet>436</a>        })
+<a href=#437 id=437 data-nosnippet>437</a>        .collect()
+<a href=#438 id=438 data-nosnippet>438</a>}
+<a href=#439 id=439 data-nosnippet>439</a>
+<a href=#440 id=440 data-nosnippet>440</a><span class="doccomment">/// An event's request as the event view shows it.
+<a href=#441 id=441 data-nosnippet>441</a></span><span class="kw">fn </span>event_text(webhook: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Webhook&gt;, view: <span class="kw-2">&amp;</span>EventView) -&gt; String {
+<a href=#442 id=442 data-nosnippet>442</a>    <span class="kw">let </span>zone = TimeZone::system();
+<a href=#443 id=443 data-nosnippet>443</a>    <span class="kw">let </span>event = webhook.and_then(|webhook| events_newest_first(webhook).nth(view.index));
+<a href=#444 id=444 data-nosnippet>444</a>    <span class="kw">let </span><span class="kw-2">mut </span>lines = Vec::new();
+<a href=#445 id=445 data-nosnippet>445</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(event) = event {
+<a href=#446 id=446 data-nosnippet>446</a>        lines.push(<span class="macro">format!</span>(
+<a href=#447 id=447 data-nosnippet>447</a>            <span class="string">"{}  {}  {} bytes"</span>,
+<a href=#448 id=448 data-nosnippet>448</a>            event_time(event, <span class="kw-2">&amp;</span>zone),
+<a href=#449 id=449 data-nosnippet>449</a>            event_outcome(event),
+<a href=#450 id=450 data-nosnippet>450</a>            event.bytes
+<a href=#451 id=451 data-nosnippet>451</a>        ));
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(delivery) = <span class="kw-2">&amp;</span>event.delivery_id {
+<a href=#453 id=453 data-nosnippet>453</a>            lines.push(<span class="macro">format!</span>(<span class="string">"delivery: {delivery}"</span>));
+<a href=#454 id=454 data-nosnippet>454</a>        }
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(key) = <span class="kw-2">&amp;</span>event.thread_key {
+<a href=#456 id=456 data-nosnippet>456</a>            lines.push(<span class="macro">format!</span>(<span class="string">"thread: {key}"</span>));
+<a href=#457 id=457 data-nosnippet>457</a>        }
+<a href=#458 id=458 data-nosnippet>458</a>        lines.push(String::new());
+<a href=#459 id=459 data-nosnippet>459</a>    }
+<a href=#460 id=460 data-nosnippet>460</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>view.request {
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="prelude-val">None </span>=&gt; lines.push(<span class="string">"Loading the request..."</span>.into()),
+<a href=#462 id=462 data-nosnippet>462</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; lines.push(<span class="macro">format!</span>(<span class="string">"The request is unavailable: {error}"</span>)),
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(request)) =&gt; {
+<a href=#464 id=464 data-nosnippet>464</a>            lines.push(request.method.clone());
+<a href=#465 id=465 data-nosnippet>465</a>            <span class="kw">for </span>header <span class="kw">in </span><span class="kw-2">&amp;</span>request.headers {
+<a href=#466 id=466 data-nosnippet>466</a>                lines.push(<span class="macro">format!</span>(<span class="string">"{}: {}"</span>, header.name, header.value));
+<a href=#467 id=467 data-nosnippet>467</a>            }
+<a href=#468 id=468 data-nosnippet>468</a>            lines.push(String::new());
+<a href=#469 id=469 data-nosnippet>469</a>            <span class="kw">match </span>(<span class="kw-2">&amp;</span>request.body_text, <span class="kw-2">&amp;</span>request.body_base64) {
+<a href=#470 id=470 data-nosnippet>470</a>                (<span class="prelude-val">Some</span>(text), <span class="kw">_</span>) =&gt; lines.push(pretty_body(text)),
+<a href=#471 id=471 data-nosnippet>471</a>                (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(base64)) =&gt; {
+<a href=#472 id=472 data-nosnippet>472</a>                    lines.push(<span class="macro">format!</span>(<span class="string">"(binary, {} base64 characters)"</span>, base64.len()));
+<a href=#473 id=473 data-nosnippet>473</a>                }
+<a href=#474 id=474 data-nosnippet>474</a>                (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; lines.push(<span class="string">"(no body)"</span>.into()),
+<a href=#475 id=475 data-nosnippet>475</a>            }
+<a href=#476 id=476 data-nosnippet>476</a>        }
+<a href=#477 id=477 data-nosnippet>477</a>    }
+<a href=#478 id=478 data-nosnippet>478</a>    lines.join(<span class="string">"\n"</span>)
+<a href=#479 id=479 data-nosnippet>479</a>}
+<a href=#480 id=480 data-nosnippet>480</a>
+<a href=#481 id=481 data-nosnippet>481</a><span class="doccomment">/// A JSON body pretty-printed, anything else as it came.
+<a href=#482 id=482 data-nosnippet>482</a></span><span class="kw">fn </span>pretty_body(text: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#483 id=483 data-nosnippet>483</a>    serde_json::from_str::&lt;serde_json::Value&gt;(text)
+<a href=#484 id=484 data-nosnippet>484</a>        .ok()
+<a href=#485 id=485 data-nosnippet>485</a>        .and_then(|value| serde_json::to_string_pretty(<span class="kw-2">&amp;</span>value).ok())
+<a href=#486 id=486 data-nosnippet>486</a>        .unwrap_or_else(|| text.to_owned())
+<a href=#487 id=487 data-nosnippet>487</a>}
+<a href=#488 id=488 data-nosnippet>488</a>
+<a href=#489 id=489 data-nosnippet>489</a><span class="kw">impl </span>App {
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="doccomment">/// Whether the daemon keeps webhooks (client protocol 1.96).
+<a href=#491 id=491 data-nosnippet>491</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>daemon_has_webhooks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#492 id=492 data-nosnippet>492</a>        daemon_has_webhooks(<span class="self">self</span>.client.daemon_version())
+<a href=#493 id=493 data-nosnippet>493</a>    }
+<a href=#494 id=494 data-nosnippet>494</a>
+<a href=#495 id=495 data-nosnippet>495</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>open_webhook_panel(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="kw">if </span>!<span class="self">self</span>.daemon_has_webhooks() {
+<a href=#497 id=497 data-nosnippet>497</a>            <span class="self">self</span>.status =
+<a href=#498 id=498 data-nosnippet>498</a>                <span class="string">"This daemon does not keep webhooks; it needs client protocol 1.96."</span>.into();
+<a href=#499 id=499 data-nosnippet>499</a>            <span class="kw">return</span>;
+<a href=#500 id=500 data-nosnippet>500</a>        }
+<a href=#501 id=501 data-nosnippet>501</a>        <span class="self">self</span>.webhook_panel = WebhookPanelState::default();
+<a href=#502 id=502 data-nosnippet>502</a>        <span class="self">self</span>.modal = Modal::Webhooks;
+<a href=#503 id=503 data-nosnippet>503</a>        <span class="self">self</span>.poll_webhooks();
+<a href=#504 id=504 data-nosnippet>504</a>    }
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// `/webhooks new`: the panel, with a new webhook's form for the
+<a href=#507 id=507 data-nosnippet>507</a>    /// session on screen.
+<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>webhook_for_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#509 id=509 data-nosnippet>509</a>        <span class="self">self</span>.open_webhook_panel();
+<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">if </span><span class="self">self</span>.modal == Modal::Webhooks {
+<a href=#511 id=511 data-nosnippet>511</a>            <span class="self">self</span>.begin_new_webhook(<span class="bool-val">true</span>);
+<a href=#512 id=512 data-nosnippet>512</a>        }
+<a href=#513 id=513 data-nosnippet>513</a>    }
+<a href=#514 id=514 data-nosnippet>514</a>
+<a href=#515 id=515 data-nosnippet>515</a>    <span class="doccomment">/// Fetches `webhooks.list` for the open panel.
+<a href=#516 id=516 data-nosnippet>516</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>poll_webhooks(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">if </span><span class="self">self</span>.modal != Modal::Webhooks || !<span class="self">self</span>.webhook_panel.refresh.start() {
+<a href=#518 id=518 data-nosnippet>518</a>            <span class="kw">return</span>;
+<a href=#519 id=519 data-nosnippet>519</a>        }
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#522 id=522 data-nosnippet>522</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#523 id=523 data-nosnippet>523</a>            <span class="kw">let </span>result = client
+<a href=#524 id=524 data-nosnippet>524</a>                .list_webhooks()
+<a href=#525 id=525 data-nosnippet>525</a>                .<span class="kw">await
+<a href=#526 id=526 data-nosnippet>526</a>                </span>.map_err(|error| message_of(<span class="kw-2">&amp;</span>error));
+<a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::WebhooksListed { result });
+<a href=#528 id=528 data-nosnippet>528</a>        });
+<a href=#529 id=529 data-nosnippet>529</a>    }
+<a href=#530 id=530 data-nosnippet>530</a>
+<a href=#531 id=531 data-nosnippet>531</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>install_webhook_listing(
+<a href=#532 id=532 data-nosnippet>532</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#533 id=533 data-nosnippet>533</a>        result: <span class="prelude-ty">Result</span>&lt;WebhooksListResult, String&gt;,
+<a href=#534 id=534 data-nosnippet>534</a>    ) {
+<a href=#535 id=535 data-nosnippet>535</a>        <span class="kw">let </span>again = <span class="self">self</span>.webhook_panel.refresh.landed();
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="self">self</span>.webhook_panel.install(result);
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">if </span>again {
+<a href=#538 id=538 data-nosnippet>538</a>            <span class="self">self</span>.poll_webhooks();
+<a href=#539 id=539 data-nosnippet>539</a>        }
+<a href=#540 id=540 data-nosnippet>540</a>    }
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a>    <span class="doccomment">/// The session on screen as a target: its ID and whether it is a
+<a href=#543 id=543 data-nosnippet>543</a>    /// delegated one.
+<a href=#544 id=544 data-nosnippet>544</a>    </span><span class="kw">fn </span>viewed_webhook_session(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(SessionId, bool)&gt; {
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>session = <span class="self">self</span>.viewed_session()<span class="question-mark">?</span>;
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>subagent = <span class="self">self
+<a href=#547 id=547 data-nosnippet>547</a>            </span>.selected_session_meta()
+<a href=#548 id=548 data-nosnippet>548</a>            .is_some_and(|meta| <span class="macro">matches!</span>(meta.origin, SessionOrigin::Delegated { .. }));
+<a href=#549 id=549 data-nosnippet>549</a>        <span class="prelude-val">Some</span>((session, subagent))
+<a href=#550 id=550 data-nosnippet>550</a>    }
+<a href=#551 id=551 data-nosnippet>551</a>
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="doccomment">/// What a new-session webhook starts from by default: the current
+<a href=#553 id=553 data-nosnippet>553</a>    /// agent, its preset, the session's project, and this directory.
+<a href=#554 id=554 data-nosnippet>554</a>    </span><span class="kw">fn </span>default_webhook_template(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;WebhookTemplate&gt; {
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>selection = <span class="self">self
+<a href=#556 id=556 data-nosnippet>556</a>            </span>.draft
+<a href=#557 id=557 data-nosnippet>557</a>            .clone()
+<a href=#558 id=558 data-nosnippet>558</a>            .or_else(|| {
+<a href=#559 id=559 data-nosnippet>559</a>                <span class="self">self</span>.selected_session_meta()
+<a href=#560 id=560 data-nosnippet>560</a>                    .map(|meta| meta.creation_selection.clone())
+<a href=#561 id=561 data-nosnippet>561</a>            })
+<a href=#562 id=562 data-nosnippet>562</a>            .or_else(|| <span class="self">self</span>.default_draft_selection())<span class="question-mark">?</span>;
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span><span class="kw-2">mut </span>template = WebhookTemplate::for_agent(selection.agent);
+<a href=#564 id=564 data-nosnippet>564</a>        template.preset = selection.preset;
+<a href=#565 id=565 data-nosnippet>565</a>        template.project = <span class="self">self
+<a href=#566 id=566 data-nosnippet>566</a>            </span>.selected_session_meta()
+<a href=#567 id=567 data-nosnippet>567</a>            .and_then(|meta| meta.project.clone());
+<a href=#568 id=568 data-nosnippet>568</a>        template.cwd = <span class="self">self</span>.cwd.clone();
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="prelude-val">Some</span>(template)
+<a href=#570 id=570 data-nosnippet>570</a>    }
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">fn </span>webhook_session_title(<span class="kw-2">&amp;</span><span class="self">self</span>, session: SessionId) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#573 id=573 data-nosnippet>573</a>        <span class="self">self</span>.sessions
+<a href=#574 id=574 data-nosnippet>574</a>            .iter()
+<a href=#575 id=575 data-nosnippet>575</a>            .find(|meta| meta.session_id == session)
+<a href=#576 id=576 data-nosnippet>576</a>            .and_then(|meta| meta.title.as_ref())
+<a href=#577 id=577 data-nosnippet>577</a>            .map(ToString::to_string)
+<a href=#578 id=578 data-nosnippet>578</a>    }
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">fn </span>webhook_target_label(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>WebhookTarget) -&gt; String {
+<a href=#581 id=581 data-nosnippet>581</a>        target_label(target, <span class="kw-2">&amp;</span><span class="self">self</span>.projects, |session| {
+<a href=#582 id=582 data-nosnippet>582</a>            <span class="self">self</span>.webhook_session_title(session)
+<a href=#583 id=583 data-nosnippet>583</a>        })
+<a href=#584 id=584 data-nosnippet>584</a>    }
+<a href=#585 id=585 data-nosnippet>585</a>
+<a href=#586 id=586 data-nosnippet>586</a>    <span class="doccomment">/// Opens a new webhook's form: into the session on screen when `here`
+<a href=#587 id=587 data-nosnippet>587</a>    /// and one is, else for new sessions.
+<a href=#588 id=588 data-nosnippet>588</a>    </span><span class="kw">fn </span>begin_new_webhook(<span class="kw-2">&amp;mut </span><span class="self">self</span>, here: bool) {
+<a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">let </span>draft = <span class="kw">match </span>(here.then(|| <span class="self">self</span>.viewed_webhook_session()).flatten(), here) {
+<a href=#590 id=590 data-nosnippet>590</a>            (<span class="prelude-val">Some</span>((session, subagent)), <span class="kw">_</span>) =&gt; WebhookDraft::for_session(session, subagent),
+<a href=#591 id=591 data-nosnippet>591</a>            (<span class="prelude-val">None</span>, <span class="bool-val">true</span>) =&gt; {
+<a href=#592 id=592 data-nosnippet>592</a>                <span class="self">self</span>.status = <span class="string">"No session is open to deliver into."</span>.into();
+<a href=#593 id=593 data-nosnippet>593</a>                <span class="kw">return</span>;
+<a href=#594 id=594 data-nosnippet>594</a>            }
+<a href=#595 id=595 data-nosnippet>595</a>            (<span class="prelude-val">None</span>, <span class="bool-val">false</span>) =&gt; <span class="kw">match </span><span class="self">self</span>.default_webhook_template() {
+<a href=#596 id=596 data-nosnippet>596</a>                <span class="prelude-val">Some</span>(template) =&gt; WebhookDraft::for_new_session(template),
+<a href=#597 id=597 data-nosnippet>597</a>                <span class="prelude-val">None </span>=&gt; {
+<a href=#598 id=598 data-nosnippet>598</a>                    <span class="self">self</span>.status = <span class="string">"No agent is available to run a new-session webhook."</span>.into();
+<a href=#599 id=599 data-nosnippet>599</a>                    <span class="kw">return</span>;
+<a href=#600 id=600 data-nosnippet>600</a>                }
+<a href=#601 id=601 data-nosnippet>601</a>            },
+<a href=#602 id=602 data-nosnippet>602</a>        };
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span>target = <span class="self">self</span>.webhook_target_label(<span class="kw-2">&amp;</span>draft.target.target());
+<a href=#604 id=604 data-nosnippet>604</a>        <span class="kw">let </span>text = draft.form_text(<span class="kw-2">&amp;</span>target);
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="self">self</span>.status = <span class="string">"editing a new webhook"</span>.into();
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="self">self</span>.pending_webhook_editor = <span class="prelude-val">Some</span>(WebhookEditRequest {
+<a href=#607 id=607 data-nosnippet>607</a>            webhook: <span class="prelude-val">None</span>,
+<a href=#608 id=608 data-nosnippet>608</a>            draft,
+<a href=#609 id=609 data-nosnippet>609</a>            text: text.clone(),
+<a href=#610 id=610 data-nosnippet>610</a>            original: text,
+<a href=#611 id=611 data-nosnippet>611</a>        });
+<a href=#612 id=612 data-nosnippet>612</a>    }
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>    <span class="kw">fn </span>begin_webhook_edit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, webhook: Webhook) {
+<a href=#615 id=615 data-nosnippet>615</a>        <span class="kw">let </span>draft = WebhookDraft::of_webhook(<span class="kw-2">&amp;</span>webhook);
+<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>target = <span class="self">self</span>.webhook_target_label(<span class="kw-2">&amp;</span>webhook.target);
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">let </span>text = draft.form_text(<span class="kw-2">&amp;</span>target);
+<a href=#618 id=618 data-nosnippet>618</a>        <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"editing {}"</span>, webhook_title(<span class="kw-2">&amp;</span>webhook));
+<a href=#619 id=619 data-nosnippet>619</a>        <span class="self">self</span>.pending_webhook_editor = <span class="prelude-val">Some</span>(WebhookEditRequest {
+<a href=#620 id=620 data-nosnippet>620</a>            webhook: <span class="prelude-val">Some</span>(webhook),
+<a href=#621 id=621 data-nosnippet>621</a>            draft,
+<a href=#622 id=622 data-nosnippet>622</a>            text: text.clone(),
+<a href=#623 id=623 data-nosnippet>623</a>            original: text,
+<a href=#624 id=624 data-nosnippet>624</a>        });
+<a href=#625 id=625 data-nosnippet>625</a>    }
+<a href=#626 id=626 data-nosnippet>626</a>
+<a href=#627 id=627 data-nosnippet>627</a>    <span class="doccomment">/// What the editor left for `request`: sent unless unchanged.
+<a href=#628 id=628 data-nosnippet>628</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>finish_webhook_edit(
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#630 id=630 data-nosnippet>630</a>        request: WebhookEditRequest,
+<a href=#631 id=631 data-nosnippet>631</a>        edited: <span class="prelude-ty">Result</span>&lt;String, String&gt;,
+<a href=#632 id=632 data-nosnippet>632</a>    ) {
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>text = <span class="kw">match </span>edited {
+<a href=#634 id=634 data-nosnippet>634</a>            <span class="prelude-val">Ok</span>(text) =&gt; text,
+<a href=#635 id=635 data-nosnippet>635</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#636 id=636 data-nosnippet>636</a>                <span class="self">self</span>.status = error;
+<a href=#637 id=637 data-nosnippet>637</a>                <span class="kw">return</span>;
+<a href=#638 id=638 data-nosnippet>638</a>            }
+<a href=#639 id=639 data-nosnippet>639</a>        };
+<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">if </span>text == request.original {
+<a href=#641 id=641 data-nosnippet>641</a>            <span class="self">self</span>.webhook_panel.pending = <span class="prelude-val">None</span>;
+<a href=#642 id=642 data-nosnippet>642</a>            <span class="self">self</span>.status = <span class="kw">match </span><span class="kw-2">&amp;</span>request.webhook {
+<a href=#643 id=643 data-nosnippet>643</a>                <span class="prelude-val">Some</span>(webhook) =&gt; <span class="macro">format!</span>(<span class="string">"No changes to {}."</span>, webhook_title(webhook)),
+<a href=#644 id=644 data-nosnippet>644</a>                <span class="prelude-val">None </span>=&gt; <span class="string">"No changes; the webhook was not created."</span>.into(),
+<a href=#645 id=645 data-nosnippet>645</a>            };
+<a href=#646 id=646 data-nosnippet>646</a>            <span class="kw">return</span>;
+<a href=#647 id=647 data-nosnippet>647</a>        }
+<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>request = WebhookEditRequest { text, ..request };
+<a href=#649 id=649 data-nosnippet>649</a>        <span class="kw">let </span><span class="kw-2">mut </span>draft = request.draft.clone();
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(message) = draft.apply_form(<span class="kw-2">&amp;</span>request.text) {
+<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw">return </span><span class="self">self</span>.refuse_webhook_form(request, message);
+<a href=#652 id=652 data-nosnippet>652</a>        }
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>request.webhook {
+<a href=#654 id=654 data-nosnippet>654</a>            <span class="prelude-val">None </span>=&gt; <span class="kw">match </span>draft.create_params() {
+<a href=#655 id=655 data-nosnippet>655</a>                <span class="prelude-val">Ok</span>(params) =&gt; <span class="self">self</span>.dispatch_webhook_save(request, WebhookSave::Create(params)),
+<a href=#656 id=656 data-nosnippet>656</a>                <span class="prelude-val">Err</span>(message) =&gt; <span class="self">self</span>.refuse_webhook_form(request, message),
+<a href=#657 id=657 data-nosnippet>657</a>            },
+<a href=#658 id=658 data-nosnippet>658</a>            <span class="prelude-val">Some</span>(webhook) =&gt; <span class="kw">match </span>draft.update_params(webhook) {
+<a href=#659 id=659 data-nosnippet>659</a>                <span class="prelude-val">Ok</span>(params) <span class="kw">if </span>!update_changes_anything(<span class="kw-2">&amp;</span>params) =&gt; {
+<a href=#660 id=660 data-nosnippet>660</a>                    <span class="self">self</span>.webhook_panel.pending = <span class="prelude-val">None</span>;
+<a href=#661 id=661 data-nosnippet>661</a>                    <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"No changes to {}."</span>, webhook_title(webhook));
+<a href=#662 id=662 data-nosnippet>662</a>                }
+<a href=#663 id=663 data-nosnippet>663</a>                <span class="prelude-val">Ok</span>(params) =&gt; <span class="self">self</span>.dispatch_webhook_save(request, WebhookSave::Update(params)),
+<a href=#664 id=664 data-nosnippet>664</a>                <span class="prelude-val">Err</span>(message) =&gt; <span class="self">self</span>.refuse_webhook_form(request, message),
+<a href=#665 id=665 data-nosnippet>665</a>            },
+<a href=#666 id=666 data-nosnippet>666</a>        }
+<a href=#667 id=667 data-nosnippet>667</a>    }
+<a href=#668 id=668 data-nosnippet>668</a>
+<a href=#669 id=669 data-nosnippet>669</a>    <span class="kw">fn </span>refuse_webhook_form(<span class="kw-2">&amp;mut </span><span class="self">self</span>, request: WebhookEditRequest, message: String) {
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"Not saved: {message}"</span>);
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="self">self</span>.webhook_panel.pending = <span class="prelude-val">Some</span>((request, message));
+<a href=#672 id=672 data-nosnippet>672</a>    }
+<a href=#673 id=673 data-nosnippet>673</a>
+<a href=#674 id=674 data-nosnippet>674</a>    <span class="kw">fn </span>dispatch_webhook_save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, request: WebhookEditRequest, save: WebhookSave) {
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="self">self</span>.status = <span class="string">"saving the webhook…"</span>.into();
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#679 id=679 data-nosnippet>679</a>            <span class="kw">let </span>result = <span class="kw">match </span>save {
+<a href=#680 id=680 data-nosnippet>680</a>                WebhookSave::Create(params) =&gt; client.create_webhook(params).<span class="kw">await</span>,
+<a href=#681 id=681 data-nosnippet>681</a>                WebhookSave::Update(params) =&gt; client.update_webhook(params).<span class="kw">await</span>,
+<a href=#682 id=682 data-nosnippet>682</a>            }
+<a href=#683 id=683 data-nosnippet>683</a>            .map(|result| (result.webhook, result.secret))
+<a href=#684 id=684 data-nosnippet>684</a>            .map_err(|error| message_of(<span class="kw-2">&amp;</span>error));
+<a href=#685 id=685 data-nosnippet>685</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::WebhookSaved {
+<a href=#686 id=686 data-nosnippet>686</a>                request: Box::new(request),
+<a href=#687 id=687 data-nosnippet>687</a>                result: Box::new(result),
+<a href=#688 id=688 data-nosnippet>688</a>            });
+<a href=#689 id=689 data-nosnippet>689</a>        });
+<a href=#690 id=690 data-nosnippet>690</a>    }
+<a href=#691 id=691 data-nosnippet>691</a>
+<a href=#692 id=692 data-nosnippet>692</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>install_webhook_save(
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#694 id=694 data-nosnippet>694</a>        request: WebhookEditRequest,
+<a href=#695 id=695 data-nosnippet>695</a>        result: <span class="prelude-ty">Result</span>&lt;(Webhook, <span class="prelude-ty">Option</span>&lt;String&gt;), String&gt;,
+<a href=#696 id=696 data-nosnippet>696</a>    ) {
+<a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">match </span>result {
+<a href=#698 id=698 data-nosnippet>698</a>            <span class="prelude-val">Ok</span>((webhook, secret)) =&gt; {
+<a href=#699 id=699 data-nosnippet>699</a>                <span class="self">self</span>.webhook_panel.pending = <span class="prelude-val">None</span>;
+<a href=#700 id=700 data-nosnippet>700</a>                <span class="kw">let </span>verb = <span class="kw">if </span>request.webhook.is_some() {
+<a href=#701 id=701 data-nosnippet>701</a>                    <span class="string">"Saved"
+<a href=#702 id=702 data-nosnippet>702</a>                </span>} <span class="kw">else </span>{
+<a href=#703 id=703 data-nosnippet>703</a>                    <span class="string">"Created"
+<a href=#704 id=704 data-nosnippet>704</a>                </span>};
+<a href=#705 id=705 data-nosnippet>705</a>                <span class="kw">let </span>(url, <span class="kw">_</span>) = url_of(<span class="kw-2">&amp;</span><span class="self">self</span>.webhook_panel, <span class="kw-2">&amp;</span>webhook, <span class="self">self</span>.page_url.as_deref());
+<a href=#706 id=706 data-nosnippet>706</a>                <span class="self">self</span>.status = <span class="macro">format!</span>(<span class="string">"{verb} {}: {url}"</span>, webhook_title(<span class="kw-2">&amp;</span>webhook));
+<a href=#707 id=707 data-nosnippet>707</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(secret) = secret {
+<a href=#708 id=708 data-nosnippet>708</a>                    <span class="self">self</span>.webhook_panel.secret = <span class="prelude-val">Some</span>((webhook_title(<span class="kw-2">&amp;</span>webhook), secret));
+<a href=#709 id=709 data-nosnippet>709</a>                }
+<a href=#710 id=710 data-nosnippet>710</a>                <span class="self">self</span>.webhook_panel.focus = <span class="prelude-val">Some</span>(webhook.id);
+<a href=#711 id=711 data-nosnippet>711</a>            }
+<a href=#712 id=712 data-nosnippet>712</a>            <span class="prelude-val">Err</span>(message) =&gt; <span class="self">self</span>.refuse_webhook_form(request, message),
+<a href=#713 id=713 data-nosnippet>713</a>        }
+<a href=#714 id=714 data-nosnippet>714</a>        <span class="self">self</span>.poll_webhooks();
+<a href=#715 id=715 data-nosnippet>715</a>    }
+<a href=#716 id=716 data-nosnippet>716</a>
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="doccomment">/// Runs a change of one webhook; the answer is a status line, and a
+<a href=#718 id=718 data-nosnippet>718</a>    /// secret to show when it made or read one.
+<a href=#719 id=719 data-nosnippet>719</a>    </span><span class="kw">fn </span>dispatch_webhook_change(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pending: String, change: WebhookChange) {
+<a href=#720 id=720 data-nosnippet>720</a>        <span class="self">self</span>.status = pending;
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#722 id=722 data-nosnippet>722</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>page = <span class="self">self</span>.page_url.clone();
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw">let </span>public = <span class="self">self</span>.webhook_panel.public_base().map(str::to_owned);
+<a href=#725 id=725 data-nosnippet>725</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#726 id=726 data-nosnippet>726</a>            <span class="kw">let </span>failed =
+<a href=#727 id=727 data-nosnippet>727</a>                |title: <span class="kw-2">&amp;</span>str, what: <span class="kw-2">&amp;</span>str, error: <span class="kw-2">&amp;</span>cookie_agent_protocol_transport::ClientError| {
+<a href=#728 id=728 data-nosnippet>728</a>                    <span class="macro">format!</span>(<span class="string">"{title} {what}: {}"</span>, message_of(error))
+<a href=#729 id=729 data-nosnippet>729</a>                };
+<a href=#730 id=730 data-nosnippet>730</a>            <span class="kw">let </span>result = <span class="kw">match </span>change {
+<a href=#731 id=731 data-nosnippet>731</a>                WebhookChange::Enabled { title, id, enabled } =&gt; {
+<a href=#732 id=732 data-nosnippet>732</a>                    <span class="kw">let </span><span class="kw-2">mut </span>params = WebhookUpdateParams::new(id);
+<a href=#733 id=733 data-nosnippet>733</a>                    params.enabled = <span class="prelude-val">Some</span>(enabled);
+<a href=#734 id=734 data-nosnippet>734</a>                    <span class="kw">let </span>verb = <span class="kw">if </span>enabled { <span class="string">"Enabled" </span>} <span class="kw">else </span>{ <span class="string">"Disabled" </span>};
+<a href=#735 id=735 data-nosnippet>735</a>                    client
+<a href=#736 id=736 data-nosnippet>736</a>                        .update_webhook(params)
+<a href=#737 id=737 data-nosnippet>737</a>                        .<span class="kw">await
+<a href=#738 id=738 data-nosnippet>738</a>                        </span>.map(|<span class="kw">_</span>| (<span class="macro">format!</span>(<span class="string">"{verb} {title}."</span>), <span class="prelude-val">None</span>))
+<a href=#739 id=739 data-nosnippet>739</a>                        .map_err(|error| failed(<span class="kw-2">&amp;</span>title, <span class="string">"was not changed"</span>, <span class="kw-2">&amp;</span>error))
+<a href=#740 id=740 data-nosnippet>740</a>                }
+<a href=#741 id=741 data-nosnippet>741</a>                WebhookChange::Test { title, id } =&gt; client
+<a href=#742 id=742 data-nosnippet>742</a>                    .test_webhook(WebhookTestParams {
+<a href=#743 id=743 data-nosnippet>743</a>                        id,
+<a href=#744 id=744 data-nosnippet>744</a>                        body: <span class="prelude-val">None</span>,
+<a href=#745 id=745 data-nosnippet>745</a>                        content_type: <span class="prelude-val">None</span>,
+<a href=#746 id=746 data-nosnippet>746</a>                        headers: Vec::new(),
+<a href=#747 id=747 data-nosnippet>747</a>                    })
+<a href=#748 id=748 data-nosnippet>748</a>                    .<span class="kw">await
+<a href=#749 id=749 data-nosnippet>749</a>                    </span>.map(|result| {
+<a href=#750 id=750 data-nosnippet>750</a>                        <span class="kw">let </span>outcome = result
+<a href=#751 id=751 data-nosnippet>751</a>                            .webhook
+<a href=#752 id=752 data-nosnippet>752</a>                            .history
+<a href=#753 id=753 data-nosnippet>753</a>                            .iter()
+<a href=#754 id=754 data-nosnippet>754</a>                            .find(|event| event.id == result.event)
+<a href=#755 id=755 data-nosnippet>755</a>                            .map_or_else(|| <span class="string">"accepted"</span>.to_owned(), event_outcome);
+<a href=#756 id=756 data-nosnippet>756</a>                        (<span class="macro">format!</span>(<span class="string">"Sent a test event to {title}: {outcome}."</span>), <span class="prelude-val">None</span>)
+<a href=#757 id=757 data-nosnippet>757</a>                    })
+<a href=#758 id=758 data-nosnippet>758</a>                    .map_err(|error| failed(<span class="kw-2">&amp;</span>title, <span class="string">"got no test event"</span>, <span class="kw-2">&amp;</span>error)),
+<a href=#759 id=759 data-nosnippet>759</a>                WebhookChange::Rotate { title, id, what } =&gt; client
+<a href=#760 id=760 data-nosnippet>760</a>                    .rotate_webhook(id, what)
+<a href=#761 id=761 data-nosnippet>761</a>                    .<span class="kw">await
+<a href=#762 id=762 data-nosnippet>762</a>                    </span>.map(|result| <span class="kw">match </span>what {
+<a href=#763 id=763 data-nosnippet>763</a>                        WebhookRotate::Url =&gt; {
+<a href=#764 id=764 data-nosnippet>764</a>                            <span class="kw">let </span>url = webhook_url(
+<a href=#765 id=765 data-nosnippet>765</a>                                public.as_deref(),
+<a href=#766 id=766 data-nosnippet>766</a>                                page.as_deref().unwrap_or_default(),
+<a href=#767 id=767 data-nosnippet>767</a>                                <span class="kw-2">&amp;</span>result.webhook.path,
+<a href=#768 id=768 data-nosnippet>768</a>                            );
+<a href=#769 id=769 data-nosnippet>769</a>                            (<span class="macro">format!</span>(<span class="string">"{title} has a new URL: {url}"</span>), <span class="prelude-val">None</span>)
+<a href=#770 id=770 data-nosnippet>770</a>                        }
+<a href=#771 id=771 data-nosnippet>771</a>                        WebhookRotate::Secret =&gt; (
+<a href=#772 id=772 data-nosnippet>772</a>                            <span class="macro">format!</span>(<span class="string">"{title} has a new secret."</span>),
+<a href=#773 id=773 data-nosnippet>773</a>                            result.secret.map(|secret| (title.clone(), secret)),
+<a href=#774 id=774 data-nosnippet>774</a>                        ),
+<a href=#775 id=775 data-nosnippet>775</a>                    })
+<a href=#776 id=776 data-nosnippet>776</a>                    .map_err(|error| failed(<span class="kw-2">&amp;</span>title, <span class="string">"was not changed"</span>, <span class="kw-2">&amp;</span>error)),
+<a href=#777 id=777 data-nosnippet>777</a>                WebhookChange::Secret { title, id } =&gt; client
+<a href=#778 id=778 data-nosnippet>778</a>                    .webhook_secret(id)
+<a href=#779 id=779 data-nosnippet>779</a>                    .<span class="kw">await
+<a href=#780 id=780 data-nosnippet>780</a>                    </span>.map(|result| <span class="kw">match </span>result.secret {
+<a href=#781 id=781 data-nosnippet>781</a>                        <span class="prelude-val">Some</span>(secret) =&gt; (String::new(), <span class="prelude-val">Some</span>((title.clone(), secret))),
+<a href=#782 id=782 data-nosnippet>782</a>                        <span class="prelude-val">None </span>=&gt; (<span class="macro">format!</span>(<span class="string">"{title} has no secret."</span>), <span class="prelude-val">None</span>),
+<a href=#783 id=783 data-nosnippet>783</a>                    })
+<a href=#784 id=784 data-nosnippet>784</a>                    .map_err(|error| failed(<span class="kw-2">&amp;</span>title, <span class="string">"did not show its secret"</span>, <span class="kw-2">&amp;</span>error)),
+<a href=#785 id=785 data-nosnippet>785</a>                WebhookChange::Delete { title, id } =&gt; client
+<a href=#786 id=786 data-nosnippet>786</a>                    .delete_webhook(id)
+<a href=#787 id=787 data-nosnippet>787</a>                    .<span class="kw">await
+<a href=#788 id=788 data-nosnippet>788</a>                    </span>.map(|<span class="kw">_</span>| (<span class="macro">format!</span>(<span class="string">"Deleted {title}."</span>), <span class="prelude-val">None</span>))
+<a href=#789 id=789 data-nosnippet>789</a>                    .map_err(|error| failed(<span class="kw-2">&amp;</span>title, <span class="string">"was not deleted"</span>, <span class="kw-2">&amp;</span>error)),
+<a href=#790 id=790 data-nosnippet>790</a>            };
+<a href=#791 id=791 data-nosnippet>791</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::WebhookChanged { result });
+<a href=#792 id=792 data-nosnippet>792</a>        });
+<a href=#793 id=793 data-nosnippet>793</a>    }
+<a href=#794 id=794 data-nosnippet>794</a>
+<a href=#795 id=795 data-nosnippet>795</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>install_webhook_change(
+<a href=#796 id=796 data-nosnippet>796</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#797 id=797 data-nosnippet>797</a>        result: <span class="prelude-ty">Result</span>&lt;(String, <span class="prelude-ty">Option</span>&lt;(String, String)&gt;), String&gt;,
+<a href=#798 id=798 data-nosnippet>798</a>    ) {
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">match </span>result {
+<a href=#800 id=800 data-nosnippet>800</a>            <span class="prelude-val">Ok</span>((status, secret)) =&gt; {
+<a href=#801 id=801 data-nosnippet>801</a>                <span class="kw">if </span>!status.is_empty() {
+<a href=#802 id=802 data-nosnippet>802</a>                    <span class="self">self</span>.status = status;
+<a href=#803 id=803 data-nosnippet>803</a>                }
+<a href=#804 id=804 data-nosnippet>804</a>                <span class="kw">if </span>secret.is_some() {
+<a href=#805 id=805 data-nosnippet>805</a>                    <span class="self">self</span>.webhook_panel.secret = secret;
+<a href=#806 id=806 data-nosnippet>806</a>                }
+<a href=#807 id=807 data-nosnippet>807</a>            }
+<a href=#808 id=808 data-nosnippet>808</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="self">self</span>.status = error,
+<a href=#809 id=809 data-nosnippet>809</a>        }
+<a href=#810 id=810 data-nosnippet>810</a>        <span class="self">self</span>.poll_webhooks();
+<a href=#811 id=811 data-nosnippet>811</a>    }
+<a href=#812 id=812 data-nosnippet>812</a>
+<a href=#813 id=813 data-nosnippet>813</a>    <span class="doccomment">/// Opens the event at `index` (newest first) of the selected webhook.
+<a href=#814 id=814 data-nosnippet>814</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>open_webhook_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize) {
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(webhook) = <span class="self">self</span>.webhook_panel.selected_webhook() <span class="kw">else </span>{
+<a href=#816 id=816 data-nosnippet>816</a>            <span class="kw">return</span>;
+<a href=#817 id=817 data-nosnippet>817</a>        };
+<a href=#818 id=818 data-nosnippet>818</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(event) = events_newest_first(webhook).nth(index) <span class="kw">else </span>{
+<a href=#819 id=819 data-nosnippet>819</a>            <span class="kw">return</span>;
+<a href=#820 id=820 data-nosnippet>820</a>        };
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span>(id, event) = (webhook.id.clone(), event.id.clone());
+<a href=#822 id=822 data-nosnippet>822</a>        <span class="self">self</span>.webhook_panel.event = <span class="prelude-val">Some</span>(EventView {
+<a href=#823 id=823 data-nosnippet>823</a>            webhook: id.clone(),
+<a href=#824 id=824 data-nosnippet>824</a>            index,
+<a href=#825 id=825 data-nosnippet>825</a>            request: <span class="prelude-val">None</span>,
+<a href=#826 id=826 data-nosnippet>826</a>            scroll: <span class="number">0</span>,
+<a href=#827 id=827 data-nosnippet>827</a>        });
+<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span>client = <span class="self">self</span>.client.clone();
+<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>updates = <span class="self">self</span>.rpc_updates_tx.clone();
+<a href=#830 id=830 data-nosnippet>830</a>        <span class="self">self</span>.spawn_rpc(<span class="kw">async move </span>{
+<a href=#831 id=831 data-nosnippet>831</a>            <span class="kw">let </span>result = client
+<a href=#832 id=832 data-nosnippet>832</a>                .webhook_event(id.clone(), event)
+<a href=#833 id=833 data-nosnippet>833</a>                .<span class="kw">await
+<a href=#834 id=834 data-nosnippet>834</a>                </span>.map_err(|error| message_of(<span class="kw-2">&amp;</span>error));
+<a href=#835 id=835 data-nosnippet>835</a>            <span class="kw">let _ </span>= updates.send(RpcUpdate::WebhookEventRead {
+<a href=#836 id=836 data-nosnippet>836</a>                webhook: id,
+<a href=#837 id=837 data-nosnippet>837</a>                index,
+<a href=#838 id=838 data-nosnippet>838</a>                result: Box::new(result),
+<a href=#839 id=839 data-nosnippet>839</a>            });
+<a href=#840 id=840 data-nosnippet>840</a>        });
+<a href=#841 id=841 data-nosnippet>841</a>    }
+<a href=#842 id=842 data-nosnippet>842</a>
+<a href=#843 id=843 data-nosnippet>843</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>install_webhook_event(
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#845 id=845 data-nosnippet>845</a>        webhook: WebhookId,
+<a href=#846 id=846 data-nosnippet>846</a>        index: usize,
+<a href=#847 id=847 data-nosnippet>847</a>        result: <span class="prelude-ty">Result</span>&lt;WebhookEventResult, String&gt;,
+<a href=#848 id=848 data-nosnippet>848</a>    ) {
+<a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(view) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.webhook_panel.event
+<a href=#850 id=850 data-nosnippet>850</a>            &amp;&amp; view.webhook == webhook
+<a href=#851 id=851 data-nosnippet>851</a>            &amp;&amp; view.index == index
+<a href=#852 id=852 data-nosnippet>852</a>        {
+<a href=#853 id=853 data-nosnippet>853</a>            view.request = <span class="prelude-val">Some</span>(result);
+<a href=#854 id=854 data-nosnippet>854</a>        }
+<a href=#855 id=855 data-nosnippet>855</a>    }
+<a href=#856 id=856 data-nosnippet>856</a>
+<a href=#857 id=857 data-nosnippet>857</a>    <span class="doccomment">/// Acts on `action`, from its key or its button.
+<a href=#858 id=858 data-nosnippet>858</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>activate_webhook_action(<span class="kw-2">&amp;mut </span><span class="self">self</span>, action: WebhookAction) {
+<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">let </span>here = <span class="self">self</span>.viewed_webhook_session().is_some();
+<a href=#860 id=860 data-nosnippet>860</a>        <span class="kw">if </span>!<span class="self">self</span>.webhook_panel.actions(here).contains(<span class="kw-2">&amp;</span>action) {
+<a href=#861 id=861 data-nosnippet>861</a>            <span class="kw">return</span>;
+<a href=#862 id=862 data-nosnippet>862</a>        }
+<a href=#863 id=863 data-nosnippet>863</a>        <span class="kw">let </span>selected = <span class="self">self</span>.webhook_panel.selected_webhook().cloned();
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>title = selected.as_ref().map(webhook_title).unwrap_or_default();
+<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">match </span>action {
+<a href=#866 id=866 data-nosnippet>866</a>            WebhookAction::Edit =&gt; {
+<a href=#867 id=867 data-nosnippet>867</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#868 id=868 data-nosnippet>868</a>                    <span class="self">self</span>.begin_webhook_edit(webhook);
+<a href=#869 id=869 data-nosnippet>869</a>                }
+<a href=#870 id=870 data-nosnippet>870</a>            }
+<a href=#871 id=871 data-nosnippet>871</a>            WebhookAction::NewHere =&gt; <span class="self">self</span>.begin_new_webhook(<span class="bool-val">true</span>),
+<a href=#872 id=872 data-nosnippet>872</a>            WebhookAction::NewSessions =&gt; <span class="self">self</span>.begin_new_webhook(<span class="bool-val">false</span>),
+<a href=#873 id=873 data-nosnippet>873</a>            WebhookAction::Enable | WebhookAction::Disable =&gt; {
+<a href=#874 id=874 data-nosnippet>874</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#875 id=875 data-nosnippet>875</a>                    <span class="kw">let </span>enabled = action == WebhookAction::Enable;
+<a href=#876 id=876 data-nosnippet>876</a>                    <span class="kw">let </span>verb = <span class="kw">if </span>enabled { <span class="string">"enabling" </span>} <span class="kw">else </span>{ <span class="string">"disabling" </span>};
+<a href=#877 id=877 data-nosnippet>877</a>                    <span class="self">self</span>.dispatch_webhook_change(
+<a href=#878 id=878 data-nosnippet>878</a>                        <span class="macro">format!</span>(<span class="string">"{verb} {title}…"</span>),
+<a href=#879 id=879 data-nosnippet>879</a>                        WebhookChange::Enabled {
+<a href=#880 id=880 data-nosnippet>880</a>                            title,
+<a href=#881 id=881 data-nosnippet>881</a>                            id: webhook.id,
+<a href=#882 id=882 data-nosnippet>882</a>                            enabled,
+<a href=#883 id=883 data-nosnippet>883</a>                        },
+<a href=#884 id=884 data-nosnippet>884</a>                    );
+<a href=#885 id=885 data-nosnippet>885</a>                }
+<a href=#886 id=886 data-nosnippet>886</a>            }
+<a href=#887 id=887 data-nosnippet>887</a>            WebhookAction::Test =&gt; {
+<a href=#888 id=888 data-nosnippet>888</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#889 id=889 data-nosnippet>889</a>                    <span class="self">self</span>.dispatch_webhook_change(
+<a href=#890 id=890 data-nosnippet>890</a>                        <span class="macro">format!</span>(<span class="string">"sending a test event to {title}…"</span>),
+<a href=#891 id=891 data-nosnippet>891</a>                        WebhookChange::Test {
+<a href=#892 id=892 data-nosnippet>892</a>                            title,
+<a href=#893 id=893 data-nosnippet>893</a>                            id: webhook.id,
+<a href=#894 id=894 data-nosnippet>894</a>                        },
+<a href=#895 id=895 data-nosnippet>895</a>                    );
+<a href=#896 id=896 data-nosnippet>896</a>                }
+<a href=#897 id=897 data-nosnippet>897</a>            }
+<a href=#898 id=898 data-nosnippet>898</a>            WebhookAction::CopyUrl =&gt; {
+<a href=#899 id=899 data-nosnippet>899</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#900 id=900 data-nosnippet>900</a>                    <span class="kw">let </span>(url, <span class="kw">_</span>) = url_of(<span class="kw-2">&amp;</span><span class="self">self</span>.webhook_panel, <span class="kw-2">&amp;</span>webhook, <span class="self">self</span>.page_url.as_deref());
+<a href=#901 id=901 data-nosnippet>901</a>                    <span class="self">self</span>.copy_to_clipboard(url);
+<a href=#902 id=902 data-nosnippet>902</a>                }
+<a href=#903 id=903 data-nosnippet>903</a>            }
+<a href=#904 id=904 data-nosnippet>904</a>            WebhookAction::RevealSecret =&gt; {
+<a href=#905 id=905 data-nosnippet>905</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#906 id=906 data-nosnippet>906</a>                    <span class="self">self</span>.dispatch_webhook_change(
+<a href=#907 id=907 data-nosnippet>907</a>                        <span class="macro">format!</span>(<span class="string">"reading the secret of {title}…"</span>),
+<a href=#908 id=908 data-nosnippet>908</a>                        WebhookChange::Secret {
+<a href=#909 id=909 data-nosnippet>909</a>                            title,
+<a href=#910 id=910 data-nosnippet>910</a>                            id: webhook.id,
+<a href=#911 id=911 data-nosnippet>911</a>                        },
+<a href=#912 id=912 data-nosnippet>912</a>                    );
+<a href=#913 id=913 data-nosnippet>913</a>                }
+<a href=#914 id=914 data-nosnippet>914</a>            }
+<a href=#915 id=915 data-nosnippet>915</a>            WebhookAction::RotateUrl | WebhookAction::RotateSecret =&gt; {
+<a href=#916 id=916 data-nosnippet>916</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(webhook) = selected {
+<a href=#917 id=917 data-nosnippet>917</a>                    <span class="kw">let </span>what = <span class="kw">if </span>action == WebhookAction::RotateUrl {
+<a href=#918 id=918 data-nosnippet>918</a>                        WebhookRotate::Url
+<a href=#919 id=919 data-nosnippet>919</a>                    } <span class="kw">else </span>{
+<a href=#920 id=920 data-nosnippet>920</a>                        WebhookRotate::Secret
+<a href=#921 id=921 data-nosnippet>921</a>                    };
+<a href=#922 id=922 data-nosnippet>922</a>                    <span class="self">self</span>.webhook_panel.confirm = <span class="prelude-val">Some</span>(WebhookConfirm::Rotate(webhook, what));
+<a href=#923 id=923 data-nosnippet>923</a>                }
+<a href=#924 id=924 data-nosnippet>924</a>            }
+<a href=#925 id=925 data-nosnippet>925</a>            WebhookAction::Events =&gt; <span class="self">self</span>.open_webhook_event(<span class="number">0</span>),
+<a href=#926 id=926 data-nosnippet>926</a>            WebhookAction::Delete =&gt; {
+<a href=#927 id=927 data-nosnippet>927</a>                <span class="self">self</span>.webhook_panel.confirm = selected.map(WebhookConfirm::Delete);
+<a href=#928 id=928 data-nosnippet>928</a>            }
+<a href=#929 id=929 data-nosnippet>929</a>            WebhookAction::Confirm =&gt; <span class="kw">match </span><span class="self">self</span>.webhook_panel.confirm.take() {
+<a href=#930 id=930 data-nosnippet>930</a>                <span class="prelude-val">Some</span>(WebhookConfirm::Delete(webhook)) =&gt; {
+<a href=#931 id=931 data-nosnippet>931</a>                    <span class="kw">let </span>title = webhook_title(<span class="kw-2">&amp;</span>webhook);
+<a href=#932 id=932 data-nosnippet>932</a>                    <span class="self">self</span>.dispatch_webhook_change(
+<a href=#933 id=933 data-nosnippet>933</a>                        <span class="macro">format!</span>(<span class="string">"deleting {title}…"</span>),
+<a href=#934 id=934 data-nosnippet>934</a>                        WebhookChange::Delete {
+<a href=#935 id=935 data-nosnippet>935</a>                            title,
+<a href=#936 id=936 data-nosnippet>936</a>                            id: webhook.id,
+<a href=#937 id=937 data-nosnippet>937</a>                        },
+<a href=#938 id=938 data-nosnippet>938</a>                    );
+<a href=#939 id=939 data-nosnippet>939</a>                }
+<a href=#940 id=940 data-nosnippet>940</a>                <span class="prelude-val">Some</span>(WebhookConfirm::Rotate(webhook, what)) =&gt; {
+<a href=#941 id=941 data-nosnippet>941</a>                    <span class="kw">let </span>title = webhook_title(<span class="kw-2">&amp;</span>webhook);
+<a href=#942 id=942 data-nosnippet>942</a>                    <span class="self">self</span>.dispatch_webhook_change(
+<a href=#943 id=943 data-nosnippet>943</a>                        <span class="macro">format!</span>(<span class="string">"rotating {title}…"</span>),
+<a href=#944 id=944 data-nosnippet>944</a>                        WebhookChange::Rotate {
+<a href=#945 id=945 data-nosnippet>945</a>                            title,
+<a href=#946 id=946 data-nosnippet>946</a>                            id: webhook.id,
+<a href=#947 id=947 data-nosnippet>947</a>                            what,
+<a href=#948 id=948 data-nosnippet>948</a>                        },
+<a href=#949 id=949 data-nosnippet>949</a>                    );
+<a href=#950 id=950 data-nosnippet>950</a>                }
+<a href=#951 id=951 data-nosnippet>951</a>                <span class="prelude-val">None </span>=&gt; {}
+<a href=#952 id=952 data-nosnippet>952</a>            },
+<a href=#953 id=953 data-nosnippet>953</a>            WebhookAction::CopySecret =&gt; {
+<a href=#954 id=954 data-nosnippet>954</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, secret)) = <span class="self">self</span>.webhook_panel.secret.clone() {
+<a href=#955 id=955 data-nosnippet>955</a>                    <span class="self">self</span>.copy_to_clipboard(secret);
+<a href=#956 id=956 data-nosnippet>956</a>                }
+<a href=#957 id=957 data-nosnippet>957</a>            }
+<a href=#958 id=958 data-nosnippet>958</a>            WebhookAction::OlderEvent | WebhookAction::NewerEvent =&gt; {
+<a href=#959 id=959 data-nosnippet>959</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(view) = <span class="kw-2">&amp;</span><span class="self">self</span>.webhook_panel.event {
+<a href=#960 id=960 data-nosnippet>960</a>                    <span class="kw">let </span>index = <span class="kw">if </span>action == WebhookAction::OlderEvent {
+<a href=#961 id=961 data-nosnippet>961</a>                        view.index + <span class="number">1
+<a href=#962 id=962 data-nosnippet>962</a>                    </span>} <span class="kw">else </span>{
+<a href=#963 id=963 data-nosnippet>963</a>                        view.index.saturating_sub(<span class="number">1</span>)
+<a href=#964 id=964 data-nosnippet>964</a>                    };
+<a href=#965 id=965 data-nosnippet>965</a>                    <span class="self">self</span>.open_webhook_event(index);
+<a href=#966 id=966 data-nosnippet>966</a>                }
+<a href=#967 id=967 data-nosnippet>967</a>            }
+<a href=#968 id=968 data-nosnippet>968</a>            WebhookAction::Cancel =&gt; {
+<a href=#969 id=969 data-nosnippet>969</a>                <span class="kw">let </span>panel = <span class="kw-2">&amp;mut </span><span class="self">self</span>.webhook_panel;
+<a href=#970 id=970 data-nosnippet>970</a>                <span class="kw">if </span>panel.confirm.take().is_some() {
+<a href=#971 id=971 data-nosnippet>971</a>                    <span class="self">self</span>.status = <span class="string">"Cancelled."</span>.into();
+<a href=#972 id=972 data-nosnippet>972</a>                } <span class="kw">else if </span>panel.pending.take().is_some() {
+<a href=#973 id=973 data-nosnippet>973</a>                    <span class="self">self</span>.status = <span class="string">"Your form was dropped."</span>.into();
+<a href=#974 id=974 data-nosnippet>974</a>                } <span class="kw">else if </span>panel.secret.take().is_none() {
+<a href=#975 id=975 data-nosnippet>975</a>                    panel.event = <span class="prelude-val">None</span>;
+<a href=#976 id=976 data-nosnippet>976</a>                }
+<a href=#977 id=977 data-nosnippet>977</a>            }
+<a href=#978 id=978 data-nosnippet>978</a>            WebhookAction::EditAgain =&gt; {
+<a href=#979 id=979 data-nosnippet>979</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>((request, <span class="kw">_</span>)) = <span class="self">self</span>.webhook_panel.pending.take() {
+<a href=#980 id=980 data-nosnippet>980</a>                    <span class="self">self</span>.pending_webhook_editor = <span class="prelude-val">Some</span>(request);
+<a href=#981 id=981 data-nosnippet>981</a>                }
+<a href=#982 id=982 data-nosnippet>982</a>            }
+<a href=#983 id=983 data-nosnippet>983</a>        }
+<a href=#984 id=984 data-nosnippet>984</a>    }
+<a href=#985 id=985 data-nosnippet>985</a>
+<a href=#986 id=986 data-nosnippet>986</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">async fn </span>handle_webhook_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: KeyEvent) {
+<a href=#987 id=987 data-nosnippet>987</a>        <span class="kw">let </span>here = <span class="self">self</span>.viewed_webhook_session().is_some();
+<a href=#988 id=988 data-nosnippet>988</a>        <span class="kw">let </span>actions = <span class="self">self</span>.webhook_panel.actions(here);
+<a href=#989 id=989 data-nosnippet>989</a>        <span class="kw">if </span>key.code == KeyCode::Esc &amp;&amp; !actions.contains(<span class="kw-2">&amp;</span>WebhookAction::Cancel) {
+<a href=#990 id=990 data-nosnippet>990</a>            <span class="self">self</span>.modal = Modal::None;
+<a href=#991 id=991 data-nosnippet>991</a>            <span class="kw">return</span>;
+<a href=#992 id=992 data-nosnippet>992</a>        }
+<a href=#993 id=993 data-nosnippet>993</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(view) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.webhook_panel.event {
+<a href=#994 id=994 data-nosnippet>994</a>            <span class="kw">match </span>key.code {
+<a href=#995 id=995 data-nosnippet>995</a>                KeyCode::Up =&gt; view.scroll = view.scroll.saturating_sub(<span class="number">1</span>),
+<a href=#996 id=996 data-nosnippet>996</a>                KeyCode::Down =&gt; view.scroll = view.scroll.saturating_add(<span class="number">1</span>),
+<a href=#997 id=997 data-nosnippet>997</a>                KeyCode::PageUp =&gt; view.scroll = view.scroll.saturating_sub(<span class="number">10</span>),
+<a href=#998 id=998 data-nosnippet>998</a>                KeyCode::PageDown =&gt; view.scroll = view.scroll.saturating_add(<span class="number">10</span>),
+<a href=#999 id=999 data-nosnippet>999</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#1000 id=1000 data-nosnippet>1000</a>            }
+<a href=#1001 id=1001 data-nosnippet>1001</a>        }
+<a href=#1002 id=1002 data-nosnippet>1002</a>        <span class="kw">let </span>quiet = <span class="self">self</span>.webhook_panel.confirm.is_none()
+<a href=#1003 id=1003 data-nosnippet>1003</a>            &amp;&amp; <span class="self">self</span>.webhook_panel.pending.is_none()
+<a href=#1004 id=1004 data-nosnippet>1004</a>            &amp;&amp; <span class="self">self</span>.webhook_panel.secret.is_none()
+<a href=#1005 id=1005 data-nosnippet>1005</a>            &amp;&amp; <span class="self">self</span>.webhook_panel.event.is_none();
+<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">match </span>key.code {
+<a href=#1007 id=1007 data-nosnippet>1007</a>            KeyCode::Enter <span class="kw">if </span>quiet =&gt; <span class="kw">return </span><span class="self">self</span>.activate_webhook_action(WebhookAction::Edit),
+<a href=#1008 id=1008 data-nosnippet>1008</a>            KeyCode::Char(key @ (<span class="string">'o' </span>| <span class="string">'i'</span>)) <span class="kw">if </span>quiet =&gt; {
+<a href=#1009 id=1009 data-nosnippet>1009</a>                <span class="kw">let </span>session = <span class="self">self</span>.webhook_panel.selected_webhook().and_then(|webhook| {
+<a href=#1010 id=1010 data-nosnippet>1010</a>                    <span class="kw">if </span>key == <span class="string">'o' </span>{
+<a href=#1011 id=1011 data-nosnippet>1011</a>                        webhook.target.session()
+<a href=#1012 id=1012 data-nosnippet>1012</a>                    } <span class="kw">else </span>{
+<a href=#1013 id=1013 data-nosnippet>1013</a>                        <span class="kw">match </span><span class="kw-2">&amp;</span>webhook.created_by {
+<a href=#1014 id=1014 data-nosnippet>1014</a>                            CronActor::Agent(agent) =&gt; <span class="prelude-val">Some</span>(agent.session),
+<a href=#1015 id=1015 data-nosnippet>1015</a>                            CronActor::User =&gt; <span class="prelude-val">None</span>,
+<a href=#1016 id=1016 data-nosnippet>1016</a>                        }
+<a href=#1017 id=1017 data-nosnippet>1017</a>                    }
+<a href=#1018 id=1018 data-nosnippet>1018</a>                });
+<a href=#1019 id=1019 data-nosnippet>1019</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(session) = session {
+<a href=#1020 id=1020 data-nosnippet>1020</a>                    <span class="self">self</span>.open_webhook_session(session).<span class="kw">await</span>;
+<a href=#1021 id=1021 data-nosnippet>1021</a>                }
+<a href=#1022 id=1022 data-nosnippet>1022</a>                <span class="kw">return</span>;
+<a href=#1023 id=1023 data-nosnippet>1023</a>            }
+<a href=#1024 id=1024 data-nosnippet>1024</a>            KeyCode::Up | KeyCode::Down <span class="kw">if </span>quiet =&gt; {
+<a href=#1025 id=1025 data-nosnippet>1025</a>                <span class="kw">let </span>count = <span class="self">self</span>.webhook_panel.webhooks().len();
+<a href=#1026 id=1026 data-nosnippet>1026</a>                <span class="kw">super</span>::move_picker_selection(
+<a href=#1027 id=1027 data-nosnippet>1027</a>                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.webhook_panel.selection,
+<a href=#1028 id=1028 data-nosnippet>1028</a>                    count,
+<a href=#1029 id=1029 data-nosnippet>1029</a>                    key.code == KeyCode::Up,
+<a href=#1030 id=1030 data-nosnippet>1030</a>                );
+<a href=#1031 id=1031 data-nosnippet>1031</a>                <span class="kw">return</span>;
+<a href=#1032 id=1032 data-nosnippet>1032</a>            }
+<a href=#1033 id=1033 data-nosnippet>1033</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1034 id=1034 data-nosnippet>1034</a>        }
+<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(action) = actions.into_iter().find(|action| action.matches(key.code)) {
+<a href=#1036 id=1036 data-nosnippet>1036</a>            <span class="self">self</span>.activate_webhook_action(action);
+<a href=#1037 id=1037 data-nosnippet>1037</a>        }
+<a href=#1038 id=1038 data-nosnippet>1038</a>    }
+<a href=#1039 id=1039 data-nosnippet>1039</a>
+<a href=#1040 id=1040 data-nosnippet>1040</a>    <span class="doccomment">/// Shows `session`'s transcript, closing the panel.
+<a href=#1041 id=1041 data-nosnippet>1041</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">async fn </span>open_webhook_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session: SessionId) {
+<a href=#1042 id=1042 data-nosnippet>1042</a>        <span class="self">self</span>.modal = Modal::None;
+<a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="self">self</span>.open_session(session).<span class="kw">await</span>;
+<a href=#1044 id=1044 data-nosnippet>1044</a>    }
+<a href=#1045 id=1045 data-nosnippet>1045</a>
+<a href=#1046 id=1046 data-nosnippet>1046</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>render_webhook_panel(<span class="kw-2">&amp;mut </span><span class="self">self</span>, frame: <span class="kw-2">&amp;mut </span>Frame) {
+<a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="kw">let </span>area = centered(frame.area(), <span class="number">92</span>, <span class="number">84</span>);
+<a href=#1048 id=1048 data-nosnippet>1048</a>        paint_panel(frame, area, <span class="kw-2">&amp;</span><span class="self">self</span>.theme);
+<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="kw">let </span>key = (
+<a href=#1050 id=1050 data-nosnippet>1050</a>            <span class="self">self</span>.webhook_panel.listing_revision,
+<a href=#1051 id=1051 data-nosnippet>1051</a>            <span class="self">self</span>.sessions_revision,
+<a href=#1052 id=1052 data-nosnippet>1052</a>            <span class="self">self</span>.sessions.len(),
+<a href=#1053 id=1053 data-nosnippet>1053</a>        );
+<a href=#1054 id=1054 data-nosnippet>1054</a>        <span class="kw">let </span>targets = <span class="kw">match </span><span class="self">self</span>.webhook_panel.targets.take() {
+<a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="prelude-val">Some</span>((cached, targets)) <span class="kw">if </span>cached == key =&gt; targets,
+<a href=#1056 id=1056 data-nosnippet>1056</a>            <span class="kw">_ </span>=&gt; <span class="self">self
+<a href=#1057 id=1057 data-nosnippet>1057</a>                </span>.webhook_panel
+<a href=#1058 id=1058 data-nosnippet>1058</a>                .webhooks()
+<a href=#1059 id=1059 data-nosnippet>1059</a>                .iter()
+<a href=#1060 id=1060 data-nosnippet>1060</a>                .map(|webhook| <span class="self">self</span>.webhook_target_label(<span class="kw-2">&amp;</span>webhook.target))
+<a href=#1061 id=1061 data-nosnippet>1061</a>                .collect(),
+<a href=#1062 id=1062 data-nosnippet>1062</a>        };
+<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="kw">let </span>(details, private) = <span class="self">self</span>.webhook_panel.selected_webhook().map_or_else(
+<a href=#1064 id=1064 data-nosnippet>1064</a>            || (Vec::new(), <span class="bool-val">false</span>),
+<a href=#1065 id=1065 data-nosnippet>1065</a>            |webhook| {
+<a href=#1066 id=1066 data-nosnippet>1066</a>                <span class="kw">let </span>(url, private) = url_of(<span class="kw-2">&amp;</span><span class="self">self</span>.webhook_panel, webhook, <span class="self">self</span>.page_url.as_deref());
+<a href=#1067 id=1067 data-nosnippet>1067</a>                (
+<a href=#1068 id=1068 data-nosnippet>1068</a>                    detail_lines(
+<a href=#1069 id=1069 data-nosnippet>1069</a>                        webhook,
+<a href=#1070 id=1070 data-nosnippet>1070</a>                        <span class="kw-2">&amp;</span>url,
+<a href=#1071 id=1071 data-nosnippet>1071</a>                        <span class="kw-2">&amp;</span>TimeZone::system(),
+<a href=#1072 id=1072 data-nosnippet>1072</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.projects,
+<a href=#1073 id=1073 data-nosnippet>1073</a>                        |session| <span class="self">self</span>.webhook_session_title(session),
+<a href=#1074 id=1074 data-nosnippet>1074</a>                    ),
+<a href=#1075 id=1075 data-nosnippet>1075</a>                    private,
+<a href=#1076 id=1076 data-nosnippet>1076</a>                )
+<a href=#1077 id=1077 data-nosnippet>1077</a>            },
+<a href=#1078 id=1078 data-nosnippet>1078</a>        );
+<a href=#1079 id=1079 data-nosnippet>1079</a>        <span class="kw">let </span>here = <span class="self">self</span>.viewed_webhook_session().is_some();
+<a href=#1080 id=1080 data-nosnippet>1080</a>        <span class="self">self</span>.hit_map.webhooks = render_webhooks(
+<a href=#1081 id=1081 data-nosnippet>1081</a>            frame,
+<a href=#1082 id=1082 data-nosnippet>1082</a>            area,
+<a href=#1083 id=1083 data-nosnippet>1083</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.webhook_panel,
+<a href=#1084 id=1084 data-nosnippet>1084</a>            <span class="kw-2">&amp;</span>targets,
+<a href=#1085 id=1085 data-nosnippet>1085</a>            <span class="kw-2">&amp;</span>details,
+<a href=#1086 id=1086 data-nosnippet>1086</a>            Shown { private, here },
+<a href=#1087 id=1087 data-nosnippet>1087</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.theme,
+<a href=#1088 id=1088 data-nosnippet>1088</a>        );
+<a href=#1089 id=1089 data-nosnippet>1089</a>        <span class="self">self</span>.webhook_panel.targets = <span class="prelude-val">Some</span>((key, targets));
+<a href=#1090 id=1090 data-nosnippet>1090</a>    }
+<a href=#1091 id=1091 data-nosnippet>1091</a>}
+<a href=#1092 id=1092 data-nosnippet>1092</a>
+<a href=#1093 id=1093 data-nosnippet>1093</a><span class="doccomment">/// A form's request to the daemon.
+<a href=#1094 id=1094 data-nosnippet>1094</a></span><span class="kw">enum </span>WebhookSave {
+<a href=#1095 id=1095 data-nosnippet>1095</a>    Create(cookie_agent_protocol::WebhookCreateParams),
+<a href=#1096 id=1096 data-nosnippet>1096</a>    Update(WebhookUpdateParams),
+<a href=#1097 id=1097 data-nosnippet>1097</a>}
+<a href=#1098 id=1098 data-nosnippet>1098</a>
+<a href=#1099 id=1099 data-nosnippet>1099</a><span class="doccomment">/// A change to one webhook, named by its title for the status line.
+<a href=#1100 id=1100 data-nosnippet>1100</a></span><span class="kw">enum </span>WebhookChange {
+<a href=#1101 id=1101 data-nosnippet>1101</a>    Enabled {
+<a href=#1102 id=1102 data-nosnippet>1102</a>        title: String,
+<a href=#1103 id=1103 data-nosnippet>1103</a>        id: WebhookId,
+<a href=#1104 id=1104 data-nosnippet>1104</a>        enabled: bool,
+<a href=#1105 id=1105 data-nosnippet>1105</a>    },
+<a href=#1106 id=1106 data-nosnippet>1106</a>    Test {
+<a href=#1107 id=1107 data-nosnippet>1107</a>        title: String,
+<a href=#1108 id=1108 data-nosnippet>1108</a>        id: WebhookId,
+<a href=#1109 id=1109 data-nosnippet>1109</a>    },
+<a href=#1110 id=1110 data-nosnippet>1110</a>    Rotate {
+<a href=#1111 id=1111 data-nosnippet>1111</a>        title: String,
+<a href=#1112 id=1112 data-nosnippet>1112</a>        id: WebhookId,
+<a href=#1113 id=1113 data-nosnippet>1113</a>        what: WebhookRotate,
+<a href=#1114 id=1114 data-nosnippet>1114</a>    },
+<a href=#1115 id=1115 data-nosnippet>1115</a>    Secret {
+<a href=#1116 id=1116 data-nosnippet>1116</a>        title: String,
+<a href=#1117 id=1117 data-nosnippet>1117</a>        id: WebhookId,
+<a href=#1118 id=1118 data-nosnippet>1118</a>    },
+<a href=#1119 id=1119 data-nosnippet>1119</a>    Delete {
+<a href=#1120 id=1120 data-nosnippet>1120</a>        title: String,
+<a href=#1121 id=1121 data-nosnippet>1121</a>        id: WebhookId,
+<a href=#1122 id=1122 data-nosnippet>1122</a>    },
+<a href=#1123 id=1123 data-nosnippet>1123</a>}
+<a href=#1124 id=1124 data-nosnippet>1124</a>
+<a href=#1125 id=1125 data-nosnippet>1125</a><span class="doccomment">/// What the frame knows besides the panel: whether the URL looks private
+<a href=#1126 id=1126 data-nosnippet>1126</a>/// and whether a session is on screen.
+<a href=#1127 id=1127 data-nosnippet>1127</a></span><span class="attr">#[derive(Clone, Copy)]
+<a href=#1128 id=1128 data-nosnippet>1128</a></span><span class="kw">struct </span>Shown {
+<a href=#1129 id=1129 data-nosnippet>1129</a>    private: bool,
+<a href=#1130 id=1130 data-nosnippet>1130</a>    here: bool,
+<a href=#1131 id=1131 data-nosnippet>1131</a>}
+<a href=#1132 id=1132 data-nosnippet>1132</a>
+<a href=#1133 id=1133 data-nosnippet>1133</a><span class="doccomment">/// The panel: the webhooks, the selected one's details and history (or an
+<a href=#1134 id=1134 data-nosnippet>1134</a>/// event's request), and the actions.
+<a href=#1135 id=1135 data-nosnippet>1135</a></span><span class="kw">fn </span>render_webhooks(
+<a href=#1136 id=1136 data-nosnippet>1136</a>    frame: <span class="kw-2">&amp;mut </span>Frame,
+<a href=#1137 id=1137 data-nosnippet>1137</a>    area: Rect,
+<a href=#1138 id=1138 data-nosnippet>1138</a>    panel: <span class="kw-2">&amp;mut </span>WebhookPanelState,
+<a href=#1139 id=1139 data-nosnippet>1139</a>    targets: <span class="kw-2">&amp;</span>[String],
+<a href=#1140 id=1140 data-nosnippet>1140</a>    details: <span class="kw-2">&amp;</span>[CronDetail],
+<a href=#1141 id=1141 data-nosnippet>1141</a>    shown: Shown,
+<a href=#1142 id=1142 data-nosnippet>1142</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1143 id=1143 data-nosnippet>1143</a>) -&gt; WebhookHits {
+<a href=#1144 id=1144 data-nosnippet>1144</a>    <span class="kw">let </span><span class="kw-2">mut </span>hits = WebhookHits::default();
+<a href=#1145 id=1145 data-nosnippet>1145</a>    <span class="kw">let </span>count = panel.webhooks().len();
+<a href=#1146 id=1146 data-nosnippet>1146</a>    panel
+<a href=#1147 id=1147 data-nosnippet>1147</a>        .selection
+<a href=#1148 id=1148 data-nosnippet>1148</a>        .select((count &gt; <span class="number">0</span>).then(|| panel.selection.selected().unwrap_or(<span class="number">0</span>).min(count - <span class="number">1</span>)));
+<a href=#1149 id=1149 data-nosnippet>1149</a>    <span class="kw">let </span>[list_area, bottom_area, actions_area] = Layout::default()
+<a href=#1150 id=1150 data-nosnippet>1150</a>        .direction(Direction::Vertical)
+<a href=#1151 id=1151 data-nosnippet>1151</a>        .constraints([
+<a href=#1152 id=1152 data-nosnippet>1152</a>            Constraint::Min(<span class="number">4</span>),
+<a href=#1153 id=1153 data-nosnippet>1153</a>            Constraint::Percentage(<span class="number">60</span>),
+<a href=#1154 id=1154 data-nosnippet>1154</a>            Constraint::Length(<span class="number">2</span>),
+<a href=#1155 id=1155 data-nosnippet>1155</a>        ])
+<a href=#1156 id=1156 data-nosnippet>1156</a>        .areas(area);
+<a href=#1157 id=1157 data-nosnippet>1157</a>    <span class="kw">let </span>items = panel
+<a href=#1158 id=1158 data-nosnippet>1158</a>        .webhooks()
+<a href=#1159 id=1159 data-nosnippet>1159</a>        .iter()
+<a href=#1160 id=1160 data-nosnippet>1160</a>        .zip(targets)
+<a href=#1161 id=1161 data-nosnippet>1161</a>        .map(|(webhook, target)| ListItem::new(row_line(webhook, target, theme)))
+<a href=#1162 id=1162 data-nosnippet>1162</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#1163 id=1163 data-nosnippet>1163</a>    <span class="kw">let </span>receiving = !<span class="macro">matches!</span>(<span class="kw-2">&amp;</span>panel.listing, <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(listing)) <span class="kw">if </span>!listing.receiving);
+<a href=#1164 id=1164 data-nosnippet>1164</a>    <span class="kw">let </span>title = <span class="kw">if </span>receiving {
+<a href=#1165 id=1165 data-nosnippet>1165</a>        <span class="string">"Webhooks"
+<a href=#1166 id=1166 data-nosnippet>1166</a>    </span>} <span class="kw">else </span>{
+<a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="string">"Webhooks · receiving is off ([webhooks] enabled = false)"
+<a href=#1168 id=1168 data-nosnippet>1168</a>    </span>};
+<a href=#1169 id=1169 data-nosnippet>1169</a>    <span class="kw">let </span>block = <span class="kw">crate</span>::ui::panel_block()
+<a href=#1170 id=1170 data-nosnippet>1170</a>        .border_style(theme.panel_border())
+<a href=#1171 id=1171 data-nosnippet>1171</a>        .title(<span class="kw">crate</span>::ui::panel_title(title))
+<a href=#1172 id=1172 data-nosnippet>1172</a>        .title_bottom(<span class="kw">crate</span>::ui::panel_title(
+<a href=#1173 id=1173 data-nosnippet>1173</a>            Line::from(Span::styled(
+<a href=#1174 id=1174 data-nosnippet>1174</a>                <span class="string">"↑↓ select | o open target | v events | esc close"</span>,
+<a href=#1175 id=1175 data-nosnippet>1175</a>                theme.internal(),
+<a href=#1176 id=1176 data-nosnippet>1176</a>            ))
+<a href=#1177 id=1177 data-nosnippet>1177</a>            .right_aligned(),
+<a href=#1178 id=1178 data-nosnippet>1178</a>        ));
+<a href=#1179 id=1179 data-nosnippet>1179</a>    <span class="kw">let </span>inner = block.inner(list_area);
+<a href=#1180 id=1180 data-nosnippet>1180</a>    frame.render_stateful_widget(
+<a href=#1181 id=1181 data-nosnippet>1181</a>        List::new(items)
+<a href=#1182 id=1182 data-nosnippet>1182</a>            .highlight_symbol(<span class="string">"&gt; "</span>)
+<a href=#1183 id=1183 data-nosnippet>1183</a>            .highlight_style(theme.selected())
+<a href=#1184 id=1184 data-nosnippet>1184</a>            .block(block),
+<a href=#1185 id=1185 data-nosnippet>1185</a>        list_area,
+<a href=#1186 id=1186 data-nosnippet>1186</a>        <span class="kw-2">&amp;mut </span>panel.selection,
+<a href=#1187 id=1187 data-nosnippet>1187</a>    );
+<a href=#1188 id=1188 data-nosnippet>1188</a>    <span class="kw">let </span>quiet = panel.confirm.is_none() &amp;&amp; panel.pending.is_none() &amp;&amp; panel.secret.is_none();
+<a href=#1189 id=1189 data-nosnippet>1189</a>    <span class="kw">if </span>quiet &amp;&amp; panel.event.is_none() {
+<a href=#1190 id=1190 data-nosnippet>1190</a>        <span class="kw">let </span>offset = panel.selection.offset();
+<a href=#1191 id=1191 data-nosnippet>1191</a>        <span class="kw">for </span>(line, index) <span class="kw">in </span>(offset..count).take(usize::from(inner.height)).enumerate() {
+<a href=#1192 id=1192 data-nosnippet>1192</a>            <span class="kw">let </span>y = inner.y + u16::try_from(line).unwrap_or(u16::MAX);
+<a href=#1193 id=1193 data-nosnippet>1193</a>            hits.rows
+<a href=#1194 id=1194 data-nosnippet>1194</a>                .push((Rect::new(inner.x, y, inner.width, <span class="number">1</span>), index));
+<a href=#1195 id=1195 data-nosnippet>1195</a>        }
+<a href=#1196 id=1196 data-nosnippet>1196</a>    }
+<a href=#1197 id=1197 data-nosnippet>1197</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(view) = <span class="kw-2">&amp;</span>panel.event {
+<a href=#1198 id=1198 data-nosnippet>1198</a>        <span class="kw">let </span>webhook = panel.webhooks().iter().find(|hook| hook.id == view.webhook);
+<a href=#1199 id=1199 data-nosnippet>1199</a>        <span class="kw">let </span>title = webhook.map_or_else(String::new, webhook_title);
+<a href=#1200 id=1200 data-nosnippet>1200</a>        frame.render_widget(Clear, bottom_area);
+<a href=#1201 id=1201 data-nosnippet>1201</a>        frame.render_widget(
+<a href=#1202 id=1202 data-nosnippet>1202</a>            Paragraph::new(event_text(webhook, view))
+<a href=#1203 id=1203 data-nosnippet>1203</a>                .wrap(Wrap { trim: <span class="bool-val">false </span>})
+<a href=#1204 id=1204 data-nosnippet>1204</a>                .scroll((view.scroll, <span class="number">0</span>))
+<a href=#1205 id=1205 data-nosnippet>1205</a>                .block(
+<a href=#1206 id=1206 data-nosnippet>1206</a>                    <span class="kw">crate</span>::ui::panel_block()
+<a href=#1207 id=1207 data-nosnippet>1207</a>                        .border_style(theme.panel_border())
+<a href=#1208 id=1208 data-nosnippet>1208</a>                        .title(<span class="kw">crate</span>::ui::panel_title(<span class="macro">format!</span>(
+<a href=#1209 id=1209 data-nosnippet>1209</a>                            <span class="string">"{title} · event {} · ↑↓ scroll"</span>,
+<a href=#1210 id=1210 data-nosnippet>1210</a>                            view.index + <span class="number">1
+<a href=#1211 id=1211 data-nosnippet>1211</a>                        </span>))),
+<a href=#1212 id=1212 data-nosnippet>1212</a>                ),
+<a href=#1213 id=1213 data-nosnippet>1213</a>            bottom_area,
+<a href=#1214 id=1214 data-nosnippet>1214</a>        );
+<a href=#1215 id=1215 data-nosnippet>1215</a>    } <span class="kw">else </span>{
+<a href=#1216 id=1216 data-nosnippet>1216</a>        render_details(frame, bottom_area, panel, details, shown, theme, <span class="kw-2">&amp;mut </span>hits);
+<a href=#1217 id=1217 data-nosnippet>1217</a>    }
+<a href=#1218 id=1218 data-nosnippet>1218</a>    <span class="kw">let </span><span class="kw-2">mut </span>lines = <span class="macro">vec!</span>[Vec::new(), Vec::new()];
+<a href=#1219 id=1219 data-nosnippet>1219</a>    <span class="kw">let </span><span class="kw-2">mut </span>row = <span class="number">0</span>;
+<a href=#1220 id=1220 data-nosnippet>1220</a>    <span class="kw">let </span><span class="kw-2">mut </span>x = actions_area.x;
+<a href=#1221 id=1221 data-nosnippet>1221</a>    <span class="kw">for </span>action <span class="kw">in </span>panel.actions(shown.here) {
+<a href=#1222 id=1222 data-nosnippet>1222</a>        <span class="kw">let </span>label = <span class="macro">format!</span>(<span class="string">" {} ({}) "</span>, action.label(), action.key_label());
+<a href=#1223 id=1223 data-nosnippet>1223</a>        <span class="kw">let </span>width = u16::try_from(label.chars().count()).unwrap_or(u16::MAX);
+<a href=#1224 id=1224 data-nosnippet>1224</a>        <span class="kw">if </span>x.saturating_add(width) &gt; actions_area.right() &amp;&amp; row == <span class="number">0 </span>{
+<a href=#1225 id=1225 data-nosnippet>1225</a>            row = <span class="number">1</span>;
+<a href=#1226 id=1226 data-nosnippet>1226</a>            x = actions_area.x;
+<a href=#1227 id=1227 data-nosnippet>1227</a>        }
+<a href=#1228 id=1228 data-nosnippet>1228</a>        <span class="kw">if </span>x.saturating_add(width) &lt;= actions_area.right() &amp;&amp; row &lt; <span class="number">2 </span>{
+<a href=#1229 id=1229 data-nosnippet>1229</a>            <span class="kw">let </span>y = actions_area.y + u16::try_from(row).unwrap_or(<span class="number">0</span>);
+<a href=#1230 id=1230 data-nosnippet>1230</a>            <span class="kw">if </span>y &lt; actions_area.bottom() {
+<a href=#1231 id=1231 data-nosnippet>1231</a>                hits.actions.push((Rect::new(x, y, width, <span class="number">1</span>), action));
+<a href=#1232 id=1232 data-nosnippet>1232</a>            }
+<a href=#1233 id=1233 data-nosnippet>1233</a>            lines[row].push(Span::styled(label, theme.link()));
+<a href=#1234 id=1234 data-nosnippet>1234</a>            lines[row].push(Span::raw(<span class="string">" "</span>));
+<a href=#1235 id=1235 data-nosnippet>1235</a>            x = x.saturating_add(width + <span class="number">1</span>);
+<a href=#1236 id=1236 data-nosnippet>1236</a>        }
+<a href=#1237 id=1237 data-nosnippet>1237</a>    }
+<a href=#1238 id=1238 data-nosnippet>1238</a>    frame.render_widget(
+<a href=#1239 id=1239 data-nosnippet>1239</a>        Paragraph::new(lines.into_iter().map(Line::from).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()),
+<a href=#1240 id=1240 data-nosnippet>1240</a>        actions_area,
+<a href=#1241 id=1241 data-nosnippet>1241</a>    );
+<a href=#1242 id=1242 data-nosnippet>1242</a>    hits
+<a href=#1243 id=1243 data-nosnippet>1243</a>}
+<a href=#1244 id=1244 data-nosnippet>1244</a>
+<a href=#1245 id=1245 data-nosnippet>1245</a><span class="doccomment">/// The details pane beside the history pane.
+<a href=#1246 id=1246 data-nosnippet>1246</a></span><span class="kw">fn </span>render_details(
+<a href=#1247 id=1247 data-nosnippet>1247</a>    frame: <span class="kw-2">&amp;mut </span>Frame,
+<a href=#1248 id=1248 data-nosnippet>1248</a>    area: Rect,
+<a href=#1249 id=1249 data-nosnippet>1249</a>    panel: <span class="kw-2">&amp;</span>WebhookPanelState,
+<a href=#1250 id=1250 data-nosnippet>1250</a>    details: <span class="kw-2">&amp;</span>[CronDetail],
+<a href=#1251 id=1251 data-nosnippet>1251</a>    shown: Shown,
+<a href=#1252 id=1252 data-nosnippet>1252</a>    theme: <span class="kw-2">&amp;</span>Theme,
+<a href=#1253 id=1253 data-nosnippet>1253</a>    hits: <span class="kw-2">&amp;mut </span>WebhookHits,
+<a href=#1254 id=1254 data-nosnippet>1254</a>) {
+<a href=#1255 id=1255 data-nosnippet>1255</a>    <span class="kw">let </span>[detail_area, history_area] = Layout::default()
+<a href=#1256 id=1256 data-nosnippet>1256</a>        .direction(Direction::Horizontal)
+<a href=#1257 id=1257 data-nosnippet>1257</a>        .constraints([Constraint::Percentage(<span class="number">58</span>), Constraint::Percentage(<span class="number">42</span>)])
+<a href=#1258 id=1258 data-nosnippet>1258</a>        .areas(area);
+<a href=#1259 id=1259 data-nosnippet>1259</a>    <span class="kw">let </span>detail_block = <span class="kw">crate</span>::ui::panel_block()
+<a href=#1260 id=1260 data-nosnippet>1260</a>        .border_style(theme.panel_border())
+<a href=#1261 id=1261 data-nosnippet>1261</a>        .title(<span class="kw">crate</span>::ui::panel_title(<span class="string">"Details"</span>));
+<a href=#1262 id=1262 data-nosnippet>1262</a>    <span class="kw">let </span><span class="kw-2">mut </span>detail_inner = detail_block.inner(detail_area);
+<a href=#1263 id=1263 data-nosnippet>1263</a>    frame.render_widget(detail_block, detail_area);
+<a href=#1264 id=1264 data-nosnippet>1264</a>    <span class="kw">let </span>linked: Vec&lt;<span class="kw">_</span>&gt; = <span class="kw">if </span>shows_details(panel) {
+<a href=#1265 id=1265 data-nosnippet>1265</a>        details
+<a href=#1266 id=1266 data-nosnippet>1266</a>            .iter()
+<a href=#1267 id=1267 data-nosnippet>1267</a>            .filter_map(|detail| <span class="prelude-val">Some</span>((detail, detail.session<span class="question-mark">?</span>)))
+<a href=#1268 id=1268 data-nosnippet>1268</a>            .collect()
+<a href=#1269 id=1269 data-nosnippet>1269</a>    } <span class="kw">else </span>{
+<a href=#1270 id=1270 data-nosnippet>1270</a>        Vec::new()
+<a href=#1271 id=1271 data-nosnippet>1271</a>    };
+<a href=#1272 id=1272 data-nosnippet>1272</a>    <span class="kw">for </span>(detail, session) <span class="kw">in </span>linked {
+<a href=#1273 id=1273 data-nosnippet>1273</a>        <span class="kw">if </span>detail_inner.height == <span class="number">0 </span>{
+<a href=#1274 id=1274 data-nosnippet>1274</a>            <span class="kw">break</span>;
+<a href=#1275 id=1275 data-nosnippet>1275</a>        }
+<a href=#1276 id=1276 data-nosnippet>1276</a>        <span class="kw">let </span>key = <span class="kw">if </span>detail.label == <span class="string">"target" </span>{ <span class="string">"o" </span>} <span class="kw">else </span>{ <span class="string">"i" </span>};
+<a href=#1277 id=1277 data-nosnippet>1277</a>        <span class="kw">let </span>label = Span::raw(<span class="macro">format!</span>(<span class="string">"{}: "</span>, detail.label));
+<a href=#1278 id=1278 data-nosnippet>1278</a>        <span class="kw">let </span>value = Span::styled(detail.value.clone(), theme.link());
+<a href=#1279 id=1279 data-nosnippet>1279</a>        <span class="kw">let </span>row = Rect::new(detail_inner.x, detail_inner.y, detail_inner.width, <span class="number">1</span>);
+<a href=#1280 id=1280 data-nosnippet>1280</a>        <span class="kw">let </span>label_width = u16::try_from(label.width()).unwrap_or(u16::MAX);
+<a href=#1281 id=1281 data-nosnippet>1281</a>        <span class="kw">let </span>value_width = u16::try_from(value.width()).unwrap_or(u16::MAX);
+<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="kw">let </span>link = Rect::new(
+<a href=#1283 id=1283 data-nosnippet>1283</a>            row.x.saturating_add(label_width),
+<a href=#1284 id=1284 data-nosnippet>1284</a>            row.y,
+<a href=#1285 id=1285 data-nosnippet>1285</a>            value_width.min(row.width.saturating_sub(label_width)),
+<a href=#1286 id=1286 data-nosnippet>1286</a>            <span class="number">1</span>,
+<a href=#1287 id=1287 data-nosnippet>1287</a>        );
+<a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="kw">if </span>link.width &gt; <span class="number">0 </span>{
+<a href=#1289 id=1289 data-nosnippet>1289</a>            hits.sessions.push((link, session));
+<a href=#1290 id=1290 data-nosnippet>1290</a>        }
+<a href=#1291 id=1291 data-nosnippet>1291</a>        frame.render_widget(
+<a href=#1292 id=1292 data-nosnippet>1292</a>            Paragraph::new(Line::from(<span class="macro">vec!</span>[
+<a href=#1293 id=1293 data-nosnippet>1293</a>                label,
+<a href=#1294 id=1294 data-nosnippet>1294</a>                value,
+<a href=#1295 id=1295 data-nosnippet>1295</a>                Span::styled(<span class="macro">format!</span>(<span class="string">"  ({key})"</span>), theme.muted()),
+<a href=#1296 id=1296 data-nosnippet>1296</a>            ])),
+<a href=#1297 id=1297 data-nosnippet>1297</a>            row,
+<a href=#1298 id=1298 data-nosnippet>1298</a>        );
+<a href=#1299 id=1299 data-nosnippet>1299</a>        detail_inner.y += <span class="number">1</span>;
+<a href=#1300 id=1300 data-nosnippet>1300</a>        detail_inner.height -= <span class="number">1</span>;
+<a href=#1301 id=1301 data-nosnippet>1301</a>    }
+<a href=#1302 id=1302 data-nosnippet>1302</a>    frame.render_widget(
+<a href=#1303 id=1303 data-nosnippet>1303</a>        Paragraph::new(detail_text(panel, details, shown.private, shown.here))
+<a href=#1304 id=1304 data-nosnippet>1304</a>            .wrap(Wrap { trim: <span class="bool-val">false </span>}),
+<a href=#1305 id=1305 data-nosnippet>1305</a>        detail_inner,
+<a href=#1306 id=1306 data-nosnippet>1306</a>    );
+<a href=#1307 id=1307 data-nosnippet>1307</a>    <span class="kw">let </span>history_block = <span class="kw">crate</span>::ui::panel_block()
+<a href=#1308 id=1308 data-nosnippet>1308</a>        .border_style(theme.panel_border())
+<a href=#1309 id=1309 data-nosnippet>1309</a>        .title(<span class="kw">crate</span>::ui::panel_title(<span class="string">"Events, newest first"</span>));
+<a href=#1310 id=1310 data-nosnippet>1310</a>    <span class="kw">let </span>history_inner = history_block.inner(history_area);
+<a href=#1311 id=1311 data-nosnippet>1311</a>    frame.render_widget(history_block, history_area);
+<a href=#1312 id=1312 data-nosnippet>1312</a>    <span class="kw">let </span>webhook = shows_details(panel)
+<a href=#1313 id=1313 data-nosnippet>1313</a>        .then(|| panel.selected_webhook())
+<a href=#1314 id=1314 data-nosnippet>1314</a>        .flatten();
+<a href=#1315 id=1315 data-nosnippet>1315</a>    <span class="kw">let </span>lines = history_lines(webhook);
+<a href=#1316 id=1316 data-nosnippet>1316</a>    <span class="kw">let </span>clickable = webhook.is_some_and(|webhook| !webhook.history.is_empty());
+<a href=#1317 id=1317 data-nosnippet>1317</a>    <span class="kw">for </span>(index, text) <span class="kw">in </span>lines
+<a href=#1318 id=1318 data-nosnippet>1318</a>        .into_iter()
+<a href=#1319 id=1319 data-nosnippet>1319</a>        .take(usize::from(history_inner.height))
+<a href=#1320 id=1320 data-nosnippet>1320</a>        .enumerate()
+<a href=#1321 id=1321 data-nosnippet>1321</a>    {
+<a href=#1322 id=1322 data-nosnippet>1322</a>        <span class="kw">let </span>y = history_inner.y + u16::try_from(index).unwrap_or(u16::MAX);
+<a href=#1323 id=1323 data-nosnippet>1323</a>        <span class="kw">let </span>row = Rect::new(history_inner.x, y, history_inner.width, <span class="number">1</span>);
+<a href=#1324 id=1324 data-nosnippet>1324</a>        <span class="kw">if </span>clickable {
+<a href=#1325 id=1325 data-nosnippet>1325</a>            hits.events.push((row, index));
+<a href=#1326 id=1326 data-nosnippet>1326</a>        }
+<a href=#1327 id=1327 data-nosnippet>1327</a>        frame.render_widget(Paragraph::new(text), row);
+<a href=#1328 id=1328 data-nosnippet>1328</a>    }
+<a href=#1329 id=1329 data-nosnippet>1329</a>}
+<a href=#1330 id=1330 data-nosnippet>1330</a>
+<a href=#1331 id=1331 data-nosnippet>1331</a><span class="doccomment">/// A listing with an in-session webhook that has received an event and a
+<a href=#1332 id=1332 data-nosnippet>1332</a>/// disabled new-session webhook with a GitHub check and a thread key.
+<a href=#1333 id=1333 data-nosnippet>1333</a></span><span class="attr">#[cfg(test)]
+<a href=#1334 id=1334 data-nosnippet>1334</a></span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::ui) <span class="kw">fn </span>sample_webhooks() -&gt; WebhooksListResult {
+<a href=#1335 id=1335 data-nosnippet>1335</a>    serde_json::from_value(<span class="macro">serde_json::json!</span>({
+<a href=#1336 id=1336 data-nosnippet>1336</a>        <span class="string">"webhooks"</span>: [
+<a href=#1337 id=1337 data-nosnippet>1337</a>            {
+<a href=#1338 id=1338 data-nosnippet>1338</a>                <span class="string">"id"</span>: <span class="string">"w7k2m9qa"</span>,
+<a href=#1339 id=1339 data-nosnippet>1339</a>                <span class="string">"name"</span>: <span class="string">"CI failures"</span>,
+<a href=#1340 id=1340 data-nosnippet>1340</a>                <span class="string">"url_token"</span>: <span class="string">"Xq3vT9aLk2M"</span>,
+<a href=#1341 id=1341 data-nosnippet>1341</a>                <span class="string">"path"</span>: <span class="string">"/hooks/Xq3vT9aLk2M"</span>,
+<a href=#1342 id=1342 data-nosnippet>1342</a>                <span class="string">"prompt"</span>: <span class="string">"Look at the failed build."</span>,
+<a href=#1343 id=1343 data-nosnippet>1343</a>                <span class="string">"target"</span>: {<span class="string">"session"</span>: <span class="string">"0190a5b2-0000-7000-8000-000000000001"</span>},
+<a href=#1344 id=1344 data-nosnippet>1344</a>                <span class="string">"delivery"</span>: <span class="string">"queue"</span>,
+<a href=#1345 id=1345 data-nosnippet>1345</a>                <span class="string">"enabled"</span>: <span class="bool-val">true</span>,
+<a href=#1346 id=1346 data-nosnippet>1346</a>                <span class="string">"created_by"</span>: <span class="string">"user"</span>,
+<a href=#1347 id=1347 data-nosnippet>1347</a>                <span class="string">"created_at"</span>: <span class="string">"2026-11-12T18:00:00Z"</span>,
+<a href=#1348 id=1348 data-nosnippet>1348</a>                <span class="string">"counts"</span>: {<span class="string">"accepted"</span>: <span class="number">1</span>},
+<a href=#1349 id=1349 data-nosnippet>1349</a>                <span class="string">"history"</span>: [{
+<a href=#1350 id=1350 data-nosnippet>1350</a>                    <span class="string">"id"</span>: <span class="string">"e3j8x0pq"</span>,
+<a href=#1351 id=1351 data-nosnippet>1351</a>                    <span class="string">"received_at"</span>: <span class="string">"2026-11-12T18:04:11Z"</span>,
+<a href=#1352 id=1352 data-nosnippet>1352</a>                    <span class="string">"bytes"</span>: <span class="number">120</span>,
+<a href=#1353 id=1353 data-nosnippet>1353</a>                    <span class="string">"content_type"</span>: <span class="string">"application/json"</span>,
+<a href=#1354 id=1354 data-nosnippet>1354</a>                    <span class="string">"outcome"</span>: {<span class="string">"kind"</span>: <span class="string">"delivered"</span>},
+<a href=#1355 id=1355 data-nosnippet>1355</a>                    <span class="string">"session_id"</span>: <span class="string">"0190a5b2-0000-7000-8000-000000000001"
+<a href=#1356 id=1356 data-nosnippet>1356</a>                </span>}]
+<a href=#1357 id=1357 data-nosnippet>1357</a>            },
+<a href=#1358 id=1358 data-nosnippet>1358</a>            {
+<a href=#1359 id=1359 data-nosnippet>1359</a>                <span class="string">"id"</span>: <span class="string">"m7p2r4st"</span>,
+<a href=#1360 id=1360 data-nosnippet>1360</a>                <span class="string">"url_token"</span>: <span class="string">"Ab3vT9aLk2M"</span>,
+<a href=#1361 id=1361 data-nosnippet>1361</a>                <span class="string">"path"</span>: <span class="string">"/hooks/Ab3vT9aLk2M"</span>,
+<a href=#1362 id=1362 data-nosnippet>1362</a>                <span class="string">"target"</span>: {<span class="string">"new"</span>: {
+<a href=#1363 id=1363 data-nosnippet>1363</a>                    <span class="string">"agent"</span>: <span class="string">"builder"</span>,
+<a href=#1364 id=1364 data-nosnippet>1364</a>                    <span class="string">"thread_key"</span>: {<span class="string">"json"</span>: <span class="string">"/issue/number"</span>},
+<a href=#1365 id=1365 data-nosnippet>1365</a>                    <span class="string">"thread_prompt"</span>: <span class="string">"You look after one GitHub issue."
+<a href=#1366 id=1366 data-nosnippet>1366</a>                </span>}},
+<a href=#1367 id=1367 data-nosnippet>1367</a>                <span class="string">"verify"</span>: {<span class="string">"kind"</span>: <span class="string">"github"</span>},
+<a href=#1368 id=1368 data-nosnippet>1368</a>                <span class="string">"filter"</span>: [{<span class="string">"header"</span>: <span class="string">"X-GitHub-Event"</span>, <span class="string">"one_of"</span>: [<span class="string">"issues"</span>]}],
+<a href=#1369 id=1369 data-nosnippet>1369</a>                <span class="string">"permission_mode"</span>: <span class="string">"auto_approve_n"</span>,
+<a href=#1370 id=1370 data-nosnippet>1370</a>                <span class="string">"enabled"</span>: <span class="bool-val">false</span>,
+<a href=#1371 id=1371 data-nosnippet>1371</a>                <span class="string">"disabled_reason"</span>: {<span class="string">"kind"</span>: <span class="string">"failed"</span>, <span class="string">"failures"</span>: <span class="number">3</span>},
+<a href=#1372 id=1372 data-nosnippet>1372</a>                <span class="string">"created_by"</span>: <span class="string">"user"</span>,
+<a href=#1373 id=1373 data-nosnippet>1373</a>                <span class="string">"created_at"</span>: <span class="string">"2026-11-11T08:00:00Z"</span>,
+<a href=#1374 id=1374 data-nosnippet>1374</a>                <span class="string">"counts"</span>: {},
+<a href=#1375 id=1375 data-nosnippet>1375</a>                <span class="string">"consecutive_failures"</span>: <span class="number">3</span>,
+<a href=#1376 id=1376 data-nosnippet>1376</a>                <span class="string">"history"</span>: []
+<a href=#1377 id=1377 data-nosnippet>1377</a>            }
+<a href=#1378 id=1378 data-nosnippet>1378</a>        ],
+<a href=#1379 id=1379 data-nosnippet>1379</a>        <span class="string">"receiving"</span>: <span class="bool-val">true</span>,
+<a href=#1380 id=1380 data-nosnippet>1380</a>        <span class="string">"public_base"</span>: <span class="string">"https://hooks.example.com"
+<a href=#1381 id=1381 data-nosnippet>1381</a>    </span>}))
+<a href=#1382 id=1382 data-nosnippet>1382</a>    .expect(<span class="string">"sample webhooks"</span>)
+<a href=#1383 id=1383 data-nosnippet>1383</a>}
+</code></pre></div></section></main></body></html>

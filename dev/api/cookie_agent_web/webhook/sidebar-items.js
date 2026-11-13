@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["mark_title","new_template"]};
