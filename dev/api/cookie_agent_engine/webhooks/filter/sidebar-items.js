@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_CONDITIONS","MAX_ONE_OF","MAX_VALUE_CHARS"],"enum":["FilterError"],"fn":["matches","validate"],"struct":["Condition"]};

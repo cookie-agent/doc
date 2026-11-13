@@ -2267,349 +2267,350 @@
 <a href=#2267 id=2267 data-nosnippet>2267</a>            | ClientDelivery::SharesChanged(<span class="kw">_</span>)
 <a href=#2268 id=2268 data-nosnippet>2268</a>            | ClientDelivery::ProjectsChanged(<span class="kw">_</span>)
 <a href=#2269 id=2269 data-nosnippet>2269</a>            | ClientDelivery::CronsChanged(<span class="kw">_</span>)
-<a href=#2270 id=2270 data-nosnippet>2270</a>            | ClientDelivery::NotificationsChanged(<span class="kw">_</span>)
-<a href=#2271 id=2271 data-nosnippet>2271</a>            | ClientDelivery::DaemonRestarting(<span class="kw">_</span>)
-<a href=#2272 id=2272 data-nosnippet>2272</a>            | ClientDelivery::DaemonStatus(<span class="kw">_</span>) =&gt; DeliveryOutcome::Applied,
-<a href=#2273 id=2273 data-nosnippet>2273</a>            ClientDelivery::OnboardingChanged(<span class="kw">_</span>) =&gt; DeliveryOutcome::Applied,
-<a href=#2274 id=2274 data-nosnippet>2274</a>        }
-<a href=#2275 id=2275 data-nosnippet>2275</a>    }
-<a href=#2276 id=2276 data-nosnippet>2276</a>
-<a href=#2277 id=2277 data-nosnippet>2277</a>    <span class="doccomment">/// An error row in `session_id`'s transcript for a daemon error the
-<a href=#2278 id=2278 data-nosnippet>2278</a>    /// status line shows: its first line is the error, and the technical
-<a href=#2279 id=2279 data-nosnippet>2279</a>    /// detail stays collapsed behind it until the row is expanded.
-<a href=#2280 id=2280 data-nosnippet>2280</a>    </span><span class="kw">pub fn </span>push_error_details(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, error: <span class="kw-2">&amp;</span>str, detail: <span class="kw-2">&amp;</span>str) {
-<a href=#2281 id=2281 data-nosnippet>2281</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
-<a href=#2282 id=2282 data-nosnippet>2282</a>            push_event(
-<a href=#2283 id=2283 data-nosnippet>2283</a>                state,
-<a href=#2284 id=2284 data-nosnippet>2284</a>                EventLevel::Error,
-<a href=#2285 id=2285 data-nosnippet>2285</a>                <span class="macro">format!</span>(<span class="string">"{error}\ndetails: {detail}"</span>),
-<a href=#2286 id=2286 data-nosnippet>2286</a>                jiff::Timestamp::now(),
-<a href=#2287 id=2287 data-nosnippet>2287</a>            );
-<a href=#2288 id=2288 data-nosnippet>2288</a>        }
-<a href=#2289 id=2289 data-nosnippet>2289</a>    }
-<a href=#2290 id=2290 data-nosnippet>2290</a>
-<a href=#2291 id=2291 data-nosnippet>2291</a>    <span class="doccomment">/// An error row in each of `sessions` this client shows. A connection
-<a href=#2292 id=2292 data-nosnippet>2292</a>    /// failure is a live daemon notification, not a durable event: wall
-<a href=#2293 id=2293 data-nosnippet>2293</a>    /// clock orders it.
-<a href=#2294 id=2294 data-nosnippet>2294</a>    </span><span class="kw">fn </span>push_failure_notice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, sessions: <span class="kw-2">&amp;</span>[SessionId], text: String) {
-<a href=#2295 id=2295 data-nosnippet>2295</a>        <span class="kw">let </span>timestamp = jiff::Timestamp::now();
-<a href=#2296 id=2296 data-nosnippet>2296</a>        <span class="kw">for </span>session_id <span class="kw">in </span>sessions {
-<a href=#2297 id=2297 data-nosnippet>2297</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(session_id) {
-<a href=#2298 id=2298 data-nosnippet>2298</a>                push_event(state, EventLevel::Error, text.clone(), timestamp);
-<a href=#2299 id=2299 data-nosnippet>2299</a>            }
-<a href=#2300 id=2300 data-nosnippet>2300</a>        }
-<a href=#2301 id=2301 data-nosnippet>2301</a>    }
-<a href=#2302 id=2302 data-nosnippet>2302</a>
-<a href=#2303 id=2303 data-nosnippet>2303</a>    <span class="doccomment">/// Discard incomplete scratch replays. Their currently visible session
-<a href=#2304 id=2304 data-nosnippet>2304</a>    /// projections remain intact for a full recovery attempt.
-<a href=#2305 id=2305 data-nosnippet>2305</a>    </span><span class="kw">pub fn </span>abandon_timed_out_replays(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;SessionId&gt; {
-<a href=#2306 id=2306 data-nosnippet>2306</a>        <span class="kw">let </span>now = Instant::now();
-<a href=#2307 id=2307 data-nosnippet>2307</a>        <span class="kw">let </span>expired = <span class="self">self
-<a href=#2308 id=2308 data-nosnippet>2308</a>            </span>.replays
-<a href=#2309 id=2309 data-nosnippet>2309</a>            .iter()
-<a href=#2310 id=2310 data-nosnippet>2310</a>            .filter_map(|(session_id, replay)| (replay.deadline &lt;= now).then_some(<span class="kw-2">*</span>session_id))
-<a href=#2311 id=2311 data-nosnippet>2311</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#2312 id=2312 data-nosnippet>2312</a>        <span class="kw">for </span>session_id <span class="kw">in </span><span class="kw-2">&amp;</span>expired {
-<a href=#2313 id=2313 data-nosnippet>2313</a>            <span class="self">self</span>.abandon_replay(<span class="kw-2">*</span>session_id);
-<a href=#2314 id=2314 data-nosnippet>2314</a>        }
-<a href=#2315 id=2315 data-nosnippet>2315</a>        expired
-<a href=#2316 id=2316 data-nosnippet>2316</a>    }
-<a href=#2317 id=2317 data-nosnippet>2317</a>
-<a href=#2318 id=2318 data-nosnippet>2318</a>    <span class="doccomment">/// Discard all incomplete scratch replays after a connection closes.
-<a href=#2319 id=2319 data-nosnippet>2319</a>    </span><span class="kw">pub fn </span>abandon_replays(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;SessionId&gt; {
-<a href=#2320 id=2320 data-nosnippet>2320</a>        <span class="kw">let </span>sessions = <span class="self">self</span>.replays.keys().copied().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#2321 id=2321 data-nosnippet>2321</a>        <span class="kw">for </span>session_id <span class="kw">in </span><span class="kw-2">&amp;</span>sessions {
-<a href=#2322 id=2322 data-nosnippet>2322</a>            <span class="self">self</span>.abandon_replay(<span class="kw-2">*</span>session_id);
-<a href=#2323 id=2323 data-nosnippet>2323</a>        }
-<a href=#2324 id=2324 data-nosnippet>2324</a>        sessions
-<a href=#2325 id=2325 data-nosnippet>2325</a>    }
-<a href=#2326 id=2326 data-nosnippet>2326</a>
-<a href=#2327 id=2327 data-nosnippet>2327</a>    <span class="kw">fn </span>abandon_replay(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) {
-<a href=#2328 id=2328 data-nosnippet>2328</a>        <span class="self">self</span>.quarantined_sessions.insert(session_id);
-<a href=#2329 id=2329 data-nosnippet>2329</a>        <span class="self">self</span>.replays.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2330 id=2330 data-nosnippet>2330</a>    }
-<a href=#2331 id=2331 data-nosnippet>2331</a>
-<a href=#2332 id=2332 data-nosnippet>2332</a>    <span class="doccomment">/// Drain a session's voided inputs for restoration into the composer of
-<a href=#2333 id=2333 data-nosnippet>2333</a>    /// the client whose origin is `own`. Another client's inputs are dropped:
-<a href=#2334 id=2334 data-nosnippet>2334</a>    /// that client restores them. Returns texts in submission order; empty
-<a href=#2335 id=2335 data-nosnippet>2335</a>    /// when nothing is owed.
-<a href=#2336 id=2336 data-nosnippet>2336</a>    </span><span class="kw">pub fn </span>take_voided_inputs(
-<a href=#2337 id=2337 data-nosnippet>2337</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2338 id=2338 data-nosnippet>2338</a>        session_id: SessionId,
-<a href=#2339 id=2339 data-nosnippet>2339</a>        own: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>cookie_agent_protocol::EventOrigin&gt;,
-<a href=#2340 id=2340 data-nosnippet>2340</a>    ) -&gt; Vec&lt;ComposerInput&gt; {
-<a href=#2341 id=2341 data-nosnippet>2341</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) <span class="kw">else </span>{
-<a href=#2342 id=2342 data-nosnippet>2342</a>            <span class="kw">return </span>Vec::new();
-<a href=#2343 id=2343 data-nosnippet>2343</a>        };
-<a href=#2344 id=2344 data-nosnippet>2344</a>        <span class="kw">let </span><span class="kw-2">mut </span>voided = std::mem::take(<span class="kw-2">&amp;mut </span>state.voided_inputs);
-<a href=#2345 id=2345 data-nosnippet>2345</a>        voided.sort_by_key(|input| input.seq);
-<a href=#2346 id=2346 data-nosnippet>2346</a>        voided
-<a href=#2347 id=2347 data-nosnippet>2347</a>            .into_iter()
-<a href=#2348 id=2348 data-nosnippet>2348</a>            .filter(|input| input.parked || input.origin.as_ref() == own)
-<a href=#2349 id=2349 data-nosnippet>2349</a>            .map(|input| input.input)
-<a href=#2350 id=2350 data-nosnippet>2350</a>            .collect()
-<a href=#2351 id=2351 data-nosnippet>2351</a>    }
-<a href=#2352 id=2352 data-nosnippet>2352</a>
-<a href=#2353 id=2353 data-nosnippet>2353</a>    <span class="doccomment">/// Park this client's input as voided for a session (e.g. a recall
-<a href=#2354 id=2354 data-nosnippet>2354</a>    /// resolved while a different session was being viewed); the UI
-<a href=#2355 id=2355 data-nosnippet>2355</a>    /// restores it on sight.
-<a href=#2356 id=2356 data-nosnippet>2356</a>    </span><span class="kw">pub fn </span>park_voided_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, input: ComposerInput) {
-<a href=#2357 id=2357 data-nosnippet>2357</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
-<a href=#2358 id=2358 data-nosnippet>2358</a>            state.voided_inputs.push(VoidedInput {
-<a href=#2359 id=2359 data-nosnippet>2359</a>                seq: u64::MAX,
-<a href=#2360 id=2360 data-nosnippet>2360</a>                origin: <span class="prelude-val">None</span>,
-<a href=#2361 id=2361 data-nosnippet>2361</a>                parked: <span class="bool-val">true</span>,
-<a href=#2362 id=2362 data-nosnippet>2362</a>                input,
-<a href=#2363 id=2363 data-nosnippet>2363</a>            });
-<a href=#2364 id=2364 data-nosnippet>2364</a>        }
-<a href=#2365 id=2365 data-nosnippet>2365</a>    }
-<a href=#2366 id=2366 data-nosnippet>2366</a>
-<a href=#2367 id=2367 data-nosnippet>2367</a>    <span class="doccomment">/// Apply a persisted event. Replayed duplicates are ignored by sequence.
-<a href=#2368 id=2368 data-nosnippet>2368</a>    </span><span class="kw">pub fn </span>apply_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: StoredEvent) -&gt; bool {
-<a href=#2369 id=2369 data-nosnippet>2369</a>        <span class="self">self</span>.apply_event_for_generation(event, <span class="number">0</span>)
-<a href=#2370 id=2370 data-nosnippet>2370</a>    }
-<a href=#2371 id=2371 data-nosnippet>2371</a>
-<a href=#2372 id=2372 data-nosnippet>2372</a>    <span class="kw">pub fn </span>apply_event_for_generation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: StoredEvent, generation: u64) -&gt; bool {
-<a href=#2373 id=2373 data-nosnippet>2373</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>event.session_id) {
-<a href=#2374 id=2374 data-nosnippet>2374</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2375 id=2375 data-nosnippet>2375</a>        }
-<a href=#2376 id=2376 data-nosnippet>2376</a>        <span class="comment">// The full replay on its way covers it.
-<a href=#2377 id=2377 data-nosnippet>2377</a>        </span><span class="kw">if </span><span class="self">self</span>.awaiting_rebuild.contains(<span class="kw-2">&amp;</span>event.session_id) {
-<a href=#2378 id=2378 data-nosnippet>2378</a>            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#2379 id=2379 data-nosnippet>2379</a>        }
-<a href=#2380 id=2380 data-nosnippet>2380</a>        <span class="kw">if </span>event.payload.is_transient() {
-<a href=#2381 id=2381 data-nosnippet>2381</a>            <span class="comment">// Live-only output is never stored; treat a record of it as
-<a href=#2382 id=2382 data-nosnippet>2382</a>            // output following the durable tip this view has reached.
-<a href=#2383 id=2383 data-nosnippet>2383</a>            </span><span class="kw">let </span>after_seq = <span class="self">self
-<a href=#2384 id=2384 data-nosnippet>2384</a>                </span>.sessions
-<a href=#2385 id=2385 data-nosnippet>2385</a>                .get(<span class="kw-2">&amp;</span>event.session_id)
-<a href=#2386 id=2386 data-nosnippet>2386</a>                .map_or(<span class="number">0</span>, |state| state.last_seq);
-<a href=#2387 id=2387 data-nosnippet>2387</a>            <span class="self">self</span>.apply_transient_for_generation(
-<a href=#2388 id=2388 data-nosnippet>2388</a>                TransientEvent {
-<a href=#2389 id=2389 data-nosnippet>2389</a>                    session_id: event.session_id,
-<a href=#2390 id=2390 data-nosnippet>2390</a>                    run_id: event.run_id,
-<a href=#2391 id=2391 data-nosnippet>2391</a>                    after_seq,
-<a href=#2392 id=2392 data-nosnippet>2392</a>                    timestamp: event.timestamp,
-<a href=#2393 id=2393 data-nosnippet>2393</a>                    payload: event.payload,
-<a href=#2394 id=2394 data-nosnippet>2394</a>                },
-<a href=#2395 id=2395 data-nosnippet>2395</a>                generation,
-<a href=#2396 id=2396 data-nosnippet>2396</a>            );
-<a href=#2397 id=2397 data-nosnippet>2397</a>            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#2398 id=2398 data-nosnippet>2398</a>        }
-<a href=#2399 id=2399 data-nosnippet>2399</a>        <span class="kw">let </span>state = <span class="self">self</span>.sessions.entry(event.session_id).or_default();
-<a href=#2400 id=2400 data-nosnippet>2400</a>        <span class="kw">if </span>state.generation != generation {
-<a href=#2401 id=2401 data-nosnippet>2401</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2402 id=2402 data-nosnippet>2402</a>        }
-<a href=#2403 id=2403 data-nosnippet>2403</a>        <span class="kw">if </span>event.seq &lt;= state.last_seq {
-<a href=#2404 id=2404 data-nosnippet>2404</a>            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#2405 id=2405 data-nosnippet>2405</a>        }
-<a href=#2406 id=2406 data-nosnippet>2406</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(held) = <span class="self">self</span>.histories.get_mut(<span class="kw-2">&amp;</span>event.session_id) {
-<a href=#2407 id=2407 data-nosnippet>2407</a>            held.hold_live(<span class="kw-2">&amp;</span>event);
-<a href=#2408 id=2408 data-nosnippet>2408</a>        }
-<a href=#2409 id=2409 data-nosnippet>2409</a>        state.last_seq = event.seq;
-<a href=#2410 id=2410 data-nosnippet>2410</a>        reduce_event_from(
-<a href=#2411 id=2411 data-nosnippet>2411</a>            state,
-<a href=#2412 id=2412 data-nosnippet>2412</a>            event.session_id,
-<a href=#2413 id=2413 data-nosnippet>2413</a>            event.run_id,
-<a href=#2414 id=2414 data-nosnippet>2414</a>            event.seq,
-<a href=#2415 id=2415 data-nosnippet>2415</a>            event.timestamp,
-<a href=#2416 id=2416 data-nosnippet>2416</a>            event.origin,
-<a href=#2417 id=2417 data-nosnippet>2417</a>            event.payload,
-<a href=#2418 id=2418 data-nosnippet>2418</a>        );
-<a href=#2419 id=2419 data-nosnippet>2419</a>        state.version = state.version.wrapping_add(<span class="number">1</span>);
-<a href=#2420 id=2420 data-nosnippet>2420</a>        <span class="bool-val">true
-<a href=#2421 id=2421 data-nosnippet>2421</a>    </span>}
-<a href=#2422 id=2422 data-nosnippet>2422</a>
-<a href=#2423 id=2423 data-nosnippet>2423</a>    <span class="doccomment">/// Apply live-only stream output. It never advances the cursor and never
-<a href=#2424 id=2424 data-nosnippet>2424</a>    /// asks for a replay: output that does not directly follow the durable
-<a href=#2425 id=2425 data-nosnippet>2425</a>    /// event this view last applied (stale, or ahead of a durable event not
-<a href=#2426 id=2426 data-nosnippet>2426</a>    /// yet seen), or that arrives while a replay is staged, is dropped. The
-<a href=#2427 id=2427 data-nosnippet>2427</a>    /// committed turn or tool result that follows supersedes it either way.
-<a href=#2428 id=2428 data-nosnippet>2428</a>    /// Output for an attempt this view never saw start is ignored too, so a
-<a href=#2429 id=2429 data-nosnippet>2429</a>    /// view attached mid-reply shows the reply from its first live delta on.
-<a href=#2430 id=2430 data-nosnippet>2430</a>    </span><span class="kw">pub fn </span>apply_transient_for_generation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: TransientEvent, generation: u64) {
-<a href=#2431 id=2431 data-nosnippet>2431</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>event.session_id)
-<a href=#2432 id=2432 data-nosnippet>2432</a>            || <span class="self">self</span>.awaiting_rebuild.contains(<span class="kw-2">&amp;</span>event.session_id)
-<a href=#2433 id=2433 data-nosnippet>2433</a>            || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>event.session_id)
-<a href=#2434 id=2434 data-nosnippet>2434</a>        {
-<a href=#2435 id=2435 data-nosnippet>2435</a>            <span class="kw">return</span>;
-<a href=#2436 id=2436 data-nosnippet>2436</a>        }
-<a href=#2437 id=2437 data-nosnippet>2437</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>event.session_id) <span class="kw">else </span>{
-<a href=#2438 id=2438 data-nosnippet>2438</a>            <span class="kw">return</span>;
-<a href=#2439 id=2439 data-nosnippet>2439</a>        };
-<a href=#2440 id=2440 data-nosnippet>2440</a>        <span class="kw">if </span>state.generation != generation || state.last_seq != event.after_seq {
-<a href=#2441 id=2441 data-nosnippet>2441</a>            <span class="kw">return</span>;
-<a href=#2442 id=2442 data-nosnippet>2442</a>        }
-<a href=#2443 id=2443 data-nosnippet>2443</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(held) = <span class="self">self</span>.histories.get_mut(<span class="kw-2">&amp;</span>event.session_id) {
-<a href=#2444 id=2444 data-nosnippet>2444</a>            held.settle_transient(<span class="kw-2">&amp;</span>event.payload);
-<a href=#2445 id=2445 data-nosnippet>2445</a>            held.hold_transient(event.clone());
-<a href=#2446 id=2446 data-nosnippet>2446</a>        }
-<a href=#2447 id=2447 data-nosnippet>2447</a>        <span class="kw">if </span>reduce_transient(state, event.timestamp, event.payload) {
-<a href=#2448 id=2448 data-nosnippet>2448</a>            state.version = state.version.wrapping_add(<span class="number">1</span>);
-<a href=#2449 id=2449 data-nosnippet>2449</a>        }
-<a href=#2450 id=2450 data-nosnippet>2450</a>    }
-<a href=#2451 id=2451 data-nosnippet>2451</a>
-<a href=#2452 id=2452 data-nosnippet>2452</a>    <span class="doccomment">/// Apply a message from the event subscription stream. A gap is returned
-<a href=#2453 id=2453 data-nosnippet>2453</a>    /// to allow callers to surface it; the client independently re-subscribes.
-<a href=#2454 id=2454 data-nosnippet>2454</a>    </span><span class="kw">pub fn </span>apply_subscription(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: EventSubscriptionMessage) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
-<a href=#2455 id=2455 data-nosnippet>2455</a>        <span class="self">self</span>.apply_subscription_for_generation(message, <span class="number">0</span>)
-<a href=#2456 id=2456 data-nosnippet>2456</a>    }
-<a href=#2457 id=2457 data-nosnippet>2457</a>
-<a href=#2458 id=2458 data-nosnippet>2458</a>    <span class="kw">pub fn </span>apply_subscription_for_generation(
-<a href=#2459 id=2459 data-nosnippet>2459</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2460 id=2460 data-nosnippet>2460</a>        message: EventSubscriptionMessage,
-<a href=#2461 id=2461 data-nosnippet>2461</a>        generation: u64,
-<a href=#2462 id=2462 data-nosnippet>2462</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
-<a href=#2463 id=2463 data-nosnippet>2463</a>        <span class="kw">match </span>message {
-<a href=#2464 id=2464 data-nosnippet>2464</a>            EventSubscriptionMessage::Event { event } =&gt; {
-<a href=#2465 id=2465 data-nosnippet>2465</a>                <span class="kw">let </span>cursor = <span class="self">self
-<a href=#2466 id=2466 data-nosnippet>2466</a>                    </span>.sessions
-<a href=#2467 id=2467 data-nosnippet>2467</a>                    .get(<span class="kw-2">&amp;</span>event.session_id)
-<a href=#2468 id=2468 data-nosnippet>2468</a>                    .map_or(<span class="number">0</span>, |state| state.last_seq);
-<a href=#2469 id=2469 data-nosnippet>2469</a>                <span class="self">self</span>.apply_event_for_generation(std::sync::Arc::unwrap_or_clone(event), generation)
-<a href=#2470 id=2470 data-nosnippet>2470</a>                    .then_some(())
-<a href=#2471 id=2471 data-nosnippet>2471</a>                    .map_or(<span class="prelude-val">Some</span>(cursor), |<span class="kw">_</span>| <span class="prelude-val">None</span>)
-<a href=#2472 id=2472 data-nosnippet>2472</a>            }
-<a href=#2473 id=2473 data-nosnippet>2473</a>            EventSubscriptionMessage::Transient { event } =&gt; {
-<a href=#2474 id=2474 data-nosnippet>2474</a>                <span class="self">self</span>.apply_transient_for_generation(
-<a href=#2475 id=2475 data-nosnippet>2475</a>                    std::sync::Arc::unwrap_or_clone(event),
-<a href=#2476 id=2476 data-nosnippet>2476</a>                    generation,
-<a href=#2477 id=2477 data-nosnippet>2477</a>                );
-<a href=#2478 id=2478 data-nosnippet>2478</a>                <span class="prelude-val">None
-<a href=#2479 id=2479 data-nosnippet>2479</a>            </span>}
-<a href=#2480 id=2480 data-nosnippet>2480</a>            EventSubscriptionMessage::Gap {
-<a href=#2481 id=2481 data-nosnippet>2481</a>                last_delivered_seq, ..
-<a href=#2482 id=2482 data-nosnippet>2482</a>            } =&gt; <span class="prelude-val">Some</span>(last_delivered_seq),
-<a href=#2483 id=2483 data-nosnippet>2483</a>            EventSubscriptionMessage::Rewound {
-<a href=#2484 id=2484 data-nosnippet>2484</a>                session_id,
-<a href=#2485 id=2485 data-nosnippet>2485</a>                through_seq,
-<a href=#2486 id=2486 data-nosnippet>2486</a>            } =&gt; {
-<a href=#2487 id=2487 data-nosnippet>2487</a>                <span class="self">self</span>.rewind_session(session_id, through_seq);
-<a href=#2488 id=2488 data-nosnippet>2488</a>                <span class="prelude-val">None
-<a href=#2489 id=2489 data-nosnippet>2489</a>            </span>}
-<a href=#2490 id=2490 data-nosnippet>2490</a>        }
-<a href=#2491 id=2491 data-nosnippet>2491</a>    }
-<a href=#2492 id=2492 data-nosnippet>2492</a>
-<a href=#2493 id=2493 data-nosnippet>2493</a>    <span class="doccomment">/// A revert cut `session_id`'s log after `through_seq`. The client
-<a href=#2494 id=2494 data-nosnippet>2494</a>    /// follows with a full replay, which rebuilds the projection; until it
-<a href=#2495 id=2495 data-nosnippet>2495</a>    /// starts, the projection stays as it was and the appends that reuse
-<a href=#2496 id=2496 data-nosnippet>2496</a>    /// the cut sequences are left to that replay.
-<a href=#2497 id=2497 data-nosnippet>2497</a>    </span><span class="kw">fn </span>rewind_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, _through_seq: u64) {
-<a href=#2498 id=2498 data-nosnippet>2498</a>        <span class="kw">if </span><span class="self">self</span>.sessions.contains_key(<span class="kw-2">&amp;</span>session_id) {
-<a href=#2499 id=2499 data-nosnippet>2499</a>            <span class="self">self</span>.awaiting_rebuild.insert(session_id);
-<a href=#2500 id=2500 data-nosnippet>2500</a>        }
-<a href=#2501 id=2501 data-nosnippet>2501</a>    }
-<a href=#2502 id=2502 data-nosnippet>2502</a>
-<a href=#2503 id=2503 data-nosnippet>2503</a>    <span class="doccomment">/// Whether [`Self::evict_session`] would let `session_id` go: no
-<a href=#2504 id=2504 data-nosnippet>2504</a>    /// replay staged, and no run or input still owed to its view. A session
-<a href=#2505 id=2505 data-nosnippet>2505</a>    /// with no projection can always go.
-<a href=#2506 id=2506 data-nosnippet>2506</a>    </span><span class="attr">#[must_use]
-<a href=#2507 id=2507 data-nosnippet>2507</a>    </span><span class="kw">pub fn </span>can_evict(<span class="kw-2">&amp;</span><span class="self">self</span>, session_id: SessionId) -&gt; bool {
-<a href=#2508 id=2508 data-nosnippet>2508</a>        !<span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
-<a href=#2509 id=2509 data-nosnippet>2509</a>            &amp;&amp; <span class="self">self
-<a href=#2510 id=2510 data-nosnippet>2510</a>                </span>.sessions
-<a href=#2511 id=2511 data-nosnippet>2511</a>                .get(<span class="kw-2">&amp;</span>session_id)
-<a href=#2512 id=2512 data-nosnippet>2512</a>                .is_none_or(SessionState::is_settled)
-<a href=#2513 id=2513 data-nosnippet>2513</a>    }
-<a href=#2514 id=2514 data-nosnippet>2514</a>
-<a href=#2515 id=2515 data-nosnippet>2515</a>    <span class="doccomment">/// Drops `session_id`'s projection once nothing shows it and its
-<a href=#2516 id=2516 data-nosnippet>2516</a>    /// subscription is released, so a client that browses many sessions
-<a href=#2517 id=2517 data-nosnippet>2517</a>    /// does not keep every one it opened. Opening it again replays it from
-<a href=#2518 id=2518 data-nosnippet>2518</a>    /// the start; until then what still arrives for it is dropped. A
-<a href=#2519 id=2519 data-nosnippet>2519</a>    /// session with a replay staged, or with a run or input still owed to
-<a href=#2520 id=2520 data-nosnippet>2520</a>    /// its view, is kept. Returns whether it was dropped.
-<a href=#2521 id=2521 data-nosnippet>2521</a>    </span><span class="kw">pub fn </span>evict_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) -&gt; bool {
-<a href=#2522 id=2522 data-nosnippet>2522</a>        <span class="kw">if </span>!<span class="self">self</span>.can_evict(session_id) {
-<a href=#2523 id=2523 data-nosnippet>2523</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2524 id=2524 data-nosnippet>2524</a>        }
-<a href=#2525 id=2525 data-nosnippet>2525</a>        <span class="self">self</span>.quarantined_sessions.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2526 id=2526 data-nosnippet>2526</a>        <span class="self">self</span>.awaiting_rebuild.insert(session_id);
-<a href=#2527 id=2527 data-nosnippet>2527</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2528 id=2528 data-nosnippet>2528</a>        <span class="self">self</span>.sessions.remove(<span class="kw-2">&amp;</span>session_id).is_some()
-<a href=#2529 id=2529 data-nosnippet>2529</a>    }
-<a href=#2530 id=2530 data-nosnippet>2530</a>
-<a href=#2531 id=2531 data-nosnippet>2531</a>    <span class="doccomment">/// Drop a session projection before a full cursor-zero rebuild.
-<a href=#2532 id=2532 data-nosnippet>2532</a>    ///
-<a href=#2533 id=2533 data-nosnippet>2533</a>    /// A visible projection is never reset while its replay scratch is active
-<a href=#2534 id=2534 data-nosnippet>2534</a>    /// or its session is quarantined; callers receive `false` and must recover
-<a href=#2535 id=2535 data-nosnippet>2535</a>    /// through the staged replay path instead.
-<a href=#2536 id=2536 data-nosnippet>2536</a>    </span><span class="kw">pub fn </span>reset_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, generation: u64) -&gt; bool {
-<a href=#2537 id=2537 data-nosnippet>2537</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>session_id) || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
-<a href=#2538 id=2538 data-nosnippet>2538</a>        {
-<a href=#2539 id=2539 data-nosnippet>2539</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2540 id=2540 data-nosnippet>2540</a>        }
-<a href=#2541 id=2541 data-nosnippet>2541</a>        <span class="self">self</span>.sessions.insert(
-<a href=#2542 id=2542 data-nosnippet>2542</a>            session_id,
-<a href=#2543 id=2543 data-nosnippet>2543</a>            SessionState {
-<a href=#2544 id=2544 data-nosnippet>2544</a>                generation,
-<a href=#2545 id=2545 data-nosnippet>2545</a>                ..SessionState::default()
-<a href=#2546 id=2546 data-nosnippet>2546</a>            },
-<a href=#2547 id=2547 data-nosnippet>2547</a>        );
-<a href=#2548 id=2548 data-nosnippet>2548</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2549 id=2549 data-nosnippet>2549</a>        <span class="self">self</span>.awaiting_rebuild.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2550 id=2550 data-nosnippet>2550</a>        <span class="bool-val">true
-<a href=#2551 id=2551 data-nosnippet>2551</a>    </span>}
-<a href=#2552 id=2552 data-nosnippet>2552</a>
-<a href=#2553 id=2553 data-nosnippet>2553</a>    <span class="doccomment">/// Replace a session projection with one rebuilt from its durable
-<a href=#2554 id=2554 data-nosnippet>2554</a>    /// history, which must start at the session's creation and advance
-<a href=#2555 id=2555 data-nosnippet>2555</a>    /// strictly; gaps are allowed. An invalid history leaves the existing
-<a href=#2556 id=2556 data-nosnippet>2556</a>    /// projection intact.
-<a href=#2557 id=2557 data-nosnippet>2557</a>    </span><span class="kw">pub fn </span>rebuild_session(
-<a href=#2558 id=2558 data-nosnippet>2558</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2559 id=2559 data-nosnippet>2559</a>        session_id: SessionId,
-<a href=#2560 id=2560 data-nosnippet>2560</a>        generation: u64,
-<a href=#2561 id=2561 data-nosnippet>2561</a>        events: Vec&lt;StoredEvent&gt;,
-<a href=#2562 id=2562 data-nosnippet>2562</a>    ) -&gt; bool {
-<a href=#2563 id=2563 data-nosnippet>2563</a>        <span class="kw">let </span><span class="kw-2">mut </span>previous = <span class="number">0</span>;
-<a href=#2564 id=2564 data-nosnippet>2564</a>        <span class="kw">for </span>event <span class="kw">in </span><span class="kw-2">&amp;</span>events {
-<a href=#2565 id=2565 data-nosnippet>2565</a>            <span class="kw">if </span>event.session_id != session_id
-<a href=#2566 id=2566 data-nosnippet>2566</a>                || event.seq &lt;= previous
-<a href=#2567 id=2567 data-nosnippet>2567</a>                || (previous == <span class="number">0 </span>&amp;&amp; event.seq != <span class="number">1</span>)
-<a href=#2568 id=2568 data-nosnippet>2568</a>            {
-<a href=#2569 id=2569 data-nosnippet>2569</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2570 id=2570 data-nosnippet>2570</a>            }
-<a href=#2571 id=2571 data-nosnippet>2571</a>            previous = event.seq;
-<a href=#2572 id=2572 data-nosnippet>2572</a>        }
-<a href=#2573 id=2573 data-nosnippet>2573</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>session_id) || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
-<a href=#2574 id=2574 data-nosnippet>2574</a>        {
-<a href=#2575 id=2575 data-nosnippet>2575</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2576 id=2576 data-nosnippet>2576</a>        }
-<a href=#2577 id=2577 data-nosnippet>2577</a>        <span class="kw">let </span>state = reduce_session_events(session_id, generation, <span class="kw-2">&amp;</span>events);
-<a href=#2578 id=2578 data-nosnippet>2578</a>        <span class="self">self</span>.awaiting_rebuild.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2579 id=2579 data-nosnippet>2579</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
-<a href=#2580 id=2580 data-nosnippet>2580</a>        <span class="self">self</span>.sessions.insert(session_id, state);
-<a href=#2581 id=2581 data-nosnippet>2581</a>        <span class="bool-val">true
-<a href=#2582 id=2582 data-nosnippet>2582</a>    </span>}
-<a href=#2583 id=2583 data-nosnippet>2583</a>}
-<a href=#2584 id=2584 data-nosnippet>2584</a>
-<a href=#2585 id=2585 data-nosnippet>2585</a><span class="attr">#[cfg(test)]
-<a href=#2586 id=2586 data-nosnippet>2586</a></span><span class="kw">mod </span>tests;
-<a href=#2587 id=2587 data-nosnippet>2587</a>
-<a href=#2588 id=2588 data-nosnippet>2588</a><span class="doccomment">/// The error row for an MCP server that is unavailable to a session.
-<a href=#2589 id=2589 data-nosnippet>2589</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mcp_failure_notice(failure: <span class="kw-2">&amp;</span>cookie_agent_protocol::McpServerFailure) -&gt; String {
-<a href=#2590 id=2590 data-nosnippet>2590</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>failure.workspace {
-<a href=#2591 id=2591 data-nosnippet>2591</a>        <span class="prelude-val">Some</span>(workspace) =&gt; <span class="macro">format!</span>(
-<a href=#2592 id=2592 data-nosnippet>2592</a>            <span class="string">"MCP server `{}` ({} runtime at {workspace}) is unavailable: {}"</span>,
-<a href=#2593 id=2593 data-nosnippet>2593</a>            failure.server, failure.runtime_id, failure.reason
-<a href=#2594 id=2594 data-nosnippet>2594</a>        ),
-<a href=#2595 id=2595 data-nosnippet>2595</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(
-<a href=#2596 id=2596 data-nosnippet>2596</a>            <span class="string">"MCP server `{}` ({} runtime) is unavailable: {}"</span>,
-<a href=#2597 id=2597 data-nosnippet>2597</a>            failure.server, failure.runtime_id, failure.reason
-<a href=#2598 id=2598 data-nosnippet>2598</a>        ),
-<a href=#2599 id=2599 data-nosnippet>2599</a>    }
-<a href=#2600 id=2600 data-nosnippet>2600</a>}
-<a href=#2601 id=2601 data-nosnippet>2601</a>
-<a href=#2602 id=2602 data-nosnippet>2602</a><span class="doccomment">/// The error row for a runtime instance that is unavailable to a session.
-<a href=#2603 id=2603 data-nosnippet>2603</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>runtime_failure_notice(failure: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeFailure) -&gt; String {
-<a href=#2604 id=2604 data-nosnippet>2604</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>failure.workspace {
-<a href=#2605 id=2605 data-nosnippet>2605</a>        <span class="prelude-val">Some</span>(workspace) =&gt; <span class="macro">format!</span>(
-<a href=#2606 id=2606 data-nosnippet>2606</a>            <span class="string">"runtime `{}` at {workspace} is unavailable: {}"</span>,
-<a href=#2607 id=2607 data-nosnippet>2607</a>            failure.runtime_id, failure.reason
-<a href=#2608 id=2608 data-nosnippet>2608</a>        ),
-<a href=#2609 id=2609 data-nosnippet>2609</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(
-<a href=#2610 id=2610 data-nosnippet>2610</a>            <span class="string">"runtime `{}` is unavailable: {}"</span>,
-<a href=#2611 id=2611 data-nosnippet>2611</a>            failure.runtime_id, failure.reason
-<a href=#2612 id=2612 data-nosnippet>2612</a>        ),
-<a href=#2613 id=2613 data-nosnippet>2613</a>    }
-<a href=#2614 id=2614 data-nosnippet>2614</a>}
+<a href=#2270 id=2270 data-nosnippet>2270</a>            | ClientDelivery::WebhooksChanged(<span class="kw">_</span>)
+<a href=#2271 id=2271 data-nosnippet>2271</a>            | ClientDelivery::NotificationsChanged(<span class="kw">_</span>)
+<a href=#2272 id=2272 data-nosnippet>2272</a>            | ClientDelivery::DaemonRestarting(<span class="kw">_</span>)
+<a href=#2273 id=2273 data-nosnippet>2273</a>            | ClientDelivery::DaemonStatus(<span class="kw">_</span>) =&gt; DeliveryOutcome::Applied,
+<a href=#2274 id=2274 data-nosnippet>2274</a>            ClientDelivery::OnboardingChanged(<span class="kw">_</span>) =&gt; DeliveryOutcome::Applied,
+<a href=#2275 id=2275 data-nosnippet>2275</a>        }
+<a href=#2276 id=2276 data-nosnippet>2276</a>    }
+<a href=#2277 id=2277 data-nosnippet>2277</a>
+<a href=#2278 id=2278 data-nosnippet>2278</a>    <span class="doccomment">/// An error row in `session_id`'s transcript for a daemon error the
+<a href=#2279 id=2279 data-nosnippet>2279</a>    /// status line shows: its first line is the error, and the technical
+<a href=#2280 id=2280 data-nosnippet>2280</a>    /// detail stays collapsed behind it until the row is expanded.
+<a href=#2281 id=2281 data-nosnippet>2281</a>    </span><span class="kw">pub fn </span>push_error_details(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, error: <span class="kw-2">&amp;</span>str, detail: <span class="kw-2">&amp;</span>str) {
+<a href=#2282 id=2282 data-nosnippet>2282</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
+<a href=#2283 id=2283 data-nosnippet>2283</a>            push_event(
+<a href=#2284 id=2284 data-nosnippet>2284</a>                state,
+<a href=#2285 id=2285 data-nosnippet>2285</a>                EventLevel::Error,
+<a href=#2286 id=2286 data-nosnippet>2286</a>                <span class="macro">format!</span>(<span class="string">"{error}\ndetails: {detail}"</span>),
+<a href=#2287 id=2287 data-nosnippet>2287</a>                jiff::Timestamp::now(),
+<a href=#2288 id=2288 data-nosnippet>2288</a>            );
+<a href=#2289 id=2289 data-nosnippet>2289</a>        }
+<a href=#2290 id=2290 data-nosnippet>2290</a>    }
+<a href=#2291 id=2291 data-nosnippet>2291</a>
+<a href=#2292 id=2292 data-nosnippet>2292</a>    <span class="doccomment">/// An error row in each of `sessions` this client shows. A connection
+<a href=#2293 id=2293 data-nosnippet>2293</a>    /// failure is a live daemon notification, not a durable event: wall
+<a href=#2294 id=2294 data-nosnippet>2294</a>    /// clock orders it.
+<a href=#2295 id=2295 data-nosnippet>2295</a>    </span><span class="kw">fn </span>push_failure_notice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, sessions: <span class="kw-2">&amp;</span>[SessionId], text: String) {
+<a href=#2296 id=2296 data-nosnippet>2296</a>        <span class="kw">let </span>timestamp = jiff::Timestamp::now();
+<a href=#2297 id=2297 data-nosnippet>2297</a>        <span class="kw">for </span>session_id <span class="kw">in </span>sessions {
+<a href=#2298 id=2298 data-nosnippet>2298</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(session_id) {
+<a href=#2299 id=2299 data-nosnippet>2299</a>                push_event(state, EventLevel::Error, text.clone(), timestamp);
+<a href=#2300 id=2300 data-nosnippet>2300</a>            }
+<a href=#2301 id=2301 data-nosnippet>2301</a>        }
+<a href=#2302 id=2302 data-nosnippet>2302</a>    }
+<a href=#2303 id=2303 data-nosnippet>2303</a>
+<a href=#2304 id=2304 data-nosnippet>2304</a>    <span class="doccomment">/// Discard incomplete scratch replays. Their currently visible session
+<a href=#2305 id=2305 data-nosnippet>2305</a>    /// projections remain intact for a full recovery attempt.
+<a href=#2306 id=2306 data-nosnippet>2306</a>    </span><span class="kw">pub fn </span>abandon_timed_out_replays(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;SessionId&gt; {
+<a href=#2307 id=2307 data-nosnippet>2307</a>        <span class="kw">let </span>now = Instant::now();
+<a href=#2308 id=2308 data-nosnippet>2308</a>        <span class="kw">let </span>expired = <span class="self">self
+<a href=#2309 id=2309 data-nosnippet>2309</a>            </span>.replays
+<a href=#2310 id=2310 data-nosnippet>2310</a>            .iter()
+<a href=#2311 id=2311 data-nosnippet>2311</a>            .filter_map(|(session_id, replay)| (replay.deadline &lt;= now).then_some(<span class="kw-2">*</span>session_id))
+<a href=#2312 id=2312 data-nosnippet>2312</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#2313 id=2313 data-nosnippet>2313</a>        <span class="kw">for </span>session_id <span class="kw">in </span><span class="kw-2">&amp;</span>expired {
+<a href=#2314 id=2314 data-nosnippet>2314</a>            <span class="self">self</span>.abandon_replay(<span class="kw-2">*</span>session_id);
+<a href=#2315 id=2315 data-nosnippet>2315</a>        }
+<a href=#2316 id=2316 data-nosnippet>2316</a>        expired
+<a href=#2317 id=2317 data-nosnippet>2317</a>    }
+<a href=#2318 id=2318 data-nosnippet>2318</a>
+<a href=#2319 id=2319 data-nosnippet>2319</a>    <span class="doccomment">/// Discard all incomplete scratch replays after a connection closes.
+<a href=#2320 id=2320 data-nosnippet>2320</a>    </span><span class="kw">pub fn </span>abandon_replays(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;SessionId&gt; {
+<a href=#2321 id=2321 data-nosnippet>2321</a>        <span class="kw">let </span>sessions = <span class="self">self</span>.replays.keys().copied().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#2322 id=2322 data-nosnippet>2322</a>        <span class="kw">for </span>session_id <span class="kw">in </span><span class="kw-2">&amp;</span>sessions {
+<a href=#2323 id=2323 data-nosnippet>2323</a>            <span class="self">self</span>.abandon_replay(<span class="kw-2">*</span>session_id);
+<a href=#2324 id=2324 data-nosnippet>2324</a>        }
+<a href=#2325 id=2325 data-nosnippet>2325</a>        sessions
+<a href=#2326 id=2326 data-nosnippet>2326</a>    }
+<a href=#2327 id=2327 data-nosnippet>2327</a>
+<a href=#2328 id=2328 data-nosnippet>2328</a>    <span class="kw">fn </span>abandon_replay(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) {
+<a href=#2329 id=2329 data-nosnippet>2329</a>        <span class="self">self</span>.quarantined_sessions.insert(session_id);
+<a href=#2330 id=2330 data-nosnippet>2330</a>        <span class="self">self</span>.replays.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2331 id=2331 data-nosnippet>2331</a>    }
+<a href=#2332 id=2332 data-nosnippet>2332</a>
+<a href=#2333 id=2333 data-nosnippet>2333</a>    <span class="doccomment">/// Drain a session's voided inputs for restoration into the composer of
+<a href=#2334 id=2334 data-nosnippet>2334</a>    /// the client whose origin is `own`. Another client's inputs are dropped:
+<a href=#2335 id=2335 data-nosnippet>2335</a>    /// that client restores them. Returns texts in submission order; empty
+<a href=#2336 id=2336 data-nosnippet>2336</a>    /// when nothing is owed.
+<a href=#2337 id=2337 data-nosnippet>2337</a>    </span><span class="kw">pub fn </span>take_voided_inputs(
+<a href=#2338 id=2338 data-nosnippet>2338</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2339 id=2339 data-nosnippet>2339</a>        session_id: SessionId,
+<a href=#2340 id=2340 data-nosnippet>2340</a>        own: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>cookie_agent_protocol::EventOrigin&gt;,
+<a href=#2341 id=2341 data-nosnippet>2341</a>    ) -&gt; Vec&lt;ComposerInput&gt; {
+<a href=#2342 id=2342 data-nosnippet>2342</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) <span class="kw">else </span>{
+<a href=#2343 id=2343 data-nosnippet>2343</a>            <span class="kw">return </span>Vec::new();
+<a href=#2344 id=2344 data-nosnippet>2344</a>        };
+<a href=#2345 id=2345 data-nosnippet>2345</a>        <span class="kw">let </span><span class="kw-2">mut </span>voided = std::mem::take(<span class="kw-2">&amp;mut </span>state.voided_inputs);
+<a href=#2346 id=2346 data-nosnippet>2346</a>        voided.sort_by_key(|input| input.seq);
+<a href=#2347 id=2347 data-nosnippet>2347</a>        voided
+<a href=#2348 id=2348 data-nosnippet>2348</a>            .into_iter()
+<a href=#2349 id=2349 data-nosnippet>2349</a>            .filter(|input| input.parked || input.origin.as_ref() == own)
+<a href=#2350 id=2350 data-nosnippet>2350</a>            .map(|input| input.input)
+<a href=#2351 id=2351 data-nosnippet>2351</a>            .collect()
+<a href=#2352 id=2352 data-nosnippet>2352</a>    }
+<a href=#2353 id=2353 data-nosnippet>2353</a>
+<a href=#2354 id=2354 data-nosnippet>2354</a>    <span class="doccomment">/// Park this client's input as voided for a session (e.g. a recall
+<a href=#2355 id=2355 data-nosnippet>2355</a>    /// resolved while a different session was being viewed); the UI
+<a href=#2356 id=2356 data-nosnippet>2356</a>    /// restores it on sight.
+<a href=#2357 id=2357 data-nosnippet>2357</a>    </span><span class="kw">pub fn </span>park_voided_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, input: ComposerInput) {
+<a href=#2358 id=2358 data-nosnippet>2358</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>session_id) {
+<a href=#2359 id=2359 data-nosnippet>2359</a>            state.voided_inputs.push(VoidedInput {
+<a href=#2360 id=2360 data-nosnippet>2360</a>                seq: u64::MAX,
+<a href=#2361 id=2361 data-nosnippet>2361</a>                origin: <span class="prelude-val">None</span>,
+<a href=#2362 id=2362 data-nosnippet>2362</a>                parked: <span class="bool-val">true</span>,
+<a href=#2363 id=2363 data-nosnippet>2363</a>                input,
+<a href=#2364 id=2364 data-nosnippet>2364</a>            });
+<a href=#2365 id=2365 data-nosnippet>2365</a>        }
+<a href=#2366 id=2366 data-nosnippet>2366</a>    }
+<a href=#2367 id=2367 data-nosnippet>2367</a>
+<a href=#2368 id=2368 data-nosnippet>2368</a>    <span class="doccomment">/// Apply a persisted event. Replayed duplicates are ignored by sequence.
+<a href=#2369 id=2369 data-nosnippet>2369</a>    </span><span class="kw">pub fn </span>apply_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: StoredEvent) -&gt; bool {
+<a href=#2370 id=2370 data-nosnippet>2370</a>        <span class="self">self</span>.apply_event_for_generation(event, <span class="number">0</span>)
+<a href=#2371 id=2371 data-nosnippet>2371</a>    }
+<a href=#2372 id=2372 data-nosnippet>2372</a>
+<a href=#2373 id=2373 data-nosnippet>2373</a>    <span class="kw">pub fn </span>apply_event_for_generation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: StoredEvent, generation: u64) -&gt; bool {
+<a href=#2374 id=2374 data-nosnippet>2374</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>event.session_id) {
+<a href=#2375 id=2375 data-nosnippet>2375</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2376 id=2376 data-nosnippet>2376</a>        }
+<a href=#2377 id=2377 data-nosnippet>2377</a>        <span class="comment">// The full replay on its way covers it.
+<a href=#2378 id=2378 data-nosnippet>2378</a>        </span><span class="kw">if </span><span class="self">self</span>.awaiting_rebuild.contains(<span class="kw-2">&amp;</span>event.session_id) {
+<a href=#2379 id=2379 data-nosnippet>2379</a>            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#2380 id=2380 data-nosnippet>2380</a>        }
+<a href=#2381 id=2381 data-nosnippet>2381</a>        <span class="kw">if </span>event.payload.is_transient() {
+<a href=#2382 id=2382 data-nosnippet>2382</a>            <span class="comment">// Live-only output is never stored; treat a record of it as
+<a href=#2383 id=2383 data-nosnippet>2383</a>            // output following the durable tip this view has reached.
+<a href=#2384 id=2384 data-nosnippet>2384</a>            </span><span class="kw">let </span>after_seq = <span class="self">self
+<a href=#2385 id=2385 data-nosnippet>2385</a>                </span>.sessions
+<a href=#2386 id=2386 data-nosnippet>2386</a>                .get(<span class="kw-2">&amp;</span>event.session_id)
+<a href=#2387 id=2387 data-nosnippet>2387</a>                .map_or(<span class="number">0</span>, |state| state.last_seq);
+<a href=#2388 id=2388 data-nosnippet>2388</a>            <span class="self">self</span>.apply_transient_for_generation(
+<a href=#2389 id=2389 data-nosnippet>2389</a>                TransientEvent {
+<a href=#2390 id=2390 data-nosnippet>2390</a>                    session_id: event.session_id,
+<a href=#2391 id=2391 data-nosnippet>2391</a>                    run_id: event.run_id,
+<a href=#2392 id=2392 data-nosnippet>2392</a>                    after_seq,
+<a href=#2393 id=2393 data-nosnippet>2393</a>                    timestamp: event.timestamp,
+<a href=#2394 id=2394 data-nosnippet>2394</a>                    payload: event.payload,
+<a href=#2395 id=2395 data-nosnippet>2395</a>                },
+<a href=#2396 id=2396 data-nosnippet>2396</a>                generation,
+<a href=#2397 id=2397 data-nosnippet>2397</a>            );
+<a href=#2398 id=2398 data-nosnippet>2398</a>            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#2399 id=2399 data-nosnippet>2399</a>        }
+<a href=#2400 id=2400 data-nosnippet>2400</a>        <span class="kw">let </span>state = <span class="self">self</span>.sessions.entry(event.session_id).or_default();
+<a href=#2401 id=2401 data-nosnippet>2401</a>        <span class="kw">if </span>state.generation != generation {
+<a href=#2402 id=2402 data-nosnippet>2402</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2403 id=2403 data-nosnippet>2403</a>        }
+<a href=#2404 id=2404 data-nosnippet>2404</a>        <span class="kw">if </span>event.seq &lt;= state.last_seq {
+<a href=#2405 id=2405 data-nosnippet>2405</a>            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#2406 id=2406 data-nosnippet>2406</a>        }
+<a href=#2407 id=2407 data-nosnippet>2407</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(held) = <span class="self">self</span>.histories.get_mut(<span class="kw-2">&amp;</span>event.session_id) {
+<a href=#2408 id=2408 data-nosnippet>2408</a>            held.hold_live(<span class="kw-2">&amp;</span>event);
+<a href=#2409 id=2409 data-nosnippet>2409</a>        }
+<a href=#2410 id=2410 data-nosnippet>2410</a>        state.last_seq = event.seq;
+<a href=#2411 id=2411 data-nosnippet>2411</a>        reduce_event_from(
+<a href=#2412 id=2412 data-nosnippet>2412</a>            state,
+<a href=#2413 id=2413 data-nosnippet>2413</a>            event.session_id,
+<a href=#2414 id=2414 data-nosnippet>2414</a>            event.run_id,
+<a href=#2415 id=2415 data-nosnippet>2415</a>            event.seq,
+<a href=#2416 id=2416 data-nosnippet>2416</a>            event.timestamp,
+<a href=#2417 id=2417 data-nosnippet>2417</a>            event.origin,
+<a href=#2418 id=2418 data-nosnippet>2418</a>            event.payload,
+<a href=#2419 id=2419 data-nosnippet>2419</a>        );
+<a href=#2420 id=2420 data-nosnippet>2420</a>        state.version = state.version.wrapping_add(<span class="number">1</span>);
+<a href=#2421 id=2421 data-nosnippet>2421</a>        <span class="bool-val">true
+<a href=#2422 id=2422 data-nosnippet>2422</a>    </span>}
+<a href=#2423 id=2423 data-nosnippet>2423</a>
+<a href=#2424 id=2424 data-nosnippet>2424</a>    <span class="doccomment">/// Apply live-only stream output. It never advances the cursor and never
+<a href=#2425 id=2425 data-nosnippet>2425</a>    /// asks for a replay: output that does not directly follow the durable
+<a href=#2426 id=2426 data-nosnippet>2426</a>    /// event this view last applied (stale, or ahead of a durable event not
+<a href=#2427 id=2427 data-nosnippet>2427</a>    /// yet seen), or that arrives while a replay is staged, is dropped. The
+<a href=#2428 id=2428 data-nosnippet>2428</a>    /// committed turn or tool result that follows supersedes it either way.
+<a href=#2429 id=2429 data-nosnippet>2429</a>    /// Output for an attempt this view never saw start is ignored too, so a
+<a href=#2430 id=2430 data-nosnippet>2430</a>    /// view attached mid-reply shows the reply from its first live delta on.
+<a href=#2431 id=2431 data-nosnippet>2431</a>    </span><span class="kw">pub fn </span>apply_transient_for_generation(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: TransientEvent, generation: u64) {
+<a href=#2432 id=2432 data-nosnippet>2432</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>event.session_id)
+<a href=#2433 id=2433 data-nosnippet>2433</a>            || <span class="self">self</span>.awaiting_rebuild.contains(<span class="kw-2">&amp;</span>event.session_id)
+<a href=#2434 id=2434 data-nosnippet>2434</a>            || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>event.session_id)
+<a href=#2435 id=2435 data-nosnippet>2435</a>        {
+<a href=#2436 id=2436 data-nosnippet>2436</a>            <span class="kw">return</span>;
+<a href=#2437 id=2437 data-nosnippet>2437</a>        }
+<a href=#2438 id=2438 data-nosnippet>2438</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(state) = <span class="self">self</span>.sessions.get_mut(<span class="kw-2">&amp;</span>event.session_id) <span class="kw">else </span>{
+<a href=#2439 id=2439 data-nosnippet>2439</a>            <span class="kw">return</span>;
+<a href=#2440 id=2440 data-nosnippet>2440</a>        };
+<a href=#2441 id=2441 data-nosnippet>2441</a>        <span class="kw">if </span>state.generation != generation || state.last_seq != event.after_seq {
+<a href=#2442 id=2442 data-nosnippet>2442</a>            <span class="kw">return</span>;
+<a href=#2443 id=2443 data-nosnippet>2443</a>        }
+<a href=#2444 id=2444 data-nosnippet>2444</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(held) = <span class="self">self</span>.histories.get_mut(<span class="kw-2">&amp;</span>event.session_id) {
+<a href=#2445 id=2445 data-nosnippet>2445</a>            held.settle_transient(<span class="kw-2">&amp;</span>event.payload);
+<a href=#2446 id=2446 data-nosnippet>2446</a>            held.hold_transient(event.clone());
+<a href=#2447 id=2447 data-nosnippet>2447</a>        }
+<a href=#2448 id=2448 data-nosnippet>2448</a>        <span class="kw">if </span>reduce_transient(state, event.timestamp, event.payload) {
+<a href=#2449 id=2449 data-nosnippet>2449</a>            state.version = state.version.wrapping_add(<span class="number">1</span>);
+<a href=#2450 id=2450 data-nosnippet>2450</a>        }
+<a href=#2451 id=2451 data-nosnippet>2451</a>    }
+<a href=#2452 id=2452 data-nosnippet>2452</a>
+<a href=#2453 id=2453 data-nosnippet>2453</a>    <span class="doccomment">/// Apply a message from the event subscription stream. A gap is returned
+<a href=#2454 id=2454 data-nosnippet>2454</a>    /// to allow callers to surface it; the client independently re-subscribes.
+<a href=#2455 id=2455 data-nosnippet>2455</a>    </span><span class="kw">pub fn </span>apply_subscription(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: EventSubscriptionMessage) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+<a href=#2456 id=2456 data-nosnippet>2456</a>        <span class="self">self</span>.apply_subscription_for_generation(message, <span class="number">0</span>)
+<a href=#2457 id=2457 data-nosnippet>2457</a>    }
+<a href=#2458 id=2458 data-nosnippet>2458</a>
+<a href=#2459 id=2459 data-nosnippet>2459</a>    <span class="kw">pub fn </span>apply_subscription_for_generation(
+<a href=#2460 id=2460 data-nosnippet>2460</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2461 id=2461 data-nosnippet>2461</a>        message: EventSubscriptionMessage,
+<a href=#2462 id=2462 data-nosnippet>2462</a>        generation: u64,
+<a href=#2463 id=2463 data-nosnippet>2463</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+<a href=#2464 id=2464 data-nosnippet>2464</a>        <span class="kw">match </span>message {
+<a href=#2465 id=2465 data-nosnippet>2465</a>            EventSubscriptionMessage::Event { event } =&gt; {
+<a href=#2466 id=2466 data-nosnippet>2466</a>                <span class="kw">let </span>cursor = <span class="self">self
+<a href=#2467 id=2467 data-nosnippet>2467</a>                    </span>.sessions
+<a href=#2468 id=2468 data-nosnippet>2468</a>                    .get(<span class="kw-2">&amp;</span>event.session_id)
+<a href=#2469 id=2469 data-nosnippet>2469</a>                    .map_or(<span class="number">0</span>, |state| state.last_seq);
+<a href=#2470 id=2470 data-nosnippet>2470</a>                <span class="self">self</span>.apply_event_for_generation(std::sync::Arc::unwrap_or_clone(event), generation)
+<a href=#2471 id=2471 data-nosnippet>2471</a>                    .then_some(())
+<a href=#2472 id=2472 data-nosnippet>2472</a>                    .map_or(<span class="prelude-val">Some</span>(cursor), |<span class="kw">_</span>| <span class="prelude-val">None</span>)
+<a href=#2473 id=2473 data-nosnippet>2473</a>            }
+<a href=#2474 id=2474 data-nosnippet>2474</a>            EventSubscriptionMessage::Transient { event } =&gt; {
+<a href=#2475 id=2475 data-nosnippet>2475</a>                <span class="self">self</span>.apply_transient_for_generation(
+<a href=#2476 id=2476 data-nosnippet>2476</a>                    std::sync::Arc::unwrap_or_clone(event),
+<a href=#2477 id=2477 data-nosnippet>2477</a>                    generation,
+<a href=#2478 id=2478 data-nosnippet>2478</a>                );
+<a href=#2479 id=2479 data-nosnippet>2479</a>                <span class="prelude-val">None
+<a href=#2480 id=2480 data-nosnippet>2480</a>            </span>}
+<a href=#2481 id=2481 data-nosnippet>2481</a>            EventSubscriptionMessage::Gap {
+<a href=#2482 id=2482 data-nosnippet>2482</a>                last_delivered_seq, ..
+<a href=#2483 id=2483 data-nosnippet>2483</a>            } =&gt; <span class="prelude-val">Some</span>(last_delivered_seq),
+<a href=#2484 id=2484 data-nosnippet>2484</a>            EventSubscriptionMessage::Rewound {
+<a href=#2485 id=2485 data-nosnippet>2485</a>                session_id,
+<a href=#2486 id=2486 data-nosnippet>2486</a>                through_seq,
+<a href=#2487 id=2487 data-nosnippet>2487</a>            } =&gt; {
+<a href=#2488 id=2488 data-nosnippet>2488</a>                <span class="self">self</span>.rewind_session(session_id, through_seq);
+<a href=#2489 id=2489 data-nosnippet>2489</a>                <span class="prelude-val">None
+<a href=#2490 id=2490 data-nosnippet>2490</a>            </span>}
+<a href=#2491 id=2491 data-nosnippet>2491</a>        }
+<a href=#2492 id=2492 data-nosnippet>2492</a>    }
+<a href=#2493 id=2493 data-nosnippet>2493</a>
+<a href=#2494 id=2494 data-nosnippet>2494</a>    <span class="doccomment">/// A revert cut `session_id`'s log after `through_seq`. The client
+<a href=#2495 id=2495 data-nosnippet>2495</a>    /// follows with a full replay, which rebuilds the projection; until it
+<a href=#2496 id=2496 data-nosnippet>2496</a>    /// starts, the projection stays as it was and the appends that reuse
+<a href=#2497 id=2497 data-nosnippet>2497</a>    /// the cut sequences are left to that replay.
+<a href=#2498 id=2498 data-nosnippet>2498</a>    </span><span class="kw">fn </span>rewind_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, _through_seq: u64) {
+<a href=#2499 id=2499 data-nosnippet>2499</a>        <span class="kw">if </span><span class="self">self</span>.sessions.contains_key(<span class="kw-2">&amp;</span>session_id) {
+<a href=#2500 id=2500 data-nosnippet>2500</a>            <span class="self">self</span>.awaiting_rebuild.insert(session_id);
+<a href=#2501 id=2501 data-nosnippet>2501</a>        }
+<a href=#2502 id=2502 data-nosnippet>2502</a>    }
+<a href=#2503 id=2503 data-nosnippet>2503</a>
+<a href=#2504 id=2504 data-nosnippet>2504</a>    <span class="doccomment">/// Whether [`Self::evict_session`] would let `session_id` go: no
+<a href=#2505 id=2505 data-nosnippet>2505</a>    /// replay staged, and no run or input still owed to its view. A session
+<a href=#2506 id=2506 data-nosnippet>2506</a>    /// with no projection can always go.
+<a href=#2507 id=2507 data-nosnippet>2507</a>    </span><span class="attr">#[must_use]
+<a href=#2508 id=2508 data-nosnippet>2508</a>    </span><span class="kw">pub fn </span>can_evict(<span class="kw-2">&amp;</span><span class="self">self</span>, session_id: SessionId) -&gt; bool {
+<a href=#2509 id=2509 data-nosnippet>2509</a>        !<span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
+<a href=#2510 id=2510 data-nosnippet>2510</a>            &amp;&amp; <span class="self">self
+<a href=#2511 id=2511 data-nosnippet>2511</a>                </span>.sessions
+<a href=#2512 id=2512 data-nosnippet>2512</a>                .get(<span class="kw-2">&amp;</span>session_id)
+<a href=#2513 id=2513 data-nosnippet>2513</a>                .is_none_or(SessionState::is_settled)
+<a href=#2514 id=2514 data-nosnippet>2514</a>    }
+<a href=#2515 id=2515 data-nosnippet>2515</a>
+<a href=#2516 id=2516 data-nosnippet>2516</a>    <span class="doccomment">/// Drops `session_id`'s projection once nothing shows it and its
+<a href=#2517 id=2517 data-nosnippet>2517</a>    /// subscription is released, so a client that browses many sessions
+<a href=#2518 id=2518 data-nosnippet>2518</a>    /// does not keep every one it opened. Opening it again replays it from
+<a href=#2519 id=2519 data-nosnippet>2519</a>    /// the start; until then what still arrives for it is dropped. A
+<a href=#2520 id=2520 data-nosnippet>2520</a>    /// session with a replay staged, or with a run or input still owed to
+<a href=#2521 id=2521 data-nosnippet>2521</a>    /// its view, is kept. Returns whether it was dropped.
+<a href=#2522 id=2522 data-nosnippet>2522</a>    </span><span class="kw">pub fn </span>evict_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId) -&gt; bool {
+<a href=#2523 id=2523 data-nosnippet>2523</a>        <span class="kw">if </span>!<span class="self">self</span>.can_evict(session_id) {
+<a href=#2524 id=2524 data-nosnippet>2524</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2525 id=2525 data-nosnippet>2525</a>        }
+<a href=#2526 id=2526 data-nosnippet>2526</a>        <span class="self">self</span>.quarantined_sessions.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2527 id=2527 data-nosnippet>2527</a>        <span class="self">self</span>.awaiting_rebuild.insert(session_id);
+<a href=#2528 id=2528 data-nosnippet>2528</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2529 id=2529 data-nosnippet>2529</a>        <span class="self">self</span>.sessions.remove(<span class="kw-2">&amp;</span>session_id).is_some()
+<a href=#2530 id=2530 data-nosnippet>2530</a>    }
+<a href=#2531 id=2531 data-nosnippet>2531</a>
+<a href=#2532 id=2532 data-nosnippet>2532</a>    <span class="doccomment">/// Drop a session projection before a full cursor-zero rebuild.
+<a href=#2533 id=2533 data-nosnippet>2533</a>    ///
+<a href=#2534 id=2534 data-nosnippet>2534</a>    /// A visible projection is never reset while its replay scratch is active
+<a href=#2535 id=2535 data-nosnippet>2535</a>    /// or its session is quarantined; callers receive `false` and must recover
+<a href=#2536 id=2536 data-nosnippet>2536</a>    /// through the staged replay path instead.
+<a href=#2537 id=2537 data-nosnippet>2537</a>    </span><span class="kw">pub fn </span>reset_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, session_id: SessionId, generation: u64) -&gt; bool {
+<a href=#2538 id=2538 data-nosnippet>2538</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>session_id) || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
+<a href=#2539 id=2539 data-nosnippet>2539</a>        {
+<a href=#2540 id=2540 data-nosnippet>2540</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2541 id=2541 data-nosnippet>2541</a>        }
+<a href=#2542 id=2542 data-nosnippet>2542</a>        <span class="self">self</span>.sessions.insert(
+<a href=#2543 id=2543 data-nosnippet>2543</a>            session_id,
+<a href=#2544 id=2544 data-nosnippet>2544</a>            SessionState {
+<a href=#2545 id=2545 data-nosnippet>2545</a>                generation,
+<a href=#2546 id=2546 data-nosnippet>2546</a>                ..SessionState::default()
+<a href=#2547 id=2547 data-nosnippet>2547</a>            },
+<a href=#2548 id=2548 data-nosnippet>2548</a>        );
+<a href=#2549 id=2549 data-nosnippet>2549</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2550 id=2550 data-nosnippet>2550</a>        <span class="self">self</span>.awaiting_rebuild.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2551 id=2551 data-nosnippet>2551</a>        <span class="bool-val">true
+<a href=#2552 id=2552 data-nosnippet>2552</a>    </span>}
+<a href=#2553 id=2553 data-nosnippet>2553</a>
+<a href=#2554 id=2554 data-nosnippet>2554</a>    <span class="doccomment">/// Replace a session projection with one rebuilt from its durable
+<a href=#2555 id=2555 data-nosnippet>2555</a>    /// history, which must start at the session's creation and advance
+<a href=#2556 id=2556 data-nosnippet>2556</a>    /// strictly; gaps are allowed. An invalid history leaves the existing
+<a href=#2557 id=2557 data-nosnippet>2557</a>    /// projection intact.
+<a href=#2558 id=2558 data-nosnippet>2558</a>    </span><span class="kw">pub fn </span>rebuild_session(
+<a href=#2559 id=2559 data-nosnippet>2559</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2560 id=2560 data-nosnippet>2560</a>        session_id: SessionId,
+<a href=#2561 id=2561 data-nosnippet>2561</a>        generation: u64,
+<a href=#2562 id=2562 data-nosnippet>2562</a>        events: Vec&lt;StoredEvent&gt;,
+<a href=#2563 id=2563 data-nosnippet>2563</a>    ) -&gt; bool {
+<a href=#2564 id=2564 data-nosnippet>2564</a>        <span class="kw">let </span><span class="kw-2">mut </span>previous = <span class="number">0</span>;
+<a href=#2565 id=2565 data-nosnippet>2565</a>        <span class="kw">for </span>event <span class="kw">in </span><span class="kw-2">&amp;</span>events {
+<a href=#2566 id=2566 data-nosnippet>2566</a>            <span class="kw">if </span>event.session_id != session_id
+<a href=#2567 id=2567 data-nosnippet>2567</a>                || event.seq &lt;= previous
+<a href=#2568 id=2568 data-nosnippet>2568</a>                || (previous == <span class="number">0 </span>&amp;&amp; event.seq != <span class="number">1</span>)
+<a href=#2569 id=2569 data-nosnippet>2569</a>            {
+<a href=#2570 id=2570 data-nosnippet>2570</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2571 id=2571 data-nosnippet>2571</a>            }
+<a href=#2572 id=2572 data-nosnippet>2572</a>            previous = event.seq;
+<a href=#2573 id=2573 data-nosnippet>2573</a>        }
+<a href=#2574 id=2574 data-nosnippet>2574</a>        <span class="kw">if </span><span class="self">self</span>.quarantined_sessions.contains(<span class="kw-2">&amp;</span>session_id) || <span class="self">self</span>.replays.contains_key(<span class="kw-2">&amp;</span>session_id)
+<a href=#2575 id=2575 data-nosnippet>2575</a>        {
+<a href=#2576 id=2576 data-nosnippet>2576</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2577 id=2577 data-nosnippet>2577</a>        }
+<a href=#2578 id=2578 data-nosnippet>2578</a>        <span class="kw">let </span>state = reduce_session_events(session_id, generation, <span class="kw-2">&amp;</span>events);
+<a href=#2579 id=2579 data-nosnippet>2579</a>        <span class="self">self</span>.awaiting_rebuild.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2580 id=2580 data-nosnippet>2580</a>        <span class="self">self</span>.histories.remove(<span class="kw-2">&amp;</span>session_id);
+<a href=#2581 id=2581 data-nosnippet>2581</a>        <span class="self">self</span>.sessions.insert(session_id, state);
+<a href=#2582 id=2582 data-nosnippet>2582</a>        <span class="bool-val">true
+<a href=#2583 id=2583 data-nosnippet>2583</a>    </span>}
+<a href=#2584 id=2584 data-nosnippet>2584</a>}
+<a href=#2585 id=2585 data-nosnippet>2585</a>
+<a href=#2586 id=2586 data-nosnippet>2586</a><span class="attr">#[cfg(test)]
+<a href=#2587 id=2587 data-nosnippet>2587</a></span><span class="kw">mod </span>tests;
+<a href=#2588 id=2588 data-nosnippet>2588</a>
+<a href=#2589 id=2589 data-nosnippet>2589</a><span class="doccomment">/// The error row for an MCP server that is unavailable to a session.
+<a href=#2590 id=2590 data-nosnippet>2590</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mcp_failure_notice(failure: <span class="kw-2">&amp;</span>cookie_agent_protocol::McpServerFailure) -&gt; String {
+<a href=#2591 id=2591 data-nosnippet>2591</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>failure.workspace {
+<a href=#2592 id=2592 data-nosnippet>2592</a>        <span class="prelude-val">Some</span>(workspace) =&gt; <span class="macro">format!</span>(
+<a href=#2593 id=2593 data-nosnippet>2593</a>            <span class="string">"MCP server `{}` ({} runtime at {workspace}) is unavailable: {}"</span>,
+<a href=#2594 id=2594 data-nosnippet>2594</a>            failure.server, failure.runtime_id, failure.reason
+<a href=#2595 id=2595 data-nosnippet>2595</a>        ),
+<a href=#2596 id=2596 data-nosnippet>2596</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(
+<a href=#2597 id=2597 data-nosnippet>2597</a>            <span class="string">"MCP server `{}` ({} runtime) is unavailable: {}"</span>,
+<a href=#2598 id=2598 data-nosnippet>2598</a>            failure.server, failure.runtime_id, failure.reason
+<a href=#2599 id=2599 data-nosnippet>2599</a>        ),
+<a href=#2600 id=2600 data-nosnippet>2600</a>    }
+<a href=#2601 id=2601 data-nosnippet>2601</a>}
+<a href=#2602 id=2602 data-nosnippet>2602</a>
+<a href=#2603 id=2603 data-nosnippet>2603</a><span class="doccomment">/// The error row for a runtime instance that is unavailable to a session.
+<a href=#2604 id=2604 data-nosnippet>2604</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>runtime_failure_notice(failure: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeFailure) -&gt; String {
+<a href=#2605 id=2605 data-nosnippet>2605</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>failure.workspace {
+<a href=#2606 id=2606 data-nosnippet>2606</a>        <span class="prelude-val">Some</span>(workspace) =&gt; <span class="macro">format!</span>(
+<a href=#2607 id=2607 data-nosnippet>2607</a>            <span class="string">"runtime `{}` at {workspace} is unavailable: {}"</span>,
+<a href=#2608 id=2608 data-nosnippet>2608</a>            failure.runtime_id, failure.reason
+<a href=#2609 id=2609 data-nosnippet>2609</a>        ),
+<a href=#2610 id=2610 data-nosnippet>2610</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(
+<a href=#2611 id=2611 data-nosnippet>2611</a>            <span class="string">"runtime `{}` is unavailable: {}"</span>,
+<a href=#2612 id=2612 data-nosnippet>2612</a>            failure.runtime_id, failure.reason
+<a href=#2613 id=2613 data-nosnippet>2613</a>        ),
+<a href=#2614 id=2614 data-nosnippet>2614</a>    }
+<a href=#2615 id=2615 data-nosnippet>2615</a>}
 </code></pre></div></section></main></body></html>

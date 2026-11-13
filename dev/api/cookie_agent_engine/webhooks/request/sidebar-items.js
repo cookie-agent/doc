@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_DELIVERY_ID_CHARS","MAX_THREAD_KEY_CHARS"],"enum":["DeliveryHeader","ParsedBody","ValueSource","ValueSourceError"],"fn":["delivery_id","parse_body","read_value","thread_key"],"struct":["WebhookRequest"]};

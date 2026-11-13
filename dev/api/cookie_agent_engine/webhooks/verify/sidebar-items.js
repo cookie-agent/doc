@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["STANDARD_SECRET_PREFIX","STANDARD_TOLERANCE_SECONDS"],"enum":["SecretKind","SignatureEncoding","Verifier","VerifierError","VerifyError"],"fn":["generate_secret"]};

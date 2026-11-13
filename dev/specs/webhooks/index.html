@@ -2280,12 +2280,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../../engine/public/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Public Address [public]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../engine/share/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Share links [share]
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/webhooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Webhooks [webhooks]
     
   </span>
   
@@ -2339,10 +2385,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_23" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_25" >
         
           
-          <label class="md-nav__link" for="__nav_9_23" id="__nav_9_23_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9_25" id="__nav_9_25_label" tabindex="0">
             
   
   
@@ -2355,8 +2401,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_23_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9_23">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_25">
             <span class="md-nav__icon md-icon"></span>
             tui.toml
           </label>
@@ -4445,6 +4491,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#192-phase-1b-configuration-and-the-request-side-2026-11-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.2 Phase 1B: configuration and the request side (2026-11-12)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#193-phases-1c-and-2-the-store-the-route-delivery-and-the-tools-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.3 Phases 1C and 2: the store, the route, delivery, and the tools (2026-11-13)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5296,6 +5360,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#192-phase-1b-configuration-and-the-request-side-2026-11-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.2 Phase 1B: configuration and the request side (2026-11-12)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#193-phases-1c-and-2-the-store-the-route-delivery-and-the-tools-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.3 Phases 1C and 2: the store, the route, delivery, and the tools (2026-11-13)
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6079,6 +6161,189 @@ a <code>ThreadMap</code> in the webhook store, and a call of <code>thread_target
   controls and the clients' mark for a thread prompt's origin are left to
   the clients phase.</li>
 </ul>
+<h3 id="192-phase-1b-configuration-and-the-request-side-2026-11-12">19.2 Phase 1B: configuration and the request side (2026-11-12)<a class="headerlink" href="#192-phase-1b-configuration-and-the-request-side-2026-11-12" title="Permanent link">&para;</a></h3>
+<p>Landed: <code>[public]</code> and <code>[webhooks]</code>, and the request side as pure functions,
+not yet wired to a route or a store.</p>
+<ul>
+<li><strong>Configuration</strong> (<code>crates/config/src/runtime.rs</code>): <code>PublicConfig</code> (<code>url</code>,
+  <code>listen</code>, validated as <code>[share]</code>'s were), <code>ShareConfig</code> reduced to
+  <code>enabled</code>, and <code>WebhooksConfig</code> with <code>per_hour_limit()</code> and
+  <code>failure_limit()</code> reading 0 or less as none. <code>max_body_bytes</code> is
+  1..=64 MiB, <code>inline_body_bytes</code> 1..=1 MiB (so a message stays within the
+  producer body limit), <code>backlog</code> 1..=10000, <code>history</code> 1..=1000.
+  <code>[share] url</code> and <code>listen</code> fail as unknown keys. The settings form gains
+  the <code>[public]</code> fields under Transfers and sharing and a Webhooks section.</li>
+<li><strong>The public listener</strong> is <code>DaemonListener::serve_public_on</code> with
+  <code>public_router</code> (<code>crates/server/src/service/websocket.rs</code>), which serves
+  <code>/s/</code> today; <code>/hooks/</code> joins it there.</li>
+<li><strong>The request side</strong> lives in the engine, <code>cookie_agent_engine::webhooks</code>,
+  since delivery is the engine's and the server already depends on it:</li>
+<li><code>request</code>: <code>WebhookRequest</code> (method, headers as received, body),
+    <code>parse_body</code> → <code>ParsedBody</code> (<code>Empty</code>, <code>Json</code>, <code>Form</code>, <code>Text</code>,
+    <code>Binary</code>), <code>ValueSource</code> (<code>Header</code>, <code>Json</code> pointer) with <code>validate</code>,
+    <code>read_value</code>, <code>thread_key</code>, and <code>delivery_id</code> with <code>DeliveryHeader</code>;</li>
+<li><code>verify</code>: <code>Verifier</code> (<code>GitHub</code>, <code>Standard</code>, <code>HmacSha256</code>, <code>Bearer</code>)
+    with <code>validate</code>, <code>verify(request, now)</code>, <code>delivery_header</code>, and
+    <code>secret_headers</code>; <code>generate_secret(SecretKind)</code>;</li>
+<li><code>filter</code>: <code>Condition</code> (a <code>ValueSource</code> and <code>one_of</code>), <code>validate</code>,
+    <code>matches</code>;</li>
+<li><code>render</code>: <code>shown_body</code> → <code>ShownBody</code> (with <code>wants_artifact</code>), then
+    <code>render_event(&amp;EventMessage)</code> with the artifact reference the caller
+    stored;</li>
+<li><code>ids</code>: <code>new_webhook_id</code>, <code>is_webhook_id</code>, <code>new_url_token</code>,
+    <code>is_url_token</code>.</li>
+<li><strong>Dependencies:</strong> none new in the lock file. The engine now names
+  <code>aws-lc-rs</code> (already the server's, for the page ticket's HMAC) for
+  HMAC-SHA256 and constant-time comparison, and <code>form_urlencoded</code> (already
+  in the tree through <code>url</code>).</li>
+</ul>
+<p>Decisions taken where the spec left room:</p>
+<ul>
+<li><strong>Bodies.</strong> A body labelled <code>application/json</code> or <code>+json</code>, or unlabelled
+  and starting with <code>{</code> or <code>[</code>, is JSON when it parses; a form field sent
+  several times is an array of strings; a body that is UTF-8 without NUL is
+  text, anything else binary. The inline limit applies to the shown text
+  (pretty-printed for JSON), not the bytes received; the cut falls at a
+  line break in the last half of the limit, else at a character boundary.</li>
+<li><strong>Defusing.</strong> Closing tags of the message's own elements
+  (<code>webhook_event</code>, <code>instructions</code>, <code>request</code>, <code>body</code>) inside the request
+  are written <code>&lt;\/name</code>, so a request cannot end its block; nothing else
+  is escaped, so HTML and JSON read as sent. Header values and attributes
+  have control characters made spaces, and header values are cut at 1000
+  characters.</li>
+<li><strong>Hidden headers.</strong> Besides <code>Authorization</code>, <code>Cookie</code>, and the signature
+  headers, <code>Proxy-Authorization</code>, <code>Set-Cookie</code>, and <code>X-Hub-Signature</code> are
+  never shown, and a <code>hmac_sha256</code> check's own header is hidden; such a
+  check may not name <code>Authorization</code>, <code>Cookie</code>, or <code>Content-Type</code>.</li>
+<li><strong>Delivery IDs</strong> follow section 5.3 strictly: <code>X-GitHub-Delivery</code> counts
+  only with the <code>github</code> check and <code>webhook-id</code> only with <code>standard</code>. An ID
+  or a thread key that is empty, too long (200 characters), or holds a
+  control character counts as none.</li>
+<li><strong>Filters</strong> hold at most 32 conditions, each <code>one_of</code> string at most 512
+  characters; values compare exactly, case included.</li>
+<li><strong>Secrets</strong> are 32 random bytes: base64url for <code>github</code>, <code>hmac_sha256</code>,
+  and <code>bearer</code>, <code>whsec_</code> and standard base64 for <code>standard</code>, whose secret
+  must decode to 24 to 64 bytes as that specification says. A secret is 1
+  to 1024 characters without control characters. A verifier's <code>Debug</code>
+  never prints it.</li>
+<li><strong>Standard Webhooks</strong> accepts any of several space-separated <code>v1,</code>
+  signatures and skips other versions; a header with no <code>v1,</code> signature is
+  malformed. Every failure answers <code>401</code> alike.</li>
+</ul>
+<h3 id="193-phases-1c-and-2-the-store-the-route-delivery-and-the-tools-2026-11-13">19.3 Phases 1C and 2: the store, the route, delivery, and the tools (2026-11-13)<a class="headerlink" href="#193-phases-1c-and-2-the-store-the-route-delivery-and-the-tools-2026-11-13" title="Permanent link">&para;</a></h3>
+<p>Landed: everything sections 4 to 13 describe but the clients. Client
+protocol 1.96.0, plugin protocol 1.48.0; the runtime protocol and history
+format 3 are unchanged (<code>session_created</code> only gained <code>webhook</code>).</p>
+<p>Where it is:</p>
+<ul>
+<li><strong>Wire types:</strong> <code>crates/protocol/src/webhook.rs</code> (<code>Webhook</code>,
+  <code>WebhookTarget</code>, <code>WebhookTemplate</code>, <code>WebhookValueSource</code>,
+  <code>WebhookCondition</code>, <code>WebhookVerify</code>, <code>WebhookEvent</code>, <code>WebhookCounts</code>, the
+  params and results, <code>SessionWebhook</code>), <code>WebhookId</code> and
+  <code>ProducerSource::webhook</code> in <code>identity.rs</code>, <code>ThreadOwnerRef::Webhook</code> in
+  <code>threads.rs</code>, <code>PermissionAction::WEBHOOK</code> in <code>agent.rs</code>, the <code>webhook_*</code>
+  error codes in <code>errors.rs</code>.</li>
+<li><strong>Store:</strong> <code>crates/engine/src/webhooks/store.rs</code> (<code>webhooks.json</code> and
+  <code>webhook-events/</code>, both private).</li>
+<li><strong>Requests:</strong> <code>crates/engine/src/runtime/webhook/api.rs</code>; <strong>receiving:</strong>
+  <code>receive.rs</code> (<code>Engine::receive_webhook</code>, <code>webhook_receives</code>,
+  <code>webhook_body_limit</code>); <strong>delivery:</strong> <code>deliver.rs</code> (the pump, the backlog,
+  sessions, artifacts, run outcomes, start).</li>
+<li><strong>Tools:</strong> <code>crates/engine/src/webhook_tools.rs</code> (<code>builtin.webhooks</code>, the
+  <code>webhooks</code> group); the default in <code>webhook_default_rules</code>
+  (<code>crates/engine_permissions</code>).</li>
+<li><strong>Daemon:</strong> <code>crates/server/src/service/webhook_route.rs</code>, on both routers
+  in <code>websocket.rs</code>; the RPCs in <code>routes.rs</code>, the notification in
+  <code>runtime_notifications.rs</code>, the errors in <code>rpc.rs</code>, and the guest
+  socket's refusals in <code>guest.rs</code>.</li>
+</ul>
+<p>Decisions taken where the spec left room, and deviations:</p>
+<ul>
+<li><strong><code>thread_key</code> lives in the template</strong> (<code>target.new.thread_key</code>), beside
+  <code>thread_prompt</code>, as a cron template's does, rather than beside <code>new</code> as
+  section 4's example shows. A webhook's template is otherwise a cron
+  template, stored as one (its time-format <code>thread_key</code> unused).</li>
+<li><strong>Information types are open.</strong> <code>WebhookValueSource</code>, <code>WebhookCondition</code>,
+  <code>WebhookTemplate</code>, <code>WebhookVerify</code>, and <code>WebhookHeader</code> appear in reads,
+  so they take unknown members as the compatibility rules require; a source
+  or condition that names neither or both of <code>header</code> and <code>json</code> is refused
+  when saved.</li>
+<li><strong><code>verify</code> is one shape</strong> for commands and reads, <code>{ kind, secret?,
+  header?, encoding?, prefix? }</code>; reads never carry <code>secret</code> (section 4's
+  <code>"set"</code> is its absence). An update with a <code>verify</code> of the same kind and no
+  secret keeps the secret and returns none; another kind, or a given
+  secret, replaces it and returns it. <code>hmac_sha256</code> needs <code>header</code> and
+  defaults <code>encoding</code> to <code>hex</code>.</li>
+<li><strong>The URL.</strong> <code>Webhook.path</code> is <code>/hooks/&lt;url_token&gt;</code> and
+  <code>webhooks.list</code> gives <code>public_base</code> (<code>[public] url</code>, else <code>[server]
+  page_url</code>), which clients put before it. The route answers <code>405</code> (with
+  <code>Allow: POST</code>) before anything else, then <code>404</code> for an unknown, disabled,
+  or switched-off URL, or a path that is no URL token, then reads the body
+  up to <code>max_body_bytes</code> (<code>413</code>). Every answer has <code>Cache-Control:
+  no-store</code> and a short JSON body: <code>{"event": "&lt;id&gt;"}</code>, <code>{"duplicate":
+  true}</code>, or <code>{"error": "&lt;reason&gt;"}</code>. <code>Retry-After</code> is the seconds until the
+  oldest event of the hour leaves the window (<code>429</code>), or 60 (<code>503</code>).</li>
+<li><strong>Counts.</strong> Requests turned away are counted in memory and written with
+  the webhook's next change, so internet noise never writes the file; a
+  crash loses them, as share link views. They are not in the history and
+  send no <code>webhooks.changed</code>. Accepted events count when stored.</li>
+<li><strong>Races.</strong> The duplicate and rate checks run again under the store's lock
+  when the event is written; a request that lost the race answers <code>200</code> as a
+  duplicate.</li>
+<li><strong>Events</strong> have 8-character IDs, unique within their webhook. The history
+  keeps every pending or waiting event and the last <code>[webhooks] history</code>
+  finished ones. Each keeps the request's method and headers but the hidden
+  and check headers, beside its body file, so the backlog and a restart can
+  render it again.</li>
+<li><strong>The pump.</strong> One task per webhook at a time delivers its open events in
+  arrival order, one event per step, after an event is stored, when a run
+  of one of its sessions ends, when it is updated (so enabling it delivers
+  what waited), and at start. A disabled webhook's events stay pending
+  until it is enabled. An event of a key that already has a live thread
+  goes into it whatever <code>max_concurrent</code> says; an earlier waiting event of
+  the same key holds later ones back, so a key's events keep their order;
+  once one event needing a new session waits, later ones do too.</li>
+<li><strong>Running sessions</strong> for <code>max_concurrent</code> are the webhook's delivered
+  sessions that are busy, or that hold one of its events no run has taken
+  yet. A thread session the user is chatting in counts too.</li>
+<li><strong>Exactly once.</strong> Delivery uses the event's delivery ID, else its own ID,
+  as the producer key, so a pending event whose message was accepted before
+  a restart is not delivered twice. A pending new-session event at start
+  first looks for a session that records it (<code>SessionMeta.webhook</code>) before
+  making one.</li>
+<li><strong>Artifacts.</strong> A body the inline limit cuts, or a binary one, is written to
+  the target session's tree as an artifact under the artifact store's
+  publication lock, held until the message naming it is accepted, so a
+  revert cannot collect it in between.</li>
+<li><strong>Failures.</strong> A delivery that fails, or a run it landed in that fails,
+  counts; a completed run resets the count; test events count for nothing.
+  At the limit the webhook is disabled as <code>failed</code>, and its URL answers
+  <code>404</code>.</li>
+<li><strong>Reviewer labels.</strong> A webhook's producer messages are labelled
+  <code>[webhook event &lt;id&gt;]</code> for the approval reviewer, as cron's are.</li>
+<li><strong>Producers.</strong> A <code>webhook:</code> source is the daemon's own, like <code>cron:</code>
+  (<code>ProducerSource::is_daemon_owned</code>): no connection can claim it, its
+  short registration survives reconciliation, and it never adds a wait or
+  holds back a settle push.</li>
+<li><strong>Tools.</strong> <code>webhook_create</code>, <code>webhook_list</code>, <code>webhook_update</code>, and
+  <code>webhook_delete</code>; targets resolve through the cron tools' resolution (the
+  same <code>"self"</code>, handles below the caller, and template defaults), with
+  <code>thread_key</code> a <code>{json}</code> or <code>{header}</code> source. The result of
+  <code>webhook_create</code> gives the URL (or the path and a note when the daemon
+  knows no public base) and the secret; the approval card never shows a
+  given secret. <code>list_agents</code>'s <code>cron</code> use also lists the agents a
+  new-session webhook can run, and is offered with the webhook tools.</li>
+<li><strong><code>[deferred_tools] always_load</code></strong> takes <code>webhooks</code>.</li>
+</ul>
+<p>What the clients need: a Webhooks view and <code>/webhooks</code> panel over
+<code>webhooks.list</code>, refetched on <code>webhooks.changed</code>, with each webhook's URL
+(<code>public_base</code> + <code>path</code>, or the address the client used), the secret shown
+once from <code>webhooks.create</code> and <code>webhooks.rotate</code> and on demand from
+<code>webhooks.secret</code>, an event's request from <code>webhooks.event</code>, and a test
+button (<code>webhooks.test</code>); the session mark from <code>SessionMeta.webhook</code>; the
+label of a thread prompt by its origin (<code>thread_prompt_owner</code>, now with
+<code>Webhook</code>); the cron form's thread fields; <code>cookie webhook</code>; and a webhooks
+guide.</p>
 
 
 
