@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Preset","ThreadBy","Tone"],"fn":["conditions","conditions_text","counters","health","preset_of","rejection_reason","row_tags","session_title_example","source_words","target_words","thread_by","thread_key_text","what_happens"],"struct":["Condition","Counter","Happening","Health","PresetFields","Refusal","TargetWords"]};
