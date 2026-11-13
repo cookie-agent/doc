@@ -4426,6 +4426,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#19-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      19. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="19. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#191-phase-1a-threads-thread-prompts-and-cron-thread-keys-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.1 Phase 1A: threads, thread prompts, and cron thread keys (2026-11-13)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5253,6 +5277,30 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#19-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      19. Implementation notes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="19. Implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#191-phase-1a-threads-thread-prompts-and-cron-thread-keys-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      19.1 Phase 1A: threads, thread prompts, and cron thread keys (2026-11-13)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5949,6 +5997,87 @@ sharing guide move them to <code>[public]</code>.</p>
   and agents could not create one.</li>
 <li><strong>Answering the sender with the agent's reply:</strong> senders time out in
   seconds, and runs take minutes.</li>
+</ul>
+<h2 id="19-implementation-notes">19. Implementation notes<a class="headerlink" href="#19-implementation-notes" title="Permanent link">&para;</a></h2>
+<h3 id="191-phase-1a-threads-thread-prompts-and-cron-thread-keys-2026-11-13">19.1 Phase 1A: threads, thread prompts, and cron thread keys (2026-11-13)<a class="headerlink" href="#191-phase-1a-threads-thread-prompts-and-cron-thread-keys-2026-11-13" title="Permanent link">&para;</a></h3>
+<p>Landed: the shared threads piece, thread prompts, and thread keys for
+new-session cron jobs (sections 7.4, 7.5, and 8), with <code>cookie cron
+--thread-key --thread-prompt</code> and the two fields in the TUI's form. Client
+protocol 1.95.0, plugin protocol 1.47.0; the runtime protocol and the history
+format are unchanged. The webhook store, route, and tools are later phases.</p>
+<p>Where it is:</p>
+<ul>
+<li><strong>Wire:</strong> <code>CronTemplate.thread_key</code> and <code>thread_prompt</code>, <code>CronJob.threads</code>
+  (<code>CronThread</code>), <code>CronFire.thread_key</code>, and <code>SessionCron.thread_key</code> in
+  <code>crates/protocol/src/cron.rs</code>; the thread prompt's origin in
+  <code>crates/protocol/src/threads.rs</code> (<code>ThreadOwnerRef</code>, <code>thread_prompt_origin</code>,
+  <code>thread_prompt_owner</code>).</li>
+<li><strong>Store side:</strong> <code>crates/engine/src/threads.rs</code>: <code>ThreadOwner</code> (the owner a
+  producer message or a thread prompt belongs to), <code>ThreadMap</code> (key →
+  session with <code>last_used</code>, kept by each owner in its own store), and the
+  checks of a time key format and a thread prompt. <code>crons.json</code> keeps a
+  job's map as <code>threads</code> and each fire's <code>thread_key</code>.</li>
+<li><strong>Engine side:</strong> <code>crates/engine/src/runtime/threads.rs</code>:
+  <code>Engine::thread_target</code> (lock the key, use the mapped session while it is a
+  live root, otherwise create and record one) and
+  <code>submit_due_thread_prompts_direct</code>, called where producer messages are
+  admitted.</li>
+<li><strong>Cron:</strong> <code>runtime/cron/fire.rs</code> (<code>deliver_to_thread</code>, the key computed
+  at the claim from the scheduled time, the in-session skip rule, thread
+  titles, restart reconciliation), <code>runtime/cron/api.rs</code> (checks, delivery
+  on a keyed <code>new</code> target, maps cleared when the format or kind changes,
+  deleted sessions leaving maps), <code>runtime/cron/run.rs</code>.</li>
+</ul>
+<p>For phase 1C, webhooks plug in by adding a <code>ThreadOwner::Webhook</code> variant
+(and <code>ThreadOwnerRef::Webhook</code> with an <code>engine:webhook-&lt;id&gt;</code> origin), the
+owner's arms in <code>ThreadOwner::of_producer</code> and <code>Engine::thread_prompt_of</code>,
+a <code>ThreadMap</code> in the webhook store, and a call of <code>thread_target</code> whose
+<code>lookup</code>, <code>create</code>, and <code>record</code> reach that store.</p>
+<p>Decisions taken where the spec left room, and deviations:</p>
+<ul>
+<li><strong>How the thread prompt goes in.</strong> It is not sent as a separate input. When
+  a run admits a producer message (a fire's <code>&lt;scheduled_job&gt;</code>, later a
+  webhook event) of an owner whose thread prompt is due in that session, the
+  engine first appends <code>user_input_submitted</code> and <code>user_input_applied</code> with
+  the thread prompt under the owner's origin, then the admission. So the
+  thread prompt and the fire are always in the same run and request, in that
+  order, whether the fire started the run (<code>queue</code> into an idle session, a
+  new session) or joined a running one (<code>steer</code>), and a <code>queue</code> fire into a
+  busy thread takes it with the run it starts after the turn. The thread
+  prompt never answers an approval: it is not client input.</li>
+<li><strong>When it is due</strong> is read from the session, not stored: the owner created
+  the session (its <code>SessionMeta::cron</code> names the job) and has a thread
+  prompt, and the session's model context holds no thread prompt of that
+  owner from the latest checkpoint's window start on (the summary's kept
+  range, or what follows a provider window). An ACP agent's run looks only
+  at the session's first inputs, so it gets the prompt once. A restart
+  between a checkpoint and the next fire needs nothing extra.</li>
+<li><strong>The origin</strong> is <code>engine:cron-&lt;job id&gt;</code>, an engine origin of the existing
+  <code>EventOrigin</code> grammar, so the wire and the history needed no new shape;
+  <code>thread_prompt_owner</code> reads it back for clients.</li>
+<li><strong>The map</strong> is capped at 1,024 threads, forgetting the least recently used
+  (the spec set no bound; a daily key grows one entry a day). A forgotten
+  thread's session stays.</li>
+<li><strong>Deletion and edits.</strong> A deleted session leaves every job's map. A change
+  of the target's kind or of its thread key format clears the map, since
+  the old keys name no thread of the new format.</li>
+<li><strong><code>cron_run</code> of a job with a thread key</strong> fires into the thread of the
+  moment, as <code>crons.run</code> does, rather than running as the caller's subagent
+  (cron spec section 8.2 still holds for jobs without a key). The child of a
+  job without a key has no producer message to lead with the thread
+  prompt, so its task text starts with the thread prompt instead.</li>
+<li><strong>The key</strong> comes from the fire's scheduled time (a run now's own time),
+  computed when the fire is claimed and kept in its history entry, so a
+  delivery after a restart uses the same thread.</li>
+<li><strong>Waiting and residency</strong> are unchanged: a thread's session lists no
+  <code>scheduled_job</code> wait, as the spec says.</li>
+<li><strong>Clients.</strong> The TUI's <code>/cron</code> form has a <code>thread_key:</code> line and takes a
+  thread prompt after a <code>--- thread prompt</code> line under the prompt;
+  <code>client_state</code> (<code>CronDraft.thread_key</code>, <code>thread_prompt</code>, <code>thread_key_at</code>)
+  shows the format, the next fire's thread, and the thread count in a job's
+  details. The web's form only keeps the fields it does not show; its
+  controls and the clients' mark for a thread prompt's origin are left to
+  the clients phase.</li>
 </ul>
 
 
