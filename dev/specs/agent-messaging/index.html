@@ -4269,6 +4269,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cross-tree-messaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cross-tree messaging
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resolved-decisions" class="md-nav__link">
     <span class="md-ellipsis">
       Resolved Decisions
@@ -5105,6 +5114,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cross-tree-messaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cross-tree messaging
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resolved-decisions" class="md-nav__link">
     <span class="md-ellipsis">
       Resolved Decisions
@@ -5167,7 +5185,9 @@ summarized in the <a href="../../reference/tools/#agent-messaging">tool referenc
 <h2 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Let any agent in a delegation tree send a durable message to any other agent
-  in the <strong>same tree</strong> (parent ↔ child, sibling ↔ sibling, child → grandparent).</li>
+  in the <strong>same tree</strong> (parent ↔ child, sibling ↔ sibling, child → grandparent),
+  and, by full session UUID, to any session in <strong>another tree</strong> the daemon
+  owns (amended 2026-11-14, see <a href="#cross-tree-messaging">Cross-tree messaging</a>).</li>
 <li>Delivery semantics: all delivery is producer-backed. The recipient receives
   the message either <strong>steered</strong> into its next safe model-request boundary (if
   running) or <strong>queued</strong> durably (if idle or queued). Messaging an idle or
@@ -5180,8 +5200,8 @@ summarized in the <a href="../../reference/tools/#agent-messaging">tool referenc
 <ul>
 <li>Cross-daemon / cross-process agent mesh. The engine is in-process; one daemon
   owns all sessions.</li>
-<li>Arbitrary cross-session messaging outside the delegation tree. No discovery or
-  authorization basis exists for that yet.</li>
+<li>Discovery of sessions in other trees. A cross-tree recipient is named by a
+  full UUID the sender was given; handles never resolve across trees.</li>
 <li>Request/response RPC between agents. Async mail only; replies are new
   messages.</li>
 <li>Broadcast topics / pub-sub. Can be layered later on the same envelope.</li>
@@ -5283,8 +5303,6 @@ give up, or report to its parent):</p>
 <li><code>send_message:invalid_body</code> — empty or over <code>max_body_bytes</code>,</li>
 <li><code>send_message:unknown_session</code> — a well-formed session UUID that names no
   session,</li>
-<li><code>send_message:not_tree_peer</code> — a well-formed session UUID whose
-  <code>root_session_id</code> differs from the sender's,</li>
 <li>a <strong>non-UUID recipient</strong> is treated as a subagent handle: a handle that
   matches no live peer in the sender's tree fails with the self-repairing
   <code>unknown subagent reference …</code> tool error, whose candidate list renders each
@@ -5335,11 +5353,12 @@ guard checks and acceptance are serialized inside the recipient actor.</p>
 <li><strong><code>ProducerOwner::Agent { session_id }</code> variant</strong>
    (<code>protocol/src/producer.rs</code>). Additive payload change; the versionless,
    best-effort event log tolerates it and old readers degrade gracefully.</li>
-<li><strong>Authorization predicate</strong> beside <code>ensure_subagent_owned</code>:
-   <code>ensure_tree_peer(sender, recipient)</code> — both sessions are tree peers iff
-   their stored <code>SessionOrigin</code> metadata carries the same <code>root_session_id</code>.
-   That is the entire contract (decided): no live-registry walk, no ancestry
-   or taint validation. Known, accepted limitation: after a parent reverts
+<li><strong>Recipient predicate</strong> beside <code>ensure_subagent_owned</code>:
+   <code>ensure_messageable(sender, recipient)</code> — the recipient is a session the
+   daemon knows and not the sender itself. Whether the two share a tree
+   (their stored <code>SessionOrigin</code> metadata carries the same <code>root_session_id</code>)
+   only picks the permission label; no live-registry walk, no ancestry or
+   taint validation. Known, accepted limitation: after a parent reverts
    history, "ghost" sessions from the reverted branch remain reachable by
    agents that hold their session IDs. Sender identity is always derived from
    the executing tool context, never from model-supplied arguments.
@@ -5386,11 +5405,14 @@ an agent remain independently controllable.</p>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="s">"parent"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span><span class="w">     </span><span class="c1"># the agent that delegated me</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="s">"sibling"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span><span class="w">      </span><span class="c1"># other children of my parent</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span><span class="w">           </span><span class="c1"># any other same-tree peer (grandparent, uncle, ...)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="s">"other_tree"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ask</span><span class="w">   </span><span class="c1"># a session in another tree (default: root as `delegate`, subagent ask)</span>
 </code></pre></div>
 <ul>
 <li>The permission resource label is the <strong>recipient's relationship to the
-  sender</strong>: <code>parent</code>, <code>child</code>, <code>sibling</code>, or <code>*</code> (catch-all for any other
-  same-tree peer). The label is derived from stored <code>SessionOrigin</code> metadata
+  sender</strong>: <code>parent</code>, <code>child</code>, <code>sibling</code>, <code>*</code> (catch-all for any other
+  same-tree peer), or <code>other_tree</code> (a session in another tree). A rule with
+  the pattern <code>*</code> also matches <code>other_tree</code>, but a rule for <code>other_tree</code>
+  outranks it as the more specific pattern. The label is derived from stored <code>SessionOrigin</code> metadata
   at send time and matched by the existing <code>PermissionPipeline</code> +
   <code>WildcardPattern</code>. This is purely a labeling step — there is <strong>no
   relationship-based authority check</strong> anywhere; permissions alone decide.</li>
@@ -5475,14 +5497,46 @@ messaging rollout.</p>
    internal <code>agent_hop</code> field in live RPC responses and durable events, so
    <code>PROTOCOL_VERSION</code> was bumped and the TS/JSON-schema bindings regenerated in
    the same change, per the repo's version-bump ritual.</p>
+<h2 id="cross-tree-messaging">Cross-tree messaging<a class="headerlink" href="#cross-tree-messaging" title="Permanent link">&para;</a></h2>
+<p>Amendment of 2026-11-14 (user decisions): <code>send_message</code> reaches sessions
+outside the sender's tree.</p>
+<ul>
+<li><strong>Addressing: full UUID only.</strong> A handle resolves in the sender's own tree
+  and nowhere else, so a cross-tree recipient takes its full session UUID. No
+  listing or discovery tool is added.</li>
+<li><strong>Scope: any session the daemon owns</strong>, in any project. A recipient whose
+  tree is not loaded is loaded for the send. <code>send_message:not_tree_peer</code> is
+  removed; a UUID that names no session still fails with
+  <code>send_message:unknown_session</code>.</li>
+<li><strong>Permission: the <code>other_tree</code> label, following <code>delegate</code>.</strong> The daemon's
+  default <code>message</code> rules for an agent whose document names no <code>message</code> key
+  are <code>*</code> (allow for a delegated run; a root run follows its <code>delegate</code>
+  rules) and <code>other_tree</code>, which follows a root run's <code>delegate</code> rules
+  (allowed when one of them allows, asking when one asks, and denied when the
+  run may delegate to nobody) and asks for a delegated run. With the default
+  <code>delegate: deny</code>, a root run therefore mails no other tree and still does
+  not see the tool, while a subagent asks before mailing another tree. A
+  document that declares <code>message</code> replaces both defaults; its <code>*</code> rule then
+  covers other trees unless it names <code>other_tree</code>.</li>
+<li><strong>Reply hint.</strong> The envelope a cross-tree recipient gets names the sender
+  by full UUID, since its handle would not resolve from the recipient's
+  tree.</li>
+<li>Everything else is shared with in-tree mail: the hop guard, the pair window,
+  the inbox cap, held-session refusal, waking finished sessions, and
+  idempotency.</li>
+</ul>
 <h2 id="resolved-decisions">Resolved Decisions<a class="headerlink" href="#resolved-decisions" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Scope: tree-only, equality check only.</strong> Two sessions are tree peers iff
-   their stored <code>SessionOrigin.root_session_id</code> values are equal. No live
-   registry walk, ancestry validation, or taint reconciliation; sessions left
-   over from a reverted branch remain messageable by agents holding their IDs.
-   Any-session addressing is out of scope (it would need a global agent
-   registry and new ownership rules) and conflicts with the no-discovery model.</li>
+<li><strong>Scope: any session the daemon owns; tree membership is an equality
+   check.</strong> Two sessions are tree peers iff their stored
+   <code>SessionOrigin.root_session_id</code> values are equal. No live registry walk,
+   ancestry validation, or taint reconciliation; sessions left over from a
+   reverted branch remain messageable by agents holding their IDs. Amended
+   2026-11-14: a session in another tree is messageable too, by full UUID,
+   under the <code>other_tree</code> permission label (see
+   <a href="#cross-tree-messaging">Cross-tree messaging</a>). The no-discovery model is
+   unchanged: an agent learns another tree's session ID only from the user or
+   another agent.</li>
 <li><strong>Permission action: dedicated <code>Message</code> action.</strong> Messaging gets its own
    <code>PermissionAction</code> variant rather than reusing <code>Delegate</code>, so messaging
    permissions are controlled independently of delegation.</li>
@@ -5548,8 +5602,8 @@ messaging rollout.</p>
 <li>A message to a finished session wakes it through producer reconcile: the
    session resumes with the message as input; the completed delegation is
    untouched.</li>
-<li>Tree authorization: equal <code>root_session_id</code> succeeds; mismatched roots fail
-   with <code>send_message:not_tree_peer</code>; self-send fails with
+<li>Recipient check: equal <code>root_session_id</code> labels the send by relationship;
+   mismatched roots label it <code>other_tree</code> and deliver; self-send fails with
    <code>send_message:self_send</code>.</li>
 <li>Result contract: success returns <code>message_id</code>, effective <code>mode</code>, and
    <code>recipient_state</code>; a retried tool call returns the original <code>message_id</code>

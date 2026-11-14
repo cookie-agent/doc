@@ -7711,7 +7711,7 @@ tools instead of in the system prompt.</p>
 <td><code>messaging</code></td>
 <td><a href="#send_message"><code>send_message</code></a></td>
 <td>no</td>
-<td>Messages between the agents of a session tree.</td>
+<td>Messages between agents, in a session tree or across trees.</td>
 </tr>
 <tr>
 <td><code>runtimes</code></td>
@@ -8366,8 +8366,9 @@ when it has a session, and its output as <code>text</code>. A delegation that mo
 the background commits the immediate result the background section
 describes, which shows its output.</p>
 <h2 id="agent-messaging">Agent messaging<a class="headerlink" href="#agent-messaging" title="Permanent link">&para;</a></h2>
-<p><code>send_message</code> delivers a durable message to another session in the same
-delegation tree. It replaces the removed <code>steer_subagent</code> tool; see the
+<p><code>send_message</code> delivers a durable message to another session: one in the
+sender's delegation tree, or, by full UUID, any session in another tree the
+daemon owns. It replaces the removed <code>steer_subagent</code> tool; see the
 <a href="../../specs/agent-messaging/#migration-notes">migration notes</a>. Its argument
 object is strict, and <code>body</code> is the markdown message text. The earlier
 <code>recipient_session_id</code> spelling of <code>to</code> is not an alias and fails with <code>send_message:invalid_arguments</code>. A
@@ -8380,7 +8381,7 @@ error rather than a <code>send_message:</code> code.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>send_message(body: string, mode?: "steer" | "queue", to: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>Send a message to another agent in your session tree: `to` is its session ID, such as `explore_1a2b3c4d`, or its full UUID.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>Send a message to another agent: `to` is its session ID, such as `explore_1a2b3c4d`, or its full UUID. A session in another session tree takes its full UUID.
 </code></pre></div>
 <table>
 <thead>
@@ -8408,7 +8409,7 @@ error rather than a <code>send_message:</code> code.</p>
 <td><code>to</code></td>
 <td><code>string</code></td>
 <td>yes</td>
-<td>Handle or full UUID of the recipient agent.</td>
+<td>Handle of an agent in your session tree, or the full UUID of any session.</td>
 </tr>
 </tbody>
 </table>
@@ -8437,7 +8438,7 @@ error rather than a <code>send_message:</code> code.</p>
 <a id="__codelineno-46-21" name="__codelineno-46-21" href="#__codelineno-46-21"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"`steer` (the default) joins the recipient's current turn; `queue` waits for it to end."</span>
 <a id="__codelineno-46-22" name="__codelineno-46-22" href="#__codelineno-46-22"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-46-23" name="__codelineno-46-23" href="#__codelineno-46-23"></a><span class="w">    </span><span class="nt">"to"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-46-24" name="__codelineno-46-24" href="#__codelineno-46-24"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Handle or full UUID of the recipient agent."</span><span class="p">,</span>
+<a id="__codelineno-46-24" name="__codelineno-46-24" href="#__codelineno-46-24"></a><span class="w">      </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Handle of an agent in your session tree, or the full UUID of any session."</span><span class="p">,</span>
 <a id="__codelineno-46-25" name="__codelineno-46-25" href="#__codelineno-46-25"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
 <a id="__codelineno-46-26" name="__codelineno-46-26" href="#__codelineno-46-26"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-46-27" name="__codelineno-46-27" href="#__codelineno-46-27"></a><span class="w">  </span><span class="p">},</span>
@@ -8452,8 +8453,11 @@ error rather than a <code>send_message:</code> code.</p>
 <!-- /generated -->
 
 <p>Calls use the <code>message</code> permission action. The resource label is the
-recipient's relationship to the sender — <code>parent</code>, <code>child</code>, <code>sibling</code>, or <code>*</code>
-for any other same-tree peer — derived from stored session-origin metadata.
+recipient's relationship to the sender — <code>parent</code>, <code>child</code>, <code>sibling</code>, <code>*</code>
+for any other same-tree peer, or <code>other_tree</code> for a session in another tree —
+derived from stored session-origin metadata. For an agent document without a
+<code>message</code> key, <code>other_tree</code> follows a root run's <code>delegate</code> rules, as its <code>*</code>
+default does, and asks for a delegated run.
 Messaging is deny-by-default and the tool is hidden until an agent document or
 session overlay declares a <code>message</code> <code>allow</code> or <code>ask</code> rule. Denied calls use
 the standard policy-denial path and <code>ask</code> rules use the normal approval flow;
@@ -8491,10 +8495,6 @@ There is no inbox tool.</p>
 <tr>
 <td><code>send_message:unknown_session</code></td>
 <td>Well-formed recipient UUID that names no session</td>
-</tr>
-<tr>
-<td><code>send_message:not_tree_peer</code></td>
-<td>Well-formed recipient UUID in a different delegation tree</td>
 </tr>
 <tr>
 <td><code>send_message:self_send</code></td>
