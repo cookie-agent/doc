@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TranscriptionError"],"fn":["transcribe"],"struct":["Transcript","TranscriptionRequest","TranscriptionTarget"]};
