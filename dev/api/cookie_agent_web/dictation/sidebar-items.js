@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SEND_WHEN_DONE_KEY"],"enum":["Phase"],"fn":["secure"],"struct":["Dictation"]};

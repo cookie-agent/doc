@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RECORDER_TYPES"],"fn":["add_words","cancel","cancelled","clock","failure_text","limit_text","recorder_type","transcribe"]};

@@ -300,18 +300,49 @@
 <a href=#300 id=300 data-nosnippet>300</a>        &lt;h2 class=<span class="string">"mt-4 text-sm font-bold"</span>&gt;<span class="string">"Diagnostics in the transcript"</span>&lt;/h2&gt;
 <a href=#301 id=301 data-nosnippet>301</a>        &lt;p class=NOTE&gt;<span class="string">"The same choice as Diagnostics in the session's ⋮ menu; it stays in this browser."</span>&lt;/p&gt;
 <a href=#302 id=302 data-nosnippet>302</a>        {events_sheet(workspace)}
-<a href=#303 id=303 data-nosnippet>303</a>    }
-<a href=#304 id=304 data-nosnippet>304</a>}
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a><span class="doccomment">/// This browser: installing the page as an app, and the daemon's token it
-<a href=#307 id=307 data-nosnippet>307</a>/// keeps.
-<a href=#308 id=308 data-nosnippet>308</a></span><span class="kw">fn </span>browser_section(connection: Connection) -&gt; <span class="kw">impl </span>IntoView {
-<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">let </span>confirming = RwSignal::new(<span class="bool-val">false</span>);
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="macro">view!</span> {
-<a href=#311 id=311 data-nosnippet>311</a>        {<span class="kw">super</span>::install::install_section()}
-<a href=#312 id=312 data-nosnippet>312</a>        &lt;h2 class=<span class="string">"mt-4 text-sm font-bold"</span>&gt;<span class="string">"This daemon"</span>&lt;/h2&gt;
-<a href=#313 id=313 data-nosnippet>313</a>        &lt;p class=NOTE&gt;<span class="string">"The browser keeps the daemon's token to connect again without a link."</span>&lt;/p&gt;
-<a href=#314 id=314 data-nosnippet>314</a>        &lt;ForgetDaemon connection=connection confirming=confirming primary=<span class="bool-val">false </span>on_forget=|| {} /&gt;
-<a href=#315 id=315 data-nosnippet>315</a>    }
-<a href=#316 id=316 data-nosnippet>316</a>}
+<a href=#303 id=303 data-nosnippet>303</a>        &lt;Show when=<span class="kw">move </span>|| workspace.speech.get().is_some()&gt;
+<a href=#304 id=304 data-nosnippet>304</a>            &lt;h2 class=<span class="string">"mt-4 text-sm font-bold"</span>&gt;<span class="string">"Dictation"</span>&lt;/h2&gt;
+<a href=#305 id=305 data-nosnippet>305</a>            &lt;p class=NOTE&gt;<span class="string">"What the microphone does with the words once they arrive; it stays in this browser."</span>&lt;/p&gt;
+<a href=#306 id=306 data-nosnippet>306</a>            {dictation_choices(workspace)}
+<a href=#307 id=307 data-nosnippet>307</a>        &lt;/Show&gt;
+<a href=#308 id=308 data-nosnippet>308</a>    }
+<a href=#309 id=309 data-nosnippet>309</a>}
+<a href=#310 id=310 data-nosnippet>310</a>
+<a href=#311 id=311 data-nosnippet>311</a><span class="doccomment">/// Whether dictated words wait in the composer or are sent at once
+<a href=#312 id=312 data-nosnippet>312</a>/// (`docs/site/specs/voice-input.md` section 3).
+<a href=#313 id=313 data-nosnippet>313</a></span><span class="kw">fn </span>dictation_choices(workspace: Workspace) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#314 id=314 data-nosnippet>314</a>    [
+<a href=#315 id=315 data-nosnippet>315</a>        (<span class="bool-val">false</span>, <span class="string">"Put them in the composer, to edit and send"</span>),
+<a href=#316 id=316 data-nosnippet>316</a>        (<span class="bool-val">true</span>, <span class="string">"Send them as the message"</span>),
+<a href=#317 id=317 data-nosnippet>317</a>    ]
+<a href=#318 id=318 data-nosnippet>318</a>    .into_iter()
+<a href=#319 id=319 data-nosnippet>319</a>    .map(|(send, label)| {
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>chosen = <span class="kw">move </span>|| workspace.dictation.send_when_done.get() == send;
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="macro">view!</span> {
+<a href=#322 id=322 data-nosnippet>322</a>            &lt;button
+<a href=#323 id=323 data-nosnippet>323</a>                <span class="kw">type</span>=<span class="string">"button"
+<a href=#324 id=324 data-nosnippet>324</a>                </span>class=<span class="kw">super</span>::ROW
+<a href=#325 id=325 data-nosnippet>325</a>                class:bg-sel=chosen
+<a href=#326 id=326 data-nosnippet>326</a>                aria-pressed=<span class="kw">move </span>|| chosen().to_string()
+<a href=#327 id=327 data-nosnippet>327</a>                data-dictation-send=send.to_string()
+<a href=#328 id=328 data-nosnippet>328</a>                on:click=<span class="kw">move </span>|<span class="kw">_</span>| workspace.dictation.set_send_when_done(send)
+<a href=#329 id=329 data-nosnippet>329</a>            &gt;
+<a href=#330 id=330 data-nosnippet>330</a>                {<span class="kw">move </span>|| <span class="kw">super</span>::choice_line(label.to_owned(), chosen(), <span class="string">"text-sm"</span>)}
+<a href=#331 id=331 data-nosnippet>331</a>            &lt;/button&gt;
+<a href=#332 id=332 data-nosnippet>332</a>        }
+<a href=#333 id=333 data-nosnippet>333</a>    })
+<a href=#334 id=334 data-nosnippet>334</a>    .collect_view()
+<a href=#335 id=335 data-nosnippet>335</a>}
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a><span class="doccomment">/// This browser: installing the page as an app, and the daemon's token it
+<a href=#338 id=338 data-nosnippet>338</a>/// keeps.
+<a href=#339 id=339 data-nosnippet>339</a></span><span class="kw">fn </span>browser_section(connection: Connection) -&gt; <span class="kw">impl </span>IntoView {
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">let </span>confirming = RwSignal::new(<span class="bool-val">false</span>);
+<a href=#341 id=341 data-nosnippet>341</a>    <span class="macro">view!</span> {
+<a href=#342 id=342 data-nosnippet>342</a>        {<span class="kw">super</span>::install::install_section()}
+<a href=#343 id=343 data-nosnippet>343</a>        &lt;h2 class=<span class="string">"mt-4 text-sm font-bold"</span>&gt;<span class="string">"This daemon"</span>&lt;/h2&gt;
+<a href=#344 id=344 data-nosnippet>344</a>        &lt;p class=NOTE&gt;<span class="string">"The browser keeps the daemon's token to connect again without a link."</span>&lt;/p&gt;
+<a href=#345 id=345 data-nosnippet>345</a>        &lt;ForgetDaemon connection=connection confirming=confirming primary=<span class="bool-val">false </span>on_forget=|| {} /&gt;
+<a href=#346 id=346 data-nosnippet>346</a>    }
+<a href=#347 id=347 data-nosnippet>347</a>}
 </code></pre></div></section></main></body></html>
