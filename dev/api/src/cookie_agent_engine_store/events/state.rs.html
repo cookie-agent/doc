@@ -1367,239 +1367,261 @@
 <a href=#1367 id=1367 data-nosnippet>1367</a>    </span>attempts: VecDeque&lt;(AttemptId, Timestamp)&gt;,
 <a href=#1368 id=1368 data-nosnippet>1368</a>    <span class="doccomment">/// When each recently committed turn's request went out, by `model_turn_seq`.
 <a href=#1369 id=1369 data-nosnippet>1369</a>    </span>turns: VecDeque&lt;(u64, <span class="prelude-ty">Option</span>&lt;Timestamp&gt;)&gt;,
-<a href=#1370 id=1370 data-nosnippet>1370</a>}
-<a href=#1371 id=1371 data-nosnippet>1371</a>
-<a href=#1372 id=1372 data-nosnippet>1372</a><span class="kw">impl </span>RequestFold {
-<a href=#1373 id=1373 data-nosnippet>1373</a>    <span class="doccomment">/// How many attempts and turns it remembers: a usage event follows its
-<a href=#1374 id=1374 data-nosnippet>1374</a>    /// turn's commit closely, and a commit its attempt.
-<a href=#1375 id=1375 data-nosnippet>1375</a>    </span><span class="kw">const </span>REMEMBERS: usize = <span class="number">16</span>;
+<a href=#1370 id=1370 data-nosnippet>1370</a>    <span class="doccomment">/// An ACP agent compacted its conversation and no turn with content
+<a href=#1371 id=1371 data-nosnippet>1371</a>    /// followed: the usage its run records then is the compaction's, which
+<a href=#1372 id=1372 data-nosnippet>1372</a>    /// leaves nothing worth compacting again before the cache expires.
+<a href=#1373 id=1373 data-nosnippet>1373</a>    </span><span class="attr">#[serde(default)]
+<a href=#1374 id=1374 data-nosnippet>1374</a>    </span>agent_compacted: bool,
+<a href=#1375 id=1375 data-nosnippet>1375</a>}
 <a href=#1376 id=1376 data-nosnippet>1376</a>
-<a href=#1377 id=1377 data-nosnippet>1377</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
-<a href=#1378 id=1378 data-nosnippet>1378</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#1379 id=1379 data-nosnippet>1379</a>            EventPayload::ContextCheckpointCommitted { .. } =&gt; <span class="self">self</span>.latest = <span class="prelude-val">None</span>,
-<a href=#1380 id=1380 data-nosnippet>1380</a>            EventPayload::ModelRequestPrepared { attempt_id, .. }
-<a href=#1381 id=1381 data-nosnippet>1381</a>            | EventPayload::ModelAttemptStarted { attempt_id, .. } =&gt; {
-<a href=#1382 id=1382 data-nosnippet>1382</a>                remember(<span class="kw-2">&amp;mut </span><span class="self">self</span>.attempts, (<span class="kw-2">*</span>attempt_id, event.timestamp));
-<a href=#1383 id=1383 data-nosnippet>1383</a>            }
-<a href=#1384 id=1384 data-nosnippet>1384</a>            EventPayload::ModelTurnCommitted {
-<a href=#1385 id=1385 data-nosnippet>1385</a>                model_turn_seq,
-<a href=#1386 id=1386 data-nosnippet>1386</a>                attempt_id,
-<a href=#1387 id=1387 data-nosnippet>1387</a>                ..
-<a href=#1388 id=1388 data-nosnippet>1388</a>            } =&gt; {
-<a href=#1389 id=1389 data-nosnippet>1389</a>                <span class="kw">let </span>sent = <span class="self">self
-<a href=#1390 id=1390 data-nosnippet>1390</a>                    </span>.attempts
-<a href=#1391 id=1391 data-nosnippet>1391</a>                    .iter()
-<a href=#1392 id=1392 data-nosnippet>1392</a>                    .rev()
-<a href=#1393 id=1393 data-nosnippet>1393</a>                    .find(|(attempt, <span class="kw">_</span>)| attempt == attempt_id)
-<a href=#1394 id=1394 data-nosnippet>1394</a>                    .map(|(<span class="kw">_</span>, sent)| <span class="kw-2">*</span>sent);
-<a href=#1395 id=1395 data-nosnippet>1395</a>                remember(<span class="kw-2">&amp;mut </span><span class="self">self</span>.turns, (<span class="kw-2">*</span>model_turn_seq, sent));
-<a href=#1396 id=1396 data-nosnippet>1396</a>            }
-<a href=#1397 id=1397 data-nosnippet>1397</a>            EventPayload::ModelUsageRecorded {
-<a href=#1398 id=1398 data-nosnippet>1398</a>                model_turn_seq,
-<a href=#1399 id=1399 data-nosnippet>1399</a>                resolved_model,
-<a href=#1400 id=1400 data-nosnippet>1400</a>                usage,
-<a href=#1401 id=1401 data-nosnippet>1401</a>                cache_ttl,
+<a href=#1377 id=1377 data-nosnippet>1377</a><span class="kw">impl </span>RequestFold {
+<a href=#1378 id=1378 data-nosnippet>1378</a>    <span class="doccomment">/// How many attempts and turns it remembers: a usage event follows its
+<a href=#1379 id=1379 data-nosnippet>1379</a>    /// turn's commit closely, and a commit its attempt.
+<a href=#1380 id=1380 data-nosnippet>1380</a>    </span><span class="kw">const </span>REMEMBERS: usize = <span class="number">16</span>;
+<a href=#1381 id=1381 data-nosnippet>1381</a>
+<a href=#1382 id=1382 data-nosnippet>1382</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
+<a href=#1383 id=1383 data-nosnippet>1383</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#1384 id=1384 data-nosnippet>1384</a>            EventPayload::ContextCheckpointCommitted { .. } =&gt; <span class="self">self</span>.latest = <span class="prelude-val">None</span>,
+<a href=#1385 id=1385 data-nosnippet>1385</a>            <span class="comment">// Such as Claude Code's own compaction as its cache nears expiry.
+<a href=#1386 id=1386 data-nosnippet>1386</a>            </span>EventPayload::AcpSessionUpdated { update }
+<a href=#1387 id=1387 data-nosnippet>1387</a>                <span class="kw">if </span>update.compaction.as_ref().is_some_and(|compaction| {
+<a href=#1388 id=1388 data-nosnippet>1388</a>                    compaction.state == cookie_agent_protocol::AcpCompactionState::Completed
+<a href=#1389 id=1389 data-nosnippet>1389</a>                }) =&gt;
+<a href=#1390 id=1390 data-nosnippet>1390</a>            {
+<a href=#1391 id=1391 data-nosnippet>1391</a>                <span class="self">self</span>.latest = <span class="prelude-val">None</span>;
+<a href=#1392 id=1392 data-nosnippet>1392</a>                <span class="self">self</span>.agent_compacted = <span class="bool-val">true</span>;
+<a href=#1393 id=1393 data-nosnippet>1393</a>            }
+<a href=#1394 id=1394 data-nosnippet>1394</a>            EventPayload::ModelRequestPrepared { attempt_id, .. }
+<a href=#1395 id=1395 data-nosnippet>1395</a>            | EventPayload::ModelAttemptStarted { attempt_id, .. } =&gt; {
+<a href=#1396 id=1396 data-nosnippet>1396</a>                remember(<span class="kw-2">&amp;mut </span><span class="self">self</span>.attempts, (<span class="kw-2">*</span>attempt_id, event.timestamp));
+<a href=#1397 id=1397 data-nosnippet>1397</a>            }
+<a href=#1398 id=1398 data-nosnippet>1398</a>            EventPayload::ModelTurnCommitted {
+<a href=#1399 id=1399 data-nosnippet>1399</a>                model_turn_seq,
+<a href=#1400 id=1400 data-nosnippet>1400</a>                attempt_id,
+<a href=#1401 id=1401 data-nosnippet>1401</a>                turn,
 <a href=#1402 id=1402 data-nosnippet>1402</a>                ..
 <a href=#1403 id=1403 data-nosnippet>1403</a>            } =&gt; {
-<a href=#1404 id=1404 data-nosnippet>1404</a>                <span class="self">self</span>.latest = cache_ttl.map(|stamp| LatestRequest {
-<a href=#1405 id=1405 data-nosnippet>1405</a>                    usage_seq: event.seq,
-<a href=#1406 id=1406 data-nosnippet>1406</a>                    sent_at: <span class="self">self
-<a href=#1407 id=1407 data-nosnippet>1407</a>                        </span>.turns
-<a href=#1408 id=1408 data-nosnippet>1408</a>                        .iter()
-<a href=#1409 id=1409 data-nosnippet>1409</a>                        .rev()
-<a href=#1410 id=1410 data-nosnippet>1410</a>                        .find(|(turn, <span class="kw">_</span>)| turn == model_turn_seq)
-<a href=#1411 id=1411 data-nosnippet>1411</a>                        .and_then(|(<span class="kw">_</span>, sent)| <span class="kw-2">*</span>sent)
-<a href=#1412 id=1412 data-nosnippet>1412</a>                        .unwrap_or(event.timestamp),
-<a href=#1413 id=1413 data-nosnippet>1413</a>                    stamp,
-<a href=#1414 id=1414 data-nosnippet>1414</a>                    tokens: usage
-<a href=#1415 id=1415 data-nosnippet>1415</a>                        .input_tokens
-<a href=#1416 id=1416 data-nosnippet>1416</a>                        .unwrap_or(<span class="number">0</span>)
-<a href=#1417 id=1417 data-nosnippet>1417</a>                        .saturating_add(usage.output_tokens.unwrap_or(<span class="number">0</span>)),
-<a href=#1418 id=1418 data-nosnippet>1418</a>                    model: resolved_model.clone(),
-<a href=#1419 id=1419 data-nosnippet>1419</a>                });
-<a href=#1420 id=1420 data-nosnippet>1420</a>            }
-<a href=#1421 id=1421 data-nosnippet>1421</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#1422 id=1422 data-nosnippet>1422</a>        }
-<a href=#1423 id=1423 data-nosnippet>1423</a>    }
-<a href=#1424 id=1424 data-nosnippet>1424</a>}
-<a href=#1425 id=1425 data-nosnippet>1425</a>
-<a href=#1426 id=1426 data-nosnippet>1426</a><span class="kw">fn </span>remember&lt;T&gt;(list: <span class="kw-2">&amp;mut </span>VecDeque&lt;T&gt;, item: T) {
-<a href=#1427 id=1427 data-nosnippet>1427</a>    <span class="kw">if </span>list.len() == RequestFold::REMEMBERS {
-<a href=#1428 id=1428 data-nosnippet>1428</a>        list.pop_front();
-<a href=#1429 id=1429 data-nosnippet>1429</a>    }
-<a href=#1430 id=1430 data-nosnippet>1430</a>    list.push_back(item);
-<a href=#1431 id=1431 data-nosnippet>1431</a>}
-<a href=#1432 id=1432 data-nosnippet>1432</a>
-<a href=#1433 id=1433 data-nosnippet>1433</a><span class="doccomment">/// Facts a log records once: a set of keys, which grows with the log but
-<a href=#1434 id=1434 data-nosnippet>1434</a>/// stays small (section 3.1).
-<a href=#1435 id=1435 data-nosnippet>1435</a>/// A delegation record a tree load hands over, with the revisions it was frozen
-<a href=#1436 id=1436 data-nosnippet>1436</a>/// against.
-<a href=#1437 id=1437 data-nosnippet>1437</a></span><span class="attr">#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-<a href=#1438 id=1438 data-nosnippet>1438</a></span><span class="kw">pub struct </span>HarvestedDelegation {
-<a href=#1439 id=1439 data-nosnippet>1439</a>    <span class="kw">pub </span>seq: u64,
-<a href=#1440 id=1440 data-nosnippet>1440</a>    <span class="kw">pub </span>run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
-<a href=#1441 id=1441 data-nosnippet>1441</a>    <span class="kw">pub </span>payload: EventPayload,
-<a href=#1442 id=1442 data-nosnippet>1442</a>}
-<a href=#1443 id=1443 data-nosnippet>1443</a>
-<a href=#1444 id=1444 data-nosnippet>1444</a><span class="doccomment">/// What a tree load takes from a log, whoever holds it in the tree: its grants,
-<a href=#1445 id=1445 data-nosnippet>1445</a>/// its delegation records, and what the registry needs of it as a delegation's
-<a href=#1446 id=1446 data-nosnippet>1446</a>/// parent (`docs/site/specs/forever-sessions.md` section 4.1). So neither a load
-<a href=#1447 id=1447 data-nosnippet>1447</a>/// nor a registry rebuild reads the log for them.
-<a href=#1448 id=1448 data-nosnippet>1448</a></span><span class="attr">#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
-<a href=#1449 id=1449 data-nosnippet>1449</a></span><span class="kw">pub struct </span>HarvestFold {
-<a href=#1450 id=1450 data-nosnippet>1450</a>    <span class="doccomment">/// Every grant, restart-stable or not.
-<a href=#1451 id=1451 data-nosnippet>1451</a>    </span>grants: Vec&lt;TreeApprovalGrant&gt;,
-<a href=#1452 id=1452 data-nosnippet>1452</a>    <span class="doccomment">/// Whether one of them is tainted is asked of the log when it is handed over,
-<a href=#1453 id=1453 data-nosnippet>1453</a>    /// as damage found later can excuse or condemn an earlier record.
-<a href=#1454 id=1454 data-nosnippet>1454</a>    </span>delegations: Vec&lt;HarvestedDelegation&gt;,
-<a href=#1455 id=1455 data-nosnippet>1455</a>    revisions: RevisionFold,
-<a href=#1456 id=1456 data-nosnippet>1456</a>    <span class="doccomment">/// The child each invocation started.
-<a href=#1457 id=1457 data-nosnippet>1457</a>    </span><span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
-<a href=#1458 id=1458 data-nosnippet>1458</a>    </span>started: HashMap&lt;InvocationId, SessionId&gt;,
-<a href=#1459 id=1459 data-nosnippet>1459</a>    <span class="doccomment">/// `(parent run, child)` of each queued delegation.
-<a href=#1460 id=1460 data-nosnippet>1460</a>    </span>queued: Vec&lt;(RunId, SessionId)&gt;,
-<a href=#1461 id=1461 data-nosnippet>1461</a>    <span class="doccomment">/// Delegations whose delivery a producer message accepted.
-<a href=#1462 id=1462 data-nosnippet>1462</a>    </span>producer_accepted: Vec&lt;InvocationId&gt;,
-<a href=#1463 id=1463 data-nosnippet>1463</a>}
-<a href=#1464 id=1464 data-nosnippet>1464</a>
-<a href=#1465 id=1465 data-nosnippet>1465</a><span class="kw">impl </span>HarvestFold {
-<a href=#1466 id=1466 data-nosnippet>1466</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
-<a href=#1467 id=1467 data-nosnippet>1467</a>        <span class="self">self</span>.revisions.observe(<span class="kw-2">&amp;</span>event.payload);
-<a href=#1468 id=1468 data-nosnippet>1468</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#1469 id=1469 data-nosnippet>1469</a>            EventPayload::TreeApprovalGrantCommitted { grant } =&gt; <span class="self">self</span>.grants.push(grant.clone()),
-<a href=#1470 id=1470 data-nosnippet>1470</a>            EventPayload::DelegationProgressed {
-<a href=#1471 id=1471 data-nosnippet>1471</a>                invocation_id,
-<a href=#1472 id=1472 data-nosnippet>1472</a>                stage: Open::Known(DelegationStage::Started { child_session_id }),
-<a href=#1473 id=1473 data-nosnippet>1473</a>            } =&gt; {
-<a href=#1474 id=1474 data-nosnippet>1474</a>                <span class="self">self</span>.started.insert(<span class="kw-2">*</span>invocation_id, <span class="kw-2">*</span>child_session_id);
-<a href=#1475 id=1475 data-nosnippet>1475</a>            }
-<a href=#1476 id=1476 data-nosnippet>1476</a>            EventPayload::DelegationProgressed {
-<a href=#1477 id=1477 data-nosnippet>1477</a>                invocation_id,
-<a href=#1478 id=1478 data-nosnippet>1478</a>                stage: Open::Known(DelegationStage::Queued { .. }),
-<a href=#1479 id=1479 data-nosnippet>1479</a>            } =&gt; {
-<a href=#1480 id=1480 data-nosnippet>1480</a>                <span class="kw">if let </span>(<span class="prelude-val">Some</span>(run), <span class="prelude-val">Some</span>(child)) = (event.run_id, <span class="self">self</span>.started.get(invocation_id)) {
-<a href=#1481 id=1481 data-nosnippet>1481</a>                    <span class="self">self</span>.queued.push((run, <span class="kw-2">*</span>child));
-<a href=#1482 id=1482 data-nosnippet>1482</a>                }
-<a href=#1483 id=1483 data-nosnippet>1483</a>            }
-<a href=#1484 id=1484 data-nosnippet>1484</a>            EventPayload::ProducerMessageAccepted {
-<a href=#1485 id=1485 data-nosnippet>1485</a>                producer_owner: ProducerOwner::Delegation { invocation_id },
-<a href=#1486 id=1486 data-nosnippet>1486</a>                ..
-<a href=#1487 id=1487 data-nosnippet>1487</a>            } =&gt; <span class="self">self</span>.producer_accepted.push(<span class="kw-2">*</span>invocation_id),
-<a href=#1488 id=1488 data-nosnippet>1488</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#1489 id=1489 data-nosnippet>1489</a>        }
-<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">if </span><span class="kw">crate</span>::delegation_events::is_delegation_payload(<span class="kw-2">&amp;</span>event.payload) {
-<a href=#1491 id=1491 data-nosnippet>1491</a>            <span class="self">self</span>.delegations.push(HarvestedDelegation {
-<a href=#1492 id=1492 data-nosnippet>1492</a>                seq: event.seq,
-<a href=#1493 id=1493 data-nosnippet>1493</a>                run: event.run_id,
-<a href=#1494 id=1494 data-nosnippet>1494</a>                payload: <span class="kw">crate</span>::delegation_events::harvested(<span class="kw-2">&amp;</span>event.payload, <span class="kw-2">&amp;</span><span class="self">self</span>.revisions),
-<a href=#1495 id=1495 data-nosnippet>1495</a>            });
-<a href=#1496 id=1496 data-nosnippet>1496</a>        }
-<a href=#1497 id=1497 data-nosnippet>1497</a>    }
-<a href=#1498 id=1498 data-nosnippet>1498</a>
-<a href=#1499 id=1499 data-nosnippet>1499</a>    <span class="doccomment">/// Every grant of the log, in order.
-<a href=#1500 id=1500 data-nosnippet>1500</a>    </span><span class="attr">#[must_use]
-<a href=#1501 id=1501 data-nosnippet>1501</a>    </span><span class="kw">pub fn </span>grants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[TreeApprovalGrant] {
-<a href=#1502 id=1502 data-nosnippet>1502</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.grants
-<a href=#1503 id=1503 data-nosnippet>1503</a>    }
-<a href=#1504 id=1504 data-nosnippet>1504</a>
-<a href=#1505 id=1505 data-nosnippet>1505</a>    <span class="doccomment">/// Every delegation record of the log, in order.
-<a href=#1506 id=1506 data-nosnippet>1506</a>    </span><span class="attr">#[must_use]
-<a href=#1507 id=1507 data-nosnippet>1507</a>    </span><span class="kw">pub fn </span>delegations(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[HarvestedDelegation] {
-<a href=#1508 id=1508 data-nosnippet>1508</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.delegations
-<a href=#1509 id=1509 data-nosnippet>1509</a>    }
-<a href=#1510 id=1510 data-nosnippet>1510</a>
-<a href=#1511 id=1511 data-nosnippet>1511</a>    <span class="doccomment">/// `(parent run, child)` of each queued delegation, in order.
-<a href=#1512 id=1512 data-nosnippet>1512</a>    </span><span class="attr">#[must_use]
-<a href=#1513 id=1513 data-nosnippet>1513</a>    </span><span class="kw">pub fn </span>queued(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[(RunId, SessionId)] {
-<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.queued
-<a href=#1515 id=1515 data-nosnippet>1515</a>    }
-<a href=#1516 id=1516 data-nosnippet>1516</a>
-<a href=#1517 id=1517 data-nosnippet>1517</a>    <span class="doccomment">/// The delegations whose delivery a producer message accepted, in order.
-<a href=#1518 id=1518 data-nosnippet>1518</a>    </span><span class="attr">#[must_use]
-<a href=#1519 id=1519 data-nosnippet>1519</a>    </span><span class="kw">pub fn </span>producer_accepted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[InvocationId] {
-<a href=#1520 id=1520 data-nosnippet>1520</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.producer_accepted
-<a href=#1521 id=1521 data-nosnippet>1521</a>    }
-<a href=#1522 id=1522 data-nosnippet>1522</a>}
-<a href=#1523 id=1523 data-nosnippet>1523</a>
-<a href=#1524 id=1524 data-nosnippet>1524</a><span class="attr">#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
-<a href=#1525 id=1525 data-nosnippet>1525</a></span><span class="kw">struct </span>OnceFacts {
-<a href=#1526 id=1526 data-nosnippet>1526</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
-<a href=#1527 id=1527 data-nosnippet>1527</a>    </span>seeds: HashMap&lt;InvocationId, Vec&lt;Sha256Digest&gt;&gt;,
-<a href=#1528 id=1528 data-nosnippet>1528</a>    <span class="doccomment">/// The delegated titles up to the first title anything else set, which
-<a href=#1529 id=1529 data-nosnippet>1529</a>    /// [`LogState::delegated_title`] reads no further than.
-<a href=#1530 id=1530 data-nosnippet>1530</a>    </span>delegated_titles: Vec&lt;(InvocationId, SessionTitle)&gt;,
-<a href=#1531 id=1531 data-nosnippet>1531</a>    other_title: bool,
-<a href=#1532 id=1532 data-nosnippet>1532</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
-<a href=#1533 id=1533 data-nosnippet>1533</a>    </span>skills: HashSet&lt;(String, Sha256Digest)&gt;,
-<a href=#1534 id=1534 data-nosnippet>1534</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
-<a href=#1535 id=1535 data-nosnippet>1535</a>    </span>links: HashSet&lt;(ToolCallId, SessionId)&gt;,
-<a href=#1536 id=1536 data-nosnippet>1536</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
-<a href=#1537 id=1537 data-nosnippet>1537</a>    </span>delegations_accepted: HashSet&lt;InvocationId&gt;,
-<a href=#1538 id=1538 data-nosnippet>1538</a>}
-<a href=#1539 id=1539 data-nosnippet>1539</a>
-<a href=#1540 id=1540 data-nosnippet>1540</a><span class="kw">impl </span>OnceFacts {
-<a href=#1541 id=1541 data-nosnippet>1541</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
-<a href=#1542 id=1542 data-nosnippet>1542</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
-<a href=#1543 id=1543 data-nosnippet>1543</a>            EventPayload::DelegatedContextSeeded {
-<a href=#1544 id=1544 data-nosnippet>1544</a>                invocation_id,
-<a href=#1545 id=1545 data-nosnippet>1545</a>                turns,
-<a href=#1546 id=1546 data-nosnippet>1546</a>            } =&gt; {
-<a href=#1547 id=1547 data-nosnippet>1547</a>                <span class="self">self</span>.seeds
-<a href=#1548 id=1548 data-nosnippet>1548</a>                    .entry(<span class="kw-2">*</span>invocation_id)
-<a href=#1549 id=1549 data-nosnippet>1549</a>                    .or_default()
-<a href=#1550 id=1550 data-nosnippet>1550</a>                    .push(seed_digest(turns));
-<a href=#1551 id=1551 data-nosnippet>1551</a>            }
-<a href=#1552 id=1552 data-nosnippet>1552</a>            EventPayload::SessionTitleCommitted { change, .. } =&gt; <span class="kw">match </span>change {
-<a href=#1553 id=1553 data-nosnippet>1553</a>                SessionTitleChange::DelegatedSet {
-<a href=#1554 id=1554 data-nosnippet>1554</a>                    title,
-<a href=#1555 id=1555 data-nosnippet>1555</a>                    invocation_id,
-<a href=#1556 id=1556 data-nosnippet>1556</a>                } =&gt; {
-<a href=#1557 id=1557 data-nosnippet>1557</a>                    <span class="kw">if </span>!<span class="self">self</span>.other_title {
-<a href=#1558 id=1558 data-nosnippet>1558</a>                        <span class="self">self</span>.delegated_titles.push((<span class="kw-2">*</span>invocation_id, title.clone()));
-<a href=#1559 id=1559 data-nosnippet>1559</a>                    }
-<a href=#1560 id=1560 data-nosnippet>1560</a>                }
-<a href=#1561 id=1561 data-nosnippet>1561</a>                SessionTitleChange::UserSet { .. }
-<a href=#1562 id=1562 data-nosnippet>1562</a>                | SessionTitleChange::UserClear { .. }
-<a href=#1563 id=1563 data-nosnippet>1563</a>                | SessionTitleChange::UserReset { .. } =&gt; {}
-<a href=#1564 id=1564 data-nosnippet>1564</a>                <span class="kw">_ </span>=&gt; <span class="self">self</span>.other_title = <span class="bool-val">true</span>,
-<a href=#1565 id=1565 data-nosnippet>1565</a>            },
-<a href=#1566 id=1566 data-nosnippet>1566</a>            EventPayload::SkillLoaded {
-<a href=#1567 id=1567 data-nosnippet>1567</a>                name,
-<a href=#1568 id=1568 data-nosnippet>1568</a>                rendered_body,
-<a href=#1569 id=1569 data-nosnippet>1569</a>                ..
-<a href=#1570 id=1570 data-nosnippet>1570</a>            } =&gt; {
-<a href=#1571 id=1571 data-nosnippet>1571</a>                <span class="self">self</span>.skills.insert((
-<a href=#1572 id=1572 data-nosnippet>1572</a>                    name.clone(),
-<a href=#1573 id=1573 data-nosnippet>1573</a>                    Sha256Digest::of_bytes(rendered_body.as_bytes()),
-<a href=#1574 id=1574 data-nosnippet>1574</a>                ));
-<a href=#1575 id=1575 data-nosnippet>1575</a>            }
-<a href=#1576 id=1576 data-nosnippet>1576</a>            <span class="comment">// A checkpoint that composed the context afresh carries no skill
-<a href=#1577 id=1577 data-nosnippet>1577</a>            // (`docs/site/specs/forever-sessions.md` section 5.2): one loaded
-<a href=#1578 id=1578 data-nosnippet>1578</a>            // before it shows the model its body when loaded again.
-<a href=#1579 id=1579 data-nosnippet>1579</a>            </span>EventPayload::ContextCheckpointCommitted { commit } <span class="kw">if </span>commit.context_fresh =&gt; {
-<a href=#1580 id=1580 data-nosnippet>1580</a>                <span class="self">self</span>.skills.clear();
-<a href=#1581 id=1581 data-nosnippet>1581</a>            }
-<a href=#1582 id=1582 data-nosnippet>1582</a>            EventPayload::ToolCallLinked {
-<a href=#1583 id=1583 data-nosnippet>1583</a>                tool_call_id,
-<a href=#1584 id=1584 data-nosnippet>1584</a>                child_session_id,
-<a href=#1585 id=1585 data-nosnippet>1585</a>            } =&gt; {
-<a href=#1586 id=1586 data-nosnippet>1586</a>                <span class="self">self</span>.links.insert((<span class="kw-2">*</span>tool_call_id, <span class="kw-2">*</span>child_session_id));
-<a href=#1587 id=1587 data-nosnippet>1587</a>            }
-<a href=#1588 id=1588 data-nosnippet>1588</a>            EventPayload::ProducerMessageAccepted {
-<a href=#1589 id=1589 data-nosnippet>1589</a>                producer_owner: ProducerOwner::Delegation { invocation_id },
-<a href=#1590 id=1590 data-nosnippet>1590</a>                ..
-<a href=#1591 id=1591 data-nosnippet>1591</a>            } =&gt; {
-<a href=#1592 id=1592 data-nosnippet>1592</a>                <span class="self">self</span>.delegations_accepted.insert(<span class="kw-2">*</span>invocation_id);
-<a href=#1593 id=1593 data-nosnippet>1593</a>            }
-<a href=#1594 id=1594 data-nosnippet>1594</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#1595 id=1595 data-nosnippet>1595</a>        }
-<a href=#1596 id=1596 data-nosnippet>1596</a>    }
-<a href=#1597 id=1597 data-nosnippet>1597</a>}
-<a href=#1598 id=1598 data-nosnippet>1598</a>
-<a href=#1599 id=1599 data-nosnippet>1599</a><span class="kw">fn </span>seed_digest(turns: <span class="kw-2">&amp;</span>[DelegatedContextTurn]) -&gt; Sha256Digest {
-<a href=#1600 id=1600 data-nosnippet>1600</a>    Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>serde_json::to_vec(turns).expect(<span class="string">"a seed's turns serialize"</span>))
-<a href=#1601 id=1601 data-nosnippet>1601</a>}
-<a href=#1602 id=1602 data-nosnippet>1602</a>
-<a href=#1603 id=1603 data-nosnippet>1603</a><span class="attr">#[cfg(test)]
-<a href=#1604 id=1604 data-nosnippet>1604</a></span><span class="kw">mod </span>tests;
+<a href=#1404 id=1404 data-nosnippet>1404</a>                <span class="kw">if </span>!turn.content.is_empty() {
+<a href=#1405 id=1405 data-nosnippet>1405</a>                    <span class="self">self</span>.agent_compacted = <span class="bool-val">false</span>;
+<a href=#1406 id=1406 data-nosnippet>1406</a>                }
+<a href=#1407 id=1407 data-nosnippet>1407</a>                <span class="kw">let </span>sent = <span class="self">self
+<a href=#1408 id=1408 data-nosnippet>1408</a>                    </span>.attempts
+<a href=#1409 id=1409 data-nosnippet>1409</a>                    .iter()
+<a href=#1410 id=1410 data-nosnippet>1410</a>                    .rev()
+<a href=#1411 id=1411 data-nosnippet>1411</a>                    .find(|(attempt, <span class="kw">_</span>)| attempt == attempt_id)
+<a href=#1412 id=1412 data-nosnippet>1412</a>                    .map(|(<span class="kw">_</span>, sent)| <span class="kw-2">*</span>sent);
+<a href=#1413 id=1413 data-nosnippet>1413</a>                remember(<span class="kw-2">&amp;mut </span><span class="self">self</span>.turns, (<span class="kw-2">*</span>model_turn_seq, sent));
+<a href=#1414 id=1414 data-nosnippet>1414</a>            }
+<a href=#1415 id=1415 data-nosnippet>1415</a>            EventPayload::ModelUsageRecorded {
+<a href=#1416 id=1416 data-nosnippet>1416</a>                model_turn_seq,
+<a href=#1417 id=1417 data-nosnippet>1417</a>                resolved_model,
+<a href=#1418 id=1418 data-nosnippet>1418</a>                usage,
+<a href=#1419 id=1419 data-nosnippet>1419</a>                cache_ttl,
+<a href=#1420 id=1420 data-nosnippet>1420</a>                ..
+<a href=#1421 id=1421 data-nosnippet>1421</a>            } =&gt; {
+<a href=#1422 id=1422 data-nosnippet>1422</a>                <span class="kw">if </span><span class="self">self</span>.agent_compacted {
+<a href=#1423 id=1423 data-nosnippet>1423</a>                    <span class="self">self</span>.latest = <span class="prelude-val">None</span>;
+<a href=#1424 id=1424 data-nosnippet>1424</a>                    <span class="kw">return</span>;
+<a href=#1425 id=1425 data-nosnippet>1425</a>                }
+<a href=#1426 id=1426 data-nosnippet>1426</a>                <span class="self">self</span>.latest = cache_ttl.map(|stamp| LatestRequest {
+<a href=#1427 id=1427 data-nosnippet>1427</a>                    usage_seq: event.seq,
+<a href=#1428 id=1428 data-nosnippet>1428</a>                    sent_at: <span class="self">self
+<a href=#1429 id=1429 data-nosnippet>1429</a>                        </span>.turns
+<a href=#1430 id=1430 data-nosnippet>1430</a>                        .iter()
+<a href=#1431 id=1431 data-nosnippet>1431</a>                        .rev()
+<a href=#1432 id=1432 data-nosnippet>1432</a>                        .find(|(turn, <span class="kw">_</span>)| turn == model_turn_seq)
+<a href=#1433 id=1433 data-nosnippet>1433</a>                        .and_then(|(<span class="kw">_</span>, sent)| <span class="kw-2">*</span>sent)
+<a href=#1434 id=1434 data-nosnippet>1434</a>                        .unwrap_or(event.timestamp),
+<a href=#1435 id=1435 data-nosnippet>1435</a>                    stamp,
+<a href=#1436 id=1436 data-nosnippet>1436</a>                    tokens: usage
+<a href=#1437 id=1437 data-nosnippet>1437</a>                        .input_tokens
+<a href=#1438 id=1438 data-nosnippet>1438</a>                        .unwrap_or(<span class="number">0</span>)
+<a href=#1439 id=1439 data-nosnippet>1439</a>                        .saturating_add(usage.output_tokens.unwrap_or(<span class="number">0</span>)),
+<a href=#1440 id=1440 data-nosnippet>1440</a>                    model: resolved_model.clone(),
+<a href=#1441 id=1441 data-nosnippet>1441</a>                });
+<a href=#1442 id=1442 data-nosnippet>1442</a>            }
+<a href=#1443 id=1443 data-nosnippet>1443</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1444 id=1444 data-nosnippet>1444</a>        }
+<a href=#1445 id=1445 data-nosnippet>1445</a>    }
+<a href=#1446 id=1446 data-nosnippet>1446</a>}
+<a href=#1447 id=1447 data-nosnippet>1447</a>
+<a href=#1448 id=1448 data-nosnippet>1448</a><span class="kw">fn </span>remember&lt;T&gt;(list: <span class="kw-2">&amp;mut </span>VecDeque&lt;T&gt;, item: T) {
+<a href=#1449 id=1449 data-nosnippet>1449</a>    <span class="kw">if </span>list.len() == RequestFold::REMEMBERS {
+<a href=#1450 id=1450 data-nosnippet>1450</a>        list.pop_front();
+<a href=#1451 id=1451 data-nosnippet>1451</a>    }
+<a href=#1452 id=1452 data-nosnippet>1452</a>    list.push_back(item);
+<a href=#1453 id=1453 data-nosnippet>1453</a>}
+<a href=#1454 id=1454 data-nosnippet>1454</a>
+<a href=#1455 id=1455 data-nosnippet>1455</a><span class="doccomment">/// Facts a log records once: a set of keys, which grows with the log but
+<a href=#1456 id=1456 data-nosnippet>1456</a>/// stays small (section 3.1).
+<a href=#1457 id=1457 data-nosnippet>1457</a>/// A delegation record a tree load hands over, with the revisions it was frozen
+<a href=#1458 id=1458 data-nosnippet>1458</a>/// against.
+<a href=#1459 id=1459 data-nosnippet>1459</a></span><span class="attr">#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+<a href=#1460 id=1460 data-nosnippet>1460</a></span><span class="kw">pub struct </span>HarvestedDelegation {
+<a href=#1461 id=1461 data-nosnippet>1461</a>    <span class="kw">pub </span>seq: u64,
+<a href=#1462 id=1462 data-nosnippet>1462</a>    <span class="kw">pub </span>run: <span class="prelude-ty">Option</span>&lt;RunId&gt;,
+<a href=#1463 id=1463 data-nosnippet>1463</a>    <span class="kw">pub </span>payload: EventPayload,
+<a href=#1464 id=1464 data-nosnippet>1464</a>}
+<a href=#1465 id=1465 data-nosnippet>1465</a>
+<a href=#1466 id=1466 data-nosnippet>1466</a><span class="doccomment">/// What a tree load takes from a log, whoever holds it in the tree: its grants,
+<a href=#1467 id=1467 data-nosnippet>1467</a>/// its delegation records, and what the registry needs of it as a delegation's
+<a href=#1468 id=1468 data-nosnippet>1468</a>/// parent (`docs/site/specs/forever-sessions.md` section 4.1). So neither a load
+<a href=#1469 id=1469 data-nosnippet>1469</a>/// nor a registry rebuild reads the log for them.
+<a href=#1470 id=1470 data-nosnippet>1470</a></span><span class="attr">#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+<a href=#1471 id=1471 data-nosnippet>1471</a></span><span class="kw">pub struct </span>HarvestFold {
+<a href=#1472 id=1472 data-nosnippet>1472</a>    <span class="doccomment">/// Every grant, restart-stable or not.
+<a href=#1473 id=1473 data-nosnippet>1473</a>    </span>grants: Vec&lt;TreeApprovalGrant&gt;,
+<a href=#1474 id=1474 data-nosnippet>1474</a>    <span class="doccomment">/// Whether one of them is tainted is asked of the log when it is handed over,
+<a href=#1475 id=1475 data-nosnippet>1475</a>    /// as damage found later can excuse or condemn an earlier record.
+<a href=#1476 id=1476 data-nosnippet>1476</a>    </span>delegations: Vec&lt;HarvestedDelegation&gt;,
+<a href=#1477 id=1477 data-nosnippet>1477</a>    revisions: RevisionFold,
+<a href=#1478 id=1478 data-nosnippet>1478</a>    <span class="doccomment">/// The child each invocation started.
+<a href=#1479 id=1479 data-nosnippet>1479</a>    </span><span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
+<a href=#1480 id=1480 data-nosnippet>1480</a>    </span>started: HashMap&lt;InvocationId, SessionId&gt;,
+<a href=#1481 id=1481 data-nosnippet>1481</a>    <span class="doccomment">/// `(parent run, child)` of each queued delegation.
+<a href=#1482 id=1482 data-nosnippet>1482</a>    </span>queued: Vec&lt;(RunId, SessionId)&gt;,
+<a href=#1483 id=1483 data-nosnippet>1483</a>    <span class="doccomment">/// Delegations whose delivery a producer message accepted.
+<a href=#1484 id=1484 data-nosnippet>1484</a>    </span>producer_accepted: Vec&lt;InvocationId&gt;,
+<a href=#1485 id=1485 data-nosnippet>1485</a>}
+<a href=#1486 id=1486 data-nosnippet>1486</a>
+<a href=#1487 id=1487 data-nosnippet>1487</a><span class="kw">impl </span>HarvestFold {
+<a href=#1488 id=1488 data-nosnippet>1488</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
+<a href=#1489 id=1489 data-nosnippet>1489</a>        <span class="self">self</span>.revisions.observe(<span class="kw-2">&amp;</span>event.payload);
+<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#1491 id=1491 data-nosnippet>1491</a>            EventPayload::TreeApprovalGrantCommitted { grant } =&gt; <span class="self">self</span>.grants.push(grant.clone()),
+<a href=#1492 id=1492 data-nosnippet>1492</a>            EventPayload::DelegationProgressed {
+<a href=#1493 id=1493 data-nosnippet>1493</a>                invocation_id,
+<a href=#1494 id=1494 data-nosnippet>1494</a>                stage: Open::Known(DelegationStage::Started { child_session_id }),
+<a href=#1495 id=1495 data-nosnippet>1495</a>            } =&gt; {
+<a href=#1496 id=1496 data-nosnippet>1496</a>                <span class="self">self</span>.started.insert(<span class="kw-2">*</span>invocation_id, <span class="kw-2">*</span>child_session_id);
+<a href=#1497 id=1497 data-nosnippet>1497</a>            }
+<a href=#1498 id=1498 data-nosnippet>1498</a>            EventPayload::DelegationProgressed {
+<a href=#1499 id=1499 data-nosnippet>1499</a>                invocation_id,
+<a href=#1500 id=1500 data-nosnippet>1500</a>                stage: Open::Known(DelegationStage::Queued { .. }),
+<a href=#1501 id=1501 data-nosnippet>1501</a>            } =&gt; {
+<a href=#1502 id=1502 data-nosnippet>1502</a>                <span class="kw">if let </span>(<span class="prelude-val">Some</span>(run), <span class="prelude-val">Some</span>(child)) = (event.run_id, <span class="self">self</span>.started.get(invocation_id)) {
+<a href=#1503 id=1503 data-nosnippet>1503</a>                    <span class="self">self</span>.queued.push((run, <span class="kw-2">*</span>child));
+<a href=#1504 id=1504 data-nosnippet>1504</a>                }
+<a href=#1505 id=1505 data-nosnippet>1505</a>            }
+<a href=#1506 id=1506 data-nosnippet>1506</a>            EventPayload::ProducerMessageAccepted {
+<a href=#1507 id=1507 data-nosnippet>1507</a>                producer_owner: ProducerOwner::Delegation { invocation_id },
+<a href=#1508 id=1508 data-nosnippet>1508</a>                ..
+<a href=#1509 id=1509 data-nosnippet>1509</a>            } =&gt; <span class="self">self</span>.producer_accepted.push(<span class="kw-2">*</span>invocation_id),
+<a href=#1510 id=1510 data-nosnippet>1510</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1511 id=1511 data-nosnippet>1511</a>        }
+<a href=#1512 id=1512 data-nosnippet>1512</a>        <span class="kw">if </span><span class="kw">crate</span>::delegation_events::is_delegation_payload(<span class="kw-2">&amp;</span>event.payload) {
+<a href=#1513 id=1513 data-nosnippet>1513</a>            <span class="self">self</span>.delegations.push(HarvestedDelegation {
+<a href=#1514 id=1514 data-nosnippet>1514</a>                seq: event.seq,
+<a href=#1515 id=1515 data-nosnippet>1515</a>                run: event.run_id,
+<a href=#1516 id=1516 data-nosnippet>1516</a>                payload: <span class="kw">crate</span>::delegation_events::harvested(<span class="kw-2">&amp;</span>event.payload, <span class="kw-2">&amp;</span><span class="self">self</span>.revisions),
+<a href=#1517 id=1517 data-nosnippet>1517</a>            });
+<a href=#1518 id=1518 data-nosnippet>1518</a>        }
+<a href=#1519 id=1519 data-nosnippet>1519</a>    }
+<a href=#1520 id=1520 data-nosnippet>1520</a>
+<a href=#1521 id=1521 data-nosnippet>1521</a>    <span class="doccomment">/// Every grant of the log, in order.
+<a href=#1522 id=1522 data-nosnippet>1522</a>    </span><span class="attr">#[must_use]
+<a href=#1523 id=1523 data-nosnippet>1523</a>    </span><span class="kw">pub fn </span>grants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[TreeApprovalGrant] {
+<a href=#1524 id=1524 data-nosnippet>1524</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.grants
+<a href=#1525 id=1525 data-nosnippet>1525</a>    }
+<a href=#1526 id=1526 data-nosnippet>1526</a>
+<a href=#1527 id=1527 data-nosnippet>1527</a>    <span class="doccomment">/// Every delegation record of the log, in order.
+<a href=#1528 id=1528 data-nosnippet>1528</a>    </span><span class="attr">#[must_use]
+<a href=#1529 id=1529 data-nosnippet>1529</a>    </span><span class="kw">pub fn </span>delegations(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[HarvestedDelegation] {
+<a href=#1530 id=1530 data-nosnippet>1530</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.delegations
+<a href=#1531 id=1531 data-nosnippet>1531</a>    }
+<a href=#1532 id=1532 data-nosnippet>1532</a>
+<a href=#1533 id=1533 data-nosnippet>1533</a>    <span class="doccomment">/// `(parent run, child)` of each queued delegation, in order.
+<a href=#1534 id=1534 data-nosnippet>1534</a>    </span><span class="attr">#[must_use]
+<a href=#1535 id=1535 data-nosnippet>1535</a>    </span><span class="kw">pub fn </span>queued(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[(RunId, SessionId)] {
+<a href=#1536 id=1536 data-nosnippet>1536</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.queued
+<a href=#1537 id=1537 data-nosnippet>1537</a>    }
+<a href=#1538 id=1538 data-nosnippet>1538</a>
+<a href=#1539 id=1539 data-nosnippet>1539</a>    <span class="doccomment">/// The delegations whose delivery a producer message accepted, in order.
+<a href=#1540 id=1540 data-nosnippet>1540</a>    </span><span class="attr">#[must_use]
+<a href=#1541 id=1541 data-nosnippet>1541</a>    </span><span class="kw">pub fn </span>producer_accepted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[InvocationId] {
+<a href=#1542 id=1542 data-nosnippet>1542</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.producer_accepted
+<a href=#1543 id=1543 data-nosnippet>1543</a>    }
+<a href=#1544 id=1544 data-nosnippet>1544</a>}
+<a href=#1545 id=1545 data-nosnippet>1545</a>
+<a href=#1546 id=1546 data-nosnippet>1546</a><span class="attr">#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+<a href=#1547 id=1547 data-nosnippet>1547</a></span><span class="kw">struct </span>OnceFacts {
+<a href=#1548 id=1548 data-nosnippet>1548</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::map"</span>)]
+<a href=#1549 id=1549 data-nosnippet>1549</a>    </span>seeds: HashMap&lt;InvocationId, Vec&lt;Sha256Digest&gt;&gt;,
+<a href=#1550 id=1550 data-nosnippet>1550</a>    <span class="doccomment">/// The delegated titles up to the first title anything else set, which
+<a href=#1551 id=1551 data-nosnippet>1551</a>    /// [`LogState::delegated_title`] reads no further than.
+<a href=#1552 id=1552 data-nosnippet>1552</a>    </span>delegated_titles: Vec&lt;(InvocationId, SessionTitle)&gt;,
+<a href=#1553 id=1553 data-nosnippet>1553</a>    other_title: bool,
+<a href=#1554 id=1554 data-nosnippet>1554</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
+<a href=#1555 id=1555 data-nosnippet>1555</a>    </span>skills: HashSet&lt;(String, Sha256Digest)&gt;,
+<a href=#1556 id=1556 data-nosnippet>1556</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
+<a href=#1557 id=1557 data-nosnippet>1557</a>    </span>links: HashSet&lt;(ToolCallId, SessionId)&gt;,
+<a href=#1558 id=1558 data-nosnippet>1558</a>    <span class="attr">#[serde(with = <span class="string">"crate::events::sorted::set"</span>)]
+<a href=#1559 id=1559 data-nosnippet>1559</a>    </span>delegations_accepted: HashSet&lt;InvocationId&gt;,
+<a href=#1560 id=1560 data-nosnippet>1560</a>}
+<a href=#1561 id=1561 data-nosnippet>1561</a>
+<a href=#1562 id=1562 data-nosnippet>1562</a><span class="kw">impl </span>OnceFacts {
+<a href=#1563 id=1563 data-nosnippet>1563</a>    <span class="kw">fn </span>observe(<span class="kw-2">&amp;mut </span><span class="self">self</span>, event: <span class="kw-2">&amp;</span>StoredEvent) {
+<a href=#1564 id=1564 data-nosnippet>1564</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>event.payload {
+<a href=#1565 id=1565 data-nosnippet>1565</a>            EventPayload::DelegatedContextSeeded {
+<a href=#1566 id=1566 data-nosnippet>1566</a>                invocation_id,
+<a href=#1567 id=1567 data-nosnippet>1567</a>                turns,
+<a href=#1568 id=1568 data-nosnippet>1568</a>            } =&gt; {
+<a href=#1569 id=1569 data-nosnippet>1569</a>                <span class="self">self</span>.seeds
+<a href=#1570 id=1570 data-nosnippet>1570</a>                    .entry(<span class="kw-2">*</span>invocation_id)
+<a href=#1571 id=1571 data-nosnippet>1571</a>                    .or_default()
+<a href=#1572 id=1572 data-nosnippet>1572</a>                    .push(seed_digest(turns));
+<a href=#1573 id=1573 data-nosnippet>1573</a>            }
+<a href=#1574 id=1574 data-nosnippet>1574</a>            EventPayload::SessionTitleCommitted { change, .. } =&gt; <span class="kw">match </span>change {
+<a href=#1575 id=1575 data-nosnippet>1575</a>                SessionTitleChange::DelegatedSet {
+<a href=#1576 id=1576 data-nosnippet>1576</a>                    title,
+<a href=#1577 id=1577 data-nosnippet>1577</a>                    invocation_id,
+<a href=#1578 id=1578 data-nosnippet>1578</a>                } =&gt; {
+<a href=#1579 id=1579 data-nosnippet>1579</a>                    <span class="kw">if </span>!<span class="self">self</span>.other_title {
+<a href=#1580 id=1580 data-nosnippet>1580</a>                        <span class="self">self</span>.delegated_titles.push((<span class="kw-2">*</span>invocation_id, title.clone()));
+<a href=#1581 id=1581 data-nosnippet>1581</a>                    }
+<a href=#1582 id=1582 data-nosnippet>1582</a>                }
+<a href=#1583 id=1583 data-nosnippet>1583</a>                SessionTitleChange::UserSet { .. }
+<a href=#1584 id=1584 data-nosnippet>1584</a>                | SessionTitleChange::UserClear { .. }
+<a href=#1585 id=1585 data-nosnippet>1585</a>                | SessionTitleChange::UserReset { .. } =&gt; {}
+<a href=#1586 id=1586 data-nosnippet>1586</a>                <span class="kw">_ </span>=&gt; <span class="self">self</span>.other_title = <span class="bool-val">true</span>,
+<a href=#1587 id=1587 data-nosnippet>1587</a>            },
+<a href=#1588 id=1588 data-nosnippet>1588</a>            EventPayload::SkillLoaded {
+<a href=#1589 id=1589 data-nosnippet>1589</a>                name,
+<a href=#1590 id=1590 data-nosnippet>1590</a>                rendered_body,
+<a href=#1591 id=1591 data-nosnippet>1591</a>                ..
+<a href=#1592 id=1592 data-nosnippet>1592</a>            } =&gt; {
+<a href=#1593 id=1593 data-nosnippet>1593</a>                <span class="self">self</span>.skills.insert((
+<a href=#1594 id=1594 data-nosnippet>1594</a>                    name.clone(),
+<a href=#1595 id=1595 data-nosnippet>1595</a>                    Sha256Digest::of_bytes(rendered_body.as_bytes()),
+<a href=#1596 id=1596 data-nosnippet>1596</a>                ));
+<a href=#1597 id=1597 data-nosnippet>1597</a>            }
+<a href=#1598 id=1598 data-nosnippet>1598</a>            <span class="comment">// A checkpoint that composed the context afresh carries no skill
+<a href=#1599 id=1599 data-nosnippet>1599</a>            // (`docs/site/specs/forever-sessions.md` section 5.2): one loaded
+<a href=#1600 id=1600 data-nosnippet>1600</a>            // before it shows the model its body when loaded again.
+<a href=#1601 id=1601 data-nosnippet>1601</a>            </span>EventPayload::ContextCheckpointCommitted { commit } <span class="kw">if </span>commit.context_fresh =&gt; {
+<a href=#1602 id=1602 data-nosnippet>1602</a>                <span class="self">self</span>.skills.clear();
+<a href=#1603 id=1603 data-nosnippet>1603</a>            }
+<a href=#1604 id=1604 data-nosnippet>1604</a>            EventPayload::ToolCallLinked {
+<a href=#1605 id=1605 data-nosnippet>1605</a>                tool_call_id,
+<a href=#1606 id=1606 data-nosnippet>1606</a>                child_session_id,
+<a href=#1607 id=1607 data-nosnippet>1607</a>            } =&gt; {
+<a href=#1608 id=1608 data-nosnippet>1608</a>                <span class="self">self</span>.links.insert((<span class="kw-2">*</span>tool_call_id, <span class="kw-2">*</span>child_session_id));
+<a href=#1609 id=1609 data-nosnippet>1609</a>            }
+<a href=#1610 id=1610 data-nosnippet>1610</a>            EventPayload::ProducerMessageAccepted {
+<a href=#1611 id=1611 data-nosnippet>1611</a>                producer_owner: ProducerOwner::Delegation { invocation_id },
+<a href=#1612 id=1612 data-nosnippet>1612</a>                ..
+<a href=#1613 id=1613 data-nosnippet>1613</a>            } =&gt; {
+<a href=#1614 id=1614 data-nosnippet>1614</a>                <span class="self">self</span>.delegations_accepted.insert(<span class="kw-2">*</span>invocation_id);
+<a href=#1615 id=1615 data-nosnippet>1615</a>            }
+<a href=#1616 id=1616 data-nosnippet>1616</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#1617 id=1617 data-nosnippet>1617</a>        }
+<a href=#1618 id=1618 data-nosnippet>1618</a>    }
+<a href=#1619 id=1619 data-nosnippet>1619</a>}
+<a href=#1620 id=1620 data-nosnippet>1620</a>
+<a href=#1621 id=1621 data-nosnippet>1621</a><span class="kw">fn </span>seed_digest(turns: <span class="kw-2">&amp;</span>[DelegatedContextTurn]) -&gt; Sha256Digest {
+<a href=#1622 id=1622 data-nosnippet>1622</a>    Sha256Digest::of_bytes(<span class="kw-2">&amp;</span>serde_json::to_vec(turns).expect(<span class="string">"a seed's turns serialize"</span>))
+<a href=#1623 id=1623 data-nosnippet>1623</a>}
+<a href=#1624 id=1624 data-nosnippet>1624</a>
+<a href=#1625 id=1625 data-nosnippet>1625</a><span class="attr">#[cfg(test)]
+<a href=#1626 id=1626 data-nosnippet>1626</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
