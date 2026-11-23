@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["RECORDER_TYPES"],"fn":["add_words","cancel","cancelled","clock","failure_text","limit_text","recorder_type","transcribe"]};
+window.SIDEBAR_ITEMS = {"constant":["RECORDER_TYPES","WAV_SAMPLE_RATE"],"fn":["add_words","cancel","cancelled","clock","encode_wav","failure_text","limit_text","recorder_type","resample","transcribe"]};
