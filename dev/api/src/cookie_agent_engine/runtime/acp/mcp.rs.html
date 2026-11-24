@@ -468,7 +468,7 @@
 <a href=#468 id=468 data-nosnippet>468</a>                <span class="macro">json!</span>({
 <a href=#469 id=469 data-nosnippet>469</a>                    <span class="string">"name"</span>: tool.name,
 <a href=#470 id=470 data-nosnippet>470</a>                    <span class="string">"description"</span>: tool.description,
-<a href=#471 id=471 data-nosnippet>471</a>                    <span class="string">"inputSchema"</span>: tool.input_schema.as_value(),
+<a href=#471 id=471 data-nosnippet>471</a>                    <span class="string">"inputSchema"</span>: portable_schema(tool.input_schema.as_value().clone()),
 <a href=#472 id=472 data-nosnippet>472</a>                })
 <a href=#473 id=473 data-nosnippet>473</a>            })
 <a href=#474 id=474 data-nosnippet>474</a>            .collect())
@@ -774,4 +774,33 @@
 <a href=#774 id=774 data-nosnippet>774</a>        })
 <a href=#775 id=775 data-nosnippet>775</a>    }
 <a href=#776 id=776 data-nosnippet>776</a>}
+<a href=#777 id=777 data-nosnippet>777</a>
+<a href=#778 id=778 data-nosnippet>778</a><span class="doccomment">/// `schema` without the string `pattern`s that use lookaround, which
+<a href=#779 id=779 data-nosnippet>779</a>/// regular-expression engines without backtracking reject: Antigravity's
+<a href=#780 id=780 data-nosnippet>780</a>/// (Go's RE2) refuses a whole toolbox over one of them. Cookie checks the
+<a href=#781 id=781 data-nosnippet>781</a>/// arguments of a call itself, so the agent loses no check it relies on.
+<a href=#782 id=782 data-nosnippet>782</a></span><span class="kw">fn </span>portable_schema(<span class="kw-2">mut </span>schema: Value) -&gt; Value {
+<a href=#783 id=783 data-nosnippet>783</a>    <span class="kw">fn </span>strip(value: <span class="kw-2">&amp;mut </span>Value) {
+<a href=#784 id=784 data-nosnippet>784</a>        <span class="kw">match </span>value {
+<a href=#785 id=785 data-nosnippet>785</a>            Value::Object(map) =&gt; {
+<a href=#786 id=786 data-nosnippet>786</a>                <span class="kw">let </span>lookaround =
+<a href=#787 id=787 data-nosnippet>787</a>                    map.get(<span class="string">"pattern"</span>)
+<a href=#788 id=788 data-nosnippet>788</a>                        .and_then(Value::as_str)
+<a href=#789 id=789 data-nosnippet>789</a>                        .is_some_and(|pattern| {
+<a href=#790 id=790 data-nosnippet>790</a>                            [<span class="string">"(?="</span>, <span class="string">"(?!"</span>, <span class="string">"(?&lt;="</span>, <span class="string">"(?&lt;!"</span>]
+<a href=#791 id=791 data-nosnippet>791</a>                                .iter()
+<a href=#792 id=792 data-nosnippet>792</a>                                .any(|group| pattern.contains(group))
+<a href=#793 id=793 data-nosnippet>793</a>                        });
+<a href=#794 id=794 data-nosnippet>794</a>                <span class="kw">if </span>lookaround {
+<a href=#795 id=795 data-nosnippet>795</a>                    map.remove(<span class="string">"pattern"</span>);
+<a href=#796 id=796 data-nosnippet>796</a>                }
+<a href=#797 id=797 data-nosnippet>797</a>                map.values_mut().for_each(strip);
+<a href=#798 id=798 data-nosnippet>798</a>            }
+<a href=#799 id=799 data-nosnippet>799</a>            Value::Array(items) =&gt; items.iter_mut().for_each(strip),
+<a href=#800 id=800 data-nosnippet>800</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#801 id=801 data-nosnippet>801</a>        }
+<a href=#802 id=802 data-nosnippet>802</a>    }
+<a href=#803 id=803 data-nosnippet>803</a>    strip(<span class="kw-2">&amp;mut </span>schema);
+<a href=#804 id=804 data-nosnippet>804</a>    schema
+<a href=#805 id=805 data-nosnippet>805</a>}
 </code></pre></div></section></main></body></html>
