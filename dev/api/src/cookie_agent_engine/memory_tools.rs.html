@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>    ToolError, ToolExecutionContext, ToolPreparationContext, ToolProvider, ToolSpec,
 <a href=#39 id=39 data-nosnippet>39</a>    authoring::{parse_args, prepared_operation, prepared_resource, safe_title, schema},
 <a href=#40 id=40 data-nosnippet>40</a>    display::{TextChange, fit_executed_block, text_diff},
-<a href=#41 id=41 data-nosnippet>41</a>    text_tools::{<span class="self">self</span>, LineWindow, MAX_PAGE_BYTES, NumberedPage},
+<a href=#41 id=41 data-nosnippet>41</a>    text_tools::{<span class="self">self</span>, LineRequest, MAX_PAGE_BYTES, NumberedPage},
 <a href=#42 id=42 data-nosnippet>42</a>};
 <a href=#43 id=43 data-nosnippet>43</a><span class="kw">use </span>jiff::Timestamp;
 <a href=#44 id=44 data-nosnippet>44</a><span class="kw">use </span>schemars::JsonSchema;
@@ -182,7 +182,7 @@
 <a href=#182 id=182 data-nosnippet>182</a>}
 <a href=#183 id=183 data-nosnippet>183</a>
 <a href=#184 id=184 data-nosnippet>184</a><span class="kw">const </span>SEARCH_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Search memory: notes saved in earlier sessions about the user, agents, machines, and projects. Terms are matched case-insensitively against each memory's keywords, description, and URL segments (user, agent, machine, or project, then the names after it), never its body; results are ranked by keyword hits first. Each result shows a memory's URL and description, whether it is related to this session, whether you may change it, and its age, then its keywords; a result you need approval to read shows only its first two lines. `layer` narrows the search to `user`, `agent`, `machine`, or `project` memories."</span>;
-<a href=#185 id=185 data-nosnippet>185</a><span class="kw">const </span>READ_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Read one memory by its URL (user://&lt;category&gt;, agent://&lt;agent&gt;, machine://&lt;machine&gt;/&lt;name&gt;, or project://&lt;project&gt;/&lt;name&gt;). Returns whether it is related to this session and whether you may change it, when it was created and modified, its size and its size limit, its description and keywords, and then its body as numbered lines, `N: text`, counting from 1. `offset` is the 1-based body line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last body line is an error. The line numbers are not part of the memory."</span>;
+<a href=#185 id=185 data-nosnippet>185</a><span class="kw">const </span>READ_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Read one memory by its URL (user://&lt;category&gt;, agent://&lt;agent&gt;, machine://&lt;machine&gt;/&lt;name&gt;, or project://&lt;project&gt;/&lt;name&gt;). Returns whether it is related to this session and whether you may change it, when it was created and modified, its size and its size limit, its description and keywords, and then its body as numbered lines, `N: text`, counting from 1. `offset` is the 1-based body line to start at (default 1), or, when negative, how many lines before the end to start (-50 reads the last 50 lines), and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last body line is an error. The line numbers are not part of the memory."</span>;
 <a href=#186 id=186 data-nosnippet>186</a><span class="kw">const </span>WRITE_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Create or replace one memory, following the memory instructions you were given. To replace a memory, read it first. A new memory like one that exists is refused with the near ones listed: edit one of those instead, or, if it is new, write it again with `new: true` and a one-line `reason`. Give each memory a one-line description that states its fact (agent:// memories and project overviews keep the daemon's: leave it out there) and the keywords a later search would use. A project:// memory needs a project that exists."</span>;
 <a href=#187 id=187 data-nosnippet>187</a><span class="kw">const </span>EDIT_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Replace the one occurrence of `old_string` in a memory's body with `new_string`, following the memory instructions you were given. `old_string` is matched exactly against the body only, never the description or keywords, and must occur exactly once: when it occurs zero or several times the edit fails before it is approved and changes nothing, so include more surrounding text to make it unique. There is no replace-all. The line numbers `memory_read` shows are not part of the body."</span>;
 <a href=#188 id=188 data-nosnippet>188</a><span class="kw">const </span>DELETE_DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Delete one memory. Nothing is kept: the deletion is final."</span>;
@@ -258,10 +258,10 @@
 <a href=#258 id=258 data-nosnippet>258</a></span><span class="kw">struct </span>ReadArgs {
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="doccomment">/// The memory URL.
 <a href=#260 id=260 data-nosnippet>260</a>    </span>url: String,
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// The 1-based body line to start at. Defaults to 1.
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// The 1-based body line to start at; a negative one counts back from the end, so -50 starts at the 50th line from the end. Defaults to 1.
 <a href=#262 id=262 data-nosnippet>262</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
-<a href=#263 id=263 data-nosnippet>263</a>    #[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= <span class="number">1</span>))]
-<a href=#264 id=264 data-nosnippet>264</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+<a href=#263 id=263 data-nosnippet>263</a>    #[schemars(extend(<span class="string">"default" </span>= <span class="number">1</span>))]
+<a href=#264 id=264 data-nosnippet>264</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 <a href=#265 id=265 data-nosnippet>265</a>    <span class="doccomment">/// The most body lines to return. Defaults to 2000.
 <a href=#266 id=266 data-nosnippet>266</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
 <a href=#267 id=267 data-nosnippet>267</a>    #[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= cookie_agent_runtime_api::text_tools::DEFAULT_LIMIT))]
@@ -372,7 +372,7 @@
 <a href=#372 id=372 data-nosnippet>372</a>    },
 <a href=#373 id=373 data-nosnippet>373</a>    Read {
 <a href=#374 id=374 data-nosnippet>374</a>        url: MemoryUrl,
-<a href=#375 id=375 data-nosnippet>375</a>        window: LineWindow,
+<a href=#375 id=375 data-nosnippet>375</a>        request: LineRequest,
 <a href=#376 id=376 data-nosnippet>376</a>    },
 <a href=#377 id=377 data-nosnippet>377</a>    Write {
 <a href=#378 id=378 data-nosnippet>378</a>        url: MemoryUrl,
@@ -438,7 +438,7 @@
 <a href=#438 id=438 data-nosnippet>438</a>            <span class="kw">let </span>args: ReadArgs = parse_args(READ, arguments)<span class="question-mark">?</span>;
 <a href=#439 id=439 data-nosnippet>439</a>            <span class="prelude-val">Ok</span>(MemoryCall::Read {
 <a href=#440 id=440 data-nosnippet>440</a>                url: parse_url(<span class="kw-2">&amp;</span>args.url)<span class="question-mark">?</span>,
-<a href=#441 id=441 data-nosnippet>441</a>                window: LineWindow::new(args.offset, args.limit)<span class="question-mark">?</span>,
+<a href=#441 id=441 data-nosnippet>441</a>                request: LineRequest::new(args.offset, args.limit)<span class="question-mark">?</span>,
 <a href=#442 id=442 data-nosnippet>442</a>            })
 <a href=#443 id=443 data-nosnippet>443</a>        }
 <a href=#444 id=444 data-nosnippet>444</a>        WRITE =&gt; {
@@ -794,7 +794,7 @@
 <a href=#794 id=794 data-nosnippet>794</a>                entries.extend(
 <a href=#795 id=795 data-nosnippet>795</a>                    call.arguments
 <a href=#796 id=796 data-nosnippet>796</a>                        .get(member)
-<a href=#797 id=797 data-nosnippet>797</a>                        .and_then(serde_json::Value::as_u64)
+<a href=#797 id=797 data-nosnippet>797</a>                        .and_then(serde_json::Value::as_i64)
 <a href=#798 id=798 data-nosnippet>798</a>                        .map(|value| (member, value.to_string())),
 <a href=#799 id=799 data-nosnippet>799</a>                );
 <a href=#800 id=800 data-nosnippet>800</a>            }
@@ -1065,7 +1065,7 @@
 <a href=#1065 id=1065 data-nosnippet>1065</a>                    }),
 <a href=#1066 id=1066 data-nosnippet>1066</a>                ))
 <a href=#1067 id=1067 data-nosnippet>1067</a>            }
-<a href=#1068 id=1068 data-nosnippet>1068</a>            MemoryCall::Read { url, window } =&gt; {
+<a href=#1068 id=1068 data-nosnippet>1068</a>            MemoryCall::Read { url, request } =&gt; {
 <a href=#1069 id=1069 data-nosnippet>1069</a>                <span class="kw">let </span>read = {
 <a href=#1070 id=1070 data-nosnippet>1070</a>                    <span class="kw">let </span>url = url.clone();
 <a href=#1071 id=1071 data-nosnippet>1071</a>                    blocking(<span class="kw">move </span>|| {
@@ -1081,7 +1081,7 @@
 <a href=#1081 id=1081 data-nosnippet>1081</a>                    .memory_seen
 <a href=#1082 id=1082 data-nosnippet>1082</a>                    .saw(session, url.clone(), read.entry.revision.clone());
 <a href=#1083 id=1083 data-nosnippet>1083</a>                <span class="kw">let </span>(output, page) =
-<a href=#1084 id=1084 data-nosnippet>1084</a>                    read_output(<span class="kw-2">&amp;</span>url, <span class="kw-2">&amp;</span>read, <span class="kw-2">&amp;</span>caller, <span class="kw-2">&amp;</span>limits, Timestamp::now(), window)<span class="question-mark">?</span>;
+<a href=#1084 id=1084 data-nosnippet>1084</a>                    read_output(<span class="kw-2">&amp;</span>url, <span class="kw-2">&amp;</span>read, <span class="kw-2">&amp;</span>caller, <span class="kw-2">&amp;</span>limits, Timestamp::now(), request)<span class="question-mark">?</span>;
 <a href=#1085 id=1085 data-nosnippet>1085</a>                <span class="kw">let </span>excerpt = cookie_agent_runtime_api::display::fit_block(
 <a href=#1086 id=1086 data-nosnippet>1086</a>                    page.excerpt_block(url.to_string(), <span class="prelude-val">Some</span>(<span class="string">"markdown"</span>.to_owned())),
 <a href=#1087 id=1087 data-nosnippet>1087</a>                    <span class="prelude-val">None</span>,
@@ -1092,8 +1092,8 @@
 <a href=#1092 id=1092 data-nosnippet>1092</a>                    <span class="macro">vec!</span>[Open::Known(excerpt)],
 <a href=#1093 id=1093 data-nosnippet>1093</a>                    <span class="macro">serde_json::json!</span>({
 <a href=#1094 id=1094 data-nosnippet>1094</a>                        <span class="string">"url"</span>: url.to_string(),
-<a href=#1095 id=1095 data-nosnippet>1095</a>                        <span class="string">"offset"</span>: window.offset,
-<a href=#1096 id=1096 data-nosnippet>1096</a>                        <span class="string">"limit"</span>: window.limit,
+<a href=#1095 id=1095 data-nosnippet>1095</a>                        <span class="string">"offset"</span>: page.start_line,
+<a href=#1096 id=1096 data-nosnippet>1096</a>                        <span class="string">"limit"</span>: request.limit(),
 <a href=#1097 id=1097 data-nosnippet>1097</a>                        <span class="string">"total_lines"</span>: page.total_lines,
 <a href=#1098 id=1098 data-nosnippet>1098</a>                        <span class="string">"next_offset"</span>: page.next_offset,
 <a href=#1099 id=1099 data-nosnippet>1099</a>                    }),
@@ -1229,7 +1229,7 @@
 <a href=#1229 id=1229 data-nosnippet>1229</a>
 <a href=#1230 id=1230 data-nosnippet>1230</a><span class="doccomment">/// What `memory_read` returns (section 16.9.4): whether the memory is
 <a href=#1231 id=1231 data-nosnippet>1231</a>/// related and editable, its stamps with their ages, its size and limit,
-<a href=#1232 id=1232 data-nosnippet>1232</a>/// its description and keywords, then the page `window` of its body,
+<a href=#1232 id=1232 data-nosnippet>1232</a>/// its description and keywords, then the page of its body `request` asks for,
 <a href=#1233 id=1233 data-nosnippet>1233</a>/// numbered as `read` numbers a file's lines, and the page itself. No URL
 <a href=#1234 id=1234 data-nosnippet>1234</a>/// and no revision. Fails when the window starts past the body's last line.
 <a href=#1235 id=1235 data-nosnippet>1235</a></span><span class="kw">fn </span>read_output(
@@ -1238,7 +1238,7 @@
 <a href=#1238 id=1238 data-nosnippet>1238</a>    caller: <span class="kw-2">&amp;</span>MemoryCaller,
 <a href=#1239 id=1239 data-nosnippet>1239</a>    limits: <span class="kw-2">&amp;</span><span class="kw">crate</span>::memory::limits::MemoryLimits,
 <a href=#1240 id=1240 data-nosnippet>1240</a>    now: Timestamp,
-<a href=#1241 id=1241 data-nosnippet>1241</a>    window: LineWindow,
+<a href=#1241 id=1241 data-nosnippet>1241</a>    request: LineRequest,
 <a href=#1242 id=1242 data-nosnippet>1242</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(String, NumberedPage), ToolError&gt; {
 <a href=#1243 id=1243 data-nosnippet>1243</a>    <span class="kw">let </span>entry = <span class="kw-2">&amp;</span>read.entry;
 <a href=#1244 id=1244 data-nosnippet>1244</a>    <span class="kw">let </span>max = limits.max_bytes(url) <span class="kw">as </span>u64;
@@ -1278,47 +1278,51 @@
 <a href=#1278 id=1278 data-nosnippet>1278</a>        }
 <a href=#1279 id=1279 data-nosnippet>1279</a>    };
 <a href=#1280 id=1280 data-nosnippet>1280</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="macro">format!</span>(<span class="string">"{}\n\n"</span>, lines.join(<span class="string">"\n"</span>));
-<a href=#1281 id=1281 data-nosnippet>1281</a>    <span class="kw">let </span>page = text_tools::page_text(body, window, MAX_PAGE_BYTES.saturating_sub(output.len()));
-<a href=#1282 id=1282 data-nosnippet>1282</a>    page.check_in_range(<span class="kw-2">&amp;</span>url.to_string())<span class="question-mark">?</span>;
-<a href=#1283 id=1283 data-nosnippet>1283</a>    output.push_str(<span class="kw-2">&amp;</span>page.text_with_continuation());
-<a href=#1284 id=1284 data-nosnippet>1284</a>    <span class="prelude-val">Ok</span>((output, page))
-<a href=#1285 id=1285 data-nosnippet>1285</a>}
-<a href=#1286 id=1286 data-nosnippet>1286</a>
-<a href=#1287 id=1287 data-nosnippet>1287</a><span class="doccomment">/// The search results as the model reads them (section 16.9.4): one
-<a href=#1288 id=1288 data-nosnippet>1288</a>/// paragraph per memory, in rank order.
-<a href=#1289 id=1289 data-nosnippet>1289</a></span><span class="kw">fn </span>search_output(hits: <span class="kw-2">&amp;</span>[SearchHit], caller: <span class="kw-2">&amp;</span>MemoryCaller, now: Timestamp) -&gt; String {
-<a href=#1290 id=1290 data-nosnippet>1290</a>    <span class="kw">if </span>hits.is_empty() {
-<a href=#1291 id=1291 data-nosnippet>1291</a>        <span class="kw">return </span><span class="string">"No memories match."</span>.to_owned();
-<a href=#1292 id=1292 data-nosnippet>1292</a>    }
-<a href=#1293 id=1293 data-nosnippet>1293</a>    hits.iter()
-<a href=#1294 id=1294 data-nosnippet>1294</a>        .map(|hit| {
-<a href=#1295 id=1295 data-nosnippet>1295</a>            <span class="kw">let </span><span class="kw-2">mut </span>text = <span class="macro">format!</span>(
-<a href=#1296 id=1296 data-nosnippet>1296</a>                <span class="string">"{} — {}\n  {} · {} · {} old"</span>,
-<a href=#1297 id=1297 data-nosnippet>1297</a>                hit.url,
-<a href=#1298 id=1298 data-nosnippet>1298</a>                hit.description,
-<a href=#1299 id=1299 data-nosnippet>1299</a>                <span class="kw">if </span>caller.related(<span class="kw-2">&amp;</span>hit.url) {
-<a href=#1300 id=1300 data-nosnippet>1300</a>                    <span class="string">"related"
-<a href=#1301 id=1301 data-nosnippet>1301</a>                </span>} <span class="kw">else </span>{
-<a href=#1302 id=1302 data-nosnippet>1302</a>                    <span class="string">"unrelated"
-<a href=#1303 id=1303 data-nosnippet>1303</a>                </span>},
-<a href=#1304 id=1304 data-nosnippet>1304</a>                <span class="kw">if </span>caller.editable(<span class="kw-2">&amp;</span>hit.url) {
-<a href=#1305 id=1305 data-nosnippet>1305</a>                    <span class="string">"editable"
-<a href=#1306 id=1306 data-nosnippet>1306</a>                </span>} <span class="kw">else </span>{
-<a href=#1307 id=1307 data-nosnippet>1307</a>                    <span class="string">"read-only"
-<a href=#1308 id=1308 data-nosnippet>1308</a>                </span>},
-<a href=#1309 id=1309 data-nosnippet>1309</a>                format::age(hit.modified, now)
-<a href=#1310 id=1310 data-nosnippet>1310</a>            );
-<a href=#1311 id=1311 data-nosnippet>1311</a>            <span class="kw">if </span>!hit.full {
-<a href=#1312 id=1312 data-nosnippet>1312</a>                text.push_str(<span class="string">"\n  (reading it needs approval)"</span>);
-<a href=#1313 id=1313 data-nosnippet>1313</a>            } <span class="kw">else if </span>!hit.keywords.is_empty() {
-<a href=#1314 id=1314 data-nosnippet>1314</a>                text.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"\n  keywords: {}"</span>, hit.keywords.join(<span class="string">", "</span>)));
-<a href=#1315 id=1315 data-nosnippet>1315</a>            }
-<a href=#1316 id=1316 data-nosnippet>1316</a>            text
-<a href=#1317 id=1317 data-nosnippet>1317</a>        })
-<a href=#1318 id=1318 data-nosnippet>1318</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-<a href=#1319 id=1319 data-nosnippet>1319</a>        .join(<span class="string">"\n\n"</span>)
-<a href=#1320 id=1320 data-nosnippet>1320</a>}
-<a href=#1321 id=1321 data-nosnippet>1321</a>
-<a href=#1322 id=1322 data-nosnippet>1322</a><span class="attr">#[cfg(test)]
-<a href=#1323 id=1323 data-nosnippet>1323</a></span><span class="kw">mod </span>tests;
+<a href=#1281 id=1281 data-nosnippet>1281</a>    <span class="kw">let </span>page = text_tools::page_text(
+<a href=#1282 id=1282 data-nosnippet>1282</a>        body,
+<a href=#1283 id=1283 data-nosnippet>1283</a>        request.resolve_text(body),
+<a href=#1284 id=1284 data-nosnippet>1284</a>        MAX_PAGE_BYTES.saturating_sub(output.len()),
+<a href=#1285 id=1285 data-nosnippet>1285</a>    );
+<a href=#1286 id=1286 data-nosnippet>1286</a>    page.check_in_range(<span class="kw-2">&amp;</span>url.to_string())<span class="question-mark">?</span>;
+<a href=#1287 id=1287 data-nosnippet>1287</a>    output.push_str(<span class="kw-2">&amp;</span>page.text_with_continuation());
+<a href=#1288 id=1288 data-nosnippet>1288</a>    <span class="prelude-val">Ok</span>((output, page))
+<a href=#1289 id=1289 data-nosnippet>1289</a>}
+<a href=#1290 id=1290 data-nosnippet>1290</a>
+<a href=#1291 id=1291 data-nosnippet>1291</a><span class="doccomment">/// The search results as the model reads them (section 16.9.4): one
+<a href=#1292 id=1292 data-nosnippet>1292</a>/// paragraph per memory, in rank order.
+<a href=#1293 id=1293 data-nosnippet>1293</a></span><span class="kw">fn </span>search_output(hits: <span class="kw-2">&amp;</span>[SearchHit], caller: <span class="kw-2">&amp;</span>MemoryCaller, now: Timestamp) -&gt; String {
+<a href=#1294 id=1294 data-nosnippet>1294</a>    <span class="kw">if </span>hits.is_empty() {
+<a href=#1295 id=1295 data-nosnippet>1295</a>        <span class="kw">return </span><span class="string">"No memories match."</span>.to_owned();
+<a href=#1296 id=1296 data-nosnippet>1296</a>    }
+<a href=#1297 id=1297 data-nosnippet>1297</a>    hits.iter()
+<a href=#1298 id=1298 data-nosnippet>1298</a>        .map(|hit| {
+<a href=#1299 id=1299 data-nosnippet>1299</a>            <span class="kw">let </span><span class="kw-2">mut </span>text = <span class="macro">format!</span>(
+<a href=#1300 id=1300 data-nosnippet>1300</a>                <span class="string">"{} — {}\n  {} · {} · {} old"</span>,
+<a href=#1301 id=1301 data-nosnippet>1301</a>                hit.url,
+<a href=#1302 id=1302 data-nosnippet>1302</a>                hit.description,
+<a href=#1303 id=1303 data-nosnippet>1303</a>                <span class="kw">if </span>caller.related(<span class="kw-2">&amp;</span>hit.url) {
+<a href=#1304 id=1304 data-nosnippet>1304</a>                    <span class="string">"related"
+<a href=#1305 id=1305 data-nosnippet>1305</a>                </span>} <span class="kw">else </span>{
+<a href=#1306 id=1306 data-nosnippet>1306</a>                    <span class="string">"unrelated"
+<a href=#1307 id=1307 data-nosnippet>1307</a>                </span>},
+<a href=#1308 id=1308 data-nosnippet>1308</a>                <span class="kw">if </span>caller.editable(<span class="kw-2">&amp;</span>hit.url) {
+<a href=#1309 id=1309 data-nosnippet>1309</a>                    <span class="string">"editable"
+<a href=#1310 id=1310 data-nosnippet>1310</a>                </span>} <span class="kw">else </span>{
+<a href=#1311 id=1311 data-nosnippet>1311</a>                    <span class="string">"read-only"
+<a href=#1312 id=1312 data-nosnippet>1312</a>                </span>},
+<a href=#1313 id=1313 data-nosnippet>1313</a>                format::age(hit.modified, now)
+<a href=#1314 id=1314 data-nosnippet>1314</a>            );
+<a href=#1315 id=1315 data-nosnippet>1315</a>            <span class="kw">if </span>!hit.full {
+<a href=#1316 id=1316 data-nosnippet>1316</a>                text.push_str(<span class="string">"\n  (reading it needs approval)"</span>);
+<a href=#1317 id=1317 data-nosnippet>1317</a>            } <span class="kw">else if </span>!hit.keywords.is_empty() {
+<a href=#1318 id=1318 data-nosnippet>1318</a>                text.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"\n  keywords: {}"</span>, hit.keywords.join(<span class="string">", "</span>)));
+<a href=#1319 id=1319 data-nosnippet>1319</a>            }
+<a href=#1320 id=1320 data-nosnippet>1320</a>            text
+<a href=#1321 id=1321 data-nosnippet>1321</a>        })
+<a href=#1322 id=1322 data-nosnippet>1322</a>        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#1323 id=1323 data-nosnippet>1323</a>        .join(<span class="string">"\n\n"</span>)
+<a href=#1324 id=1324 data-nosnippet>1324</a>}
+<a href=#1325 id=1325 data-nosnippet>1325</a>
+<a href=#1326 id=1326 data-nosnippet>1326</a><span class="attr">#[cfg(test)]
+<a href=#1327 id=1327 data-nosnippet>1327</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

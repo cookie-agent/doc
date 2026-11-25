@@ -64,10 +64,10 @@
 <a href=#64 id=64 data-nosnippet>64</a>    <span class="doccomment">/// The session ID, such as `explore_1a2b3c4d`, or full UUID of one of
 <a href=#65 id=65 data-nosnippet>65</a>    /// your subagents.
 <a href=#66 id=66 data-nosnippet>66</a>    </span>session_id: String,
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// The 1-based line of the result to start at. Defaults to 1.
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// The 1-based line of the result to start at; a negative one counts back from the end, so -50 starts at the 50th line from the end. Defaults to 1.
 <a href=#68 id=68 data-nosnippet>68</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
-<a href=#69 id=69 data-nosnippet>69</a>    #[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= <span class="number">1</span>))]
-<a href=#70 id=70 data-nosnippet>70</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+<a href=#69 id=69 data-nosnippet>69</a>    #[schemars(extend(<span class="string">"default" </span>= <span class="number">1</span>))]
+<a href=#70 id=70 data-nosnippet>70</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 <a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// The most lines to return. Defaults to 2000.
 <a href=#72 id=72 data-nosnippet>72</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
 <a href=#73 id=73 data-nosnippet>73</a>    #[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= DEFAULT_RESULT_LIMIT))]
@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>            result_truncation: result_truncation_policy(<span class="string">"get_subagent_result"</span>),
 <a href=#154 id=154 data-nosnippet>154</a>            name: <span class="string">"get_subagent_result"</span>.into(),
 <a href=#155 id=155 data-nosnippet>155</a>            permission_name: <span class="prelude-val">Some</span>(<span class="string">"delegate"</span>.into()),
-<a href=#156 id=156 data-nosnippet>156</a>            description: <span class="string">"Read the current status and latest result of a subagent you delegated, such as the full output a &lt;subagent_report&gt; cut short. This call returns immediately; it never waits. Name the subagent by its session ID, such as `explore_1a2b3c4d`. Only your own subagents are visible. The result comes back as numbered lines, `N: text`, counting from 1, as `read` returns a file: `offset` is the 1-based line to start at (default 1) and `limit` the most lines to return (default 2000); a line longer than 4 KiB is cut, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`. A &lt;subagent_report&gt; cut short names the offset to continue from."</span>.into(),
+<a href=#156 id=156 data-nosnippet>156</a>            description: <span class="string">"Read the current status and latest result of a subagent you delegated, such as the full output a &lt;subagent_report&gt; cut short. This call returns immediately; it never waits. Name the subagent by its session ID, such as `explore_1a2b3c4d`. Only your own subagents are visible. The result comes back as numbered lines, `N: text`, counting from 1, as `read` returns a file: `offset` is the 1-based line to start at (default 1), or, when negative, how many lines before the end to start (-50 reads the last 50 lines), and `limit` the most lines to return (default 2000); a line longer than 4 KiB is cut, and a page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`. A &lt;subagent_report&gt; cut short names the offset to continue from."</span>.into(),
 <a href=#157 id=157 data-nosnippet>157</a>            parameters: cookie_agent_runtime_api::authoring::schema::&lt;GetResultArgs&gt;(),
 <a href=#158 id=158 data-nosnippet>158</a>        },
 <a href=#159 id=159 data-nosnippet>159</a>    ]
@@ -445,12 +445,12 @@
 <a href=#445 id=445 data-nosnippet>445</a>            }
 <a href=#446 id=446 data-nosnippet>446</a>            <span class="string">"get_subagent_result" </span>=&gt; {
 <a href=#447 id=447 data-nosnippet>447</a>                <span class="kw">let </span><span class="kw-2">mut </span>args = parse_result(<span class="kw-2">&amp;</span>call.arguments)<span class="question-mark">?</span>;
-<a href=#448 id=448 data-nosnippet>448</a>                <span class="kw">let </span>window = cookie_agent_runtime_api::text_tools::LineWindow::new(
-<a href=#449 id=449 data-nosnippet>449</a>                    args.offset.map(|offset| offset <span class="kw">as </span>usize),
+<a href=#448 id=448 data-nosnippet>448</a>                <span class="kw">let </span>request = cookie_agent_runtime_api::text_tools::LineRequest::new(
+<a href=#449 id=449 data-nosnippet>449</a>                    args.offset,
 <a href=#450 id=450 data-nosnippet>450</a>                    <span class="prelude-val">Some</span>(args.limit.unwrap_or(DEFAULT_RESULT_LIMIT) <span class="kw">as </span>usize),
 <a href=#451 id=451 data-nosnippet>451</a>                )<span class="question-mark">?</span>;
-<a href=#452 id=452 data-nosnippet>452</a>                args.offset = <span class="prelude-val">Some</span>(window.offset <span class="kw">as </span>u32);
-<a href=#453 id=453 data-nosnippet>453</a>                args.limit = <span class="prelude-val">Some</span>(window.limit <span class="kw">as </span>u32);
+<a href=#452 id=452 data-nosnippet>452</a>                args.offset = <span class="prelude-val">Some</span>(args.offset.unwrap_or(<span class="number">1</span>));
+<a href=#453 id=453 data-nosnippet>453</a>                args.limit = <span class="prelude-val">Some</span>(request.limit() <span class="kw">as </span>u32);
 <a href=#454 id=454 data-nosnippet>454</a>                <span class="kw">let </span>target = <span class="self">self
 <a href=#455 id=455 data-nosnippet>455</a>                    </span>.engine
 <a href=#456 id=456 data-nosnippet>456</a>                    .resolve_subagent_target(
@@ -548,10 +548,10 @@
 <a href=#548 id=548 data-nosnippet>548</a>                        context.session,
 <a href=#549 id=549 data-nosnippet>549</a>                        <span class="kw-2">&amp;</span>args.session_id,
 <a href=#550 id=550 data-nosnippet>550</a>                        <span class="bool-val">false</span>,
-<a href=#551 id=551 data-nosnippet>551</a>                        cookie_agent_runtime_api::text_tools::LineWindow {
-<a href=#552 id=552 data-nosnippet>552</a>                            offset: args.offset.expect(<span class="string">"normalized result offset"</span>) <span class="kw">as </span>usize,
-<a href=#553 id=553 data-nosnippet>553</a>                            limit: args.limit.expect(<span class="string">"normalized result limit"</span>) <span class="kw">as </span>usize,
-<a href=#554 id=554 data-nosnippet>554</a>                        },
+<a href=#551 id=551 data-nosnippet>551</a>                        cookie_agent_runtime_api::text_tools::LineRequest::new(
+<a href=#552 id=552 data-nosnippet>552</a>                            args.offset,
+<a href=#553 id=553 data-nosnippet>553</a>                            args.limit.map(|limit| limit <span class="kw">as </span>usize),
+<a href=#554 id=554 data-nosnippet>554</a>                        )<span class="question-mark">?</span>,
 <a href=#555 id=555 data-nosnippet>555</a>                        context.cancellation,
 <a href=#556 id=556 data-nosnippet>556</a>                    )
 <a href=#557 id=557 data-nosnippet>557</a>                    .<span class="kw">await

@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/coding_runtime/src/read.rs`."><title>read.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cookie_agent_coding_runtime" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">cookie_agent_coding_runtime/</div>read.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{
-<a href=#2 id=2 data-nosnippet>2</a>    io::{BufRead, BufReader, Read},
+<a href=#2 id=2 data-nosnippet>2</a>    io::{BufRead, BufReader, Read, Seek},
 <a href=#3 id=3 data-nosnippet>3</a>    path::{Path, PathBuf},
 <a href=#4 id=4 data-nosnippet>4</a>};
 <a href=#5 id=5 data-nosnippet>5</a>
@@ -16,7 +16,7 @@
 <a href=#16 id=16 data-nosnippet>16</a>    media::attachment_gate_error,
 <a href=#17 id=17 data-nosnippet>17</a>    media::gate_attachment,
 <a href=#18 id=18 data-nosnippet>18</a>    media::sniff_media_type,
-<a href=#19 id=19 data-nosnippet>19</a>    text_tools::{<span class="self">self</span>, LineWindow, MAX_PAGE_BYTES, PageError},
+<a href=#19 id=19 data-nosnippet>19</a>    text_tools::{<span class="self">self</span>, LineRequest, LineWindow, MAX_PAGE_BYTES, PageError},
 <a href=#20 id=20 data-nosnippet>20</a>    tool_presentation,
 <a href=#21 id=21 data-nosnippet>21</a>};
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>schemars::JsonSchema;
@@ -47,17 +47,17 @@
 <a href=#47 id=47 data-nosnippet>47</a>    <span class="doccomment">/// The most lines, or directory entries, to return. Defaults to 2000.
 <a href=#48 id=48 data-nosnippet>48</a>    </span><span class="attr">#[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= text_tools::DEFAULT_LIMIT))]
 <a href=#49 id=49 data-nosnippet>49</a>    </span>limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-<a href=#50 id=50 data-nosnippet>50</a>    <span class="doccomment">/// The 1-based line, or directory entry, to start at. Defaults to 1.
-<a href=#51 id=51 data-nosnippet>51</a>    </span><span class="attr">#[schemars(range(min = <span class="number">1</span>), extend(<span class="string">"default" </span>= <span class="number">1</span>))]
-<a href=#52 id=52 data-nosnippet>52</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+<a href=#50 id=50 data-nosnippet>50</a>    <span class="doccomment">/// The 1-based line, or directory entry, to start at; a negative one counts back from the end, so -50 starts at the 50th line from the end. Defaults to 1.
+<a href=#51 id=51 data-nosnippet>51</a>    </span><span class="attr">#[schemars(extend(<span class="string">"default" </span>= <span class="number">1</span>))]
+<a href=#52 id=52 data-nosnippet>52</a>    </span>offset: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 <a href=#53 id=53 data-nosnippet>53</a>}
 <a href=#54 id=54 data-nosnippet>54</a>
 <a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// What the model reads about `read`.
-<a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">const </span>DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Read a file or a directory. A text file comes back as numbered lines, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1) and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error. A directory lists its entries, one per line with `/` after a folder's name, paged by the same 1-based `offset` and `limit`. An image, video, or other media file the model accepts is attached instead."</span>;
+<a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">const </span>DESCRIPTION: <span class="kw-2">&amp;</span>str = <span class="string">"Read a file or a directory. A text file comes back as numbered lines, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1), or, when negative, how many lines before the end to start (-50 reads the last 50 lines), and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error. A directory lists its entries, one per line with `/` after a folder's name, paged by the same 1-based `offset` and `limit`. An image, video, or other media file the model accepts is attached instead."</span>;
 <a href=#57 id=57 data-nosnippet>57</a>
 <a href=#58 id=58 data-nosnippet>58</a><span class="kw">struct </span>ReadExecutor {
 <a href=#59 id=59 data-nosnippet>59</a>    target: fs_cap::PreparedExisting,
-<a href=#60 id=60 data-nosnippet>60</a>    window: LineWindow,
+<a href=#60 id=60 data-nosnippet>60</a>    request: LineRequest,
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="doccomment">/// The path clients see.
 <a href=#62 id=62 data-nosnippet>62</a>    </span>shown_path: PathBuf,
 <a href=#63 id=63 data-nosnippet>63</a>}
@@ -184,7 +184,7 @@
 <a href=#184 id=184 data-nosnippet>184</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(ToolError::execution(<span class="string">"read provider received another tool"</span>));
 <a href=#185 id=185 data-nosnippet>185</a>        }
 <a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span>args: ReadArgs = parse_args(<span class="string">"read"</span>, call.arguments)<span class="question-mark">?</span>;
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>window = LineWindow::new(args.offset, args.limit)<span class="question-mark">?</span>;
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>request = LineRequest::new(args.offset, args.limit)<span class="question-mark">?</span>;
 <a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>workspace = <span class="self">self</span>.workspace.clone();
 <a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span>shown_path = <span class="self">self</span>.shown_path(<span class="kw-2">&amp;</span>args);
 <a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">crate</span>::blocking(<span class="kw">move </span>|| {
@@ -192,15 +192,15 @@
 <a href=#192 id=192 data-nosnippet>192</a>                fs_cap::prepare_existing(<span class="kw-2">&amp;</span>workspace, std::path::Path::new(<span class="kw-2">&amp;</span>args.file_path))<span class="question-mark">?</span>;
 <a href=#193 id=193 data-nosnippet>193</a>            <span class="kw">let </span>normalized_arguments = <span class="macro">serde_json::json!</span>({
 <a href=#194 id=194 data-nosnippet>194</a>                <span class="string">"path"</span>: target.display_path,
-<a href=#195 id=195 data-nosnippet>195</a>                <span class="string">"offset"</span>: window.offset,
-<a href=#196 id=196 data-nosnippet>196</a>                <span class="string">"limit"</span>: window.limit,
+<a href=#195 id=195 data-nosnippet>195</a>                <span class="string">"offset"</span>: request.offset(),
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="string">"limit"</span>: request.limit(),
 <a href=#197 id=197 data-nosnippet>197</a>            });
 <a href=#198 id=198 data-nosnippet>198</a>            PreparedTool::declared(
 <a href=#199 id=199 data-nosnippet>199</a>                normalized_arguments,
 <a href=#200 id=200 data-nosnippet>200</a>                <span class="prelude-val">None</span>,
 <a href=#201 id=201 data-nosnippet>201</a>                Box::new(ReadExecutor {
 <a href=#202 id=202 data-nosnippet>202</a>                    target,
-<a href=#203 id=203 data-nosnippet>203</a>                    window,
+<a href=#203 id=203 data-nosnippet>203</a>                    request,
 <a href=#204 id=204 data-nosnippet>204</a>                    shown_path,
 <a href=#205 id=205 data-nosnippet>205</a>                }),
 <a href=#206 id=206 data-nosnippet>206</a>            )
@@ -224,9 +224,9 @@
 <a href=#224 id=224 data-nosnippet>224</a>            <span class="kw">if </span><span class="self">self</span>.target.directory {
 <a href=#225 id=225 data-nosnippet>225</a>                <span class="kw">let </span>entries = <span class="self">self</span>.target.directory_entries()<span class="question-mark">?</span>;
 <a href=#226 id=226 data-nosnippet>226</a>                <span class="kw">let </span>target = <span class="self">self</span>.target.display_path.display().to_string();
-<a href=#227 id=227 data-nosnippet>227</a>                <span class="self">self</span>.window
-<a href=#228 id=228 data-nosnippet>228</a>                    .check_in_range(entries.len(), <span class="string">"entry"</span>, <span class="kw-2">&amp;</span>target)<span class="question-mark">?</span>;
-<a href=#229 id=229 data-nosnippet>229</a>                <span class="kw">let </span>page = directory_page(<span class="kw-2">&amp;</span>entries, <span class="self">self</span>.window).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="kw">let </span>window = <span class="self">self</span>.request.resolve(entries.len());
+<a href=#228 id=228 data-nosnippet>228</a>                window.check_in_range(entries.len(), <span class="string">"entry"</span>, <span class="kw-2">&amp;</span>target)<span class="question-mark">?</span>;
+<a href=#229 id=229 data-nosnippet>229</a>                <span class="kw">let </span>page = directory_page(<span class="kw-2">&amp;</span>entries, window).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 <a href=#230 id=230 data-nosnippet>230</a>                <span class="kw">let </span><span class="kw-2">mut </span>output =
 <a href=#231 id=231 data-nosnippet>231</a>                    <span class="macro">format!</span>(<span class="string">"&lt;path&gt;{target}&lt;/path&gt;\n&lt;type&gt;directory&lt;/type&gt;\n&lt;entries&gt;\n"</span>);
 <a href=#232 id=232 data-nosnippet>232</a>                <span class="kw">for </span>(name, directory) <span class="kw">in </span><span class="kw-2">&amp;</span>page {
@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a>                    output.push(<span class="string">'\n'</span>);
 <a href=#238 id=238 data-nosnippet>238</a>                }
 <a href=#239 id=239 data-nosnippet>239</a>                output.push_str(<span class="string">"&lt;/entries&gt;"</span>);
-<a href=#240 id=240 data-nosnippet>240</a>                <span class="kw">let </span>marker = <span class="self">self</span>.window.remaining_marker(entries.len(), <span class="string">"entry"</span>);
+<a href=#240 id=240 data-nosnippet>240</a>                <span class="kw">let </span>marker = window.remaining_marker(entries.len(), <span class="string">"entry"</span>);
 <a href=#241 id=241 data-nosnippet>241</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(marker) = <span class="kw-2">&amp;</span>marker {
 <a href=#242 id=242 data-nosnippet>242</a>                    output.push(<span class="string">'\n'</span>);
 <a href=#243 id=243 data-nosnippet>243</a>                    output.push_str(marker);
@@ -263,11 +263,11 @@
 <a href=#263 id=263 data-nosnippet>263</a>                    output,
 <a href=#264 id=264 data-nosnippet>264</a>                    metadata: <span class="macro">serde_json::json!</span>({
 <a href=#265 id=265 data-nosnippet>265</a>                        <span class="string">"kind"</span>: <span class="string">"directory"</span>,
-<a href=#266 id=266 data-nosnippet>266</a>                        <span class="string">"offset"</span>: <span class="self">self</span>.window.offset,
-<a href=#267 id=267 data-nosnippet>267</a>                        <span class="string">"limit"</span>: <span class="self">self</span>.window.limit,
+<a href=#266 id=266 data-nosnippet>266</a>                        <span class="string">"offset"</span>: window.offset,
+<a href=#267 id=267 data-nosnippet>267</a>                        <span class="string">"limit"</span>: window.limit,
 <a href=#268 id=268 data-nosnippet>268</a>                        <span class="string">"shown"</span>: page.len(),
 <a href=#269 id=269 data-nosnippet>269</a>                        <span class="string">"total_entries"</span>: entries.len(),
-<a href=#270 id=270 data-nosnippet>270</a>                        <span class="string">"next_offset"</span>: marker.is_some().then(|| <span class="self">self</span>.window.end_index() + <span class="number">1</span>),
+<a href=#270 id=270 data-nosnippet>270</a>                        <span class="string">"next_offset"</span>: marker.is_some().then(|| window.end_index() + <span class="number">1</span>),
 <a href=#271 id=271 data-nosnippet>271</a>                    }),
 <a href=#272 id=272 data-nosnippet>272</a>                    attachments: Vec::new(),
 <a href=#273 id=273 data-nosnippet>273</a>                    additional_messages: Vec::new(),
@@ -299,131 +299,140 @@
 <a href=#299 id=299 data-nosnippet>299</a>            <span class="kw">if </span>std::str::from_utf8(head).is_err_and(|error| error.error_len().is_some()) {
 <a href=#300 id=300 data-nosnippet>300</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(not_text());
 <a href=#301 id=301 data-nosnippet>301</a>            }
-<a href=#302 id=302 data-nosnippet>302</a>            text_result(path, <span class="kw-2">&amp;</span><span class="self">self</span>.shown_path, <span class="kw-2">&amp;mut </span>reader, <span class="self">self</span>.window)
-<a href=#303 id=303 data-nosnippet>303</a>        })
-<a href=#304 id=304 data-nosnippet>304</a>        .<span class="kw">await</span>;
-<a href=#305 id=305 data-nosnippet>305</a>        result.map(cookie_agent_runtime_api::ToolCompletion::single)
-<a href=#306 id=306 data-nosnippet>306</a>    }
-<a href=#307 id=307 data-nosnippet>307</a>}
-<a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a><span class="kw">fn </span>io_error(error: std::io::Error) -&gt; ToolError {
-<a href=#310 id=310 data-nosnippet>310</a>    ToolError::execution(error.to_string())
-<a href=#311 id=311 data-nosnippet>311</a>}
-<a href=#312 id=312 data-nosnippet>312</a>
-<a href=#313 id=313 data-nosnippet>313</a><span class="kw">fn </span>not_text() -&gt; ToolError {
-<a href=#314 id=314 data-nosnippet>314</a>    ToolError::execution(<span class="string">"read supports UTF-8 text or approved media"</span>)
-<a href=#315 id=315 data-nosnippet>315</a>}
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a><span class="kw">fn </span>attachment_result(
-<a href=#318 id=318 data-nosnippet>318</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
-<a href=#319 id=319 data-nosnippet>319</a>    path: <span class="kw-2">&amp;</span>Path,
-<a href=#320 id=320 data-nosnippet>320</a>    mime: <span class="kw-2">&amp;</span>str,
-<a href=#321 id=321 data-nosnippet>321</a>    gate: AttachmentGate,
-<a href=#322 id=322 data-nosnippet>322</a>    bytes: <span class="kw-2">&amp;</span>[u8],
-<a href=#323 id=323 data-nosnippet>323</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
-<a href=#324 id=324 data-nosnippet>324</a>    <span class="kw">let </span>attachment = context.retain_validated_attachment(
-<a href=#325 id=325 data-nosnippet>325</a>        mime,
-<a href=#326 id=326 data-nosnippet>326</a>        path.file_name()
-<a href=#327 id=327 data-nosnippet>327</a>            .map(|name| name.to_string_lossy().into_owned()),
-<a href=#328 id=328 data-nosnippet>328</a>        bytes,
-<a href=#329 id=329 data-nosnippet>329</a>    )<span class="question-mark">?</span>;
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">let </span>sha256 = attachment.sha256.clone();
-<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">let </span>media = DisplayBlock::Media {
-<a href=#332 id=332 data-nosnippet>332</a>        artifact: attachment.artifact_ref(),
-<a href=#333 id=333 data-nosnippet>333</a>        alt: path
-<a href=#334 id=334 data-nosnippet>334</a>            .file_name()
-<a href=#335 id=335 data-nosnippet>335</a>            .map(|name| name.to_string_lossy().into_owned()),
-<a href=#336 id=336 data-nosnippet>336</a>    };
-<a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">let </span>(output, attachments, additional_messages) = <span class="kw">match </span>gate {
-<a href=#338 id=338 data-nosnippet>338</a>        AttachmentGate::AttachToolResult =&gt; (
-<a href=#339 id=339 data-nosnippet>339</a>            <span class="macro">format!</span>(<span class="string">"Attached {mime} ({} bytes)."</span>, bytes.len()),
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="macro">vec!</span>[attachment],
-<a href=#341 id=341 data-nosnippet>341</a>            Vec::new(),
-<a href=#342 id=342 data-nosnippet>342</a>        ),
-<a href=#343 id=343 data-nosnippet>343</a>        AttachmentGate::DeliverViaUserTurn =&gt; (
-<a href=#344 id=344 data-nosnippet>344</a>            <span class="macro">format!</span>(
-<a href=#345 id=345 data-nosnippet>345</a>                <span class="string">"Attached {mime} ({} bytes), delivered in the following message."</span>,
-<a href=#346 id=346 data-nosnippet>346</a>                bytes.len()
-<a href=#347 id=347 data-nosnippet>347</a>            ),
-<a href=#348 id=348 data-nosnippet>348</a>            Vec::new(),
-<a href=#349 id=349 data-nosnippet>349</a>            <span class="macro">vec!</span>[
-<a href=#350 id=350 data-nosnippet>350</a>                ToolEmittedMessage::new(
-<a href=#351 id=351 data-nosnippet>351</a>                    ToolEmittedMessageRole::User,
-<a href=#352 id=352 data-nosnippet>352</a>                    <span class="macro">vec!</span>[ToolEmittedContent::File(attachment)],
-<a href=#353 id=353 data-nosnippet>353</a>                )
-<a href=#354 id=354 data-nosnippet>354</a>                .map_err(|error| ToolError::execution(error.to_string()))<span class="question-mark">?</span>,
-<a href=#355 id=355 data-nosnippet>355</a>            ],
-<a href=#356 id=356 data-nosnippet>356</a>        ),
-<a href=#357 id=357 data-nosnippet>357</a>        AttachmentGate::RejectUnsupportedModel
-<a href=#358 id=358 data-nosnippet>358</a>        | AttachmentGate::RejectUnsupportedFamily
-<a href=#359 id=359 data-nosnippet>359</a>        | AttachmentGate::RejectTooLarge { .. } =&gt; {
-<a href=#360 id=360 data-nosnippet>360</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected attachment gates returned an error"</span>)
-<a href=#361 id=361 data-nosnippet>361</a>        }
-<a href=#362 id=362 data-nosnippet>362</a>    };
-<a href=#363 id=363 data-nosnippet>363</a>    <span class="prelude-val">Ok</span>(ToolResult {
-<a href=#364 id=364 data-nosnippet>364</a>        display: <span class="macro">vec!</span>[Open::Known(media)],
-<a href=#365 id=365 data-nosnippet>365</a>        background: <span class="prelude-val">None</span>,
-<a href=#366 id=366 data-nosnippet>366</a>        retained_output: <span class="prelude-val">None</span>,
-<a href=#367 id=367 data-nosnippet>367</a>        title: <span class="kw">crate</span>::safe_title(<span class="macro">format!</span>(<span class="string">"Read {}"</span>, path.display())),
-<a href=#368 id=368 data-nosnippet>368</a>        output,
-<a href=#369 id=369 data-nosnippet>369</a>        metadata: <span class="macro">serde_json::json!</span>({<span class="string">"kind"</span>:<span class="string">"attachment"</span>,<span class="string">"mime_type"</span>:mime,<span class="string">"sha256"</span>:sha256}),
-<a href=#370 id=370 data-nosnippet>370</a>        attachments,
-<a href=#371 id=371 data-nosnippet>371</a>        additional_messages,
-<a href=#372 id=372 data-nosnippet>372</a>        loaded_tools: Vec::new(),
-<a href=#373 id=373 data-nosnippet>373</a>    })
-<a href=#374 id=374 data-nosnippet>374</a>}
-<a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a><span class="doccomment">/// One page of numbered lines, read in a single streaming pass that also
-<a href=#377 id=377 data-nosnippet>377</a>/// counts the file's lines. Clients see the page as an excerpt of
-<a href=#378 id=378 data-nosnippet>378</a>/// `shown_path`.
-<a href=#379 id=379 data-nosnippet>379</a></span><span class="kw">fn </span>text_result(
-<a href=#380 id=380 data-nosnippet>380</a>    path: <span class="kw-2">&amp;</span>Path,
-<a href=#381 id=381 data-nosnippet>381</a>    shown_path: <span class="kw-2">&amp;</span>Path,
-<a href=#382 id=382 data-nosnippet>382</a>    reader: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>BufRead,
-<a href=#383 id=383 data-nosnippet>383</a>    window: LineWindow,
-<a href=#384 id=384 data-nosnippet>384</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="kw">let </span>target = path.display().to_string();
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="macro">format!</span>(<span class="string">"&lt;path&gt;{target}&lt;/path&gt;\n&lt;type&gt;file&lt;/type&gt;\n&lt;content&gt;\n"</span>);
-<a href=#387 id=387 data-nosnippet>387</a>    <span class="kw">let </span>page = text_tools::page_reader(reader, window, MAX_PAGE_BYTES - output.len()).map_err(
-<a href=#388 id=388 data-nosnippet>388</a>        |error| <span class="kw">match </span>error {
-<a href=#389 id=389 data-nosnippet>389</a>            PageError::Io(error) =&gt; io_error(error),
-<a href=#390 id=390 data-nosnippet>390</a>            PageError::NotText =&gt; not_text(),
-<a href=#391 id=391 data-nosnippet>391</a>        },
-<a href=#392 id=392 data-nosnippet>392</a>    )<span class="question-mark">?</span>;
-<a href=#393 id=393 data-nosnippet>393</a>    page.check_in_range(<span class="kw-2">&amp;</span>target)<span class="question-mark">?</span>;
-<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">let </span>excerpt = page.excerpt_block(
-<a href=#395 id=395 data-nosnippet>395</a>        shown_path.display().to_string(),
-<a href=#396 id=396 data-nosnippet>396</a>        display::language_for_path(shown_path),
-<a href=#397 id=397 data-nosnippet>397</a>    );
-<a href=#398 id=398 data-nosnippet>398</a>    output.push_str(<span class="kw-2">&amp;</span>page.text);
-<a href=#399 id=399 data-nosnippet>399</a>    output.push_str(<span class="string">"&lt;/content&gt;"</span>);
-<a href=#400 id=400 data-nosnippet>400</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(marker) = page.continuation() {
-<a href=#401 id=401 data-nosnippet>401</a>        output.push(<span class="string">'\n'</span>);
-<a href=#402 id=402 data-nosnippet>402</a>        output.push_str(<span class="kw-2">&amp;</span>marker);
-<a href=#403 id=403 data-nosnippet>403</a>    }
-<a href=#404 id=404 data-nosnippet>404</a>    <span class="prelude-val">Ok</span>(ToolResult {
-<a href=#405 id=405 data-nosnippet>405</a>        display: <span class="macro">vec!</span>[Open::Known(display::fit_block(excerpt, <span class="prelude-val">None</span>)<span class="question-mark">?</span>)],
-<a href=#406 id=406 data-nosnippet>406</a>        background: <span class="prelude-val">None</span>,
-<a href=#407 id=407 data-nosnippet>407</a>        retained_output: <span class="prelude-val">None</span>,
-<a href=#408 id=408 data-nosnippet>408</a>        title: <span class="kw">crate</span>::safe_title(<span class="macro">format!</span>(<span class="string">"Read {target}"</span>)),
-<a href=#409 id=409 data-nosnippet>409</a>        output,
-<a href=#410 id=410 data-nosnippet>410</a>        metadata: <span class="macro">serde_json::json!</span>({
-<a href=#411 id=411 data-nosnippet>411</a>            <span class="string">"kind"</span>: <span class="string">"text"</span>,
-<a href=#412 id=412 data-nosnippet>412</a>            <span class="string">"offset"</span>: window.offset,
-<a href=#413 id=413 data-nosnippet>413</a>            <span class="string">"limit"</span>: window.limit,
-<a href=#414 id=414 data-nosnippet>414</a>            <span class="string">"total_lines"</span>: page.total_lines,
-<a href=#415 id=415 data-nosnippet>415</a>            <span class="string">"next_offset"</span>: page.next_offset,
-<a href=#416 id=416 data-nosnippet>416</a>        }),
-<a href=#417 id=417 data-nosnippet>417</a>        attachments: Vec::new(),
-<a href=#418 id=418 data-nosnippet>418</a>        additional_messages: Vec::new(),
-<a href=#419 id=419 data-nosnippet>419</a>        loaded_tools: Vec::new(),
-<a href=#420 id=420 data-nosnippet>420</a>    })
-<a href=#421 id=421 data-nosnippet>421</a>}
-<a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a><span class="kw">fn </span>directory_page&lt;T&gt;(entries: <span class="kw-2">&amp;</span>[T], window: LineWindow) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>T&gt; {
-<a href=#424 id=424 data-nosnippet>424</a>    entries.iter().skip(window.first_index()).take(window.limit)
-<a href=#425 id=425 data-nosnippet>425</a>}
-<a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a><span class="attr">#[cfg(test)]
-<a href=#428 id=428 data-nosnippet>428</a></span><span class="kw">mod </span>tests;
+<a href=#302 id=302 data-nosnippet>302</a>            <span class="kw">let </span>window = <span class="self">self</span>.request.resolve_with(|| {
+<a href=#303 id=303 data-nosnippet>303</a>                <span class="kw">let </span>lines = text_tools::count_reader_lines(<span class="kw-2">&amp;mut </span>reader)<span class="question-mark">?</span>;
+<a href=#304 id=304 data-nosnippet>304</a>                reader.rewind().map(|()| lines)
+<a href=#305 id=305 data-nosnippet>305</a>            });
+<a href=#306 id=306 data-nosnippet>306</a>            text_result(
+<a href=#307 id=307 data-nosnippet>307</a>                path,
+<a href=#308 id=308 data-nosnippet>308</a>                <span class="kw-2">&amp;</span><span class="self">self</span>.shown_path,
+<a href=#309 id=309 data-nosnippet>309</a>                <span class="kw-2">&amp;mut </span>reader,
+<a href=#310 id=310 data-nosnippet>310</a>                window.map_err(io_error)<span class="question-mark">?</span>,
+<a href=#311 id=311 data-nosnippet>311</a>            )
+<a href=#312 id=312 data-nosnippet>312</a>        })
+<a href=#313 id=313 data-nosnippet>313</a>        .<span class="kw">await</span>;
+<a href=#314 id=314 data-nosnippet>314</a>        result.map(cookie_agent_runtime_api::ToolCompletion::single)
+<a href=#315 id=315 data-nosnippet>315</a>    }
+<a href=#316 id=316 data-nosnippet>316</a>}
+<a href=#317 id=317 data-nosnippet>317</a>
+<a href=#318 id=318 data-nosnippet>318</a><span class="kw">fn </span>io_error(error: std::io::Error) -&gt; ToolError {
+<a href=#319 id=319 data-nosnippet>319</a>    ToolError::execution(error.to_string())
+<a href=#320 id=320 data-nosnippet>320</a>}
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a><span class="kw">fn </span>not_text() -&gt; ToolError {
+<a href=#323 id=323 data-nosnippet>323</a>    ToolError::execution(<span class="string">"read supports UTF-8 text or approved media"</span>)
+<a href=#324 id=324 data-nosnippet>324</a>}
+<a href=#325 id=325 data-nosnippet>325</a>
+<a href=#326 id=326 data-nosnippet>326</a><span class="kw">fn </span>attachment_result(
+<a href=#327 id=327 data-nosnippet>327</a>    context: <span class="kw-2">&amp;</span>ToolExecutionContext,
+<a href=#328 id=328 data-nosnippet>328</a>    path: <span class="kw-2">&amp;</span>Path,
+<a href=#329 id=329 data-nosnippet>329</a>    mime: <span class="kw-2">&amp;</span>str,
+<a href=#330 id=330 data-nosnippet>330</a>    gate: AttachmentGate,
+<a href=#331 id=331 data-nosnippet>331</a>    bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#332 id=332 data-nosnippet>332</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">let </span>attachment = context.retain_validated_attachment(
+<a href=#334 id=334 data-nosnippet>334</a>        mime,
+<a href=#335 id=335 data-nosnippet>335</a>        path.file_name()
+<a href=#336 id=336 data-nosnippet>336</a>            .map(|name| name.to_string_lossy().into_owned()),
+<a href=#337 id=337 data-nosnippet>337</a>        bytes,
+<a href=#338 id=338 data-nosnippet>338</a>    )<span class="question-mark">?</span>;
+<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">let </span>sha256 = attachment.sha256.clone();
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">let </span>media = DisplayBlock::Media {
+<a href=#341 id=341 data-nosnippet>341</a>        artifact: attachment.artifact_ref(),
+<a href=#342 id=342 data-nosnippet>342</a>        alt: path
+<a href=#343 id=343 data-nosnippet>343</a>            .file_name()
+<a href=#344 id=344 data-nosnippet>344</a>            .map(|name| name.to_string_lossy().into_owned()),
+<a href=#345 id=345 data-nosnippet>345</a>    };
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">let </span>(output, attachments, additional_messages) = <span class="kw">match </span>gate {
+<a href=#347 id=347 data-nosnippet>347</a>        AttachmentGate::AttachToolResult =&gt; (
+<a href=#348 id=348 data-nosnippet>348</a>            <span class="macro">format!</span>(<span class="string">"Attached {mime} ({} bytes)."</span>, bytes.len()),
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="macro">vec!</span>[attachment],
+<a href=#350 id=350 data-nosnippet>350</a>            Vec::new(),
+<a href=#351 id=351 data-nosnippet>351</a>        ),
+<a href=#352 id=352 data-nosnippet>352</a>        AttachmentGate::DeliverViaUserTurn =&gt; (
+<a href=#353 id=353 data-nosnippet>353</a>            <span class="macro">format!</span>(
+<a href=#354 id=354 data-nosnippet>354</a>                <span class="string">"Attached {mime} ({} bytes), delivered in the following message."</span>,
+<a href=#355 id=355 data-nosnippet>355</a>                bytes.len()
+<a href=#356 id=356 data-nosnippet>356</a>            ),
+<a href=#357 id=357 data-nosnippet>357</a>            Vec::new(),
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="macro">vec!</span>[
+<a href=#359 id=359 data-nosnippet>359</a>                ToolEmittedMessage::new(
+<a href=#360 id=360 data-nosnippet>360</a>                    ToolEmittedMessageRole::User,
+<a href=#361 id=361 data-nosnippet>361</a>                    <span class="macro">vec!</span>[ToolEmittedContent::File(attachment)],
+<a href=#362 id=362 data-nosnippet>362</a>                )
+<a href=#363 id=363 data-nosnippet>363</a>                .map_err(|error| ToolError::execution(error.to_string()))<span class="question-mark">?</span>,
+<a href=#364 id=364 data-nosnippet>364</a>            ],
+<a href=#365 id=365 data-nosnippet>365</a>        ),
+<a href=#366 id=366 data-nosnippet>366</a>        AttachmentGate::RejectUnsupportedModel
+<a href=#367 id=367 data-nosnippet>367</a>        | AttachmentGate::RejectUnsupportedFamily
+<a href=#368 id=368 data-nosnippet>368</a>        | AttachmentGate::RejectTooLarge { .. } =&gt; {
+<a href=#369 id=369 data-nosnippet>369</a>            <span class="macro">unreachable!</span>(<span class="string">"rejected attachment gates returned an error"</span>)
+<a href=#370 id=370 data-nosnippet>370</a>        }
+<a href=#371 id=371 data-nosnippet>371</a>    };
+<a href=#372 id=372 data-nosnippet>372</a>    <span class="prelude-val">Ok</span>(ToolResult {
+<a href=#373 id=373 data-nosnippet>373</a>        display: <span class="macro">vec!</span>[Open::Known(media)],
+<a href=#374 id=374 data-nosnippet>374</a>        background: <span class="prelude-val">None</span>,
+<a href=#375 id=375 data-nosnippet>375</a>        retained_output: <span class="prelude-val">None</span>,
+<a href=#376 id=376 data-nosnippet>376</a>        title: <span class="kw">crate</span>::safe_title(<span class="macro">format!</span>(<span class="string">"Read {}"</span>, path.display())),
+<a href=#377 id=377 data-nosnippet>377</a>        output,
+<a href=#378 id=378 data-nosnippet>378</a>        metadata: <span class="macro">serde_json::json!</span>({<span class="string">"kind"</span>:<span class="string">"attachment"</span>,<span class="string">"mime_type"</span>:mime,<span class="string">"sha256"</span>:sha256}),
+<a href=#379 id=379 data-nosnippet>379</a>        attachments,
+<a href=#380 id=380 data-nosnippet>380</a>        additional_messages,
+<a href=#381 id=381 data-nosnippet>381</a>        loaded_tools: Vec::new(),
+<a href=#382 id=382 data-nosnippet>382</a>    })
+<a href=#383 id=383 data-nosnippet>383</a>}
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a><span class="doccomment">/// One page of numbered lines, read in a single streaming pass that also
+<a href=#386 id=386 data-nosnippet>386</a>/// counts the file's lines. Clients see the page as an excerpt of
+<a href=#387 id=387 data-nosnippet>387</a>/// `shown_path`.
+<a href=#388 id=388 data-nosnippet>388</a></span><span class="kw">fn </span>text_result(
+<a href=#389 id=389 data-nosnippet>389</a>    path: <span class="kw-2">&amp;</span>Path,
+<a href=#390 id=390 data-nosnippet>390</a>    shown_path: <span class="kw-2">&amp;</span>Path,
+<a href=#391 id=391 data-nosnippet>391</a>    reader: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>BufRead,
+<a href=#392 id=392 data-nosnippet>392</a>    window: LineWindow,
+<a href=#393 id=393 data-nosnippet>393</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResult, ToolError&gt; {
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">let </span>target = path.display().to_string();
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="macro">format!</span>(<span class="string">"&lt;path&gt;{target}&lt;/path&gt;\n&lt;type&gt;file&lt;/type&gt;\n&lt;content&gt;\n"</span>);
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="kw">let </span>page = text_tools::page_reader(reader, window, MAX_PAGE_BYTES - output.len()).map_err(
+<a href=#397 id=397 data-nosnippet>397</a>        |error| <span class="kw">match </span>error {
+<a href=#398 id=398 data-nosnippet>398</a>            PageError::Io(error) =&gt; io_error(error),
+<a href=#399 id=399 data-nosnippet>399</a>            PageError::NotText =&gt; not_text(),
+<a href=#400 id=400 data-nosnippet>400</a>        },
+<a href=#401 id=401 data-nosnippet>401</a>    )<span class="question-mark">?</span>;
+<a href=#402 id=402 data-nosnippet>402</a>    page.check_in_range(<span class="kw-2">&amp;</span>target)<span class="question-mark">?</span>;
+<a href=#403 id=403 data-nosnippet>403</a>    <span class="kw">let </span>excerpt = page.excerpt_block(
+<a href=#404 id=404 data-nosnippet>404</a>        shown_path.display().to_string(),
+<a href=#405 id=405 data-nosnippet>405</a>        display::language_for_path(shown_path),
+<a href=#406 id=406 data-nosnippet>406</a>    );
+<a href=#407 id=407 data-nosnippet>407</a>    output.push_str(<span class="kw-2">&amp;</span>page.text);
+<a href=#408 id=408 data-nosnippet>408</a>    output.push_str(<span class="string">"&lt;/content&gt;"</span>);
+<a href=#409 id=409 data-nosnippet>409</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(marker) = page.continuation() {
+<a href=#410 id=410 data-nosnippet>410</a>        output.push(<span class="string">'\n'</span>);
+<a href=#411 id=411 data-nosnippet>411</a>        output.push_str(<span class="kw-2">&amp;</span>marker);
+<a href=#412 id=412 data-nosnippet>412</a>    }
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="prelude-val">Ok</span>(ToolResult {
+<a href=#414 id=414 data-nosnippet>414</a>        display: <span class="macro">vec!</span>[Open::Known(display::fit_block(excerpt, <span class="prelude-val">None</span>)<span class="question-mark">?</span>)],
+<a href=#415 id=415 data-nosnippet>415</a>        background: <span class="prelude-val">None</span>,
+<a href=#416 id=416 data-nosnippet>416</a>        retained_output: <span class="prelude-val">None</span>,
+<a href=#417 id=417 data-nosnippet>417</a>        title: <span class="kw">crate</span>::safe_title(<span class="macro">format!</span>(<span class="string">"Read {target}"</span>)),
+<a href=#418 id=418 data-nosnippet>418</a>        output,
+<a href=#419 id=419 data-nosnippet>419</a>        metadata: <span class="macro">serde_json::json!</span>({
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="string">"kind"</span>: <span class="string">"text"</span>,
+<a href=#421 id=421 data-nosnippet>421</a>            <span class="string">"offset"</span>: window.offset,
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="string">"limit"</span>: window.limit,
+<a href=#423 id=423 data-nosnippet>423</a>            <span class="string">"total_lines"</span>: page.total_lines,
+<a href=#424 id=424 data-nosnippet>424</a>            <span class="string">"next_offset"</span>: page.next_offset,
+<a href=#425 id=425 data-nosnippet>425</a>        }),
+<a href=#426 id=426 data-nosnippet>426</a>        attachments: Vec::new(),
+<a href=#427 id=427 data-nosnippet>427</a>        additional_messages: Vec::new(),
+<a href=#428 id=428 data-nosnippet>428</a>        loaded_tools: Vec::new(),
+<a href=#429 id=429 data-nosnippet>429</a>    })
+<a href=#430 id=430 data-nosnippet>430</a>}
+<a href=#431 id=431 data-nosnippet>431</a>
+<a href=#432 id=432 data-nosnippet>432</a><span class="kw">fn </span>directory_page&lt;T&gt;(entries: <span class="kw-2">&amp;</span>[T], window: LineWindow) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>T&gt; {
+<a href=#433 id=433 data-nosnippet>433</a>    entries.iter().skip(window.first_index()).take(window.limit)
+<a href=#434 id=434 data-nosnippet>434</a>}
+<a href=#435 id=435 data-nosnippet>435</a>
+<a href=#436 id=436 data-nosnippet>436</a><span class="attr">#[cfg(test)]
+<a href=#437 id=437 data-nosnippet>437</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>
