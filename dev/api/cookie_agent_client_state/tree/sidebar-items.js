@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["contains","joins"]};
+window.SIDEBAR_ITEMS = {"fn":["contains","joins","subtree"]};
