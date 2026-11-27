@@ -6995,12 +6995,17 @@ removes it after its lease, and a fork takes it into the fork's tree. A
 daemon restart forgets leases; an upload no event referenced then stays in
 the store.</p>
 <p><strong>File labels.</strong> Each <code>file</code> part reaches the model with its label just
-before it, <code>[file report.zip, 3.2 MB, artifact 5f2c81d0]</code>: its name, size,
-and the first 8 hex digits of its digest, which <code>transfer</code> takes to copy it
-to a machine. A <code>file</code> upload is its label alone. A file the model does not
-take carries the reason in its label instead of its content, <code>[file
-screenshot.png, 471 KB, artifact 5f2c81d0; not shown: acme/text-model does
-not accept images]</code>.</p>
+before it, <code>[file Screenshot.jpg attached to this user message · image/jpeg
+· 671 KB · artifact 0c697e90 · included below]</code>: its name, media type, size,
+the first 8 hex digits of its digest, which <code>read_artifact</code> and <code>transfer</code>
+take, and whether this request carries the file. ACP agents get the same
+label before each file block. A file the request leaves out (a <code>file</code>
+upload, or a file the model does not take, which a placeholder with the
+reason then follows) ends <code>not included; read_artifact returns it</code>, <code>not
+included; use transfer to copy it to a machine you work on</code>, or <code>not
+included; only its name is available</code>, by what the request's tools can do
+with it (<a href="../../sessions/media/#file-labels">Media</a>).
+<code>cookie_agent_protocol::model_text::user_file_label</code> renders the label.</p>
 <p><strong>Admission.</strong> <code>run.start</code>, <code>run.steer</code>, and <code>session.submit_input</code> check
 every <code>file</code> part against the model the input reaches: the run's selected
 model (for a steer, the running run's; for a queued input, the model of the
@@ -7194,6 +7199,15 @@ the daemon starts from a template (<code>lifetime: spawned</code>); <code>builti
   session that attaches it (<code>session.resume</code>) leaves it down; the next
   run, attach, session creation, or delegation that needs it starts it
   again, as do <code>runtimes.connect</code> and <code>runtimes.reconnect</code>.</li>
+<li><strong>Per-session runtimes</strong> (since 1.102.0): a runtime whose template gives
+  each session tree its own process lists <code>per_session: true</code>, and each of
+  its instances names its tree's root session as <code>owner</code>. Such a runtime
+  starts only on use, so <code>runtimes.connect</code> refuses it.
+  <code>runtimes.disconnect</code> with <code>session</code> stops that tree's process, refused
+  while the tree uses it; without <code>session</code> it stops every process nothing
+  uses. A <code>session</code> is refused for a shared runtime and for
+  <code>runtimes.connect</code>. See
+  <a href="../../runtimes/templates/#one-runtime-per-session-tree">one runtime per session tree</a>.</li>
 </ul>
 <h3 id="machines">Machines<a class="headerlink" href="#machines" title="Permanent link">&para;</a></h3>
 <p>Every runtime belongs to one <strong>machine</strong>, the computer it runs on (see the

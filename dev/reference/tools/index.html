@@ -7651,7 +7651,7 @@ capture, stay in the tree's <code>blobs/</code> directory until the tree is dele
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>read_artifact(artifact: string, limit?: integer, offset?: integer, stream?: string)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Read retained tool output by line, as `read` reads a file, or the output of a call running in the background. A truncated result names the artifact (and stream) to read in a `read_artifact` hint, with the 1-based `offset` of the first line it left out: read from there. Elided history names the artifact to read from its first line. `artifact` is the digest a hint names, or its first 8 or more hex digits, or a background call's job ID, such as `job_1a2b3c4d`. Given only a job ID, it returns the call's output so far as its result would show it if it ended now; with a `stream`, `offset`, or `limit`, it pages that output as it stands. A job ID keeps reading for a while after the call ends. Lines come back numbered, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1), or, when negative, how many lines before the end to start (-50 reads the last 50 lines), and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Read retained tool output by line, as `read` reads a file, or the output of a call running in the background. An image, PDF, audio, or video artifact the model takes comes back as the file itself, as `read` returns one. A truncated result names the artifact (and stream) to read in a `read_artifact` hint, with the 1-based `offset` of the first line it left out: read from there. Elided history names the artifact to read from its first line. `artifact` is the digest a hint names, or its first 8 or more hex digits, or a background call's job ID, such as `job_1a2b3c4d`. Given only a job ID, it returns the call's output so far as its result would show it if it ended now; with a `stream`, `offset`, or `limit`, it pages that output as it stands. A job ID keeps reading for a while after the call ends. Lines come back numbered, `N: text`, counting from 1. `offset` is the 1-based line to start at (default 1), or, when negative, how many lines before the end to start (-50 reads the last 50 lines), and `limit` the most lines to return (default 2000). A line longer than 4 KiB is cut and ends with `... [line truncated: N more bytes]`, and a page stops before it passes the result size limit (about 2 MiB). A page that leaves lines out ends with a note such as `[120 more lines; continue with offset=2001]`: read again from that offset. An offset past the last line is an error.
 </code></pre></div>
 <p>Always, whatever the agent's permission rules: it reads only output retained by the session's own tree.</p>
 <table>
@@ -7760,6 +7760,31 @@ error. Bytes that are not UTF-8 show as replacement characters. Missing and
 corrupt artifacts produce tool errors.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span><span class="nt">"artifact"</span><span class="p">:</span><span class="s2">"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"</span><span class="p">,</span><span class="nt">"stream"</span><span class="p">:</span><span class="s2">"results"</span><span class="p">,</span><span class="nt">"offset"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"limit"</span><span class="p">:</span><span class="mi">200</span><span class="p">}</span>
 </code></pre></div>
+<p>Without <code>stream</code>, <code>read_artifact</code> first recognizes the artifact's content
+from its head, as <code>artifact.read</code> does
+(<a href="../../specs/attachment-handling/#42-read_artifact-reads-media">attachment handling</a>):</p>
+<ul>
+<li><strong>Text</strong> pages as above.</li>
+<li><strong>An image, PDF, audio, or video file the turn's model takes</strong> comes back
+  whole, as <code>read</code> returns one, through the same gate and caps (20 MiB, 25
+  MiB for a video): a <code>Media</code> display block, and the file as the result's
+  attachment, or as the user message after it where the model takes that
+  kind only there. The stored blob is the attachment; nothing new is
+  retained. <code>offset</code> and <code>limit</code> are refused for it.</li>
+<li><strong>Media the model does not take</strong>, or over the caps, is an error naming
+  the file's type and size (an image's dimensions too) and what to do on a
+  machine instead, by kind: <code>ffmpeg</code> and <code>ffprobe</code> for video and audio,
+  <code>pdftotext</code> or <code>pdftoppm</code> for a PDF, ImageMagick <code>convert</code> for an image.
+  It names <code>transfer</code> to copy the file there when the session's latest
+  request offered it, at once or deferred, such as <code>artifact 0c697e90 is a
+  video/mp4 (12.3 MB) that this model takes no video of. Use transfer to
+  copy it to the machine you work on and inspect it there with command-line
+  tools (for example ffmpeg to extract frames you can read as images, and
+  ffprobe for its streams).</code></li>
+<li><strong>Other binary content</strong>, whose head is not UTF-8, is an error that names
+  it as binary, with the same advice (<code>file</code>, <code>xxd</code>, or the program that
+  opens it), in place of lossy lines.</li>
+</ul>
 <p><code>artifact</code> may instead be the job ID of a call of the session tree running
 in the <a href="#background-calls">background</a>, or one that ended recently. Without
 <code>stream</code>, <code>offset</code>, or <code>limit</code>, the read is a snapshot of its output so far;
@@ -9242,8 +9267,11 @@ does not know yet goes under <code>&lt;not_connected_yet&gt;</code>, with a comm
 is placed when it connects. A connected runtime always has a machine. <code>global</code> is never listed as a runtime: a <code>&lt;global/&gt;</code> element,
 with a comment, says when the root of the caller's tree has it. Only the
 calling session's own attachments are shown. A runtime that is not connected
-keeps the machine, platform, and home the daemon last saw it with. The output
-is never truncated.</p>
+keeps the machine, platform, and home the daemon last saw it with. A
+runtime whose template gives each session tree its own process
+(<a href="../../runtimes/templates/#one-runtime-per-session-tree"><code>scope = "session"</code></a>)
+says <code>per_session_tree="true"</code>, and its <code>connected</code> and <code>starts_on_use</code>
+describe the caller's tree's process. The output is never truncated.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>&lt;runtimes&gt;
 <a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>  &lt;!-- global is attached to this session's root, so every subagent in this tree has it, whether or not its capabilities list it. --&gt;
 <a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a>  &lt;global/&gt;
@@ -9452,7 +9480,7 @@ on the attachment.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a>transfer(from: object | object, overwrite?: boolean, to: object)
 </code></pre></div>
 <p>Description sent to the model:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a>Copy a file or folder to a machine of this session: from another of its machines, or from an artifact of this session, such as a file the user sent, whose label names it (`[file report.zip, 3.2 MB, artifact 5f2c81d0]`). `from` is `{"machine": "labpc", "path": "~/data"}` or `{"artifact": "5f2c81d0"}` (with `stream` for one stream of retained tool output); `to` is `{"machine": "laptop", "path": "~/Downloads/data"}`, the path the copy will have, not a folder to put it in. Machines are named as the machines block and `list_runtimes` name them; a relative path resolves against that machine's working directory, and `~` against its home. A folder is copied with everything below it. An existing destination is an error unless `overwrite` is true, which replaces a file or merges into a folder. The daemon relays the bytes, so the machines need not reach each other. The source is checked as `read` on its machine and the destination as `write` on its own. The result gives the bytes and files copied and, for a file, its SHA-256.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a>Copy a file or folder to a machine of this session: from another of its machines, or from an artifact of this session, such as a file the user sent, whose label names it (`[file report.zip attached to this user message · application/octet-stream · 3.2 MB · artifact 5f2c81d0 · …]`). `from` is `{"machine": "labpc", "path": "~/data"}` or `{"artifact": "5f2c81d0"}` (with `stream` for one stream of retained tool output); `to` is `{"machine": "laptop", "path": "~/Downloads/data"}`, the path the copy will have, not a folder to put it in. Machines are named as the machines block and `list_runtimes` name them; a relative path resolves against that machine's working directory, and `~` against its home. A folder is copied with everything below it. An existing destination is an error unless `overwrite` is true, which replaces a file or merges into a folder. The daemon relays the bytes, so the machines need not reach each other. The source is checked as `read` on its machine and the destination as `write` on its own. The result gives the bytes and files copied and, for a file, its SHA-256.
 </code></pre></div>
 <p>Only when the session has the <code>global</code> runtime and a machine whose runtime takes transfers (runtime protocol 1.13.0) attached, and no <code>"*": deny</code> for <code>write</code> hides it. The source is checked as <code>read@&lt;its runtime&gt;</code> on its path and the destination as <code>write@&lt;its runtime&gt;</code> on its own; an artifact source needs no rule. Both machines must be attached to the session.</p>
 <table>

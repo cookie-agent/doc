@@ -4588,6 +4588,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5301,6 +5310,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5707,6 +5725,51 @@ field).</p>
   own type, and each request decides whether its model gets the bytes.</li>
 <li>Files already stored as <code>application/octet-stream</code> are left as they are.
   The web does not sniff them to draw them as images.</li>
+</ul>
+<h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
+<p>What the implementation of phase 2 (delivery) does differently from the
+sections above, or adds:</p>
+<ul>
+<li><strong>The label says what the request carries</strong> (section 4.1, revised by the
+  user 2026-11-26): <code>[file NAME attached to this user message · TYPE · SIZE
+  · artifact DIGEST8 · ENDING]</code>, without <code>NAME</code> for an unnamed file. The
+  ending is <code>included below</code> when the file follows the label in this
+  request, else <code>not included; read_artifact returns it</code> (UTF-8 text, or
+  media whose type and size the model takes from a tool per
+  <code>gate_attachment</code>, a <code>file</code> upload's content sniffed as <code>artifact.read</code>
+  does), <code>not included; use transfer to copy it to a machine you work on</code>
+  (the request offers <code>transfer</code>, at once or deferred, and a copy exists),
+  or <code>not included; only its name is available</code>. <code>model_text::
+  user_file_label(artifact, FileLabelEnding)</code> renders it. It replaces the
+  two <code>not shown inline; …</code> forms.</li>
+<li><strong>Where the ending is decided</strong> (native): history assembly renders each
+  label as though the request carried what follows it and records the
+  file's facts by the label's head; <code>media::settle_file_labels</code> ends every
+  label after <code>fit_media</code> and <code>elide_excess_media</code>, at each place a request
+  is fitted (the attempt, after plugins, and a native compaction request).
+  A file <code>fit_media</code> drops no longer joins its reason into the label: the
+  <code>[image omitted: …]</code> placeholder with the reason follows the label.</li>
+<li><strong>ACP labels</strong>: the ending follows the agent's prompt capabilities for
+  what the prompt carries, the bridge's tool media (images and audio its
+  prompts take) for <code>read_artifact</code>, and the session's latest recorded
+  bridge tool list for <code>read_artifact</code> and <code>transfer</code>. A stored copy that is
+  gone adds the <code>[name (type) is unavailable: …]</code> note native models get.</li>
+<li><strong><code>read_artifact</code> and <code>read</code> share one result builder</strong>
+  (<code>runtime_api::media::media_file_result</code>), the same gate for all four
+  kinds (including delivery in the user message after the result), and
+  the same caps (<code>max_tool_attachment_bytes</code>: 25 MiB for video, 20 MiB
+  otherwise). Its refusals name the kind's command-line tools (<code>ffmpeg</code> and
+  <code>ffprobe</code>, <code>pdftotext</code> or <code>pdftoppm</code>, ImageMagick <code>convert</code>; <code>file</code> or
+  <code>xxd</code> for other binary) and name <code>transfer</code> only when the session's
+  latest request offered it; an image's dimensions come from reading the
+  blob when it is within the attachment cap.</li>
+<li><strong>Accepted bridge media</strong> (section 4.3) come from the live agent process's
+  prompt capabilities, the source <code>KnownAgent.input_media</code> is recorded
+  from, limited to images and audio. A PDF or video attachment a bridged
+  result still carries goes as an embedded <code>resource</code> block with <code>blob</code>
+  and <code>mimeType</code>.</li>
+<li><strong>No <code>acp.bridge_media</code></strong> (section 4.3): bridge replies carry media
+  blocks to every agent; no declaration key turns them off.</li>
 </ul>
 
 

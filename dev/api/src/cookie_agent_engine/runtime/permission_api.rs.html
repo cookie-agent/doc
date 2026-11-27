@@ -191,135 +191,138 @@
 <a href=#191 id=191 data-nosnippet>191</a>        runtime: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>RuntimeId&gt;,
 <a href=#192 id=192 data-nosnippet>192</a>    ) -&gt; Vec&lt;OwnedScope&gt; {
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>attachments = <span class="self">self</span>.attachments_of(session);
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span><span class="kw-2">mut </span>scopes = attachments
-<a href=#195 id=195 data-nosnippet>195</a>            .iter()
-<a href=#196 id=196 data-nosnippet>196</a>            .filter(|attachment| runtime.is_none_or(|runtime| <span class="kw-2">&amp;</span>attachment.runtime_id == runtime))
-<a href=#197 id=197 data-nosnippet>197</a>            .map(|attachment| OwnedScope {
-<a href=#198 id=198 data-nosnippet>198</a>                runtime: <span class="prelude-val">Some</span>(attachment.runtime_id.as_str().to_owned()),
-<a href=#199 id=199 data-nosnippet>199</a>                workspace: attachment
-<a href=#200 id=200 data-nosnippet>200</a>                    .workspace
-<a href=#201 id=201 data-nosnippet>201</a>                    .as_deref()
-<a href=#202 id=202 data-nosnippet>202</a>                    .map(std::path::PathBuf::from),
-<a href=#203 id=203 data-nosnippet>203</a>                home: <span class="self">self</span>.attachment_home(attachment),
-<a href=#204 id=204 data-nosnippet>204</a>                platform: <span class="self">self</span>.attachment_platform(attachment),
-<a href=#205 id=205 data-nosnippet>205</a>            })
-<a href=#206 id=206 data-nosnippet>206</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">match </span>runtime {
-<a href=#208 id=208 data-nosnippet>208</a>            <span class="prelude-val">None </span>=&gt; scopes.push(OwnedScope::default()),
-<a href=#209 id=209 data-nosnippet>209</a>            <span class="prelude-val">Some</span>(runtime) <span class="kw">if </span>scopes.is_empty() =&gt; {
-<a href=#210 id=210 data-nosnippet>210</a>                scopes.push(OwnedScope {
-<a href=#211 id=211 data-nosnippet>211</a>                    runtime: <span class="prelude-val">Some</span>(runtime.as_str().to_owned()),
-<a href=#212 id=212 data-nosnippet>212</a>                    workspace: <span class="prelude-val">None</span>,
-<a href=#213 id=213 data-nosnippet>213</a>                    home: <span class="self">self</span>.runtime_home(runtime.as_str()),
-<a href=#214 id=214 data-nosnippet>214</a>                    platform: <span class="self">self</span>.runtime_platform(runtime.as_str()),
-<a href=#215 id=215 data-nosnippet>215</a>                });
-<a href=#216 id=216 data-nosnippet>216</a>            }
-<a href=#217 id=217 data-nosnippet>217</a>            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; {}
-<a href=#218 id=218 data-nosnippet>218</a>        }
-<a href=#219 id=219 data-nosnippet>219</a>        scopes
-<a href=#220 id=220 data-nosnippet>220</a>    }
-<a href=#221 id=221 data-nosnippet>221</a>
-<a href=#222 id=222 data-nosnippet>222</a>    <span class="doccomment">/// The home directory the runtime of `attachment` reported: its running
-<a href=#223 id=223 data-nosnippet>223</a>    /// instance's, else the one its runtime last reported.
-<a href=#224 id=224 data-nosnippet>224</a>    </span><span class="kw">fn </span>attachment_home(
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#226 id=226 data-nosnippet>226</a>        attachment: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeAttachment,
-<a href=#227 id=227 data-nosnippet>227</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="self">self</span>.inner
-<a href=#229 id=229 data-nosnippet>229</a>            .runtimes
-<a href=#230 id=230 data-nosnippet>230</a>            .instance(attachment)
-<a href=#231 id=231 data-nosnippet>231</a>            .and_then(|instance| instance.info().home().map(str::to_owned))
-<a href=#232 id=232 data-nosnippet>232</a>            .or_else(|| <span class="self">self</span>.runtime_home(attachment.runtime_id.as_str()))
-<a href=#233 id=233 data-nosnippet>233</a>    }
-<a href=#234 id=234 data-nosnippet>234</a>
-<a href=#235 id=235 data-nosnippet>235</a>    <span class="doccomment">/// The platform the runtime of `attachment` reported: its running
-<a href=#236 id=236 data-nosnippet>236</a>    /// instance's workspace's, else the one its runtime last reported.
-<a href=#237 id=237 data-nosnippet>237</a>    </span><span class="kw">fn </span>attachment_platform(
-<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#239 id=239 data-nosnippet>239</a>        attachment: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeAttachment,
-<a href=#240 id=240 data-nosnippet>240</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#241 id=241 data-nosnippet>241</a>        <span class="self">self</span>.inner
-<a href=#242 id=242 data-nosnippet>242</a>            .runtimes
-<a href=#243 id=243 data-nosnippet>243</a>            .instance(attachment)
-<a href=#244 id=244 data-nosnippet>244</a>            .and_then(|instance| {
-<a href=#245 id=245 data-nosnippet>245</a>                instance
-<a href=#246 id=246 data-nosnippet>246</a>                    .info()
-<a href=#247 id=247 data-nosnippet>247</a>                    .workspace()
-<a href=#248 id=248 data-nosnippet>248</a>                    .and_then(|workspace| workspace.platform().map(str::to_owned))
-<a href=#249 id=249 data-nosnippet>249</a>            })
-<a href=#250 id=250 data-nosnippet>250</a>            .or_else(|| <span class="self">self</span>.runtime_platform(attachment.runtime_id.as_str()))
-<a href=#251 id=251 data-nosnippet>251</a>    }
-<a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// The platform the runtime with ID `runtime_id` last reported, whose
-<a href=#254 id=254 data-nosnippet>254</a>    /// paths its permission resources are.
-<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">pub fn </span>runtime_platform(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#256 id=256 data-nosnippet>256</a>        <span class="self">self</span>.inner
-<a href=#257 id=257 data-nosnippet>257</a>            .runtimes
-<a href=#258 id=258 data-nosnippet>258</a>            .templates()
-<a href=#259 id=259 data-nosnippet>259</a>            .into_iter()
-<a href=#260 id=260 data-nosnippet>260</a>            .find(|template| template.runtime_id == runtime_id)
-<a href=#261 id=261 data-nosnippet>261</a>            .and_then(|template| template.listing.platform)
-<a href=#262 id=262 data-nosnippet>262</a>    }
-<a href=#263 id=263 data-nosnippet>263</a>
-<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// The home directory the runtime with ID `runtime_id` last reported.
-<a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">pub fn </span>runtime_home(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#266 id=266 data-nosnippet>266</a>        <span class="self">self</span>.inner
-<a href=#267 id=267 data-nosnippet>267</a>            .runtimes
-<a href=#268 id=268 data-nosnippet>268</a>            .templates()
-<a href=#269 id=269 data-nosnippet>269</a>            .into_iter()
-<a href=#270 id=270 data-nosnippet>270</a>            .find(|template| template.runtime_id == runtime_id)
-<a href=#271 id=271 data-nosnippet>271</a>            .and_then(|template| template.listing.home)
-<a href=#272 id=272 data-nosnippet>272</a>    }
-<a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">fn </span>invalidate_action_grants(
-<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#276 id=276 data-nosnippet>276</a>        session_id: SessionId,
-<a href=#277 id=277 data-nosnippet>277</a>        origin: <span class="kw-2">&amp;</span>SessionOrigin,
-<a href=#278 id=278 data-nosnippet>278</a>        action: <span class="kw-2">&amp;</span>PermissionAction,
-<a href=#279 id=279 data-nosnippet>279</a>        runtime: <span class="prelude-ty">Option</span>&lt;RuntimeId&gt;,
-<a href=#280 id=280 data-nosnippet>280</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>root = <span class="kw">match </span>origin {
-<a href=#282 id=282 data-nosnippet>282</a>            SessionOrigin::Root =&gt; session_id,
-<a href=#283 id=283 data-nosnippet>283</a>            SessionOrigin::Delegated {
-<a href=#284 id=284 data-nosnippet>284</a>                root_session_id, ..
-<a href=#285 id=285 data-nosnippet>285</a>            } =&gt; <span class="kw-2">*</span>root_session_id,
-<a href=#286 id=286 data-nosnippet>286</a>        };
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">let </span>grants = <span class="self">self
-<a href=#288 id=288 data-nosnippet>288</a>            </span>.inner
-<a href=#289 id=289 data-nosnippet>289</a>            .approvals
-<a href=#290 id=290 data-nosnippet>290</a>            .store
-<a href=#291 id=291 data-nosnippet>291</a>            .for_root(root)
-<a href=#292 id=292 data-nosnippet>292</a>            .into_iter()
-<a href=#293 id=293 data-nosnippet>293</a>            .filter(|grant| {
-<a href=#294 id=294 data-nosnippet>294</a>                runtime
-<a href=#295 id=295 data-nosnippet>295</a>                    .as_ref()
-<a href=#296 id=296 data-nosnippet>296</a>                    .is_none_or(|runtime| grant.runtime_id.as_ref() == <span class="prelude-val">Some</span>(runtime))
-<a href=#297 id=297 data-nosnippet>297</a>                    &amp;&amp; grant
-<a href=#298 id=298 data-nosnippet>298</a>                        .resources
-<a href=#299 id=299 data-nosnippet>299</a>                        .iter()
-<a href=#300 id=300 data-nosnippet>300</a>                        .any(|resource| resource.capability == <span class="kw-2">*</span>action)
-<a href=#301 id=301 data-nosnippet>301</a>            })
-<a href=#302 id=302 data-nosnippet>302</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>ids = grants
-<a href=#304 id=304 data-nosnippet>304</a>            .iter()
-<a href=#305 id=305 data-nosnippet>305</a>            .map(|grant| grant.grant_id)
-<a href=#306 id=306 data-nosnippet>306</a>            .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">if </span>ids.is_empty() {
-<a href=#308 id=308 data-nosnippet>308</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#309 id=309 data-nosnippet>309</a>        }
-<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span>digests = grants
-<a href=#311 id=311 data-nosnippet>311</a>            .iter()
-<a href=#312 id=312 data-nosnippet>312</a>            .flat_map(|grant| grant.resources.iter())
-<a href=#313 id=313 data-nosnippet>313</a>            .filter(|resource| resource.capability == <span class="kw-2">*</span>action)
-<a href=#314 id=314 data-nosnippet>314</a>            .map(|resource| resource.binding_digest.digest().clone())
-<a href=#315 id=315 data-nosnippet>315</a>            .collect();
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="self">self</span>.inner.grant_journals.for_root(root)<span class="question-mark">?</span>.invalidate(
-<a href=#317 id=317 data-nosnippet>317</a>            root,
-<a href=#318 id=318 data-nosnippet>318</a>            ids.iter().copied().collect(),
-<a href=#319 id=319 data-nosnippet>319</a>            digests,
-<a href=#320 id=320 data-nosnippet>320</a>        )<span class="question-mark">?</span>;
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="self">self</span>.inner.approvals.store.invalidate_grants(<span class="kw-2">&amp;</span>ids);
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="prelude-val">Ok</span>(())
-<a href=#323 id=323 data-nosnippet>323</a>    }
-<a href=#324 id=324 data-nosnippet>324</a>}
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span>root = <span class="self">self</span>.root_session_of(session.meta.session_id);
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="kw">let </span><span class="kw-2">mut </span>scopes = attachments
+<a href=#196 id=196 data-nosnippet>196</a>            .iter()
+<a href=#197 id=197 data-nosnippet>197</a>            .filter(|attachment| runtime.is_none_or(|runtime| <span class="kw-2">&amp;</span>attachment.runtime_id == runtime))
+<a href=#198 id=198 data-nosnippet>198</a>            .map(|attachment| OwnedScope {
+<a href=#199 id=199 data-nosnippet>199</a>                runtime: <span class="prelude-val">Some</span>(attachment.runtime_id.as_str().to_owned()),
+<a href=#200 id=200 data-nosnippet>200</a>                workspace: attachment
+<a href=#201 id=201 data-nosnippet>201</a>                    .workspace
+<a href=#202 id=202 data-nosnippet>202</a>                    .as_deref()
+<a href=#203 id=203 data-nosnippet>203</a>                    .map(std::path::PathBuf::from),
+<a href=#204 id=204 data-nosnippet>204</a>                home: <span class="self">self</span>.attachment_home(root, attachment),
+<a href=#205 id=205 data-nosnippet>205</a>                platform: <span class="self">self</span>.attachment_platform(root, attachment),
+<a href=#206 id=206 data-nosnippet>206</a>            })
+<a href=#207 id=207 data-nosnippet>207</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">match </span>runtime {
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="prelude-val">None </span>=&gt; scopes.push(OwnedScope::default()),
+<a href=#210 id=210 data-nosnippet>210</a>            <span class="prelude-val">Some</span>(runtime) <span class="kw">if </span>scopes.is_empty() =&gt; {
+<a href=#211 id=211 data-nosnippet>211</a>                scopes.push(OwnedScope {
+<a href=#212 id=212 data-nosnippet>212</a>                    runtime: <span class="prelude-val">Some</span>(runtime.as_str().to_owned()),
+<a href=#213 id=213 data-nosnippet>213</a>                    workspace: <span class="prelude-val">None</span>,
+<a href=#214 id=214 data-nosnippet>214</a>                    home: <span class="self">self</span>.runtime_home(runtime.as_str()),
+<a href=#215 id=215 data-nosnippet>215</a>                    platform: <span class="self">self</span>.runtime_platform(runtime.as_str()),
+<a href=#216 id=216 data-nosnippet>216</a>                });
+<a href=#217 id=217 data-nosnippet>217</a>            }
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; {}
+<a href=#219 id=219 data-nosnippet>219</a>        }
+<a href=#220 id=220 data-nosnippet>220</a>        scopes
+<a href=#221 id=221 data-nosnippet>221</a>    }
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="doccomment">/// The home directory the runtime of `attachment` reported: its running
+<a href=#224 id=224 data-nosnippet>224</a>    /// instance's, else the one its runtime last reported.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">fn </span>attachment_home(
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#227 id=227 data-nosnippet>227</a>        root: SessionId,
+<a href=#228 id=228 data-nosnippet>228</a>        attachment: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeAttachment,
+<a href=#229 id=229 data-nosnippet>229</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="self">self</span>.inner
+<a href=#231 id=231 data-nosnippet>231</a>            .runtimes
+<a href=#232 id=232 data-nosnippet>232</a>            .instance(root, attachment)
+<a href=#233 id=233 data-nosnippet>233</a>            .and_then(|instance| instance.info().home().map(str::to_owned))
+<a href=#234 id=234 data-nosnippet>234</a>            .or_else(|| <span class="self">self</span>.runtime_home(attachment.runtime_id.as_str()))
+<a href=#235 id=235 data-nosnippet>235</a>    }
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a>    <span class="doccomment">/// The platform the runtime of `attachment` reported: its running
+<a href=#238 id=238 data-nosnippet>238</a>    /// instance's workspace's, else the one its runtime last reported.
+<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">fn </span>attachment_platform(
+<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#241 id=241 data-nosnippet>241</a>        root: SessionId,
+<a href=#242 id=242 data-nosnippet>242</a>        attachment: <span class="kw-2">&amp;</span>cookie_agent_protocol::RuntimeAttachment,
+<a href=#243 id=243 data-nosnippet>243</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="self">self</span>.inner
+<a href=#245 id=245 data-nosnippet>245</a>            .runtimes
+<a href=#246 id=246 data-nosnippet>246</a>            .instance(root, attachment)
+<a href=#247 id=247 data-nosnippet>247</a>            .and_then(|instance| {
+<a href=#248 id=248 data-nosnippet>248</a>                instance
+<a href=#249 id=249 data-nosnippet>249</a>                    .info()
+<a href=#250 id=250 data-nosnippet>250</a>                    .workspace()
+<a href=#251 id=251 data-nosnippet>251</a>                    .and_then(|workspace| workspace.platform().map(str::to_owned))
+<a href=#252 id=252 data-nosnippet>252</a>            })
+<a href=#253 id=253 data-nosnippet>253</a>            .or_else(|| <span class="self">self</span>.runtime_platform(attachment.runtime_id.as_str()))
+<a href=#254 id=254 data-nosnippet>254</a>    }
+<a href=#255 id=255 data-nosnippet>255</a>
+<a href=#256 id=256 data-nosnippet>256</a>    <span class="doccomment">/// The platform the runtime with ID `runtime_id` last reported, whose
+<a href=#257 id=257 data-nosnippet>257</a>    /// paths its permission resources are.
+<a href=#258 id=258 data-nosnippet>258</a>    </span><span class="kw">pub fn </span>runtime_platform(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="self">self</span>.inner
+<a href=#260 id=260 data-nosnippet>260</a>            .runtimes
+<a href=#261 id=261 data-nosnippet>261</a>            .templates()
+<a href=#262 id=262 data-nosnippet>262</a>            .into_iter()
+<a href=#263 id=263 data-nosnippet>263</a>            .find(|template| template.runtime_id == runtime_id)
+<a href=#264 id=264 data-nosnippet>264</a>            .and_then(|template| template.listing.platform)
+<a href=#265 id=265 data-nosnippet>265</a>    }
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a>    <span class="doccomment">/// The home directory the runtime with ID `runtime_id` last reported.
+<a href=#268 id=268 data-nosnippet>268</a>    </span><span class="kw">pub fn </span>runtime_home(<span class="kw-2">&amp;</span><span class="self">self</span>, runtime_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="self">self</span>.inner
+<a href=#270 id=270 data-nosnippet>270</a>            .runtimes
+<a href=#271 id=271 data-nosnippet>271</a>            .templates()
+<a href=#272 id=272 data-nosnippet>272</a>            .into_iter()
+<a href=#273 id=273 data-nosnippet>273</a>            .find(|template| template.runtime_id == runtime_id)
+<a href=#274 id=274 data-nosnippet>274</a>            .and_then(|template| template.listing.home)
+<a href=#275 id=275 data-nosnippet>275</a>    }
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">fn </span>invalidate_action_grants(
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#279 id=279 data-nosnippet>279</a>        session_id: SessionId,
+<a href=#280 id=280 data-nosnippet>280</a>        origin: <span class="kw-2">&amp;</span>SessionOrigin,
+<a href=#281 id=281 data-nosnippet>281</a>        action: <span class="kw-2">&amp;</span>PermissionAction,
+<a href=#282 id=282 data-nosnippet>282</a>        runtime: <span class="prelude-ty">Option</span>&lt;RuntimeId&gt;,
+<a href=#283 id=283 data-nosnippet>283</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), EngineError&gt; {
+<a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">let </span>root = <span class="kw">match </span>origin {
+<a href=#285 id=285 data-nosnippet>285</a>            SessionOrigin::Root =&gt; session_id,
+<a href=#286 id=286 data-nosnippet>286</a>            SessionOrigin::Delegated {
+<a href=#287 id=287 data-nosnippet>287</a>                root_session_id, ..
+<a href=#288 id=288 data-nosnippet>288</a>            } =&gt; <span class="kw-2">*</span>root_session_id,
+<a href=#289 id=289 data-nosnippet>289</a>        };
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">let </span>grants = <span class="self">self
+<a href=#291 id=291 data-nosnippet>291</a>            </span>.inner
+<a href=#292 id=292 data-nosnippet>292</a>            .approvals
+<a href=#293 id=293 data-nosnippet>293</a>            .store
+<a href=#294 id=294 data-nosnippet>294</a>            .for_root(root)
+<a href=#295 id=295 data-nosnippet>295</a>            .into_iter()
+<a href=#296 id=296 data-nosnippet>296</a>            .filter(|grant| {
+<a href=#297 id=297 data-nosnippet>297</a>                runtime
+<a href=#298 id=298 data-nosnippet>298</a>                    .as_ref()
+<a href=#299 id=299 data-nosnippet>299</a>                    .is_none_or(|runtime| grant.runtime_id.as_ref() == <span class="prelude-val">Some</span>(runtime))
+<a href=#300 id=300 data-nosnippet>300</a>                    &amp;&amp; grant
+<a href=#301 id=301 data-nosnippet>301</a>                        .resources
+<a href=#302 id=302 data-nosnippet>302</a>                        .iter()
+<a href=#303 id=303 data-nosnippet>303</a>                        .any(|resource| resource.capability == <span class="kw-2">*</span>action)
+<a href=#304 id=304 data-nosnippet>304</a>            })
+<a href=#305 id=305 data-nosnippet>305</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">let </span>ids = grants
+<a href=#307 id=307 data-nosnippet>307</a>            .iter()
+<a href=#308 id=308 data-nosnippet>308</a>            .map(|grant| grant.grant_id)
+<a href=#309 id=309 data-nosnippet>309</a>            .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">if </span>ids.is_empty() {
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#312 id=312 data-nosnippet>312</a>        }
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">let </span>digests = grants
+<a href=#314 id=314 data-nosnippet>314</a>            .iter()
+<a href=#315 id=315 data-nosnippet>315</a>            .flat_map(|grant| grant.resources.iter())
+<a href=#316 id=316 data-nosnippet>316</a>            .filter(|resource| resource.capability == <span class="kw-2">*</span>action)
+<a href=#317 id=317 data-nosnippet>317</a>            .map(|resource| resource.binding_digest.digest().clone())
+<a href=#318 id=318 data-nosnippet>318</a>            .collect();
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="self">self</span>.inner.grant_journals.for_root(root)<span class="question-mark">?</span>.invalidate(
+<a href=#320 id=320 data-nosnippet>320</a>            root,
+<a href=#321 id=321 data-nosnippet>321</a>            ids.iter().copied().collect(),
+<a href=#322 id=322 data-nosnippet>322</a>            digests,
+<a href=#323 id=323 data-nosnippet>323</a>        )<span class="question-mark">?</span>;
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="self">self</span>.inner.approvals.store.invalidate_grants(<span class="kw-2">&amp;</span>ids);
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="prelude-val">Ok</span>(())
+<a href=#326 id=326 data-nosnippet>326</a>    }
+<a href=#327 id=327 data-nosnippet>327</a>}
 </code></pre></div></section></main></body></html>
