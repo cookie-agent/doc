@@ -2890,6 +2890,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#forwards" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forwards
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#share-links" class="md-nav__link">
     <span class="md-ellipsis">
       Share links
@@ -5636,6 +5645,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#forwards" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forwards
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#share-links" class="md-nav__link">
     <span class="md-ellipsis">
       Share links
@@ -6815,6 +6833,26 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td>The folder's <code>sha256</code>, <code>main</code>, and <code>entries</code></td>
 </tr>
 <tr>
+<td><code>forwards.list</code></td>
+<td><code>session?</code> (since 1.109.0; see <a href="#forwards">Forwards</a>)</td>
+<td><code>forwards</code>, newest first</td>
+</tr>
+<tr>
+<td><code>forward.create</code></td>
+<td><code>kind</code>, <code>to</code>, <code>from?</code>, <code>title?</code>, <code>expires_in_hours?</code> (since 1.109.0)</td>
+<td>The <code>forward</code></td>
+</tr>
+<tr>
+<td><code>forward.update</code></td>
+<td><code>forward</code> (its handle), <code>title?</code>, <code>expires_in_hours?</code> (since 1.109.0)</td>
+<td>The <code>forward</code></td>
+</tr>
+<tr>
+<td><code>forward.delete</code></td>
+<td><code>forward</code> (since 1.109.0)</td>
+<td><code>{}</code></td>
+</tr>
+<tr>
 <td><code>content.urls</code></td>
 <td><code>targets</code>: up to 64 of <code>{ type: "artifact", session_id, sha256, name? }</code> or <code>{ type: "asset", store, asset }</code> (since 1.108.0; see <a href="#folders">Folders</a>)</td>
 <td><code>urls</code>, one per target: <code>{ path, sha256, main? }</code> or <code>null</code></td>
@@ -7603,6 +7641,26 @@ the sandbox policy shared links' <code>raw</code> carries, and <code>?download</
 file an attachment. A web page reads a file over HTTP first and over
 <code>artifact.read</code> or <code>asset.read</code> when HTTP fails. A share guest's
 connection is refused the method and reads over its connection.</p>
+<h3 id="forwards">Forwards<a class="headerlink" href="#forwards" title="Permanent link">&para;</a></h3>
+<p>Since 1.109.0 the daemon forwards ports (<a href="../../specs/forwards/">spec</a>): an
+<code>http</code> forward serves a machine's web app under <code>/p/&lt;handle&gt;/</code> on the
+daemon's listener, and a <code>tcp</code> or <code>udp</code> forward listens on one machine and
+connects to <code>to</code> from another, the daemon relaying every byte over the
+runtimes' connections. A <code>Forward</code> has its <code>id</code>, its <code>handle</code> (<code>fw_</code> and 8
+hex digits), <code>kind</code>, <code>to</code> (<code>machine</code>, <code>host</code>, <code>port</code>), for <code>tcp</code> and <code>udp</code>
+<code>from</code> (<code>machine</code>, <code>bind</code>, <code>port</code>), <code>title?</code>, <code>owner?</code> (the root session
+whose tree made it; none for the user's), <code>created</code>, <code>expires_at?</code> (none
+for never), and its live <code>status</code> (<code>active</code>, <code>waiting</code> for a machine,
+<code>failed</code> with a <code>reason</code>, or <code>expired</code>), <code>address</code> (an <code>http</code> forward's
+path from the daemon's root, or the <code>bind:port</code> it listens on), counts of
+open and all connections, bytes in and out, and its <code>recent</code> connections.</p>
+<p><code>forward.create</code> makes the user's forward, which belongs to no session and
+lasts <code>expires_in_hours</code> (default 24; 0 or less never ends);
+<code>forward.update</code> sets a new title or an expiry counted from now; deleting a
+session tree deletes the forwards it made. <code>forwards.changed</code> says to list
+them again, at most once a second. A guest lists its shared session's
+forwards and nothing else. Refusals are <code>forward_not_found</code> and
+<code>forward_invalid</code>, with the reason in <code>detail</code>.</p>
 <h3 id="share-links">Share links<a class="headerlink" href="#share-links" title="Permanent link">&para;</a></h3>
 <p>Since 1.86.0 a share link is a public URL for one asset
 (<a href="../../specs/share-links/">spec</a>): anyone who has it opens the asset's
@@ -8590,6 +8648,10 @@ subscriptions to the deleted sessions end with them: no further
 <td>A webhook was created, changed, received an event, or was deleted; an empty object</td>
 </tr>
 <tr>
+<td><code>forwards.changed</code></td>
+<td>A forward was made, changed, or deleted, or its status or counts moved, at most once a second (since 1.109.0); an empty object</td>
+</tr>
+<tr>
 <td><code>notifications.changed</code></td>
 <td>A push subscription was added, changed, or removed (since 1.30.0); an empty object</td>
 </tr>
@@ -8624,7 +8686,7 @@ connections subscribed to the session; one that falls behind gets every
 subscribed session's list again. Changes within 250 ms of the first go as one
 notification, and a list that ends as it was last sent sends none.</p>
 <h3 id="daemon-wide-changes">Daemon-wide changes<a class="headerlink" href="#daemon-wide-changes" title="Permanent link">&para;</a></h3>
-<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, <code>runtimes.changed</code>, <code>plugins.changed</code>, <code>machines.changed</code>, <code>memory.changed</code>, <code>assets.changed</code>, <code>shares.changed</code>, <code>star.changed</code>, <code>projects.changed</code>, <code>crons.changed</code>, <code>webhooks.changed</code>, <code>notifications.changed</code>, <code>daemon.restarting</code>, and <code>onboarding.changed</code> reach every connection
+<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, <code>runtimes.changed</code>, <code>plugins.changed</code>, <code>machines.changed</code>, <code>memory.changed</code>, <code>assets.changed</code>, <code>shares.changed</code>, <code>star.changed</code>, <code>projects.changed</code>, <code>crons.changed</code>, <code>webhooks.changed</code>, <code>forwards.changed</code>, <code>notifications.changed</code>, <code>daemon.restarting</code>, and <code>onboarding.changed</code> reach every connection
 from its handshake on, whether or not it subscribed to any session, so each
 client sharing a daemon stays current with what the others do. Clients ignore
 notification methods they do not know.</p>
