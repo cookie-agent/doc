@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Source"],"fn":["act","copy_handle","download","download_source","fill_card","frame_height","is_text","load_viewing","mark_shared","refresh","reveal","reveal_attachment","show_within","tab_thumbnail_html","viewing_of"],"struct":["OpenAsset"]};
+window.SIDEBAR_ITEMS = {"enum":["Source"],"fn":["act","copy_handle","download","download_source","fill_card","fit_seen","frame_height","is_text","load_viewing","mark_shared","refresh","reveal","reveal_attachment","show_call","show_within","tab_thumbnail_html","viewing_of"],"struct":["OpenAsset"]};

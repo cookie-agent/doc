@@ -4568,6 +4568,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5192,6 +5201,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5212,10 +5230,12 @@
 
 
 <h1 id="media-the-agent-saw-in-folded-work">Media the agent saw, in folded work<a class="headerlink" href="#media-the-agent-saw-in-folded-work" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>approved</strong> (2026-11-26), with the user's decisions in
-<a href="#9-decisions-2026-11-26">section 9</a>. To be built after
-<a href="../attachment-handling/">attachment handling</a> is done. It uses that spec's
-cards, <code>artifact.thumbnail</code>, and TUI label lines. Builds on
+<p>Status: <strong>implemented</strong> (2026-11-27; no protocol change), with the user's
+decisions in <a href="#9-decisions-2026-11-26">section 9</a> and what the
+implementation does differently in the
+<a href="#implementation-notes">implementation notes</a>. Uses
+<a href="../attachment-handling/">attachment handling</a>'s cards, <code>artifact.thumbnail</code>,
+and TUI label lines. Builds on
 <a href="../reduced-transcript/">reduced transcript display</a>; there is a
 <a href="preview.html">preview</a>.</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
@@ -5390,6 +5410,46 @@ attachment spec's phase 4.</p>
 <li><strong>Q4.</strong> Yes, PDFs count. <code>artifact.thumbnail</code> draws a PDF's first page
   with <code>pdftoppm</code> (the PDF icon without it). A PDF tile opens the document
   beside the chat, and the media viewer skips it.</li>
+</ul>
+<h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Where it lives.</strong> <code>client_state::transcript_mode</code> lists the files
+  (<code>SeenMedia</code>, <code>WorkSummary::seen</code>, <code>seen_label</code>) as it counts the calls.
+  The web draws the strip in <code>render/transcript.rs</code> (<code>seen_strip_html</code>), a
+  reply part of its own beside the work row, so a live row's ticking time
+  does not redraw it; <code>assets.rs</code> fills each thumbnail as it nears the view
+  (<code>data-asset-view="seen"</code>), fits the strip to its line (<code>fit_seen</code>), opens
+  the viewer over it, and runs Show call. The TUI draws the line in
+  <code>ui/transcript/assistant.rs</code> (<code>seen_line_layout</code>), each name and the
+  <code>↗ open</code> a <code>BlockId::SeenMedia</code> region resolved as
+  <code>PointerTarget::SeenMedia</code>.</li>
+<li><strong>The model's view cannot be told yet.</strong> <code>fit_media</code> and
+  <code>elide_excess_media</code> fit each request as it is sent and record nothing a
+  client reads, and a call whose media the model cannot take fails at the
+  call. So <code>SeenMedia::not_shown</code> is always <code>None</code>: the badge (web) and the
+  <code>°</code> (TUI) are drawn from it but never show. Showing them needs the engine
+  to record what it dropped, a protocol addition. The TUI has no tooltip
+  line to explain the <code>°</code>.</li>
+<li><strong>Unnamed files</strong> are named by their kind and place, <code>image 2</code>, <code>video
+  1</code>, <code>PDF 1</code>, not <code>image N</code> for every kind.</li>
+<li><strong>The TUI's live line</strong> keeps the newest names, as the web strip does
+  (section 4.2): <code>+N</code> leads the line while the work goes on, and ends it
+  once the work ended.</li>
+<li><strong>Videos.</strong> The strip shows the daemon's thumbnail with a play glyph, and
+  no duration: the thumbnail does not carry it, and reading the video for
+  it would undo the lazy thumbnail. The viewer's video bar shows it. A
+  video the daemon draws no thumbnail of (no <code>ffmpeg</code>) shows a film icon
+  rather than being read whole; a PDF without one, its icon and name.</li>
+<li><strong>The viewer's caption</strong> is a line under the file: the call's header and
+  <strong>Show call</strong>; the bar on top keeps the file's name. The viewer reads a
+  file the strip showed as a thumbnail, or hid in <code>+N</code>, when it comes to it.</li>
+<li><strong>Show call</strong> flashes the call's row with an accent ring. In the TUI a
+  name opens the fold and scrolls its call into view, without a flash.</li>
+<li><strong>Live updates.</strong> The page's DOM patcher leaves a keyed element marked
+  <code>data-keep</code> as the page filled it, so a thumbnail does not fill again as
+  others join the strip. The plan's settled rows are keyed by each call's
+  status and media count too, so media that arrives after a fold settled
+  (a call still running when text broke the work) draws.</li>
 </ul>
 
 

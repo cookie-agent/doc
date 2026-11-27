@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_ZOOM","MIN_ZOOM"],"fn":["clock","swipe_turn"],"struct":["Viewing","Zoom"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_ZOOM","MIN_ZOOM"],"fn":["clock","swipe_turn"],"struct":["SeenCall","Viewing","Zoom"]};
