@@ -962,114 +962,119 @@
 <a href=#962 id=962 data-nosnippet>962</a>        replace,
 <a href=#963 id=963 data-nosnippet>963</a>        title: write.title.clone(),
 <a href=#964 id=964 data-nosnippet>964</a>        filename,
-<a href=#965 id=965 data-nosnippet>965</a>        media_type: media_type.to_owned(),
-<a href=#966 id=966 data-nosnippet>966</a>        bytes,
-<a href=#967 id=967 data-nosnippet>967</a>        stamp,
-<a href=#968 id=968 data-nosnippet>968</a>    };
-<a href=#969 id=969 data-nosnippet>969</a>    <span class="kw">let </span>(asset, new) = engine
-<a href=#970 id=970 data-nosnippet>970</a>        .assets_blocking(<span class="kw">move </span>|<span class="kw">_</span>, assets| {
-<a href=#971 id=971 data-nosnippet>971</a>            <span class="comment">// A new asset's handle is clear of both stores the session
-<a href=#972 id=972 data-nosnippet>972</a>            // reaches, so a handle names one asset there.
-<a href=#973 id=973 data-nosnippet>973</a>            </span><span class="kw">let </span>other = <span class="kw">if </span>store == stores.session {
-<a href=#974 id=974 data-nosnippet>974</a>                <span class="kw-2">&amp;</span>stores.project
-<a href=#975 id=975 data-nosnippet>975</a>            } <span class="kw">else </span>{
-<a href=#976 id=976 data-nosnippet>976</a>                <span class="kw-2">&amp;</span>stores.session
-<a href=#977 id=977 data-nosnippet>977</a>            };
-<a href=#978 id=978 data-nosnippet>978</a>            <span class="kw">let </span>avoid = assets
-<a href=#979 id=979 data-nosnippet>979</a>                .list(other)<span class="question-mark">?
-<a href=#980 id=980 data-nosnippet>980</a>                </span>.into_iter()
-<a href=#981 id=981 data-nosnippet>981</a>                .map(|asset| asset.handle)
-<a href=#982 id=982 data-nosnippet>982</a>                .collect::&lt;HashSet&lt;AssetHandle&gt;&gt;();
-<a href=#983 id=983 data-nosnippet>983</a>            <span class="prelude-val">Ok</span>(assets.write(<span class="kw-2">&amp;</span>store, request, <span class="kw-2">&amp;</span>avoid)<span class="question-mark">?</span>)
-<a href=#984 id=984 data-nosnippet>984</a>        })
-<a href=#985 id=985 data-nosnippet>985</a>        .<span class="kw">await
-<a href=#986 id=986 data-nosnippet>986</a>        </span>.map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>;
-<a href=#987 id=987 data-nosnippet>987</a>    <span class="kw">let </span>output = <span class="macro">format!</span>(
-<a href=#988 id=988 data-nosnippet>988</a>        <span class="string">"Saved {}, {}."</span>,
-<a href=#989 id=989 data-nosnippet>989</a>        scoped_summary(<span class="kw-2">&amp;</span>asset),
-<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw">if </span>new { <span class="string">"new" </span>} <span class="kw">else </span>{ <span class="string">"replaced" </span>}
-<a href=#991 id=991 data-nosnippet>991</a>    );
-<a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Saved {}"</span>, asset.title);
-<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">let </span>display = <span class="kw">crate</span>::base_tools::markdown_display(<span class="kw-2">&amp;</span>output);
-<a href=#994 id=994 data-nosnippet>994</a>    <span class="prelude-val">Ok</span>(text_result(<span class="kw-2">&amp;</span>title, output, display))
-<a href=#995 id=995 data-nosnippet>995</a>}
-<a href=#996 id=996 data-nosnippet>996</a>
-<a href=#997 id=997 data-nosnippet>997</a><span class="kw">async fn </span>execute_read(
-<a href=#998 id=998 data-nosnippet>998</a>    engine: Engine,
-<a href=#999 id=999 data-nosnippet>999</a>    context: ToolExecutionContext,
-<a href=#1000 id=1000 data-nosnippet>1000</a>    asset: Asset,
-<a href=#1001 id=1001 data-nosnippet>1001</a>    request: cookie_agent_runtime_api::text_tools::LineRequest,
-<a href=#1002 id=1002 data-nosnippet>1002</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolCompletion, ToolError&gt; {
-<a href=#1003 id=1003 data-nosnippet>1003</a>    <span class="kw">use </span>cookie_agent_runtime_api::text_tools::{MAX_PAGE_BYTES, page_text};
-<a href=#1004 id=1004 data-nosnippet>1004</a>
-<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">let </span>header = scoped_summary(<span class="kw-2">&amp;</span>asset);
-<a href=#1006 id=1006 data-nosnippet>1006</a>    <span class="kw">let </span>(store, id, total) = (asset.store.clone(), asset.id, asset.byte_length);
-<a href=#1007 id=1007 data-nosnippet>1007</a>    <span class="kw">let </span>(bytes, asset) = engine
-<a href=#1008 id=1008 data-nosnippet>1008</a>        .assets_blocking(<span class="kw">move </span>|<span class="kw">_</span>, stores| <span class="prelude-val">Ok</span>(stores.read(<span class="kw-2">&amp;</span>store, id, <span class="number">0</span>, total)<span class="question-mark">?</span>))
-<a href=#1009 id=1009 data-nosnippet>1009</a>        .<span class="kw">await
-<a href=#1010 id=1010 data-nosnippet>1010</a>        </span>.map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>;
-<a href=#1011 id=1011 data-nosnippet>1011</a>    <span class="kw">let </span>accepted = context.turn_context.input_media.iter().find(|media| {
-<a href=#1012 id=1012 data-nosnippet>1012</a>        media.delivery == cookie_agent_protocol::runtime_protocol::MediaDelivery::ToolResult
-<a href=#1013 id=1013 data-nosnippet>1013</a>            &amp;&amp; media.mime_types.iter().any(|accepted| {
-<a href=#1014 id=1014 data-nosnippet>1014</a>                cookie_agent_protocol::media_sniff::mime_type_matches(accepted, <span class="kw-2">&amp;</span>asset.media_type)
-<a href=#1015 id=1015 data-nosnippet>1015</a>            })
-<a href=#1016 id=1016 data-nosnippet>1016</a>            &amp;&amp; bytes.len() <span class="kw">as </span>u64 &lt;= media.max_bytes
-<a href=#1017 id=1017 data-nosnippet>1017</a>    });
-<a href=#1018 id=1018 data-nosnippet>1018</a>    <span class="kw">if </span>accepted.is_some()
-<a href=#1019 id=1019 data-nosnippet>1019</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(mime_type) = cookie_agent_protocol::MimeType::new(asset.media_type.clone())
-<a href=#1020 id=1020 data-nosnippet>1020</a>    {
-<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="kw">let </span>(reference, sha256) = context.artifacts.retain(context.session, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
-<a href=#1022 id=1022 data-nosnippet>1022</a>        <span class="kw">let </span>attachment = cookie_agent_protocol::ToolAttachment {
-<a href=#1023 id=1023 data-nosnippet>1023</a>            mime_type,
-<a href=#1024 id=1024 data-nosnippet>1024</a>            filename: asset.filename.clone(),
-<a href=#1025 id=1025 data-nosnippet>1025</a>            byte_length: bytes.len() <span class="kw">as </span>u64,
-<a href=#1026 id=1026 data-nosnippet>1026</a>            sha256: cookie_agent_protocol::Sha256Digest::new(sha256)
-<a href=#1027 id=1027 data-nosnippet>1027</a>                .map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>,
-<a href=#1028 id=1028 data-nosnippet>1028</a>            reference,
-<a href=#1029 id=1029 data-nosnippet>1029</a>        };
-<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(ToolCompletion::single(ToolResult {
-<a href=#1031 id=1031 data-nosnippet>1031</a>            title: safe_title(<span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title)),
-<a href=#1032 id=1032 data-nosnippet>1032</a>            display: <span class="macro">vec!</span>[Open::Known(DisplayBlock::Media {
-<a href=#1033 id=1033 data-nosnippet>1033</a>                artifact: attachment.artifact_ref(),
-<a href=#1034 id=1034 data-nosnippet>1034</a>                alt: <span class="prelude-val">Some</span>(asset.title.clone()),
-<a href=#1035 id=1035 data-nosnippet>1035</a>            })],
-<a href=#1036 id=1036 data-nosnippet>1036</a>            output: <span class="macro">format!</span>(<span class="string">"{header}: attached."</span>),
-<a href=#1037 id=1037 data-nosnippet>1037</a>            background: <span class="prelude-val">None</span>,
-<a href=#1038 id=1038 data-nosnippet>1038</a>            retained_output: <span class="prelude-val">None</span>,
-<a href=#1039 id=1039 data-nosnippet>1039</a>            metadata: <span class="macro">serde_json::json!</span>({}),
-<a href=#1040 id=1040 data-nosnippet>1040</a>            attachments: <span class="macro">vec!</span>[attachment],
-<a href=#1041 id=1041 data-nosnippet>1041</a>            additional_messages: Vec::new(),
-<a href=#1042 id=1042 data-nosnippet>1042</a>            loaded_tools: Vec::new(),
-<a href=#1043 id=1043 data-nosnippet>1043</a>        }));
-<a href=#1044 id=1044 data-nosnippet>1044</a>    }
-<a href=#1045 id=1045 data-nosnippet>1045</a>    <span class="kw">let </span>text = std::str::from_utf8(<span class="kw-2">&amp;</span>bytes)
-<a href=#1046 id=1046 data-nosnippet>1046</a>        .ok()
-<a href=#1047 id=1047 data-nosnippet>1047</a>        .filter(|text| !text.contains(<span class="string">'\0'</span>));
-<a href=#1048 id=1048 data-nosnippet>1048</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(text) = text <span class="kw">else </span>{
-<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(text_result(
-<a href=#1050 id=1050 data-nosnippet>1050</a>            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title),
-<a href=#1051 id=1051 data-nosnippet>1051</a>            <span class="macro">format!</span>(
-<a href=#1052 id=1052 data-nosnippet>1052</a>                <span class="string">"{header}: not text, and not a kind you take, so only its type and size are given."
-<a href=#1053 id=1053 data-nosnippet>1053</a>            </span>),
-<a href=#1054 id=1054 data-nosnippet>1054</a>            Vec::new(),
-<a href=#1055 id=1055 data-nosnippet>1055</a>        ));
-<a href=#1056 id=1056 data-nosnippet>1056</a>    };
-<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">let </span>page = page_text(text, request.resolve_text(text), MAX_PAGE_BYTES);
-<a href=#1058 id=1058 data-nosnippet>1058</a>    page.check_in_range(asset.handle.as_str())<span class="question-mark">?</span>;
-<a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="kw">let </span>output = <span class="macro">format!</span>(<span class="string">"{header}\n{}"</span>, page.text_with_continuation());
-<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="kw">let </span>display = <span class="macro">vec!</span>[Open::Known(
-<a href=#1061 id=1061 data-nosnippet>1061</a>        page.excerpt_block(
-<a href=#1062 id=1062 data-nosnippet>1062</a>            asset
-<a href=#1063 id=1063 data-nosnippet>1063</a>                .filename
-<a href=#1064 id=1064 data-nosnippet>1064</a>                .clone()
-<a href=#1065 id=1065 data-nosnippet>1065</a>                .unwrap_or_else(|| asset.handle.to_string()),
-<a href=#1066 id=1066 data-nosnippet>1066</a>            <span class="prelude-val">None</span>,
-<a href=#1067 id=1067 data-nosnippet>1067</a>        ),
-<a href=#1068 id=1068 data-nosnippet>1068</a>    )];
-<a href=#1069 id=1069 data-nosnippet>1069</a>    <span class="prelude-val">Ok</span>(text_result(
-<a href=#1070 id=1070 data-nosnippet>1070</a>        <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title),
-<a href=#1071 id=1071 data-nosnippet>1071</a>        output,
-<a href=#1072 id=1072 data-nosnippet>1072</a>        display,
-<a href=#1073 id=1073 data-nosnippet>1073</a>    ))
-<a href=#1074 id=1074 data-nosnippet>1074</a>}
+<a href=#965 id=965 data-nosnippet>965</a>        content: <span class="kw">crate</span>::assets::AssetContent::File {
+<a href=#966 id=966 data-nosnippet>966</a>            media_type: media_type.to_owned(),
+<a href=#967 id=967 data-nosnippet>967</a>            bytes,
+<a href=#968 id=968 data-nosnippet>968</a>        },
+<a href=#969 id=969 data-nosnippet>969</a>        stamp,
+<a href=#970 id=970 data-nosnippet>970</a>    };
+<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">let </span>(asset, new) = engine
+<a href=#972 id=972 data-nosnippet>972</a>        .assets_blocking(<span class="kw">move </span>|<span class="kw">_</span>, assets| {
+<a href=#973 id=973 data-nosnippet>973</a>            <span class="comment">// A new asset's handle is clear of both stores the session
+<a href=#974 id=974 data-nosnippet>974</a>            // reaches, so a handle names one asset there.
+<a href=#975 id=975 data-nosnippet>975</a>            </span><span class="kw">let </span>other = <span class="kw">if </span>store == stores.session {
+<a href=#976 id=976 data-nosnippet>976</a>                <span class="kw-2">&amp;</span>stores.project
+<a href=#977 id=977 data-nosnippet>977</a>            } <span class="kw">else </span>{
+<a href=#978 id=978 data-nosnippet>978</a>                <span class="kw-2">&amp;</span>stores.session
+<a href=#979 id=979 data-nosnippet>979</a>            };
+<a href=#980 id=980 data-nosnippet>980</a>            <span class="kw">let </span>avoid = assets
+<a href=#981 id=981 data-nosnippet>981</a>                .list(other)<span class="question-mark">?
+<a href=#982 id=982 data-nosnippet>982</a>                </span>.into_iter()
+<a href=#983 id=983 data-nosnippet>983</a>                .map(|asset| asset.handle)
+<a href=#984 id=984 data-nosnippet>984</a>                .collect::&lt;HashSet&lt;AssetHandle&gt;&gt;();
+<a href=#985 id=985 data-nosnippet>985</a>            <span class="prelude-val">Ok</span>(assets.write(<span class="kw-2">&amp;</span>store, request, <span class="kw-2">&amp;</span>avoid)<span class="question-mark">?</span>)
+<a href=#986 id=986 data-nosnippet>986</a>        })
+<a href=#987 id=987 data-nosnippet>987</a>        .<span class="kw">await
+<a href=#988 id=988 data-nosnippet>988</a>        </span>.map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>;
+<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">let </span>output = <span class="macro">format!</span>(
+<a href=#990 id=990 data-nosnippet>990</a>        <span class="string">"Saved {}, {}."</span>,
+<a href=#991 id=991 data-nosnippet>991</a>        scoped_summary(<span class="kw-2">&amp;</span>asset),
+<a href=#992 id=992 data-nosnippet>992</a>        <span class="kw">if </span>new { <span class="string">"new" </span>} <span class="kw">else </span>{ <span class="string">"replaced" </span>}
+<a href=#993 id=993 data-nosnippet>993</a>    );
+<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Saved {}"</span>, asset.title);
+<a href=#995 id=995 data-nosnippet>995</a>    <span class="kw">let </span>display = <span class="kw">crate</span>::base_tools::markdown_display(<span class="kw-2">&amp;</span>output);
+<a href=#996 id=996 data-nosnippet>996</a>    <span class="prelude-val">Ok</span>(text_result(<span class="kw-2">&amp;</span>title, output, display))
+<a href=#997 id=997 data-nosnippet>997</a>}
+<a href=#998 id=998 data-nosnippet>998</a>
+<a href=#999 id=999 data-nosnippet>999</a><span class="kw">async fn </span>execute_read(
+<a href=#1000 id=1000 data-nosnippet>1000</a>    engine: Engine,
+<a href=#1001 id=1001 data-nosnippet>1001</a>    context: ToolExecutionContext,
+<a href=#1002 id=1002 data-nosnippet>1002</a>    asset: Asset,
+<a href=#1003 id=1003 data-nosnippet>1003</a>    request: cookie_agent_runtime_api::text_tools::LineRequest,
+<a href=#1004 id=1004 data-nosnippet>1004</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolCompletion, ToolError&gt; {
+<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">use </span>cookie_agent_runtime_api::text_tools::{MAX_PAGE_BYTES, page_text};
+<a href=#1006 id=1006 data-nosnippet>1006</a>
+<a href=#1007 id=1007 data-nosnippet>1007</a>    <span class="kw">let </span>header = scoped_summary(<span class="kw-2">&amp;</span>asset);
+<a href=#1008 id=1008 data-nosnippet>1008</a>    <span class="kw">let </span>(store, id, total) = (asset.store.clone(), asset.id, asset.byte_length);
+<a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="kw">let </span>(bytes, asset) = engine
+<a href=#1010 id=1010 data-nosnippet>1010</a>        .assets_blocking(<span class="kw">move </span>|<span class="kw">_</span>, stores| {
+<a href=#1011 id=1011 data-nosnippet>1011</a>            <span class="kw">let </span>part = stores.read(<span class="kw-2">&amp;</span>store, id, <span class="prelude-val">None</span>, <span class="number">0</span>, total)<span class="question-mark">?</span>;
+<a href=#1012 id=1012 data-nosnippet>1012</a>            <span class="prelude-val">Ok</span>((part.bytes, part.asset))
+<a href=#1013 id=1013 data-nosnippet>1013</a>        })
+<a href=#1014 id=1014 data-nosnippet>1014</a>        .<span class="kw">await
+<a href=#1015 id=1015 data-nosnippet>1015</a>        </span>.map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>;
+<a href=#1016 id=1016 data-nosnippet>1016</a>    <span class="kw">let </span>accepted = context.turn_context.input_media.iter().find(|media| {
+<a href=#1017 id=1017 data-nosnippet>1017</a>        media.delivery == cookie_agent_protocol::runtime_protocol::MediaDelivery::ToolResult
+<a href=#1018 id=1018 data-nosnippet>1018</a>            &amp;&amp; media.mime_types.iter().any(|accepted| {
+<a href=#1019 id=1019 data-nosnippet>1019</a>                cookie_agent_protocol::media_sniff::mime_type_matches(accepted, <span class="kw-2">&amp;</span>asset.media_type)
+<a href=#1020 id=1020 data-nosnippet>1020</a>            })
+<a href=#1021 id=1021 data-nosnippet>1021</a>            &amp;&amp; bytes.len() <span class="kw">as </span>u64 &lt;= media.max_bytes
+<a href=#1022 id=1022 data-nosnippet>1022</a>    });
+<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="kw">if </span>accepted.is_some()
+<a href=#1024 id=1024 data-nosnippet>1024</a>        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(mime_type) = cookie_agent_protocol::MimeType::new(asset.media_type.clone())
+<a href=#1025 id=1025 data-nosnippet>1025</a>    {
+<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="kw">let </span>(reference, sha256) = context.artifacts.retain(context.session, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
+<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>attachment = cookie_agent_protocol::ToolAttachment {
+<a href=#1028 id=1028 data-nosnippet>1028</a>            mime_type,
+<a href=#1029 id=1029 data-nosnippet>1029</a>            filename: asset.filename.clone(),
+<a href=#1030 id=1030 data-nosnippet>1030</a>            byte_length: bytes.len() <span class="kw">as </span>u64,
+<a href=#1031 id=1031 data-nosnippet>1031</a>            sha256: cookie_agent_protocol::Sha256Digest::new(sha256)
+<a href=#1032 id=1032 data-nosnippet>1032</a>                .map_err(|error| refused(error.to_string()))<span class="question-mark">?</span>,
+<a href=#1033 id=1033 data-nosnippet>1033</a>            reference,
+<a href=#1034 id=1034 data-nosnippet>1034</a>        };
+<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(ToolCompletion::single(ToolResult {
+<a href=#1036 id=1036 data-nosnippet>1036</a>            title: safe_title(<span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title)),
+<a href=#1037 id=1037 data-nosnippet>1037</a>            display: <span class="macro">vec!</span>[Open::Known(DisplayBlock::Media {
+<a href=#1038 id=1038 data-nosnippet>1038</a>                artifact: attachment.artifact_ref(),
+<a href=#1039 id=1039 data-nosnippet>1039</a>                alt: <span class="prelude-val">Some</span>(asset.title.clone()),
+<a href=#1040 id=1040 data-nosnippet>1040</a>            })],
+<a href=#1041 id=1041 data-nosnippet>1041</a>            output: <span class="macro">format!</span>(<span class="string">"{header}: attached."</span>),
+<a href=#1042 id=1042 data-nosnippet>1042</a>            background: <span class="prelude-val">None</span>,
+<a href=#1043 id=1043 data-nosnippet>1043</a>            retained_output: <span class="prelude-val">None</span>,
+<a href=#1044 id=1044 data-nosnippet>1044</a>            metadata: <span class="macro">serde_json::json!</span>({}),
+<a href=#1045 id=1045 data-nosnippet>1045</a>            attachments: <span class="macro">vec!</span>[attachment],
+<a href=#1046 id=1046 data-nosnippet>1046</a>            additional_messages: Vec::new(),
+<a href=#1047 id=1047 data-nosnippet>1047</a>            loaded_tools: Vec::new(),
+<a href=#1048 id=1048 data-nosnippet>1048</a>        }));
+<a href=#1049 id=1049 data-nosnippet>1049</a>    }
+<a href=#1050 id=1050 data-nosnippet>1050</a>    <span class="kw">let </span>text = std::str::from_utf8(<span class="kw-2">&amp;</span>bytes)
+<a href=#1051 id=1051 data-nosnippet>1051</a>        .ok()
+<a href=#1052 id=1052 data-nosnippet>1052</a>        .filter(|text| !text.contains(<span class="string">'\0'</span>));
+<a href=#1053 id=1053 data-nosnippet>1053</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(text) = text <span class="kw">else </span>{
+<a href=#1054 id=1054 data-nosnippet>1054</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(text_result(
+<a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title),
+<a href=#1056 id=1056 data-nosnippet>1056</a>            <span class="macro">format!</span>(
+<a href=#1057 id=1057 data-nosnippet>1057</a>                <span class="string">"{header}: not text, and not a kind you take, so only its type and size are given."
+<a href=#1058 id=1058 data-nosnippet>1058</a>            </span>),
+<a href=#1059 id=1059 data-nosnippet>1059</a>            Vec::new(),
+<a href=#1060 id=1060 data-nosnippet>1060</a>        ));
+<a href=#1061 id=1061 data-nosnippet>1061</a>    };
+<a href=#1062 id=1062 data-nosnippet>1062</a>    <span class="kw">let </span>page = page_text(text, request.resolve_text(text), MAX_PAGE_BYTES);
+<a href=#1063 id=1063 data-nosnippet>1063</a>    page.check_in_range(asset.handle.as_str())<span class="question-mark">?</span>;
+<a href=#1064 id=1064 data-nosnippet>1064</a>    <span class="kw">let </span>output = <span class="macro">format!</span>(<span class="string">"{header}\n{}"</span>, page.text_with_continuation());
+<a href=#1065 id=1065 data-nosnippet>1065</a>    <span class="kw">let </span>display = <span class="macro">vec!</span>[Open::Known(
+<a href=#1066 id=1066 data-nosnippet>1066</a>        page.excerpt_block(
+<a href=#1067 id=1067 data-nosnippet>1067</a>            asset
+<a href=#1068 id=1068 data-nosnippet>1068</a>                .filename
+<a href=#1069 id=1069 data-nosnippet>1069</a>                .clone()
+<a href=#1070 id=1070 data-nosnippet>1070</a>                .unwrap_or_else(|| asset.handle.to_string()),
+<a href=#1071 id=1071 data-nosnippet>1071</a>            <span class="prelude-val">None</span>,
+<a href=#1072 id=1072 data-nosnippet>1072</a>        ),
+<a href=#1073 id=1073 data-nosnippet>1073</a>    )];
+<a href=#1074 id=1074 data-nosnippet>1074</a>    <span class="prelude-val">Ok</span>(text_result(
+<a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Read {}"</span>, asset.title),
+<a href=#1076 id=1076 data-nosnippet>1076</a>        output,
+<a href=#1077 id=1077 data-nosnippet>1077</a>        display,
+<a href=#1078 id=1078 data-nosnippet>1078</a>    ))
+<a href=#1079 id=1079 data-nosnippet>1079</a>}
 </code></pre></div></section></main></body></html>

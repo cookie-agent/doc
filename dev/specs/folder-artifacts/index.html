@@ -5114,6 +5114,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5134,8 +5143,9 @@
 
 
 <h1 id="folder-artifacts-a-page-with-its-files-and-every-file-over-http">Folder artifacts: a page with its files, and every file over HTTP<a class="headerlink" href="#folder-artifacts-a-page-with-its-files-and-every-file-over-http" title="Permanent link">&para;</a></h1>
-<p>Status: <strong>draft</strong> (2026-11-26), not approved. Decisions are in
-<a href="#11-decisions">section 11</a>.</p>
+<p>Status: <strong>approved</strong> (2026-11-26), being implemented. Decisions are in
+<a href="#11-decisions">section 11</a>; where the code differs, see the
+<a href="#implementation-notes">implementation notes</a>.</p>
 <h2 id="1-problem">1. Problem<a class="headerlink" href="#1-problem" title="Permanent link">&para;</a></h2>
 <p>An attachment or an asset is one file. An HTML page shows in a sandboxed
 frame whose <code>srcdoc</code> is the page's bytes (<a href="../assets/">assets</a> section 8.2),
@@ -5739,6 +5749,28 @@ with the phase that changes them.</p>
   but every entry served means seeking into the zip, two folders never
   share files, and a rewrite of one figure stores the whole folder again.
   Rejected for the manifest.</li>
+</ul>
+<h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
+<p>Phase 1 (client protocol 1.104.0, plugin protocol 1.49.0, runtime protocol
+1.18.0). Where the code differs from the sections above:</p>
+<ul>
+<li><strong>An entry's size is <code>byte_length</code>,</strong> not <code>size</code>, the member the engine's
+  reference walk already follows (<code>collect_artifact_references</code> counts an
+  object with <code>sha256</code>, <code>byte_length</code>, and <code>media_type</code>). So a fork or a
+  revert that keeps a manifest keeps its files with no code of its own.</li>
+<li><strong><code>folder</code> is <code>{ main, files, bytes }</code>.</strong> <code>bytes</code> is the files' total, so
+  a card shows a folder's size without reading its manifest. The
+  reference's own <code>byte_length</code> and <code>sha256</code> are the manifest blob's, which
+  the stores check a blob against, and an <code>Asset</code>'s <code>byte_length</code> is the
+  manifest's too.</li>
+<li><strong>Paths are kept as the runtime sends them,</strong> not NFC-normalized: the
+  workspace has no Unicode normalization crate, and the runtime's tar
+  stream already gives each name once.</li>
+<li><strong>A blob is a manifest</strong> when it starts with <code>{"cookie_folder":</code> and reads
+  as one; <code>artifact.read</code> without a <code>path</code> looks at the first bytes to tell.</li>
+<li><strong>Folder assets' files are staged</strong> (<code>AssetStores::stage_blob</code>) before the
+  write that names them, which checks each is still there. A staged file no
+  write named is removed by the store's sweep at the next start.</li>
 </ul>
 
 

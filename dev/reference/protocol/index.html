@@ -2881,6 +2881,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#folders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Folders
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#share-links" class="md-nav__link">
     <span class="md-ellipsis">
       Share links
@@ -5586,6 +5595,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#folders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Folders
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#share-links" class="md-nav__link">
     <span class="md-ellipsis">
       Share links
@@ -6747,8 +6765,13 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>artifact.read</code></td>
-<td>Session ID, <code>sha256</code>, <code>offset</code>, <code>length</code> (at most 1 MiB)</td>
+<td>Session ID, <code>sha256</code>, optional <code>path</code> (since 1.104.0; see <a href="#folders">Folders</a>), <code>offset</code>, <code>length</code> (at most 1 MiB)</td>
 <td>Base64 <code>data</code>, <code>total_bytes</code>, <code>media_type</code></td>
+</tr>
+<tr>
+<td><code>artifact.manifest</code></td>
+<td>Session ID, <code>sha256</code> of a folder (since 1.104.0; see <a href="#folders">Folders</a>)</td>
+<td>The folder's <code>sha256</code>, <code>main</code>, and <code>entries</code></td>
 </tr>
 <tr>
 <td><code>assets.list</code></td>
@@ -6777,8 +6800,13 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 </tr>
 <tr>
 <td><code>asset.read</code></td>
-<td><code>store</code>, <code>asset</code> ID, <code>offset</code>, <code>length</code> (at most 1 MiB)</td>
+<td><code>store</code>, <code>asset</code> ID, optional <code>path</code> (since 1.104.0; see <a href="#folders">Folders</a>), <code>offset</code>, <code>length</code> (at most 1 MiB)</td>
 <td>Base64 <code>data</code>, <code>total_bytes</code>, <code>media_type</code>, and the <code>sha256</code> of the content read</td>
+</tr>
+<tr>
+<td><code>asset.manifest</code></td>
+<td><code>store</code>, <code>asset</code> ID of a folder asset (since 1.104.0; see <a href="#folders">Folders</a>)</td>
+<td>The folder's <code>sha256</code>, <code>main</code>, and <code>entries</code></td>
 </tr>
 <tr>
 <td><code>asset.thumbnail</code></td>
@@ -7457,6 +7485,23 @@ absent; a session tree's own assets go by its root's project. <code>scope</code>
 <code>session</code> or <code>project</code>, both when absent. The result's <code>sessions</code> names
 each tree whose own assets it lists: its root <code>session</code>, <code>title</code>, and
 <code>project</code>. A project the daemon does not have is <code>-32602</code>.</p>
+<h3 id="folders">Folders<a class="headerlink" href="#folders" title="Permanent link">&para;</a></h3>
+<p>Since 1.104.0 an attachment or an asset may be a <strong>folder</strong> with a main
+file (<a href="../../specs/folder-artifacts/">spec</a>). A folder is stored as its files
+and one manifest, all in the store's blobs; its digest is the manifest's.
+A reference to one, an <code>ArtifactRef</code>, a file part's <code>PersistedFilePart</code>, an
+<code>Asset</code>, or an <code>asset</code> display block, carries <code>folder</code> <code>{ main, files,
+bytes }</code>: the main file's path, how many files the folder holds, and their
+bytes together. Its <code>sha256</code> and <code>byte_length</code> are the manifest's, and its
+<code>media_type</code> is the main file's, so a client that shows a reference by its
+media type shows a folder as its main file.</p>
+<p><code>artifact.read</code> and <code>asset.read</code> take an optional <code>path</code> and read that file
+of a folder, with the file's own <code>total_bytes</code> and <code>media_type</code>; without
+one, a folder reads as its main file. A <code>path</code> the folder does not have, or
+one given for a file, is <code>bad_params</code> with <code>field</code> <code>path</code>.
+<code>artifact.manifest</code> and <code>asset.manifest</code> return the folder's <code>entries</code>,
+each <code>{ path, sha256, byte_length, media_type }</code>, sorted by path; asked of a
+file, they are <code>bad_params</code>.</p>
 <h3 id="share-links">Share links<a class="headerlink" href="#share-links" title="Permanent link">&para;</a></h3>
 <p>Since 1.86.0 a share link is a public URL for one asset
 (<a href="../../specs/share-links/">spec</a>): anyone who has it opens the asset's
