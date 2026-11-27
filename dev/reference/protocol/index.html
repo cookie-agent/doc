@@ -2899,6 +2899,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#the-star-card" class="md-nav__link">
+    <span class="md-ellipsis">
+      The star card
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conversation-shares" class="md-nav__link">
     <span class="md-ellipsis">
       Conversation shares
@@ -5636,6 +5645,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#the-star-card" class="md-nav__link">
+    <span class="md-ellipsis">
+      The star card
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#conversation-shares" class="md-nav__link">
     <span class="md-ellipsis">
       Conversation shares
@@ -5961,7 +5979,7 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over a WebSocket at <code>/ws</code>. This build speaks
-client protocol <code>1.105.0</code>; the <a href="../protocol-changelog/">changelog</a> lists what
+client protocol <code>1.106.0</code>; the <a href="../protocol-changelog/">changelog</a> lists what
 each version changed. A client and a daemon connect when their majors are
 equal: a minor only adds, so the two use what the lower minor includes, and
 the patch never matters. <a href="../compatibility/">Compatibility</a> states the rules
@@ -6857,6 +6875,16 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td>Empty object</td>
 </tr>
 <tr>
+<td><code>star.status</code></td>
+<td>None (since 1.106.0; see <a href="#the-star-card">The star card</a>)</td>
+<td><code>show</code>, and <code>login?</code>: the GitHub account the daemon stars as</td>
+</tr>
+<tr>
+<td><code>star.answer</code></td>
+<td><code>answer</code>: <code>star</code>, <code>opened</code>, <code>later</code>, or <code>dismiss</code> (since 1.106.0; see <a href="#the-star-card">The star card</a>)</td>
+<td><code>starred</code>: GitHub accepted the star</td>
+</tr>
+<tr>
 <td><code>shares.list</code></td>
 <td><code>asset?</code> ID, <code>session?</code> ID (since 1.88.0; see <a href="#share-links">Share links</a>)</td>
 <td>The live <code>shares</code>, newest first, <code>enabled</code>, and the live <code>sessions</code> (conversation shares, since 1.88.0)</td>
@@ -7579,6 +7607,23 @@ deleted session tree's and project's (<code>project.delete</code> also returns
 <code>shares_disabled</code> and every link answers as gone; <code>shares.list</code> says so in
 <code>enabled</code>. Each change but a view sends <code>shares.changed</code> to every
 connection.</p>
+<h3 id="the-star-card">The star card<a class="headerlink" href="#the-star-card" title="Permanent link">&para;</a></h3>
+<p>Since 1.106.0 the daemon decides when the web page asks for a GitHub star
+(<a href="../../specs/github-star/">spec</a>). <code>star.status</code> answers <code>show: true</code> once
+the daemon has been used for 7 days (from <code>first_used</code> in
+<code>&lt;data_root&gt;/star.json</code>), unless an answer ended the card or <strong>Later</strong>
+hid it within the last 7 days. With a GitHub token on its machine
+(<code>GH_TOKEN</code>, <code>GITHUB_TOKEN</code>, or <code>gh auth token</code>) the daemon also names the
+account in <code>login</code>, and when that account has starred the repository it
+records so and answers <code>show: false</code>. It reaches GitHub only once the card
+would otherwise show, and keeps what GitHub said for 24 hours.</p>
+<p><code>star.answer</code> records the user's answer: <code>star</code> stars as <code>login</code>, and
+<code>starred</code> says whether GitHub accepted; <code>opened</code> says the page opened the
+repository's page; <code>later</code> hides the card for 7 days; <code>dismiss</code> ends it.
+<code>star</code> and <code>opened</code> end it too, whatever the outcome. An answer after the
+card ended changes nothing, and an answer the daemon does not know is
+<code>-32602</code>. Each change sends <code>star.changed</code> to every connection. Guests get
+neither method nor the notification.</p>
 <h3 id="conversation-shares">Conversation shares<a class="headerlink" href="#conversation-shares" title="Permanent link">&para;</a></h3>
 <p>Since 1.88.0 a conversation share is a share link that opens a root session
 for whoever has it (<a href="../../specs/conversation-shares/">spec</a>). A <code>SessionShare</code>
@@ -8512,6 +8557,10 @@ subscriptions to the deleted sessions end with them: no further
 <td>A share link was made, changed, revoked, or removed with its asset; an empty object (since 1.86.0)</td>
 </tr>
 <tr>
+<td><code>star.changed</code></td>
+<td>The star card's state changed; ask <code>star.status</code> again. An empty object (since 1.106.0)</td>
+</tr>
+<tr>
 <td><code>projects.changed</code></td>
 <td>A project was created, changed, or deleted; an empty object</td>
 </tr>
@@ -8558,7 +8607,7 @@ connections subscribed to the session; one that falls behind gets every
 subscribed session's list again. Changes within 250 ms of the first go as one
 notification, and a list that ends as it was last sent sends none.</p>
 <h3 id="daemon-wide-changes">Daemon-wide changes<a class="headerlink" href="#daemon-wide-changes" title="Permanent link">&para;</a></h3>
-<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, <code>runtimes.changed</code>, <code>plugins.changed</code>, <code>machines.changed</code>, <code>memory.changed</code>, <code>assets.changed</code>, <code>shares.changed</code>, <code>projects.changed</code>, <code>crons.changed</code>, <code>webhooks.changed</code>, <code>notifications.changed</code>, <code>daemon.restarting</code>, and <code>onboarding.changed</code> reach every connection
+<p><code>runtime.changed</code>, <code>sessions.changed</code>, <code>mcp.changed</code>, <code>runtimes.changed</code>, <code>plugins.changed</code>, <code>machines.changed</code>, <code>memory.changed</code>, <code>assets.changed</code>, <code>shares.changed</code>, <code>star.changed</code>, <code>projects.changed</code>, <code>crons.changed</code>, <code>webhooks.changed</code>, <code>notifications.changed</code>, <code>daemon.restarting</code>, and <code>onboarding.changed</code> reach every connection
 from its handshake on, whether or not it subscribed to any session, so each
 client sharing a daemon stays current with what the others do. Clients ignore
 notification methods they do not know.</p>

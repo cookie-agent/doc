@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["daemon_has_star"]};
