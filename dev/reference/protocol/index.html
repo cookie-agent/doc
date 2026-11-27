@@ -6815,6 +6815,11 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td>The folder's <code>sha256</code>, <code>main</code>, and <code>entries</code></td>
 </tr>
 <tr>
+<td><code>content.urls</code></td>
+<td><code>targets</code>: up to 64 of <code>{ type: "artifact", session_id, sha256, name? }</code> or <code>{ type: "asset", store, asset }</code> (since 1.108.0; see <a href="#folders">Folders</a>)</td>
+<td><code>urls</code>, one per target: <code>{ path, sha256, main? }</code> or <code>null</code></td>
+</tr>
+<tr>
 <td><code>artifact.thumbnail</code></td>
 <td>Session ID, <code>sha256</code> (since 1.105.0; see <a href="#media">Media</a>)</td>
 <td>As <code>asset.thumbnail</code>: the <code>sha256</code>, its <code>thumbnail?</code>, and without one <code>retry_later</code></td>
@@ -7586,6 +7591,18 @@ one given for a file, is <code>bad_params</code> with <code>field</code> <code>p
 <code>artifact.manifest</code> and <code>asset.manifest</code> return the folder's <code>entries</code>,
 each <code>{ path, sha256, byte_length, media_type }</code>, sorted by path; asked of a
 file, they are <code>bad_params</code>.</p>
+<p>Since 1.108.0 the daemon serves artifacts and assets over HTTP, files and
+folders alike, on its <code>/f/</code> route: <code>content.urls</code> returns, for each target,
+the <code>path</code> from the daemon's root (<code>f/&lt;store&gt;/&lt;sha256&gt;/&lt;key&gt;/&lt;name&gt;</code> for a
+file, or a folder's base ending in <code>/</code>, whose files are below it by their
+paths and whose zip is the base with <code>.zip</code> for its last <code>/</code>), the <code>sha256</code>
+it names, and a folder's <code>main</code>. The key is an HMAC of the daemon token, so
+a URL needs no token and holds until the content is gone or the token
+changes. Answers allow any origin without credentials, HTML and SVG carry
+the sandbox policy shared links' <code>raw</code> carries, and <code>?download</code> makes a
+file an attachment. A web page reads a file over HTTP first and over
+<code>artifact.read</code> or <code>asset.read</code> when HTTP fails. A share guest's
+connection is refused the method and reads over its connection.</p>
 <h3 id="share-links">Share links<a class="headerlink" href="#share-links" title="Permanent link">&para;</a></h3>
 <p>Since 1.86.0 a share link is a public URL for one asset
 (<a href="../../specs/share-links/">spec</a>): anyone who has it opens the asset's
