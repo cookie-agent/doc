@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FORWARDS_MINOR"],"enum":["ForwardLifetime"],"fn":["active_count","daemon_has_forwards","expiry_text","forward_title","kind_label","status_text","traffic_text","tree_forwards"]};
+window.SIDEBAR_ITEMS = {"constant":["FORWARDS_MINOR"],"enum":["ForwardLifetime"],"fn":["active_count","daemon_has_forwards","expiry_text","form_text","forward_title","kind_label","parse_endpoint","parse_form","parse_listen","parse_target","status_text","traffic_text","tree_forwards"]};
