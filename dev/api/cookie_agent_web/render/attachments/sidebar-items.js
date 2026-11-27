@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Card"],"fn":["type_label_of","with_attachments","with_chips"],"struct":["AttachKey","CardFile","PartAttachments"]};
+window.SIDEBAR_ITEMS = {"enum":["Card","FilesAt"],"fn":["files_html","type_label_of","with_attachments","with_chips"],"struct":["AttachKey","CardFile","PartAttachments"]};
