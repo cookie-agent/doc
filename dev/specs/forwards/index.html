@@ -5655,6 +5655,13 @@ thousand of them code.</p>
 <li><strong><code>&lt;attach forward/&gt;</code> shows a forward that exists</strong> as a live page
    (section 7.1), by its handle and an optional <code>path</code>. A tag never makes
    one: the agent makes it with <code>forward_create</code> first.</li>
+<li><strong>The attachment enums open, in a minor</strong> (2026-11-27). The tag needs a
+   new <code>AttachSource</code> and <code>AttachmentOutcome</code> variant, and both were
+   closed, which the compatibility rules count as breaking. The user chose
+   to make both open in the same minor (1.110.0), each with an unknown
+   fallback, over a major bump or a card in <code>forward_create</code>'s result:
+   only clients older than the release, which ship with the daemon,
+   cannot read a forward tag.</li>
 </ol>
 <h2 id="implementation-notes">Implementation notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
 <p>Phase 1 (runtime protocol 1.19.0):</p>
@@ -5691,6 +5698,26 @@ thousand of them code.</p>
   with every connection.</li>
 <li><strong>An <code>http</code> forward</strong> is active with its address once its machine is
   connected; the daemon serves it from phase 3.</li>
+</ul>
+<p>Phase 3 (client protocol 1.110.0, plugin protocol 1.51.0):</p>
+<ul>
+<li><strong>The daemon's end of a web forward</strong> is a pipe the proxy speaks HTTP
+  through: the relay's link to the target's connection has a local end
+  instead of a runtime's, under the same 1 MiB window, and each browser
+  connection is one connection to the target.</li>
+<li><strong>Share links to a forward</strong> are made with <code>forward_share.create</code>, not
+  <code>share.create</code>, whose params name an asset; <code>shares.list</code> lists them in
+  <code>forwards</code>, and <code>share.revoke</code> revokes one. <code>share.update</code> keeps to asset
+  links: a forward's link is changed by making a new one. <code>share_link</code>
+  takes a forward's handle.</li>
+<li><strong>A WebSocket upgrade</strong> carries <code>Connection: upgrade</code> to the app again,
+  which dropping the hop-by-hop headers takes out.</li>
+<li><strong><code>ForwardBlock</code></strong> holds the handle, kind, title, and route; a card reads
+  the forward's address from where the page reaches the daemon, its own
+  for the user and its share for a guest.</li>
+<li><strong>The opened enums</strong> take an <code>Unknown</code> fallback (<code>#[serde(other)]</code>, left
+  out of the schema, which says <code>x-open</code>) rather than an <code>Open&lt;T&gt;</code> field,
+  so their many matches stay as they are; nothing writes <code>Unknown</code>.</li>
 </ul>
 
 

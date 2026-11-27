@@ -6853,6 +6853,11 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td><code>{}</code></td>
 </tr>
 <tr>
+<td><code>forward_share.create</code></td>
+<td><code>forward</code>, <code>expiry</code>, <code>reuse?</code> (since 1.110.0)</td>
+<td>The <code>share</code> (<code>ForwardShare</code>) and whether it is new</td>
+</tr>
+<tr>
 <td><code>content.urls</code></td>
 <td><code>targets</code>: up to 64 of <code>{ type: "artifact", session_id, sha256, name? }</code> or <code>{ type: "asset", store, asset }</code> (since 1.108.0; see <a href="#folders">Folders</a>)</td>
 <td><code>urls</code>, one per target: <code>{ path, sha256, main? }</code> or <code>null</code></td>
@@ -7661,6 +7666,20 @@ session tree deletes the forwards it made. <code>forwards.changed</code> says to
 them again, at most once a second. A guest lists its shared session's
 forwards and nothing else. Refusals are <code>forward_not_found</code> and
 <code>forward_invalid</code>, with the reason in <code>detail</code>.</p>
+<p>Since 1.110.0 the daemon serves an <code>http</code> forward's app at
+<code>/p/&lt;handle&gt;/&lt;path&gt;</code> on its listener, unsandboxed and on the page's own
+origin, for a request with the page ticket cookie or the token; a guest of
+a conversation share reaches the shared session's forwards at
+<code>/s/&lt;id&gt;/p/&lt;handle&gt;/</code>. Only headers change on the way: the path loses its
+prefix, <code>Host</code> is the target's, <code>X-Forwarded-Prefix</code> and the other
+<code>X-Forwarded-*</code> headers say where the app is, the page ticket cookie is
+taken out, and a <code>Location</code> from the root and a cookie for the whole site
+get the prefix. WebSockets are upgraded end to end. <code>forward_share.create</code>
+makes a public link whose root is the app, <code>/s/&lt;id&gt;/</code>, for anyone with it
+until it or the forward ends; <code>shares.list</code> lists them in <code>forwards</code>, and
+<code>share.revoke</code> revokes one. An agent shows a forward in its reply with
+<code>&lt;attach forward="fw_…" path="/…"/&gt;</code>, whose outcome is <code>forwarded</code> with a
+<code>ForwardBlock</code> (<code>handle</code>, <code>kind</code>, <code>title?</code>, <code>route</code>) and the <code>path</code>.</p>
 <h3 id="share-links">Share links<a class="headerlink" href="#share-links" title="Permanent link">&para;</a></h3>
 <p>Since 1.86.0 a share link is a public URL for one asset
 (<a href="../../specs/share-links/">spec</a>): anyone who has it opens the asset's
