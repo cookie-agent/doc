@@ -4862,6 +4862,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../specs/github-star/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Asking for a GitHub star
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../specs/temporary-runtimes/" class="md-nav__link">
         
   
@@ -5938,7 +5961,7 @@
 
 <h1 id="protocol-reference">Protocol Reference<a class="headerlink" href="#protocol-reference" title="Permanent link">&para;</a></h1>
 <p>The daemon exposes JSON-RPC 2.0 over a WebSocket at <code>/ws</code>. This build speaks
-client protocol <code>1.62.0</code>; the <a href="../protocol-changelog/">changelog</a> lists what
+client protocol <code>1.105.0</code>; the <a href="../protocol-changelog/">changelog</a> lists what
 each version changed. A client and a daemon connect when their majors are
 equal: a minor only adds, so the two use what the lower minor includes, and
 the patch never matters. <a href="../compatibility/">Compatibility</a> states the rules
@@ -6774,6 +6797,16 @@ Idempotent redelivery resolves against the state preceding the original run.</p>
 <td>The folder's <code>sha256</code>, <code>main</code>, and <code>entries</code></td>
 </tr>
 <tr>
+<td><code>artifact.thumbnail</code></td>
+<td>Session ID, <code>sha256</code> (since 1.105.0; see <a href="#media">Media</a>)</td>
+<td>As <code>asset.thumbnail</code>: the <code>sha256</code>, its <code>thumbnail?</code>, and without one <code>retry_later</code></td>
+</tr>
+<tr>
+<td><code>attachment.delivery</code></td>
+<td>Session ID, <code>files</code> (<code>ArtifactRef</code>s, at most 64), the draft's <code>selection</code> (since 1.105.0; see <a href="#media">Media</a>)</td>
+<td>Per file, in order: <code>sha256</code>, <code>ending</code> (<code>included</code>, <code>read_artifact</code>, <code>transfer</code>, <code>name_only</code>), the <code>label</code> the model gets, and <code>reason?</code></td>
+</tr>
+<tr>
 <td><code>assets.list</code></td>
 <td><code>store</code> (since 1.67.0; see <a href="#assets">Assets</a>)</td>
 <td>The store's <code>assets</code>, newest first</td>
@@ -7040,23 +7073,37 @@ included; only its name is available</code>, by what the request's tools can do
 with it (<a href="../../sessions/media/#file-labels">Media</a>).
 <code>cookie_agent_protocol::model_text::user_file_label</code> renders the label.</p>
 <p><strong>Admission.</strong> <code>run.start</code>, <code>run.steer</code>, and <code>session.submit_input</code> check
-every <code>file</code> part against the model the input reaches: the run's selected
-model (for a steer, the running run's; for a queued input, the model of the
-selection it will start with). The part must name an artifact of the tree's
-store whose content is what the reference says (<code>artifact_not_found</code>). One
-of a kind and media type the model accepts, within its byte limit, must also
-be that media (<code>media_type_unsupported</code>) within the model's image limits
-(<code>media_too_large</code>, with the image's <code>width</code> and <code>height</code> and the model's
-limits), and the parts of one kind the model takes must not outnumber
-<code>max_count</code> (<code>media_limit_exceeded</code>). These are the model's
-<a href="#the-catalog-view"><code>input_media</code></a>. Since 1.56.0 any other file is admitted:
-the model sees its label with the reason it is not shown. A refused input
-records nothing. A model the input does not reach this way, such as a
-fallback or a model the session moves to later, sees the same for each file
-it does not accept, and a placeholder for one a tool returned
-(<a href="../tools/#media-reads">Media reads</a> describes the wording). A run of an
-<a href="#acp-agents">ACP agent</a> checks none of this: the agent gets each file it
-takes (its <code>AgentRuntime.input_media</code>) and a note naming the others.</p>
+every <code>file</code> part: it must name an artifact of the tree's store whose
+content is what the reference says (<code>artifact_not_found</code>), and a file of a
+media type the daemon recognizes (or <code>text/plain</code>) must be that media within
+the daemon-wide upload limits (<code>media_type_unsupported</code>, <code>media_too_large</code>).
+A refused input records nothing. Since 1.105.0 admission no longer checks a
+file against the model: each request decides what its model gets
+(<a href="../../specs/attachment-handling/">attachments spec</a> question Q2b). A file of
+a kind, media type, or size the request's model does not take, a text file
+for a native model (which takes none), and the parts of a kind past its
+<code>max_count</code> (the latest message keeps its first ones) reach it as their
+label followed by a placeholder with the reason
+(<a href="../tools/#media-reads">Media reads</a> describes the wording); a later request
+whose model takes the file sends it. A daemon before 1.105.0 refused such
+an input with <code>media_unsupported</code>, <code>media_limit_exceeded</code>, or the model's
+<code>media_too_large</code>; it no longer sends those for an input. An
+<a href="#acp-agents">ACP agent</a> gets each file its prompt capabilities take, by
+kind, type, and size (its <code>AgentRuntime.input_media</code>), and the label of the
+others.</p>
+<p><strong><code>attachment.delivery</code></strong> (since 1.105.0)
+<code>{ session_id, files, selection }</code> answers, for each of a draft's <code>files</code>
+in order, what a message of the session sent now with <code>selection</code> would give
+its model or ACP agent, by the rules a request uses: <code>ending</code> <code>included</code> (the
+request carries the file after its label), <code>read_artifact</code> or <code>transfer</code>
+(the label alone, and that tool, offered at once or deferred, gets at it), or
+<code>name_only</code> (the label alone, and no tool helps); <code>label</code>, the exact
+<a href="#user-content">label</a> the model gets; and <code>reason</code>, why the file is not
+included (for <code>name_only</code> also why no tool helps, such as <code>no machine is
+attached to copy it to</code>). An ending this build does not know reads as
+<code>unknown</code>. Clients ask whenever a draft's files, its model or agent, or the
+session's runtimes change; a draft of a session not yet created has nothing
+to ask about and judges from the model's <code>input_media</code>.</p>
 <p><strong><code>artifact.read</code></strong> <code>{ session_id, sha256, offset, length }</code> returns
 <code>{ data, total_bytes, media_type }</code>: up to <code>length</code> (at most 1 MiB) bytes
 from <code>offset</code> of any artifact of the session's tree (user uploads, tool
@@ -7065,6 +7112,15 @@ encoded, fewer at the end, and none at <code>offset = total_bytes</code>. <code>
 is recognized from the content: a media type, <code>text/plain</code> for UTF-8 text,
 or <code>application/octet-stream</code>. A blob is verified against its digest when it
 is first read. An artifact the store does not have is <code>artifact_not_found</code>.</p>
+<p><strong><code>artifact.thumbnail</code></strong> (since 1.105.0) <code>{ session_id, sha256 }</code> returns a
+small picture of an artifact of the session's tree as <code>asset.thumbnail</code> does
+for an asset (<a href="#assets">Assets</a>): an image scaled down, a video's first
+frame, or a PDF's first page, at most 768 pixels on its longer side, or
+<code>retry_later</code> when the drawing tool was missing or slow; a
+<a href="#folders">folder</a> shows its main file. The daemon keeps it beside the
+tree's blobs, and deletes it with its blob or the tree. The web
+page shows it for a picture over 1 MiB, a video, or a PDF in the
+transcript, and reads the file itself only to view it.</p>
 <p>Model, agent, and catalog discovery uses <code>runtime.snapshot.get</code>. Skills use the
 session-aware <code>skills.list</code> and <code>skills.get</code> methods because visibility depends
 on the governing run policy and session overlay. <code>session.list</code> returns root

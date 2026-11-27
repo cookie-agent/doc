@@ -2263,875 +2263,864 @@
 <a href=#2263 id=2263 data-nosnippet>2263</a>        }
 <a href=#2264 id=2264 data-nosnippet>2264</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(error.into()),
 <a href=#2265 id=2265 data-nosnippet>2265</a>    };
-<a href=#2266 id=2266 data-nosnippet>2266</a>    <span class="kw">let </span>head = <span class="kw-2">&amp;</span>bytes[..bytes
-<a href=#2267 id=2267 data-nosnippet>2267</a>        .len()
-<a href=#2268 id=2268 data-nosnippet>2268</a>        .min(cookie_agent_runtime_api::media::MEDIA_SNIFF_BYTES)];
-<a href=#2269 id=2269 data-nosnippet>2269</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(media_type) =
-<a href=#2270 id=2270 data-nosnippet>2270</a>        cookie_agent_runtime_api::media::recognize_media_type(head, bytes.len() <span class="kw">as </span>u64)
-<a href=#2271 id=2271 data-nosnippet>2271</a>    {
-<a href=#2272 id=2272 data-nosnippet>2272</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(FileContent::Media(media_type.to_owned()));
-<a href=#2273 id=2273 data-nosnippet>2273</a>    }
-<a href=#2274 id=2274 data-nosnippet>2274</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>std::str::from_utf8(head) {
-<a href=#2275 id=2275 data-nosnippet>2275</a>        <span class="prelude-val">Err</span>(error) <span class="kw">if </span>error.error_len().is_some() =&gt; FileContent::Binary,
-<a href=#2276 id=2276 data-nosnippet>2276</a>        <span class="kw">_ </span>=&gt; FileContent::Text,
-<a href=#2277 id=2277 data-nosnippet>2277</a>    })
-<a href=#2278 id=2278 data-nosnippet>2278</a>}
-<a href=#2279 id=2279 data-nosnippet>2279</a>
-<a href=#2280 id=2280 data-nosnippet>2280</a><span class="doccomment">/// A user file part as the attachment the artifact store reads.
-<a href=#2281 id=2281 data-nosnippet>2281</a></span><span class="kw">fn </span>user_file_attachment(artifact: <span class="kw-2">&amp;</span>ArtifactRef) -&gt; <span class="prelude-ty">Result</span>&lt;ToolAttachment, HistoryError&gt; {
-<a href=#2282 id=2282 data-nosnippet>2282</a>    <span class="kw">let </span>corrupt = |error: <span class="kw-2">&amp;</span><span class="kw">dyn </span>std::fmt::Display| HistoryError::Corrupt(error.to_string());
-<a href=#2283 id=2283 data-nosnippet>2283</a>    <span class="prelude-val">Ok</span>(ToolAttachment {
-<a href=#2284 id=2284 data-nosnippet>2284</a>        mime_type: cookie_agent_protocol::MimeType::new(artifact.media_type.clone())
-<a href=#2285 id=2285 data-nosnippet>2285</a>            .map_err(|error| corrupt(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>,
-<a href=#2286 id=2286 data-nosnippet>2286</a>        filename: artifact.filename.clone(),
-<a href=#2287 id=2287 data-nosnippet>2287</a>        byte_length: artifact.byte_length,
-<a href=#2288 id=2288 data-nosnippet>2288</a>        sha256: Sha256Digest::new(artifact.sha256.clone()).map_err(|error| corrupt(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>,
-<a href=#2289 id=2289 data-nosnippet>2289</a>        reference: ArtifactReference {
-<a href=#2290 id=2290 data-nosnippet>2290</a>            uri: <span class="macro">format!</span>(<span class="string">"artifact://sha256/{}"</span>, artifact.sha256),
-<a href=#2291 id=2291 data-nosnippet>2291</a>        },
-<a href=#2292 id=2292 data-nosnippet>2292</a>    })
-<a href=#2293 id=2293 data-nosnippet>2293</a>}
-<a href=#2294 id=2294 data-nosnippet>2294</a>
-<a href=#2295 id=2295 data-nosnippet>2295</a><span class="attr">#[derive(serde::Deserialize)]
-<a href=#2296 id=2296 data-nosnippet>2296</a>#[serde(deny_unknown_fields)]
-<a href=#2297 id=2297 data-nosnippet>2297</a></span><span class="kw">struct </span>DeniedToolFailure {
-<a href=#2298 id=2298 data-nosnippet>2298</a>    kind: String,
-<a href=#2299 id=2299 data-nosnippet>2299</a>    source: String,
-<a href=#2300 id=2300 data-nosnippet>2300</a>    reason: String,
-<a href=#2301 id=2301 data-nosnippet>2301</a>    feedback: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#2302 id=2302 data-nosnippet>2302</a>}
-<a href=#2303 id=2303 data-nosnippet>2303</a>
-<a href=#2304 id=2304 data-nosnippet>2304</a><span class="kw">fn </span>denied_failure(message: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;DeniedToolFailure&gt; {
-<a href=#2305 id=2305 data-nosnippet>2305</a>    serde_json::from_str::&lt;DeniedToolFailure&gt;(message)
-<a href=#2306 id=2306 data-nosnippet>2306</a>        .ok()
-<a href=#2307 id=2307 data-nosnippet>2307</a>        .filter(|denied| denied.kind == <span class="string">"tool_denied"</span>)
-<a href=#2308 id=2308 data-nosnippet>2308</a>}
-<a href=#2309 id=2309 data-nosnippet>2309</a>
-<a href=#2310 id=2310 data-nosnippet>2310</a><span class="doccomment">/// The text the model sees for `result` as a tool result: its output, then
-<a href=#2311 id=2311 data-nosnippet>2311</a>/// its title and metadata as JSON. Attachments, which only a tool result can
-<a href=#2312 id=2312 data-nosnippet>2312</a>/// carry, are named by reference. Background results wrap this text, so a
-<a href=#2313 id=2313 data-nosnippet>2313</a>/// detached call reports exactly what its foreground result would have said.
-<a href=#2314 id=2314 data-nosnippet>2314</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tool_result_text(result: <span class="kw-2">&amp;</span>PersistedToolResult) -&gt; String {
-<a href=#2315 id=2315 data-nosnippet>2315</a>    <span class="kw">let </span><span class="kw-2">mut </span>text = result.output.trim_end().to_owned();
-<a href=#2316 id=2316 data-nosnippet>2316</a>    <span class="kw">if </span>!text.is_empty() {
-<a href=#2317 id=2317 data-nosnippet>2317</a>        text.push(<span class="string">'\n'</span>);
-<a href=#2318 id=2318 data-nosnippet>2318</a>    }
-<a href=#2319 id=2319 data-nosnippet>2319</a>    text.push_str(
-<a href=#2320 id=2320 data-nosnippet>2320</a>        <span class="kw-2">&amp;</span><span class="macro">serde_json::json!</span>({
-<a href=#2321 id=2321 data-nosnippet>2321</a>            <span class="string">"title"</span>: result.title,
-<a href=#2322 id=2322 data-nosnippet>2322</a>            <span class="string">"metadata"</span>: result.metadata,
-<a href=#2323 id=2323 data-nosnippet>2323</a>        })
-<a href=#2324 id=2324 data-nosnippet>2324</a>        .to_string(),
-<a href=#2325 id=2325 data-nosnippet>2325</a>    );
-<a href=#2326 id=2326 data-nosnippet>2326</a>    <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>result.attachments {
-<a href=#2327 id=2327 data-nosnippet>2327</a>        text.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"\n[attachment {}]"</span>, attachment.reference.uri));
-<a href=#2328 id=2328 data-nosnippet>2328</a>    }
-<a href=#2329 id=2329 data-nosnippet>2329</a>    text
-<a href=#2330 id=2330 data-nosnippet>2330</a>}
-<a href=#2331 id=2331 data-nosnippet>2331</a>
-<a href=#2332 id=2332 data-nosnippet>2332</a><span class="kw">fn </span>tool_result_part(
-<a href=#2333 id=2333 data-nosnippet>2333</a>    result: <span class="kw-2">&amp;</span>PersistedToolResult,
-<a href=#2334 id=2334 data-nosnippet>2334</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#2335 id=2335 data-nosnippet>2335</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResultPart, HistoryError&gt; {
-<a href=#2336 id=2336 data-nosnippet>2336</a>    <span class="kw">if </span>!result.loaded_tools.is_empty() {
-<a href=#2337 id=2337 data-nosnippet>2337</a>        <span class="comment">// Oven encodes the load natively, or sends the output as text.
-<a href=#2338 id=2338 data-nosnippet>2338</a>        </span><span class="kw">return </span><span class="prelude-val">Ok</span>(ToolResultPart::new(
-<a href=#2339 id=2339 data-nosnippet>2339</a>            String::new(),
-<a href=#2340 id=2340 data-nosnippet>2340</a>            ToolContent::LoadTools {
-<a href=#2341 id=2341 data-nosnippet>2341</a>                names: result.loaded_tools.clone(),
-<a href=#2342 id=2342 data-nosnippet>2342</a>                text: result.output.clone(),
-<a href=#2343 id=2343 data-nosnippet>2343</a>            },
-<a href=#2344 id=2344 data-nosnippet>2344</a>        ));
-<a href=#2345 id=2345 data-nosnippet>2345</a>    }
-<a href=#2346 id=2346 data-nosnippet>2346</a>    <span class="kw">let </span><span class="kw-2">mut </span>values = <span class="macro">vec!</span>[
-<a href=#2347 id=2347 data-nosnippet>2347</a>        ContentValue::Text(result.output.clone()),
-<a href=#2348 id=2348 data-nosnippet>2348</a>        ContentValue::Json(<span class="macro">serde_json::json!</span>({
-<a href=#2349 id=2349 data-nosnippet>2349</a>            <span class="string">"title"</span>: result.title,
-<a href=#2350 id=2350 data-nosnippet>2350</a>            <span class="string">"metadata"</span>: result.metadata,
-<a href=#2351 id=2351 data-nosnippet>2351</a>        })),
-<a href=#2352 id=2352 data-nosnippet>2352</a>    ];
-<a href=#2353 id=2353 data-nosnippet>2353</a>    <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>result.attachments {
-<a href=#2354 id=2354 data-nosnippet>2354</a>        values.push(<span class="kw">match </span>attachment_file(attachment, store)<span class="question-mark">? </span>{
-<a href=#2355 id=2355 data-nosnippet>2355</a>            <span class="prelude-val">Ok</span>(file) =&gt; ContentValue::File(file),
-<a href=#2356 id=2356 data-nosnippet>2356</a>            <span class="prelude-val">Err</span>(note) =&gt; ContentValue::Text(note),
-<a href=#2357 id=2357 data-nosnippet>2357</a>        });
-<a href=#2358 id=2358 data-nosnippet>2358</a>    }
-<a href=#2359 id=2359 data-nosnippet>2359</a>    <span class="prelude-val">Ok</span>(ToolResultPart::new(
-<a href=#2360 id=2360 data-nosnippet>2360</a>        String::new(),
-<a href=#2361 id=2361 data-nosnippet>2361</a>        ToolContent::Mixed(values),
-<a href=#2362 id=2362 data-nosnippet>2362</a>    ))
-<a href=#2363 id=2363 data-nosnippet>2363</a>}
-<a href=#2364 id=2364 data-nosnippet>2364</a>
-<a href=#2365 id=2365 data-nosnippet>2365</a><span class="doccomment">/// A stored file for a live request, or the note that stands in for it when
-<a href=#2366 id=2366 data-nosnippet>2366</a>/// its artifact is missing or damaged — artifacts are written without fsync,
-<a href=#2367 id=2367 data-nosnippet>2367</a>/// so a crash can lose one that a durable event already references.
-<a href=#2368 id=2368 data-nosnippet>2368</a></span><span class="kw">fn </span>attachment_file(
-<a href=#2369 id=2369 data-nosnippet>2369</a>    attachment: <span class="kw-2">&amp;</span>ToolAttachment,
-<a href=#2370 id=2370 data-nosnippet>2370</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#2371 id=2371 data-nosnippet>2371</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;FilePart, String&gt;, HistoryError&gt; {
-<a href=#2372 id=2372 data-nosnippet>2372</a>    <span class="kw">match </span>store.read_verified_attachment(attachment) {
-<a href=#2373 id=2373 data-nosnippet>2373</a>        <span class="prelude-val">Ok</span>(bytes) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(FilePart {
-<a href=#2374 id=2374 data-nosnippet>2374</a>            media_type: attachment.mime_type.to_string(),
-<a href=#2375 id=2375 data-nosnippet>2375</a>            filename: attachment.filename.clone(),
-<a href=#2376 id=2376 data-nosnippet>2376</a>            source: FileSource::Bytes(bytes),
-<a href=#2377 id=2377 data-nosnippet>2377</a>            metadata: <span class="prelude-val">None</span>,
-<a href=#2378 id=2378 data-nosnippet>2378</a>        })),
-<a href=#2379 id=2379 data-nosnippet>2379</a>        <span class="prelude-val">Err</span>(error)
-<a href=#2380 id=2380 data-nosnippet>2380</a>            <span class="kw">if </span><span class="macro">matches!</span>(
-<a href=#2381 id=2381 data-nosnippet>2381</a>                error.kind(),
-<a href=#2382 id=2382 data-nosnippet>2382</a>                std::io::ErrorKind::NotFound | std::io::ErrorKind::InvalidData
-<a href=#2383 id=2383 data-nosnippet>2383</a>            ) =&gt;
-<a href=#2384 id=2384 data-nosnippet>2384</a>        {
-<a href=#2385 id=2385 data-nosnippet>2385</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#2386 id=2386 data-nosnippet>2386</a>                <span class="string">"[{} ({}) is unavailable: its stored copy is missing or damaged]"</span>,
-<a href=#2387 id=2387 data-nosnippet>2387</a>                attachment.filename.as_deref().unwrap_or(<span class="string">"file"</span>),
-<a href=#2388 id=2388 data-nosnippet>2388</a>                attachment.mime_type
-<a href=#2389 id=2389 data-nosnippet>2389</a>            )))
-<a href=#2390 id=2390 data-nosnippet>2390</a>        }
-<a href=#2391 id=2391 data-nosnippet>2391</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(error.into()),
-<a href=#2392 id=2392 data-nosnippet>2392</a>    }
-<a href=#2393 id=2393 data-nosnippet>2393</a>}
-<a href=#2394 id=2394 data-nosnippet>2394</a>
-<a href=#2395 id=2395 data-nosnippet>2395</a><span class="kw">fn </span>persist_assistant_part(
-<a href=#2396 id=2396 data-nosnippet>2396</a>    part: AssistantPart,
-<a href=#2397 id=2397 data-nosnippet>2397</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
-<a href=#2398 id=2398 data-nosnippet>2398</a>    session: SessionId,
-<a href=#2399 id=2399 data-nosnippet>2399</a>    warnings: <span class="kw-2">&amp;mut </span>Vec&lt;SafeErrorMessage&gt;,
-<a href=#2400 id=2400 data-nosnippet>2400</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedAssistantPart, HistoryError&gt; {
-<a href=#2401 id=2401 data-nosnippet>2401</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>part {
-<a href=#2402 id=2402 data-nosnippet>2402</a>        AssistantPart::Text(part) =&gt; PersistedAssistantPart::Text {
-<a href=#2403 id=2403 data-nosnippet>2403</a>            text: part.text,
-<a href=#2404 id=2404 data-nosnippet>2404</a>            metadata: part.metadata,
-<a href=#2405 id=2405 data-nosnippet>2405</a>        },
-<a href=#2406 id=2406 data-nosnippet>2406</a>        AssistantPart::Reasoning(part) =&gt; PersistedAssistantPart::Reasoning {
-<a href=#2407 id=2407 data-nosnippet>2407</a>            text: part.text,
-<a href=#2408 id=2408 data-nosnippet>2408</a>            metadata: part.metadata,
-<a href=#2409 id=2409 data-nosnippet>2409</a>        },
-<a href=#2410 id=2410 data-nosnippet>2410</a>        AssistantPart::ToolCall(part) =&gt; PersistedAssistantPart::ToolCall {
-<a href=#2411 id=2411 data-nosnippet>2411</a>            id: cookie_agent_protocol::ModelCallId::new(part.id)
-<a href=#2412 id=2412 data-nosnippet>2412</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2413 id=2413 data-nosnippet>2413</a>            provider_item_id: part
-<a href=#2414 id=2414 data-nosnippet>2414</a>                .provider_item_id
-<a href=#2415 id=2415 data-nosnippet>2415</a>                .map(cookie_agent_protocol::ProviderItemId::new)
-<a href=#2416 id=2416 data-nosnippet>2416</a>                .transpose()
-<a href=#2417 id=2417 data-nosnippet>2417</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2418 id=2418 data-nosnippet>2418</a>            name: normalize_safe_code(part.name, <span class="string">"tool call name"</span>, warnings),
-<a href=#2419 id=2419 data-nosnippet>2419</a>            input: part.input,
-<a href=#2420 id=2420 data-nosnippet>2420</a>            raw_input: part.raw_input,
-<a href=#2421 id=2421 data-nosnippet>2421</a>            metadata: part.metadata,
-<a href=#2422 id=2422 data-nosnippet>2422</a>        },
-<a href=#2423 id=2423 data-nosnippet>2423</a>        AssistantPart::ToolResult(part) =&gt; PersistedAssistantPart::ToolResult {
-<a href=#2424 id=2424 data-nosnippet>2424</a>            tool_call_id: cookie_agent_protocol::ModelCallId::new(part.tool_call_id)
-<a href=#2425 id=2425 data-nosnippet>2425</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2426 id=2426 data-nosnippet>2426</a>            content: persist_tool_content(part.content, store, session)<span class="question-mark">?</span>,
-<a href=#2427 id=2427 data-nosnippet>2427</a>            is_error: part.is_error,
+<a href=#2266 id=2266 data-nosnippet>2266</a>    <span class="prelude-val">Ok</span>(<span class="kw">crate</span>::media::sniffed_content(<span class="kw-2">&amp;</span>bytes, bytes.len() <span class="kw">as </span>u64))
+<a href=#2267 id=2267 data-nosnippet>2267</a>}
+<a href=#2268 id=2268 data-nosnippet>2268</a>
+<a href=#2269 id=2269 data-nosnippet>2269</a><span class="doccomment">/// A user file part as the attachment the artifact store reads.
+<a href=#2270 id=2270 data-nosnippet>2270</a></span><span class="kw">fn </span>user_file_attachment(artifact: <span class="kw-2">&amp;</span>ArtifactRef) -&gt; <span class="prelude-ty">Result</span>&lt;ToolAttachment, HistoryError&gt; {
+<a href=#2271 id=2271 data-nosnippet>2271</a>    <span class="kw">let </span>corrupt = |error: <span class="kw-2">&amp;</span><span class="kw">dyn </span>std::fmt::Display| HistoryError::Corrupt(error.to_string());
+<a href=#2272 id=2272 data-nosnippet>2272</a>    <span class="prelude-val">Ok</span>(ToolAttachment {
+<a href=#2273 id=2273 data-nosnippet>2273</a>        mime_type: cookie_agent_protocol::MimeType::new(artifact.media_type.clone())
+<a href=#2274 id=2274 data-nosnippet>2274</a>            .map_err(|error| corrupt(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>,
+<a href=#2275 id=2275 data-nosnippet>2275</a>        filename: artifact.filename.clone(),
+<a href=#2276 id=2276 data-nosnippet>2276</a>        byte_length: artifact.byte_length,
+<a href=#2277 id=2277 data-nosnippet>2277</a>        sha256: Sha256Digest::new(artifact.sha256.clone()).map_err(|error| corrupt(<span class="kw-2">&amp;</span>error))<span class="question-mark">?</span>,
+<a href=#2278 id=2278 data-nosnippet>2278</a>        reference: ArtifactReference {
+<a href=#2279 id=2279 data-nosnippet>2279</a>            uri: <span class="macro">format!</span>(<span class="string">"artifact://sha256/{}"</span>, artifact.sha256),
+<a href=#2280 id=2280 data-nosnippet>2280</a>        },
+<a href=#2281 id=2281 data-nosnippet>2281</a>    })
+<a href=#2282 id=2282 data-nosnippet>2282</a>}
+<a href=#2283 id=2283 data-nosnippet>2283</a>
+<a href=#2284 id=2284 data-nosnippet>2284</a><span class="attr">#[derive(serde::Deserialize)]
+<a href=#2285 id=2285 data-nosnippet>2285</a>#[serde(deny_unknown_fields)]
+<a href=#2286 id=2286 data-nosnippet>2286</a></span><span class="kw">struct </span>DeniedToolFailure {
+<a href=#2287 id=2287 data-nosnippet>2287</a>    kind: String,
+<a href=#2288 id=2288 data-nosnippet>2288</a>    source: String,
+<a href=#2289 id=2289 data-nosnippet>2289</a>    reason: String,
+<a href=#2290 id=2290 data-nosnippet>2290</a>    feedback: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#2291 id=2291 data-nosnippet>2291</a>}
+<a href=#2292 id=2292 data-nosnippet>2292</a>
+<a href=#2293 id=2293 data-nosnippet>2293</a><span class="kw">fn </span>denied_failure(message: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;DeniedToolFailure&gt; {
+<a href=#2294 id=2294 data-nosnippet>2294</a>    serde_json::from_str::&lt;DeniedToolFailure&gt;(message)
+<a href=#2295 id=2295 data-nosnippet>2295</a>        .ok()
+<a href=#2296 id=2296 data-nosnippet>2296</a>        .filter(|denied| denied.kind == <span class="string">"tool_denied"</span>)
+<a href=#2297 id=2297 data-nosnippet>2297</a>}
+<a href=#2298 id=2298 data-nosnippet>2298</a>
+<a href=#2299 id=2299 data-nosnippet>2299</a><span class="doccomment">/// The text the model sees for `result` as a tool result: its output, then
+<a href=#2300 id=2300 data-nosnippet>2300</a>/// its title and metadata as JSON. Attachments, which only a tool result can
+<a href=#2301 id=2301 data-nosnippet>2301</a>/// carry, are named by reference. Background results wrap this text, so a
+<a href=#2302 id=2302 data-nosnippet>2302</a>/// detached call reports exactly what its foreground result would have said.
+<a href=#2303 id=2303 data-nosnippet>2303</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tool_result_text(result: <span class="kw-2">&amp;</span>PersistedToolResult) -&gt; String {
+<a href=#2304 id=2304 data-nosnippet>2304</a>    <span class="kw">let </span><span class="kw-2">mut </span>text = result.output.trim_end().to_owned();
+<a href=#2305 id=2305 data-nosnippet>2305</a>    <span class="kw">if </span>!text.is_empty() {
+<a href=#2306 id=2306 data-nosnippet>2306</a>        text.push(<span class="string">'\n'</span>);
+<a href=#2307 id=2307 data-nosnippet>2307</a>    }
+<a href=#2308 id=2308 data-nosnippet>2308</a>    text.push_str(
+<a href=#2309 id=2309 data-nosnippet>2309</a>        <span class="kw-2">&amp;</span><span class="macro">serde_json::json!</span>({
+<a href=#2310 id=2310 data-nosnippet>2310</a>            <span class="string">"title"</span>: result.title,
+<a href=#2311 id=2311 data-nosnippet>2311</a>            <span class="string">"metadata"</span>: result.metadata,
+<a href=#2312 id=2312 data-nosnippet>2312</a>        })
+<a href=#2313 id=2313 data-nosnippet>2313</a>        .to_string(),
+<a href=#2314 id=2314 data-nosnippet>2314</a>    );
+<a href=#2315 id=2315 data-nosnippet>2315</a>    <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>result.attachments {
+<a href=#2316 id=2316 data-nosnippet>2316</a>        text.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"\n[attachment {}]"</span>, attachment.reference.uri));
+<a href=#2317 id=2317 data-nosnippet>2317</a>    }
+<a href=#2318 id=2318 data-nosnippet>2318</a>    text
+<a href=#2319 id=2319 data-nosnippet>2319</a>}
+<a href=#2320 id=2320 data-nosnippet>2320</a>
+<a href=#2321 id=2321 data-nosnippet>2321</a><span class="kw">fn </span>tool_result_part(
+<a href=#2322 id=2322 data-nosnippet>2322</a>    result: <span class="kw-2">&amp;</span>PersistedToolResult,
+<a href=#2323 id=2323 data-nosnippet>2323</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#2324 id=2324 data-nosnippet>2324</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ToolResultPart, HistoryError&gt; {
+<a href=#2325 id=2325 data-nosnippet>2325</a>    <span class="kw">if </span>!result.loaded_tools.is_empty() {
+<a href=#2326 id=2326 data-nosnippet>2326</a>        <span class="comment">// Oven encodes the load natively, or sends the output as text.
+<a href=#2327 id=2327 data-nosnippet>2327</a>        </span><span class="kw">return </span><span class="prelude-val">Ok</span>(ToolResultPart::new(
+<a href=#2328 id=2328 data-nosnippet>2328</a>            String::new(),
+<a href=#2329 id=2329 data-nosnippet>2329</a>            ToolContent::LoadTools {
+<a href=#2330 id=2330 data-nosnippet>2330</a>                names: result.loaded_tools.clone(),
+<a href=#2331 id=2331 data-nosnippet>2331</a>                text: result.output.clone(),
+<a href=#2332 id=2332 data-nosnippet>2332</a>            },
+<a href=#2333 id=2333 data-nosnippet>2333</a>        ));
+<a href=#2334 id=2334 data-nosnippet>2334</a>    }
+<a href=#2335 id=2335 data-nosnippet>2335</a>    <span class="kw">let </span><span class="kw-2">mut </span>values = <span class="macro">vec!</span>[
+<a href=#2336 id=2336 data-nosnippet>2336</a>        ContentValue::Text(result.output.clone()),
+<a href=#2337 id=2337 data-nosnippet>2337</a>        ContentValue::Json(<span class="macro">serde_json::json!</span>({
+<a href=#2338 id=2338 data-nosnippet>2338</a>            <span class="string">"title"</span>: result.title,
+<a href=#2339 id=2339 data-nosnippet>2339</a>            <span class="string">"metadata"</span>: result.metadata,
+<a href=#2340 id=2340 data-nosnippet>2340</a>        })),
+<a href=#2341 id=2341 data-nosnippet>2341</a>    ];
+<a href=#2342 id=2342 data-nosnippet>2342</a>    <span class="kw">for </span>attachment <span class="kw">in </span><span class="kw-2">&amp;</span>result.attachments {
+<a href=#2343 id=2343 data-nosnippet>2343</a>        values.push(<span class="kw">match </span>attachment_file(attachment, store)<span class="question-mark">? </span>{
+<a href=#2344 id=2344 data-nosnippet>2344</a>            <span class="prelude-val">Ok</span>(file) =&gt; ContentValue::File(file),
+<a href=#2345 id=2345 data-nosnippet>2345</a>            <span class="prelude-val">Err</span>(note) =&gt; ContentValue::Text(note),
+<a href=#2346 id=2346 data-nosnippet>2346</a>        });
+<a href=#2347 id=2347 data-nosnippet>2347</a>    }
+<a href=#2348 id=2348 data-nosnippet>2348</a>    <span class="prelude-val">Ok</span>(ToolResultPart::new(
+<a href=#2349 id=2349 data-nosnippet>2349</a>        String::new(),
+<a href=#2350 id=2350 data-nosnippet>2350</a>        ToolContent::Mixed(values),
+<a href=#2351 id=2351 data-nosnippet>2351</a>    ))
+<a href=#2352 id=2352 data-nosnippet>2352</a>}
+<a href=#2353 id=2353 data-nosnippet>2353</a>
+<a href=#2354 id=2354 data-nosnippet>2354</a><span class="doccomment">/// A stored file for a live request, or the note that stands in for it when
+<a href=#2355 id=2355 data-nosnippet>2355</a>/// its artifact is missing or damaged — artifacts are written without fsync,
+<a href=#2356 id=2356 data-nosnippet>2356</a>/// so a crash can lose one that a durable event already references.
+<a href=#2357 id=2357 data-nosnippet>2357</a></span><span class="kw">fn </span>attachment_file(
+<a href=#2358 id=2358 data-nosnippet>2358</a>    attachment: <span class="kw-2">&amp;</span>ToolAttachment,
+<a href=#2359 id=2359 data-nosnippet>2359</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#2360 id=2360 data-nosnippet>2360</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;FilePart, String&gt;, HistoryError&gt; {
+<a href=#2361 id=2361 data-nosnippet>2361</a>    <span class="kw">match </span>store.read_verified_attachment(attachment) {
+<a href=#2362 id=2362 data-nosnippet>2362</a>        <span class="prelude-val">Ok</span>(bytes) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(FilePart {
+<a href=#2363 id=2363 data-nosnippet>2363</a>            media_type: attachment.mime_type.to_string(),
+<a href=#2364 id=2364 data-nosnippet>2364</a>            filename: attachment.filename.clone(),
+<a href=#2365 id=2365 data-nosnippet>2365</a>            source: FileSource::Bytes(bytes),
+<a href=#2366 id=2366 data-nosnippet>2366</a>            metadata: <span class="prelude-val">None</span>,
+<a href=#2367 id=2367 data-nosnippet>2367</a>        })),
+<a href=#2368 id=2368 data-nosnippet>2368</a>        <span class="prelude-val">Err</span>(error)
+<a href=#2369 id=2369 data-nosnippet>2369</a>            <span class="kw">if </span><span class="macro">matches!</span>(
+<a href=#2370 id=2370 data-nosnippet>2370</a>                error.kind(),
+<a href=#2371 id=2371 data-nosnippet>2371</a>                std::io::ErrorKind::NotFound | std::io::ErrorKind::InvalidData
+<a href=#2372 id=2372 data-nosnippet>2372</a>            ) =&gt;
+<a href=#2373 id=2373 data-nosnippet>2373</a>        {
+<a href=#2374 id=2374 data-nosnippet>2374</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#2375 id=2375 data-nosnippet>2375</a>                <span class="string">"[{} ({}) is unavailable: its stored copy is missing or damaged]"</span>,
+<a href=#2376 id=2376 data-nosnippet>2376</a>                attachment.filename.as_deref().unwrap_or(<span class="string">"file"</span>),
+<a href=#2377 id=2377 data-nosnippet>2377</a>                attachment.mime_type
+<a href=#2378 id=2378 data-nosnippet>2378</a>            )))
+<a href=#2379 id=2379 data-nosnippet>2379</a>        }
+<a href=#2380 id=2380 data-nosnippet>2380</a>        <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Err</span>(error.into()),
+<a href=#2381 id=2381 data-nosnippet>2381</a>    }
+<a href=#2382 id=2382 data-nosnippet>2382</a>}
+<a href=#2383 id=2383 data-nosnippet>2383</a>
+<a href=#2384 id=2384 data-nosnippet>2384</a><span class="kw">fn </span>persist_assistant_part(
+<a href=#2385 id=2385 data-nosnippet>2385</a>    part: AssistantPart,
+<a href=#2386 id=2386 data-nosnippet>2386</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
+<a href=#2387 id=2387 data-nosnippet>2387</a>    session: SessionId,
+<a href=#2388 id=2388 data-nosnippet>2388</a>    warnings: <span class="kw-2">&amp;mut </span>Vec&lt;SafeErrorMessage&gt;,
+<a href=#2389 id=2389 data-nosnippet>2389</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedAssistantPart, HistoryError&gt; {
+<a href=#2390 id=2390 data-nosnippet>2390</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>part {
+<a href=#2391 id=2391 data-nosnippet>2391</a>        AssistantPart::Text(part) =&gt; PersistedAssistantPart::Text {
+<a href=#2392 id=2392 data-nosnippet>2392</a>            text: part.text,
+<a href=#2393 id=2393 data-nosnippet>2393</a>            metadata: part.metadata,
+<a href=#2394 id=2394 data-nosnippet>2394</a>        },
+<a href=#2395 id=2395 data-nosnippet>2395</a>        AssistantPart::Reasoning(part) =&gt; PersistedAssistantPart::Reasoning {
+<a href=#2396 id=2396 data-nosnippet>2396</a>            text: part.text,
+<a href=#2397 id=2397 data-nosnippet>2397</a>            metadata: part.metadata,
+<a href=#2398 id=2398 data-nosnippet>2398</a>        },
+<a href=#2399 id=2399 data-nosnippet>2399</a>        AssistantPart::ToolCall(part) =&gt; PersistedAssistantPart::ToolCall {
+<a href=#2400 id=2400 data-nosnippet>2400</a>            id: cookie_agent_protocol::ModelCallId::new(part.id)
+<a href=#2401 id=2401 data-nosnippet>2401</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2402 id=2402 data-nosnippet>2402</a>            provider_item_id: part
+<a href=#2403 id=2403 data-nosnippet>2403</a>                .provider_item_id
+<a href=#2404 id=2404 data-nosnippet>2404</a>                .map(cookie_agent_protocol::ProviderItemId::new)
+<a href=#2405 id=2405 data-nosnippet>2405</a>                .transpose()
+<a href=#2406 id=2406 data-nosnippet>2406</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2407 id=2407 data-nosnippet>2407</a>            name: normalize_safe_code(part.name, <span class="string">"tool call name"</span>, warnings),
+<a href=#2408 id=2408 data-nosnippet>2408</a>            input: part.input,
+<a href=#2409 id=2409 data-nosnippet>2409</a>            raw_input: part.raw_input,
+<a href=#2410 id=2410 data-nosnippet>2410</a>            metadata: part.metadata,
+<a href=#2411 id=2411 data-nosnippet>2411</a>        },
+<a href=#2412 id=2412 data-nosnippet>2412</a>        AssistantPart::ToolResult(part) =&gt; PersistedAssistantPart::ToolResult {
+<a href=#2413 id=2413 data-nosnippet>2413</a>            tool_call_id: cookie_agent_protocol::ModelCallId::new(part.tool_call_id)
+<a href=#2414 id=2414 data-nosnippet>2414</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2415 id=2415 data-nosnippet>2415</a>            content: persist_tool_content(part.content, store, session)<span class="question-mark">?</span>,
+<a href=#2416 id=2416 data-nosnippet>2416</a>            is_error: part.is_error,
+<a href=#2417 id=2417 data-nosnippet>2417</a>            metadata: part.metadata,
+<a href=#2418 id=2418 data-nosnippet>2418</a>        },
+<a href=#2419 id=2419 data-nosnippet>2419</a>        AssistantPart::File(file) =&gt; PersistedAssistantPart::File {
+<a href=#2420 id=2420 data-nosnippet>2420</a>            file: persist_file(file, store, session)<span class="question-mark">?</span>,
+<a href=#2421 id=2421 data-nosnippet>2421</a>        },
+<a href=#2422 id=2422 data-nosnippet>2422</a>        AssistantPart::Source(part) =&gt; PersistedAssistantPart::Source {
+<a href=#2423 id=2423 data-nosnippet>2423</a>            id: part.id,
+<a href=#2424 id=2424 data-nosnippet>2424</a>            url: part.url.map(|url| url.to_string()),
+<a href=#2425 id=2425 data-nosnippet>2425</a>            title: part.title,
+<a href=#2426 id=2426 data-nosnippet>2426</a>            media_type: part.media_type,
+<a href=#2427 id=2427 data-nosnippet>2427</a>            excerpt: part.excerpt,
 <a href=#2428 id=2428 data-nosnippet>2428</a>            metadata: part.metadata,
 <a href=#2429 id=2429 data-nosnippet>2429</a>        },
-<a href=#2430 id=2430 data-nosnippet>2430</a>        AssistantPart::File(file) =&gt; PersistedAssistantPart::File {
-<a href=#2431 id=2431 data-nosnippet>2431</a>            file: persist_file(file, store, session)<span class="question-mark">?</span>,
-<a href=#2432 id=2432 data-nosnippet>2432</a>        },
-<a href=#2433 id=2433 data-nosnippet>2433</a>        AssistantPart::Source(part) =&gt; PersistedAssistantPart::Source {
-<a href=#2434 id=2434 data-nosnippet>2434</a>            id: part.id,
-<a href=#2435 id=2435 data-nosnippet>2435</a>            url: part.url.map(|url| url.to_string()),
-<a href=#2436 id=2436 data-nosnippet>2436</a>            title: part.title,
-<a href=#2437 id=2437 data-nosnippet>2437</a>            media_type: part.media_type,
-<a href=#2438 id=2438 data-nosnippet>2438</a>            excerpt: part.excerpt,
+<a href=#2430 id=2430 data-nosnippet>2430</a>        AssistantPart::ToolApproval(part) =&gt; PersistedAssistantPart::ToolApproval {
+<a href=#2431 id=2431 data-nosnippet>2431</a>            tool_call_id: cookie_agent_protocol::ModelCallId::new(part.tool_call_id)
+<a href=#2432 id=2432 data-nosnippet>2432</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2433 id=2433 data-nosnippet>2433</a>            message: part.message,
+<a href=#2434 id=2434 data-nosnippet>2434</a>            metadata: part.metadata,
+<a href=#2435 id=2435 data-nosnippet>2435</a>        },
+<a href=#2436 id=2436 data-nosnippet>2436</a>        AssistantPart::Custom(part) =&gt; PersistedAssistantPart::Custom {
+<a href=#2437 id=2437 data-nosnippet>2437</a>            kind: normalize_safe_code(part.kind, <span class="string">"custom part kind"</span>, warnings),
+<a href=#2438 id=2438 data-nosnippet>2438</a>            data: part.data,
 <a href=#2439 id=2439 data-nosnippet>2439</a>            metadata: part.metadata,
 <a href=#2440 id=2440 data-nosnippet>2440</a>        },
-<a href=#2441 id=2441 data-nosnippet>2441</a>        AssistantPart::ToolApproval(part) =&gt; PersistedAssistantPart::ToolApproval {
-<a href=#2442 id=2442 data-nosnippet>2442</a>            tool_call_id: cookie_agent_protocol::ModelCallId::new(part.tool_call_id)
-<a href=#2443 id=2443 data-nosnippet>2443</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2444 id=2444 data-nosnippet>2444</a>            message: part.message,
-<a href=#2445 id=2445 data-nosnippet>2445</a>            metadata: part.metadata,
-<a href=#2446 id=2446 data-nosnippet>2446</a>        },
-<a href=#2447 id=2447 data-nosnippet>2447</a>        AssistantPart::Custom(part) =&gt; PersistedAssistantPart::Custom {
-<a href=#2448 id=2448 data-nosnippet>2448</a>            kind: normalize_safe_code(part.kind, <span class="string">"custom part kind"</span>, warnings),
-<a href=#2449 id=2449 data-nosnippet>2449</a>            data: part.data,
-<a href=#2450 id=2450 data-nosnippet>2450</a>            metadata: part.metadata,
-<a href=#2451 id=2451 data-nosnippet>2451</a>        },
-<a href=#2452 id=2452 data-nosnippet>2452</a>    })
-<a href=#2453 id=2453 data-nosnippet>2453</a>}
-<a href=#2454 id=2454 data-nosnippet>2454</a>
-<a href=#2455 id=2455 data-nosnippet>2455</a><span class="kw">fn </span>restore_assistant_part(part: <span class="kw-2">&amp;</span>PersistedAssistantPart) -&gt; <span class="prelude-ty">Result</span>&lt;AssistantPart, HistoryError&gt; {
-<a href=#2456 id=2456 data-nosnippet>2456</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>part {
-<a href=#2457 id=2457 data-nosnippet>2457</a>        PersistedAssistantPart::Text { text, metadata } =&gt; AssistantPart::Text(TextPart {
-<a href=#2458 id=2458 data-nosnippet>2458</a>            text: text.clone(),
-<a href=#2459 id=2459 data-nosnippet>2459</a>            metadata: metadata.clone(),
-<a href=#2460 id=2460 data-nosnippet>2460</a>        }),
-<a href=#2461 id=2461 data-nosnippet>2461</a>        PersistedAssistantPart::Reasoning { text, metadata } =&gt; {
-<a href=#2462 id=2462 data-nosnippet>2462</a>            AssistantPart::Reasoning(ReasoningPart {
-<a href=#2463 id=2463 data-nosnippet>2463</a>                text: text.clone(),
-<a href=#2464 id=2464 data-nosnippet>2464</a>                metadata: metadata.clone(),
-<a href=#2465 id=2465 data-nosnippet>2465</a>            })
-<a href=#2466 id=2466 data-nosnippet>2466</a>        }
-<a href=#2467 id=2467 data-nosnippet>2467</a>        PersistedAssistantPart::ToolCall {
-<a href=#2468 id=2468 data-nosnippet>2468</a>            id,
-<a href=#2469 id=2469 data-nosnippet>2469</a>            provider_item_id,
-<a href=#2470 id=2470 data-nosnippet>2470</a>            name,
-<a href=#2471 id=2471 data-nosnippet>2471</a>            input,
-<a href=#2472 id=2472 data-nosnippet>2472</a>            raw_input,
-<a href=#2473 id=2473 data-nosnippet>2473</a>            metadata,
-<a href=#2474 id=2474 data-nosnippet>2474</a>        } =&gt; AssistantPart::ToolCall(ToolCallPart {
-<a href=#2475 id=2475 data-nosnippet>2475</a>            id: id.to_string(),
-<a href=#2476 id=2476 data-nosnippet>2476</a>            provider_item_id: provider_item_id.as_ref().map(ToString::to_string),
-<a href=#2477 id=2477 data-nosnippet>2477</a>            name: name.to_string(),
-<a href=#2478 id=2478 data-nosnippet>2478</a>            input: input.clone(),
-<a href=#2479 id=2479 data-nosnippet>2479</a>            raw_input: raw_input.clone(),
+<a href=#2441 id=2441 data-nosnippet>2441</a>    })
+<a href=#2442 id=2442 data-nosnippet>2442</a>}
+<a href=#2443 id=2443 data-nosnippet>2443</a>
+<a href=#2444 id=2444 data-nosnippet>2444</a><span class="kw">fn </span>restore_assistant_part(part: <span class="kw-2">&amp;</span>PersistedAssistantPart) -&gt; <span class="prelude-ty">Result</span>&lt;AssistantPart, HistoryError&gt; {
+<a href=#2445 id=2445 data-nosnippet>2445</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>part {
+<a href=#2446 id=2446 data-nosnippet>2446</a>        PersistedAssistantPart::Text { text, metadata } =&gt; AssistantPart::Text(TextPart {
+<a href=#2447 id=2447 data-nosnippet>2447</a>            text: text.clone(),
+<a href=#2448 id=2448 data-nosnippet>2448</a>            metadata: metadata.clone(),
+<a href=#2449 id=2449 data-nosnippet>2449</a>        }),
+<a href=#2450 id=2450 data-nosnippet>2450</a>        PersistedAssistantPart::Reasoning { text, metadata } =&gt; {
+<a href=#2451 id=2451 data-nosnippet>2451</a>            AssistantPart::Reasoning(ReasoningPart {
+<a href=#2452 id=2452 data-nosnippet>2452</a>                text: text.clone(),
+<a href=#2453 id=2453 data-nosnippet>2453</a>                metadata: metadata.clone(),
+<a href=#2454 id=2454 data-nosnippet>2454</a>            })
+<a href=#2455 id=2455 data-nosnippet>2455</a>        }
+<a href=#2456 id=2456 data-nosnippet>2456</a>        PersistedAssistantPart::ToolCall {
+<a href=#2457 id=2457 data-nosnippet>2457</a>            id,
+<a href=#2458 id=2458 data-nosnippet>2458</a>            provider_item_id,
+<a href=#2459 id=2459 data-nosnippet>2459</a>            name,
+<a href=#2460 id=2460 data-nosnippet>2460</a>            input,
+<a href=#2461 id=2461 data-nosnippet>2461</a>            raw_input,
+<a href=#2462 id=2462 data-nosnippet>2462</a>            metadata,
+<a href=#2463 id=2463 data-nosnippet>2463</a>        } =&gt; AssistantPart::ToolCall(ToolCallPart {
+<a href=#2464 id=2464 data-nosnippet>2464</a>            id: id.to_string(),
+<a href=#2465 id=2465 data-nosnippet>2465</a>            provider_item_id: provider_item_id.as_ref().map(ToString::to_string),
+<a href=#2466 id=2466 data-nosnippet>2466</a>            name: name.to_string(),
+<a href=#2467 id=2467 data-nosnippet>2467</a>            input: input.clone(),
+<a href=#2468 id=2468 data-nosnippet>2468</a>            raw_input: raw_input.clone(),
+<a href=#2469 id=2469 data-nosnippet>2469</a>            metadata: metadata.clone(),
+<a href=#2470 id=2470 data-nosnippet>2470</a>        }),
+<a href=#2471 id=2471 data-nosnippet>2471</a>        PersistedAssistantPart::ToolResult {
+<a href=#2472 id=2472 data-nosnippet>2472</a>            tool_call_id,
+<a href=#2473 id=2473 data-nosnippet>2473</a>            content,
+<a href=#2474 id=2474 data-nosnippet>2474</a>            is_error,
+<a href=#2475 id=2475 data-nosnippet>2475</a>            metadata,
+<a href=#2476 id=2476 data-nosnippet>2476</a>        } =&gt; AssistantPart::ToolResult(ToolResultPart {
+<a href=#2477 id=2477 data-nosnippet>2477</a>            tool_call_id: tool_call_id.to_string(),
+<a href=#2478 id=2478 data-nosnippet>2478</a>            content: restore_tool_content(content)<span class="question-mark">?</span>,
+<a href=#2479 id=2479 data-nosnippet>2479</a>            is_error: <span class="kw-2">*</span>is_error,
 <a href=#2480 id=2480 data-nosnippet>2480</a>            metadata: metadata.clone(),
 <a href=#2481 id=2481 data-nosnippet>2481</a>        }),
-<a href=#2482 id=2482 data-nosnippet>2482</a>        PersistedAssistantPart::ToolResult {
-<a href=#2483 id=2483 data-nosnippet>2483</a>            tool_call_id,
-<a href=#2484 id=2484 data-nosnippet>2484</a>            content,
-<a href=#2485 id=2485 data-nosnippet>2485</a>            is_error,
-<a href=#2486 id=2486 data-nosnippet>2486</a>            metadata,
-<a href=#2487 id=2487 data-nosnippet>2487</a>        } =&gt; AssistantPart::ToolResult(ToolResultPart {
-<a href=#2488 id=2488 data-nosnippet>2488</a>            tool_call_id: tool_call_id.to_string(),
-<a href=#2489 id=2489 data-nosnippet>2489</a>            content: restore_tool_content(content)<span class="question-mark">?</span>,
-<a href=#2490 id=2490 data-nosnippet>2490</a>            is_error: <span class="kw-2">*</span>is_error,
-<a href=#2491 id=2491 data-nosnippet>2491</a>            metadata: metadata.clone(),
-<a href=#2492 id=2492 data-nosnippet>2492</a>        }),
-<a href=#2493 id=2493 data-nosnippet>2493</a>        PersistedAssistantPart::File { file } =&gt; AssistantPart::File(restore_file(file)<span class="question-mark">?</span>),
-<a href=#2494 id=2494 data-nosnippet>2494</a>        PersistedAssistantPart::Source {
-<a href=#2495 id=2495 data-nosnippet>2495</a>            id,
-<a href=#2496 id=2496 data-nosnippet>2496</a>            url,
-<a href=#2497 id=2497 data-nosnippet>2497</a>            title,
-<a href=#2498 id=2498 data-nosnippet>2498</a>            media_type,
-<a href=#2499 id=2499 data-nosnippet>2499</a>            excerpt,
-<a href=#2500 id=2500 data-nosnippet>2500</a>            metadata,
-<a href=#2501 id=2501 data-nosnippet>2501</a>        } =&gt; AssistantPart::Source(SourcePart {
-<a href=#2502 id=2502 data-nosnippet>2502</a>            id: id.clone(),
-<a href=#2503 id=2503 data-nosnippet>2503</a>            url: url
-<a href=#2504 id=2504 data-nosnippet>2504</a>                .as_ref()
-<a href=#2505 id=2505 data-nosnippet>2505</a>                .map(|url| url.parse())
-<a href=#2506 id=2506 data-nosnippet>2506</a>                .transpose()
-<a href=#2507 id=2507 data-nosnippet>2507</a>                .map_err(|error| HistoryError::Corrupt(<span class="macro">format!</span>(<span class="string">"invalid source URL: {error}"</span>)))<span class="question-mark">?</span>,
-<a href=#2508 id=2508 data-nosnippet>2508</a>            title: title.clone(),
-<a href=#2509 id=2509 data-nosnippet>2509</a>            media_type: media_type.clone(),
-<a href=#2510 id=2510 data-nosnippet>2510</a>            excerpt: excerpt.clone(),
-<a href=#2511 id=2511 data-nosnippet>2511</a>            metadata: metadata.clone(),
-<a href=#2512 id=2512 data-nosnippet>2512</a>        }),
-<a href=#2513 id=2513 data-nosnippet>2513</a>        PersistedAssistantPart::ToolApproval {
-<a href=#2514 id=2514 data-nosnippet>2514</a>            tool_call_id,
-<a href=#2515 id=2515 data-nosnippet>2515</a>            message,
-<a href=#2516 id=2516 data-nosnippet>2516</a>            metadata,
-<a href=#2517 id=2517 data-nosnippet>2517</a>        } =&gt; AssistantPart::ToolApproval(ToolApprovalPart {
-<a href=#2518 id=2518 data-nosnippet>2518</a>            tool_call_id: tool_call_id.to_string(),
-<a href=#2519 id=2519 data-nosnippet>2519</a>            message: message.clone(),
-<a href=#2520 id=2520 data-nosnippet>2520</a>            metadata: metadata.clone(),
-<a href=#2521 id=2521 data-nosnippet>2521</a>        }),
-<a href=#2522 id=2522 data-nosnippet>2522</a>        PersistedAssistantPart::Custom {
-<a href=#2523 id=2523 data-nosnippet>2523</a>            kind,
-<a href=#2524 id=2524 data-nosnippet>2524</a>            data,
-<a href=#2525 id=2525 data-nosnippet>2525</a>            metadata,
-<a href=#2526 id=2526 data-nosnippet>2526</a>        } =&gt; AssistantPart::Custom(CustomPart {
-<a href=#2527 id=2527 data-nosnippet>2527</a>            kind: kind.to_string(),
-<a href=#2528 id=2528 data-nosnippet>2528</a>            data: data.clone(),
-<a href=#2529 id=2529 data-nosnippet>2529</a>            metadata: metadata.clone(),
-<a href=#2530 id=2530 data-nosnippet>2530</a>        }),
-<a href=#2531 id=2531 data-nosnippet>2531</a>    })
-<a href=#2532 id=2532 data-nosnippet>2532</a>}
-<a href=#2533 id=2533 data-nosnippet>2533</a>
-<a href=#2534 id=2534 data-nosnippet>2534</a><span class="kw">fn </span>persist_tool_content(
-<a href=#2535 id=2535 data-nosnippet>2535</a>    content: ToolContent,
-<a href=#2536 id=2536 data-nosnippet>2536</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
-<a href=#2537 id=2537 data-nosnippet>2537</a>    session: SessionId,
-<a href=#2538 id=2538 data-nosnippet>2538</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedToolContent, HistoryError&gt; {
-<a href=#2539 id=2539 data-nosnippet>2539</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>content {
-<a href=#2540 id=2540 data-nosnippet>2540</a>        ToolContent::Text(text) =&gt; PersistedToolContent::Text { text },
-<a href=#2541 id=2541 data-nosnippet>2541</a>        ToolContent::Json(value) =&gt; PersistedToolContent::Json { value },
-<a href=#2542 id=2542 data-nosnippet>2542</a>        ToolContent::Mixed(values) =&gt; PersistedToolContent::Mixed {
-<a href=#2543 id=2543 data-nosnippet>2543</a>            values: values
-<a href=#2544 id=2544 data-nosnippet>2544</a>                .into_iter()
-<a href=#2545 id=2545 data-nosnippet>2545</a>                .map(|value| <span class="kw">match </span>value {
-<a href=#2546 id=2546 data-nosnippet>2546</a>                    ContentValue::Text(text) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::Text { text }),
-<a href=#2547 id=2547 data-nosnippet>2547</a>                    ContentValue::Json(value) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::Json { value }),
-<a href=#2548 id=2548 data-nosnippet>2548</a>                    ContentValue::File(file) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::File {
-<a href=#2549 id=2549 data-nosnippet>2549</a>                        file: persist_file(file, store, session)<span class="question-mark">?</span>,
-<a href=#2550 id=2550 data-nosnippet>2550</a>                    }),
-<a href=#2551 id=2551 data-nosnippet>2551</a>                })
-<a href=#2552 id=2552 data-nosnippet>2552</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>,
-<a href=#2553 id=2553 data-nosnippet>2553</a>        },
-<a href=#2554 id=2554 data-nosnippet>2554</a>        ToolContent::Denied { reason } =&gt; PersistedToolContent::Denied { reason },
-<a href=#2555 id=2555 data-nosnippet>2555</a>        <span class="comment">// Only a tool message's result loads tools; a provider-executed
-<a href=#2556 id=2556 data-nosnippet>2556</a>        // result in an assistant turn never does, so its text is all of it.
-<a href=#2557 id=2557 data-nosnippet>2557</a>        </span>ToolContent::LoadTools { text, .. } =&gt; PersistedToolContent::Text { text },
-<a href=#2558 id=2558 data-nosnippet>2558</a>    })
-<a href=#2559 id=2559 data-nosnippet>2559</a>}
-<a href=#2560 id=2560 data-nosnippet>2560</a>
-<a href=#2561 id=2561 data-nosnippet>2561</a><span class="kw">fn </span>restore_tool_content(content: <span class="kw-2">&amp;</span>PersistedToolContent) -&gt; <span class="prelude-ty">Result</span>&lt;ToolContent, HistoryError&gt; {
-<a href=#2562 id=2562 data-nosnippet>2562</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>content {
-<a href=#2563 id=2563 data-nosnippet>2563</a>        PersistedToolContent::Text { text } =&gt; ToolContent::Text(text.clone()),
-<a href=#2564 id=2564 data-nosnippet>2564</a>        PersistedToolContent::Json { value } =&gt; ToolContent::Json(value.clone()),
-<a href=#2565 id=2565 data-nosnippet>2565</a>        PersistedToolContent::Mixed { values } =&gt; ToolContent::Mixed(
-<a href=#2566 id=2566 data-nosnippet>2566</a>            values
-<a href=#2567 id=2567 data-nosnippet>2567</a>                .iter()
-<a href=#2568 id=2568 data-nosnippet>2568</a>                .map(|value| <span class="kw">match </span>value {
-<a href=#2569 id=2569 data-nosnippet>2569</a>                    PersistedContentValue::Text { text } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Text(text.clone())),
-<a href=#2570 id=2570 data-nosnippet>2570</a>                    PersistedContentValue::Json { value } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Json(value.clone())),
-<a href=#2571 id=2571 data-nosnippet>2571</a>                    PersistedContentValue::File { file } =&gt; {
-<a href=#2572 id=2572 data-nosnippet>2572</a>                        <span class="prelude-val">Ok</span>(ContentValue::File(restore_file(file)<span class="question-mark">?</span>))
-<a href=#2573 id=2573 data-nosnippet>2573</a>                    }
-<a href=#2574 id=2574 data-nosnippet>2574</a>                })
-<a href=#2575 id=2575 data-nosnippet>2575</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>,
-<a href=#2576 id=2576 data-nosnippet>2576</a>        ),
-<a href=#2577 id=2577 data-nosnippet>2577</a>        PersistedToolContent::Denied { reason } =&gt; ToolContent::Denied {
-<a href=#2578 id=2578 data-nosnippet>2578</a>            reason: reason.clone(),
-<a href=#2579 id=2579 data-nosnippet>2579</a>        },
-<a href=#2580 id=2580 data-nosnippet>2580</a>    })
-<a href=#2581 id=2581 data-nosnippet>2581</a>}
-<a href=#2582 id=2582 data-nosnippet>2582</a>
-<a href=#2583 id=2583 data-nosnippet>2583</a><span class="kw">fn </span>persist_file(
-<a href=#2584 id=2584 data-nosnippet>2584</a>    file: FilePart,
-<a href=#2585 id=2585 data-nosnippet>2585</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
-<a href=#2586 id=2586 data-nosnippet>2586</a>    session: SessionId,
-<a href=#2587 id=2587 data-nosnippet>2587</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedFilePart, HistoryError&gt; {
-<a href=#2588 id=2588 data-nosnippet>2588</a>    <span class="kw">let </span>source = <span class="kw">match </span>file.source {
-<a href=#2589 id=2589 data-nosnippet>2589</a>        FileSource::Bytes(bytes) =&gt; persisted_artifact(store, session, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>,
-<a href=#2590 id=2590 data-nosnippet>2590</a>        FileSource::Text(text) =&gt; persisted_artifact(store, session, text.as_bytes())<span class="question-mark">?</span>,
-<a href=#2591 id=2591 data-nosnippet>2591</a>        FileSource::Url(url) =&gt; PersistedFileSource::Url {
-<a href=#2592 id=2592 data-nosnippet>2592</a>            url: url.to_string(),
-<a href=#2593 id=2593 data-nosnippet>2593</a>        },
-<a href=#2594 id=2594 data-nosnippet>2594</a>        FileSource::ProviderReference { provider, id } =&gt; PersistedFileSource::ProviderReference {
-<a href=#2595 id=2595 data-nosnippet>2595</a>            provider_id: cookie_agent_protocol::ProviderId::new(provider.as_str())
-<a href=#2596 id=2596 data-nosnippet>2596</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2597 id=2597 data-nosnippet>2597</a>            id: cookie_agent_protocol::SafeDisplayText::new(id)
-<a href=#2598 id=2598 data-nosnippet>2598</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2599 id=2599 data-nosnippet>2599</a>        },
-<a href=#2600 id=2600 data-nosnippet>2600</a>    };
-<a href=#2601 id=2601 data-nosnippet>2601</a>    <span class="prelude-val">Ok</span>(PersistedFilePart {
-<a href=#2602 id=2602 data-nosnippet>2602</a>        media_type: cookie_agent_protocol::MimeType::new(file.media_type)
-<a href=#2603 id=2603 data-nosnippet>2603</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2604 id=2604 data-nosnippet>2604</a>        filename: file.filename,
-<a href=#2605 id=2605 data-nosnippet>2605</a>        source,
-<a href=#2606 id=2606 data-nosnippet>2606</a>        metadata: file.metadata,
-<a href=#2607 id=2607 data-nosnippet>2607</a>        folder: <span class="prelude-val">None</span>,
-<a href=#2608 id=2608 data-nosnippet>2608</a>    })
-<a href=#2609 id=2609 data-nosnippet>2609</a>}
-<a href=#2610 id=2610 data-nosnippet>2610</a>
-<a href=#2611 id=2611 data-nosnippet>2611</a><span class="kw">fn </span>persisted_artifact(
-<a href=#2612 id=2612 data-nosnippet>2612</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
-<a href=#2613 id=2613 data-nosnippet>2613</a>    session: SessionId,
-<a href=#2614 id=2614 data-nosnippet>2614</a>    bytes: <span class="kw-2">&amp;</span>[u8],
-<a href=#2615 id=2615 data-nosnippet>2615</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedFileSource, HistoryError&gt; {
-<a href=#2616 id=2616 data-nosnippet>2616</a>    <span class="kw">let </span>(reference, sha256) = store.retain(session, bytes)<span class="question-mark">?</span>;
-<a href=#2617 id=2617 data-nosnippet>2617</a>    <span class="prelude-val">Ok</span>(PersistedFileSource::Artifact {
-<a href=#2618 id=2618 data-nosnippet>2618</a>        byte_length: bytes.len() <span class="kw">as </span>u64,
-<a href=#2619 id=2619 data-nosnippet>2619</a>        sha256: Sha256Digest::new(sha256)
-<a href=#2620 id=2620 data-nosnippet>2620</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2621 id=2621 data-nosnippet>2621</a>        reference,
-<a href=#2622 id=2622 data-nosnippet>2622</a>    })
-<a href=#2623 id=2623 data-nosnippet>2623</a>}
-<a href=#2624 id=2624 data-nosnippet>2624</a>
-<a href=#2625 id=2625 data-nosnippet>2625</a><span class="kw">fn </span>restore_file(file: <span class="kw-2">&amp;</span>PersistedFilePart) -&gt; <span class="prelude-ty">Result</span>&lt;FilePart, HistoryError&gt; {
-<a href=#2626 id=2626 data-nosnippet>2626</a>    <span class="kw">let </span>source = <span class="kw">match </span><span class="kw-2">&amp;</span>file.source {
-<a href=#2627 id=2627 data-nosnippet>2627</a>        PersistedFileSource::Artifact { .. } =&gt; {
-<a href=#2628 id=2628 data-nosnippet>2628</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(HistoryError::Corrupt(
-<a href=#2629 id=2629 data-nosnippet>2629</a>                <span class="string">"persisted artifact file was restored without the artifact store"</span>.into(),
-<a href=#2630 id=2630 data-nosnippet>2630</a>            ));
-<a href=#2631 id=2631 data-nosnippet>2631</a>        }
-<a href=#2632 id=2632 data-nosnippet>2632</a>        PersistedFileSource::Url { url } =&gt; FileSource::Url(
-<a href=#2633 id=2633 data-nosnippet>2633</a>            url.parse()
-<a href=#2634 id=2634 data-nosnippet>2634</a>                .map_err(|error| HistoryError::Corrupt(<span class="macro">format!</span>(<span class="string">"invalid file URL: {error}"</span>)))<span class="question-mark">?</span>,
-<a href=#2635 id=2635 data-nosnippet>2635</a>        ),
-<a href=#2636 id=2636 data-nosnippet>2636</a>        PersistedFileSource::ProviderReference { provider_id, id } =&gt; {
-<a href=#2637 id=2637 data-nosnippet>2637</a>            FileSource::ProviderReference {
-<a href=#2638 id=2638 data-nosnippet>2638</a>                provider: ProviderId::new(provider_id.as_str()),
-<a href=#2639 id=2639 data-nosnippet>2639</a>                id: id.to_string(),
-<a href=#2640 id=2640 data-nosnippet>2640</a>            }
-<a href=#2641 id=2641 data-nosnippet>2641</a>        }
-<a href=#2642 id=2642 data-nosnippet>2642</a>    };
-<a href=#2643 id=2643 data-nosnippet>2643</a>    <span class="prelude-val">Ok</span>(FilePart {
-<a href=#2644 id=2644 data-nosnippet>2644</a>        media_type: file.media_type.to_string(),
-<a href=#2645 id=2645 data-nosnippet>2645</a>        filename: file.filename.clone(),
-<a href=#2646 id=2646 data-nosnippet>2646</a>        source,
-<a href=#2647 id=2647 data-nosnippet>2647</a>        metadata: file.metadata.clone(),
-<a href=#2648 id=2648 data-nosnippet>2648</a>    })
-<a href=#2649 id=2649 data-nosnippet>2649</a>}
-<a href=#2650 id=2650 data-nosnippet>2650</a>
-<a href=#2651 id=2651 data-nosnippet>2651</a><span class="kw">fn </span>restore_file_with_store(
-<a href=#2652 id=2652 data-nosnippet>2652</a>    file: <span class="kw-2">&amp;</span>PersistedFilePart,
-<a href=#2653 id=2653 data-nosnippet>2653</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#2654 id=2654 data-nosnippet>2654</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;FilePart, String&gt;, HistoryError&gt; {
-<a href=#2655 id=2655 data-nosnippet>2655</a>    <span class="kw">if let </span>PersistedFileSource::Artifact {
-<a href=#2656 id=2656 data-nosnippet>2656</a>        byte_length,
-<a href=#2657 id=2657 data-nosnippet>2657</a>        sha256,
-<a href=#2658 id=2658 data-nosnippet>2658</a>        reference,
-<a href=#2659 id=2659 data-nosnippet>2659</a>    } = <span class="kw-2">&amp;</span>file.source
-<a href=#2660 id=2660 data-nosnippet>2660</a>    {
-<a href=#2661 id=2661 data-nosnippet>2661</a>        <span class="kw">let </span>attachment = ToolAttachment {
-<a href=#2662 id=2662 data-nosnippet>2662</a>            mime_type: file.media_type.clone(),
-<a href=#2663 id=2663 data-nosnippet>2663</a>            filename: file.filename.clone(),
-<a href=#2664 id=2664 data-nosnippet>2664</a>            byte_length: <span class="kw-2">*</span>byte_length,
-<a href=#2665 id=2665 data-nosnippet>2665</a>            sha256: sha256.clone(),
-<a href=#2666 id=2666 data-nosnippet>2666</a>            reference: reference.clone(),
-<a href=#2667 id=2667 data-nosnippet>2667</a>        };
-<a href=#2668 id=2668 data-nosnippet>2668</a>        <span class="kw">return </span>attachment_file(<span class="kw-2">&amp;</span>attachment, store);
-<a href=#2669 id=2669 data-nosnippet>2669</a>    }
-<a href=#2670 id=2670 data-nosnippet>2670</a>    restore_file(file).map(<span class="prelude-val">Ok</span>)
-<a href=#2671 id=2671 data-nosnippet>2671</a>}
-<a href=#2672 id=2672 data-nosnippet>2672</a>
-<a href=#2673 id=2673 data-nosnippet>2673</a><span class="kw">fn </span>persist_replay(
-<a href=#2674 id=2674 data-nosnippet>2674</a>    artifact: OvenReplayArtifact,
-<a href=#2675 id=2675 data-nosnippet>2675</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
-<a href=#2676 id=2676 data-nosnippet>2676</a>) -&gt; <span class="prelude-ty">Result</span>&lt;NativeReplayArtifact, HistoryError&gt; {
-<a href=#2677 id=2677 data-nosnippet>2677</a>    <span class="kw">let </span>wire_model = binding
-<a href=#2678 id=2678 data-nosnippet>2678</a>        .descriptor
-<a href=#2679 id=2679 data-nosnippet>2679</a>        .provider_metadata
-<a href=#2680 id=2680 data-nosnippet>2680</a>        .get(<span class="string">"cookie_agent.wire_model_id"</span>)
-<a href=#2681 id=2681 data-nosnippet>2681</a>        .and_then(serde_json::Value::as_str)
-<a href=#2682 id=2682 data-nosnippet>2682</a>        .unwrap_or(binding.descriptor.identity.model_id.as_str());
-<a href=#2683 id=2683 data-nosnippet>2683</a>    <span class="kw">let </span>wire_provider = binding
-<a href=#2684 id=2684 data-nosnippet>2684</a>        .descriptor
-<a href=#2685 id=2685 data-nosnippet>2685</a>        .provider_metadata
-<a href=#2686 id=2686 data-nosnippet>2686</a>        .get(<span class="string">"cookie_agent.wire_provider_id"</span>)
-<a href=#2687 id=2687 data-nosnippet>2687</a>        .and_then(serde_json::Value::as_str)
-<a href=#2688 id=2688 data-nosnippet>2688</a>        .unwrap_or(binding.descriptor.identity.provider_id.as_str());
-<a href=#2689 id=2689 data-nosnippet>2689</a>    <span class="kw">if </span>artifact.adapter_id() != <span class="kw-2">&amp;</span>binding.descriptor.adapter_id
-<a href=#2690 id=2690 data-nosnippet>2690</a>        || artifact.scope().provider_id.as_str() != wire_provider
-<a href=#2691 id=2691 data-nosnippet>2691</a>        || artifact.scope().model_id.as_str() != wire_model
-<a href=#2692 id=2692 data-nosnippet>2692</a>    {
-<a href=#2693 id=2693 data-nosnippet>2693</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(HistoryError::Corrupt(
-<a href=#2694 id=2694 data-nosnippet>2694</a>            <span class="string">"native replay artifact does not match its exact frozen model binding"</span>.into(),
-<a href=#2695 id=2695 data-nosnippet>2695</a>        ));
-<a href=#2696 id=2696 data-nosnippet>2696</a>    }
-<a href=#2697 id=2697 data-nosnippet>2697</a>    <span class="kw">let </span>scope = NativeContextScope {
-<a href=#2698 id=2698 data-nosnippet>2698</a>        provider_id: binding.selection.model.provider_id(),
-<a href=#2699 id=2699 data-nosnippet>2699</a>        model_id: binding.selection.model.model_id(),
-<a href=#2700 id=2700 data-nosnippet>2700</a>        resource_id: cookie_agent_protocol::SafeDisplayText::new(
-<a href=#2701 id=2701 data-nosnippet>2701</a>            artifact.scope().resource_id.as_str(),
-<a href=#2702 id=2702 data-nosnippet>2702</a>        )
-<a href=#2703 id=2703 data-nosnippet>2703</a>        .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2704 id=2704 data-nosnippet>2704</a>    };
-<a href=#2705 id=2705 data-nosnippet>2705</a>    NativeReplayArtifact::new(
-<a href=#2706 id=2706 data-nosnippet>2706</a>        cookie_agent_protocol::SafeCode::new(artifact.adapter_id().as_str())
-<a href=#2707 id=2707 data-nosnippet>2707</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2708 id=2708 data-nosnippet>2708</a>        cookie_agent_protocol::Sha256Digest::new(binding.selection_fingerprint.as_str())
-<a href=#2709 id=2709 data-nosnippet>2709</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2710 id=2710 data-nosnippet>2710</a>        scope,
-<a href=#2711 id=2711 data-nosnippet>2711</a>        artifact.payload().clone(),
-<a href=#2712 id=2712 data-nosnippet>2712</a>    )
-<a href=#2713 id=2713 data-nosnippet>2713</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
-<a href=#2714 id=2714 data-nosnippet>2714</a>}
-<a href=#2715 id=2715 data-nosnippet>2715</a>
-<a href=#2716 id=2716 data-nosnippet>2716</a><span class="kw">fn </span>restore_replay(
-<a href=#2717 id=2717 data-nosnippet>2717</a>    artifact: <span class="kw-2">&amp;</span>NativeReplayArtifact,
-<a href=#2718 id=2718 data-nosnippet>2718</a>    resolved_model: <span class="kw-2">&amp;</span>ResolvedModelRef,
-<a href=#2719 id=2719 data-nosnippet>2719</a>    _binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
-<a href=#2720 id=2720 data-nosnippet>2720</a>    source_wire_model_id: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#2721 id=2721 data-nosnippet>2721</a>) -&gt; (<span class="prelude-ty">Option</span>&lt;OvenReplayArtifact&gt;, <span class="prelude-ty">Option</span>&lt;ReplayDisposition&gt;) {
-<a href=#2722 id=2722 data-nosnippet>2722</a>    <span class="comment">// Persisted-turn integrity: the artifact must have been recorded by the
-<a href=#2723 id=2723 data-nosnippet>2723</a>    // adapter the turn itself resolved to, before any current-eligibility
-<a href=#2724 id=2724 data-nosnippet>2724</a>    // checks expose its opaque payload. Artifacts record the Oven adapter ID
-<a href=#2725 id=2725 data-nosnippet>2725</a>    // while the persisted turn carries the protocol adapter ID, so compare
-<a href=#2726 id=2726 data-nosnippet>2726</a>    // through the shared family mapping.
-<a href=#2727 id=2727 data-nosnippet>2727</a>    </span><span class="kw">if </span>cookie_agent_models::adapters::wire_adapter_for_protocol(artifact.adapter_id().as_str())
-<a href=#2728 id=2728 data-nosnippet>2728</a>        .is_none()
-<a href=#2729 id=2729 data-nosnippet>2729</a>        || <span class="kw">crate</span>::policy::wire_adapter(artifact.adapter_id().as_str()) != resolved_model.adapter_id
-<a href=#2730 id=2730 data-nosnippet>2730</a>    {
-<a href=#2731 id=2731 data-nosnippet>2731</a>        <span class="kw">return </span>(
-<a href=#2732 id=2732 data-nosnippet>2732</a>            <span class="prelude-val">None</span>,
-<a href=#2733 id=2733 data-nosnippet>2733</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
-<a href=#2734 id=2734 data-nosnippet>2734</a>                reason: safe_replay_reason(
-<a href=#2735 id=2735 data-nosnippet>2735</a>                    <span class="string">"native replay adapter does not match its persisted model turn"</span>,
-<a href=#2736 id=2736 data-nosnippet>2736</a>                ),
-<a href=#2737 id=2737 data-nosnippet>2737</a>            }),
-<a href=#2738 id=2738 data-nosnippet>2738</a>        );
-<a href=#2739 id=2739 data-nosnippet>2739</a>    }
-<a href=#2740 id=2740 data-nosnippet>2740</a>    <span class="kw">if </span>artifact.selection_fingerprint() != <span class="kw-2">&amp;</span>resolved_model.selection_fingerprint
-<a href=#2741 id=2741 data-nosnippet>2741</a>        || artifact.scope().provider_id != resolved_model.provider_id
-<a href=#2742 id=2742 data-nosnippet>2742</a>        || artifact.scope().model_id != resolved_model.model_id
-<a href=#2743 id=2743 data-nosnippet>2743</a>    {
-<a href=#2744 id=2744 data-nosnippet>2744</a>        <span class="kw">return </span>(
-<a href=#2745 id=2745 data-nosnippet>2745</a>            <span class="prelude-val">None</span>,
-<a href=#2746 id=2746 data-nosnippet>2746</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
-<a href=#2747 id=2747 data-nosnippet>2747</a>                reason: safe_replay_reason(
-<a href=#2748 id=2748 data-nosnippet>2748</a>                    <span class="string">"native replay identity does not match its persisted model turn"</span>,
-<a href=#2749 id=2749 data-nosnippet>2749</a>                ),
-<a href=#2750 id=2750 data-nosnippet>2750</a>            }),
-<a href=#2751 id=2751 data-nosnippet>2751</a>        );
-<a href=#2752 id=2752 data-nosnippet>2752</a>    }
-<a href=#2753 id=2753 data-nosnippet>2753</a>    <span class="comment">// Source attribution is integrity data. Target codecs decide block eligibility.
-<a href=#2754 id=2754 data-nosnippet>2754</a>    </span><span class="kw">let </span>scope = <span class="kw">match </span>restore_scope(artifact.scope()) {
-<a href=#2755 id=2755 data-nosnippet>2755</a>        <span class="prelude-val">Ok</span>(scope) =&gt; scope,
-<a href=#2756 id=2756 data-nosnippet>2756</a>        <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#2757 id=2757 data-nosnippet>2757</a>            <span class="kw">return </span>(
-<a href=#2758 id=2758 data-nosnippet>2758</a>                <span class="prelude-val">None</span>,
-<a href=#2759 id=2759 data-nosnippet>2759</a>                <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
-<a href=#2760 id=2760 data-nosnippet>2760</a>                    reason: safe_replay_reason(<span class="kw-2">&amp;</span>error.to_string()),
-<a href=#2761 id=2761 data-nosnippet>2761</a>                }),
-<a href=#2762 id=2762 data-nosnippet>2762</a>            );
-<a href=#2763 id=2763 data-nosnippet>2763</a>        }
-<a href=#2764 id=2764 data-nosnippet>2764</a>    };
-<a href=#2765 id=2765 data-nosnippet>2765</a>    <span class="kw">match </span>OvenReplayArtifact::new(
-<a href=#2766 id=2766 data-nosnippet>2766</a>        AdapterId::new(artifact.adapter_id().as_str()),
-<a href=#2767 id=2767 data-nosnippet>2767</a>        scope,
-<a href=#2768 id=2768 data-nosnippet>2768</a>        artifact.payload().clone(),
-<a href=#2769 id=2769 data-nosnippet>2769</a>    )
-<a href=#2770 id=2770 data-nosnippet>2770</a>    .and_then(|artifact| <span class="kw">match </span>source_wire_model_id {
-<a href=#2771 id=2771 data-nosnippet>2771</a>        <span class="prelude-val">Some</span>(source) =&gt; artifact.with_source_wire_model_id(oven_sdk::ModelId::new(source)),
-<a href=#2772 id=2772 data-nosnippet>2772</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(artifact),
-<a href=#2773 id=2773 data-nosnippet>2773</a>    }) {
-<a href=#2774 id=2774 data-nosnippet>2774</a>        <span class="prelude-val">Ok</span>(artifact) =&gt; (<span class="prelude-val">Some</span>(artifact), <span class="prelude-val">None</span>),
-<a href=#2775 id=2775 data-nosnippet>2775</a>        <span class="prelude-val">Err</span>(error) =&gt; (
-<a href=#2776 id=2776 data-nosnippet>2776</a>            <span class="prelude-val">None</span>,
-<a href=#2777 id=2777 data-nosnippet>2777</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
-<a href=#2778 id=2778 data-nosnippet>2778</a>                reason: safe_replay_reason(<span class="kw-2">&amp;</span>error.to_string()),
-<a href=#2779 id=2779 data-nosnippet>2779</a>            }),
-<a href=#2780 id=2780 data-nosnippet>2780</a>        ),
-<a href=#2781 id=2781 data-nosnippet>2781</a>    }
+<a href=#2482 id=2482 data-nosnippet>2482</a>        PersistedAssistantPart::File { file } =&gt; AssistantPart::File(restore_file(file)<span class="question-mark">?</span>),
+<a href=#2483 id=2483 data-nosnippet>2483</a>        PersistedAssistantPart::Source {
+<a href=#2484 id=2484 data-nosnippet>2484</a>            id,
+<a href=#2485 id=2485 data-nosnippet>2485</a>            url,
+<a href=#2486 id=2486 data-nosnippet>2486</a>            title,
+<a href=#2487 id=2487 data-nosnippet>2487</a>            media_type,
+<a href=#2488 id=2488 data-nosnippet>2488</a>            excerpt,
+<a href=#2489 id=2489 data-nosnippet>2489</a>            metadata,
+<a href=#2490 id=2490 data-nosnippet>2490</a>        } =&gt; AssistantPart::Source(SourcePart {
+<a href=#2491 id=2491 data-nosnippet>2491</a>            id: id.clone(),
+<a href=#2492 id=2492 data-nosnippet>2492</a>            url: url
+<a href=#2493 id=2493 data-nosnippet>2493</a>                .as_ref()
+<a href=#2494 id=2494 data-nosnippet>2494</a>                .map(|url| url.parse())
+<a href=#2495 id=2495 data-nosnippet>2495</a>                .transpose()
+<a href=#2496 id=2496 data-nosnippet>2496</a>                .map_err(|error| HistoryError::Corrupt(<span class="macro">format!</span>(<span class="string">"invalid source URL: {error}"</span>)))<span class="question-mark">?</span>,
+<a href=#2497 id=2497 data-nosnippet>2497</a>            title: title.clone(),
+<a href=#2498 id=2498 data-nosnippet>2498</a>            media_type: media_type.clone(),
+<a href=#2499 id=2499 data-nosnippet>2499</a>            excerpt: excerpt.clone(),
+<a href=#2500 id=2500 data-nosnippet>2500</a>            metadata: metadata.clone(),
+<a href=#2501 id=2501 data-nosnippet>2501</a>        }),
+<a href=#2502 id=2502 data-nosnippet>2502</a>        PersistedAssistantPart::ToolApproval {
+<a href=#2503 id=2503 data-nosnippet>2503</a>            tool_call_id,
+<a href=#2504 id=2504 data-nosnippet>2504</a>            message,
+<a href=#2505 id=2505 data-nosnippet>2505</a>            metadata,
+<a href=#2506 id=2506 data-nosnippet>2506</a>        } =&gt; AssistantPart::ToolApproval(ToolApprovalPart {
+<a href=#2507 id=2507 data-nosnippet>2507</a>            tool_call_id: tool_call_id.to_string(),
+<a href=#2508 id=2508 data-nosnippet>2508</a>            message: message.clone(),
+<a href=#2509 id=2509 data-nosnippet>2509</a>            metadata: metadata.clone(),
+<a href=#2510 id=2510 data-nosnippet>2510</a>        }),
+<a href=#2511 id=2511 data-nosnippet>2511</a>        PersistedAssistantPart::Custom {
+<a href=#2512 id=2512 data-nosnippet>2512</a>            kind,
+<a href=#2513 id=2513 data-nosnippet>2513</a>            data,
+<a href=#2514 id=2514 data-nosnippet>2514</a>            metadata,
+<a href=#2515 id=2515 data-nosnippet>2515</a>        } =&gt; AssistantPart::Custom(CustomPart {
+<a href=#2516 id=2516 data-nosnippet>2516</a>            kind: kind.to_string(),
+<a href=#2517 id=2517 data-nosnippet>2517</a>            data: data.clone(),
+<a href=#2518 id=2518 data-nosnippet>2518</a>            metadata: metadata.clone(),
+<a href=#2519 id=2519 data-nosnippet>2519</a>        }),
+<a href=#2520 id=2520 data-nosnippet>2520</a>    })
+<a href=#2521 id=2521 data-nosnippet>2521</a>}
+<a href=#2522 id=2522 data-nosnippet>2522</a>
+<a href=#2523 id=2523 data-nosnippet>2523</a><span class="kw">fn </span>persist_tool_content(
+<a href=#2524 id=2524 data-nosnippet>2524</a>    content: ToolContent,
+<a href=#2525 id=2525 data-nosnippet>2525</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
+<a href=#2526 id=2526 data-nosnippet>2526</a>    session: SessionId,
+<a href=#2527 id=2527 data-nosnippet>2527</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedToolContent, HistoryError&gt; {
+<a href=#2528 id=2528 data-nosnippet>2528</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>content {
+<a href=#2529 id=2529 data-nosnippet>2529</a>        ToolContent::Text(text) =&gt; PersistedToolContent::Text { text },
+<a href=#2530 id=2530 data-nosnippet>2530</a>        ToolContent::Json(value) =&gt; PersistedToolContent::Json { value },
+<a href=#2531 id=2531 data-nosnippet>2531</a>        ToolContent::Mixed(values) =&gt; PersistedToolContent::Mixed {
+<a href=#2532 id=2532 data-nosnippet>2532</a>            values: values
+<a href=#2533 id=2533 data-nosnippet>2533</a>                .into_iter()
+<a href=#2534 id=2534 data-nosnippet>2534</a>                .map(|value| <span class="kw">match </span>value {
+<a href=#2535 id=2535 data-nosnippet>2535</a>                    ContentValue::Text(text) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::Text { text }),
+<a href=#2536 id=2536 data-nosnippet>2536</a>                    ContentValue::Json(value) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::Json { value }),
+<a href=#2537 id=2537 data-nosnippet>2537</a>                    ContentValue::File(file) =&gt; <span class="prelude-val">Ok</span>(PersistedContentValue::File {
+<a href=#2538 id=2538 data-nosnippet>2538</a>                        file: persist_file(file, store, session)<span class="question-mark">?</span>,
+<a href=#2539 id=2539 data-nosnippet>2539</a>                    }),
+<a href=#2540 id=2540 data-nosnippet>2540</a>                })
+<a href=#2541 id=2541 data-nosnippet>2541</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>,
+<a href=#2542 id=2542 data-nosnippet>2542</a>        },
+<a href=#2543 id=2543 data-nosnippet>2543</a>        ToolContent::Denied { reason } =&gt; PersistedToolContent::Denied { reason },
+<a href=#2544 id=2544 data-nosnippet>2544</a>        <span class="comment">// Only a tool message's result loads tools; a provider-executed
+<a href=#2545 id=2545 data-nosnippet>2545</a>        // result in an assistant turn never does, so its text is all of it.
+<a href=#2546 id=2546 data-nosnippet>2546</a>        </span>ToolContent::LoadTools { text, .. } =&gt; PersistedToolContent::Text { text },
+<a href=#2547 id=2547 data-nosnippet>2547</a>    })
+<a href=#2548 id=2548 data-nosnippet>2548</a>}
+<a href=#2549 id=2549 data-nosnippet>2549</a>
+<a href=#2550 id=2550 data-nosnippet>2550</a><span class="kw">fn </span>restore_tool_content(content: <span class="kw-2">&amp;</span>PersistedToolContent) -&gt; <span class="prelude-ty">Result</span>&lt;ToolContent, HistoryError&gt; {
+<a href=#2551 id=2551 data-nosnippet>2551</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>content {
+<a href=#2552 id=2552 data-nosnippet>2552</a>        PersistedToolContent::Text { text } =&gt; ToolContent::Text(text.clone()),
+<a href=#2553 id=2553 data-nosnippet>2553</a>        PersistedToolContent::Json { value } =&gt; ToolContent::Json(value.clone()),
+<a href=#2554 id=2554 data-nosnippet>2554</a>        PersistedToolContent::Mixed { values } =&gt; ToolContent::Mixed(
+<a href=#2555 id=2555 data-nosnippet>2555</a>            values
+<a href=#2556 id=2556 data-nosnippet>2556</a>                .iter()
+<a href=#2557 id=2557 data-nosnippet>2557</a>                .map(|value| <span class="kw">match </span>value {
+<a href=#2558 id=2558 data-nosnippet>2558</a>                    PersistedContentValue::Text { text } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Text(text.clone())),
+<a href=#2559 id=2559 data-nosnippet>2559</a>                    PersistedContentValue::Json { value } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Json(value.clone())),
+<a href=#2560 id=2560 data-nosnippet>2560</a>                    PersistedContentValue::File { file } =&gt; {
+<a href=#2561 id=2561 data-nosnippet>2561</a>                        <span class="prelude-val">Ok</span>(ContentValue::File(restore_file(file)<span class="question-mark">?</span>))
+<a href=#2562 id=2562 data-nosnippet>2562</a>                    }
+<a href=#2563 id=2563 data-nosnippet>2563</a>                })
+<a href=#2564 id=2564 data-nosnippet>2564</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>,
+<a href=#2565 id=2565 data-nosnippet>2565</a>        ),
+<a href=#2566 id=2566 data-nosnippet>2566</a>        PersistedToolContent::Denied { reason } =&gt; ToolContent::Denied {
+<a href=#2567 id=2567 data-nosnippet>2567</a>            reason: reason.clone(),
+<a href=#2568 id=2568 data-nosnippet>2568</a>        },
+<a href=#2569 id=2569 data-nosnippet>2569</a>    })
+<a href=#2570 id=2570 data-nosnippet>2570</a>}
+<a href=#2571 id=2571 data-nosnippet>2571</a>
+<a href=#2572 id=2572 data-nosnippet>2572</a><span class="kw">fn </span>persist_file(
+<a href=#2573 id=2573 data-nosnippet>2573</a>    file: FilePart,
+<a href=#2574 id=2574 data-nosnippet>2574</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
+<a href=#2575 id=2575 data-nosnippet>2575</a>    session: SessionId,
+<a href=#2576 id=2576 data-nosnippet>2576</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedFilePart, HistoryError&gt; {
+<a href=#2577 id=2577 data-nosnippet>2577</a>    <span class="kw">let </span>source = <span class="kw">match </span>file.source {
+<a href=#2578 id=2578 data-nosnippet>2578</a>        FileSource::Bytes(bytes) =&gt; persisted_artifact(store, session, <span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>,
+<a href=#2579 id=2579 data-nosnippet>2579</a>        FileSource::Text(text) =&gt; persisted_artifact(store, session, text.as_bytes())<span class="question-mark">?</span>,
+<a href=#2580 id=2580 data-nosnippet>2580</a>        FileSource::Url(url) =&gt; PersistedFileSource::Url {
+<a href=#2581 id=2581 data-nosnippet>2581</a>            url: url.to_string(),
+<a href=#2582 id=2582 data-nosnippet>2582</a>        },
+<a href=#2583 id=2583 data-nosnippet>2583</a>        FileSource::ProviderReference { provider, id } =&gt; PersistedFileSource::ProviderReference {
+<a href=#2584 id=2584 data-nosnippet>2584</a>            provider_id: cookie_agent_protocol::ProviderId::new(provider.as_str())
+<a href=#2585 id=2585 data-nosnippet>2585</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2586 id=2586 data-nosnippet>2586</a>            id: cookie_agent_protocol::SafeDisplayText::new(id)
+<a href=#2587 id=2587 data-nosnippet>2587</a>                .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2588 id=2588 data-nosnippet>2588</a>        },
+<a href=#2589 id=2589 data-nosnippet>2589</a>    };
+<a href=#2590 id=2590 data-nosnippet>2590</a>    <span class="prelude-val">Ok</span>(PersistedFilePart {
+<a href=#2591 id=2591 data-nosnippet>2591</a>        media_type: cookie_agent_protocol::MimeType::new(file.media_type)
+<a href=#2592 id=2592 data-nosnippet>2592</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2593 id=2593 data-nosnippet>2593</a>        filename: file.filename,
+<a href=#2594 id=2594 data-nosnippet>2594</a>        source,
+<a href=#2595 id=2595 data-nosnippet>2595</a>        metadata: file.metadata,
+<a href=#2596 id=2596 data-nosnippet>2596</a>        folder: <span class="prelude-val">None</span>,
+<a href=#2597 id=2597 data-nosnippet>2597</a>    })
+<a href=#2598 id=2598 data-nosnippet>2598</a>}
+<a href=#2599 id=2599 data-nosnippet>2599</a>
+<a href=#2600 id=2600 data-nosnippet>2600</a><span class="kw">fn </span>persisted_artifact(
+<a href=#2601 id=2601 data-nosnippet>2601</a>    store: <span class="kw-2">&amp;</span>ArtifactRouter,
+<a href=#2602 id=2602 data-nosnippet>2602</a>    session: SessionId,
+<a href=#2603 id=2603 data-nosnippet>2603</a>    bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#2604 id=2604 data-nosnippet>2604</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PersistedFileSource, HistoryError&gt; {
+<a href=#2605 id=2605 data-nosnippet>2605</a>    <span class="kw">let </span>(reference, sha256) = store.retain(session, bytes)<span class="question-mark">?</span>;
+<a href=#2606 id=2606 data-nosnippet>2606</a>    <span class="prelude-val">Ok</span>(PersistedFileSource::Artifact {
+<a href=#2607 id=2607 data-nosnippet>2607</a>        byte_length: bytes.len() <span class="kw">as </span>u64,
+<a href=#2608 id=2608 data-nosnippet>2608</a>        sha256: Sha256Digest::new(sha256)
+<a href=#2609 id=2609 data-nosnippet>2609</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2610 id=2610 data-nosnippet>2610</a>        reference,
+<a href=#2611 id=2611 data-nosnippet>2611</a>    })
+<a href=#2612 id=2612 data-nosnippet>2612</a>}
+<a href=#2613 id=2613 data-nosnippet>2613</a>
+<a href=#2614 id=2614 data-nosnippet>2614</a><span class="kw">fn </span>restore_file(file: <span class="kw-2">&amp;</span>PersistedFilePart) -&gt; <span class="prelude-ty">Result</span>&lt;FilePart, HistoryError&gt; {
+<a href=#2615 id=2615 data-nosnippet>2615</a>    <span class="kw">let </span>source = <span class="kw">match </span><span class="kw-2">&amp;</span>file.source {
+<a href=#2616 id=2616 data-nosnippet>2616</a>        PersistedFileSource::Artifact { .. } =&gt; {
+<a href=#2617 id=2617 data-nosnippet>2617</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(HistoryError::Corrupt(
+<a href=#2618 id=2618 data-nosnippet>2618</a>                <span class="string">"persisted artifact file was restored without the artifact store"</span>.into(),
+<a href=#2619 id=2619 data-nosnippet>2619</a>            ));
+<a href=#2620 id=2620 data-nosnippet>2620</a>        }
+<a href=#2621 id=2621 data-nosnippet>2621</a>        PersistedFileSource::Url { url } =&gt; FileSource::Url(
+<a href=#2622 id=2622 data-nosnippet>2622</a>            url.parse()
+<a href=#2623 id=2623 data-nosnippet>2623</a>                .map_err(|error| HistoryError::Corrupt(<span class="macro">format!</span>(<span class="string">"invalid file URL: {error}"</span>)))<span class="question-mark">?</span>,
+<a href=#2624 id=2624 data-nosnippet>2624</a>        ),
+<a href=#2625 id=2625 data-nosnippet>2625</a>        PersistedFileSource::ProviderReference { provider_id, id } =&gt; {
+<a href=#2626 id=2626 data-nosnippet>2626</a>            FileSource::ProviderReference {
+<a href=#2627 id=2627 data-nosnippet>2627</a>                provider: ProviderId::new(provider_id.as_str()),
+<a href=#2628 id=2628 data-nosnippet>2628</a>                id: id.to_string(),
+<a href=#2629 id=2629 data-nosnippet>2629</a>            }
+<a href=#2630 id=2630 data-nosnippet>2630</a>        }
+<a href=#2631 id=2631 data-nosnippet>2631</a>    };
+<a href=#2632 id=2632 data-nosnippet>2632</a>    <span class="prelude-val">Ok</span>(FilePart {
+<a href=#2633 id=2633 data-nosnippet>2633</a>        media_type: file.media_type.to_string(),
+<a href=#2634 id=2634 data-nosnippet>2634</a>        filename: file.filename.clone(),
+<a href=#2635 id=2635 data-nosnippet>2635</a>        source,
+<a href=#2636 id=2636 data-nosnippet>2636</a>        metadata: file.metadata.clone(),
+<a href=#2637 id=2637 data-nosnippet>2637</a>    })
+<a href=#2638 id=2638 data-nosnippet>2638</a>}
+<a href=#2639 id=2639 data-nosnippet>2639</a>
+<a href=#2640 id=2640 data-nosnippet>2640</a><span class="kw">fn </span>restore_file_with_store(
+<a href=#2641 id=2641 data-nosnippet>2641</a>    file: <span class="kw-2">&amp;</span>PersistedFilePart,
+<a href=#2642 id=2642 data-nosnippet>2642</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#2643 id=2643 data-nosnippet>2643</a>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;FilePart, String&gt;, HistoryError&gt; {
+<a href=#2644 id=2644 data-nosnippet>2644</a>    <span class="kw">if let </span>PersistedFileSource::Artifact {
+<a href=#2645 id=2645 data-nosnippet>2645</a>        byte_length,
+<a href=#2646 id=2646 data-nosnippet>2646</a>        sha256,
+<a href=#2647 id=2647 data-nosnippet>2647</a>        reference,
+<a href=#2648 id=2648 data-nosnippet>2648</a>    } = <span class="kw-2">&amp;</span>file.source
+<a href=#2649 id=2649 data-nosnippet>2649</a>    {
+<a href=#2650 id=2650 data-nosnippet>2650</a>        <span class="kw">let </span>attachment = ToolAttachment {
+<a href=#2651 id=2651 data-nosnippet>2651</a>            mime_type: file.media_type.clone(),
+<a href=#2652 id=2652 data-nosnippet>2652</a>            filename: file.filename.clone(),
+<a href=#2653 id=2653 data-nosnippet>2653</a>            byte_length: <span class="kw-2">*</span>byte_length,
+<a href=#2654 id=2654 data-nosnippet>2654</a>            sha256: sha256.clone(),
+<a href=#2655 id=2655 data-nosnippet>2655</a>            reference: reference.clone(),
+<a href=#2656 id=2656 data-nosnippet>2656</a>        };
+<a href=#2657 id=2657 data-nosnippet>2657</a>        <span class="kw">return </span>attachment_file(<span class="kw-2">&amp;</span>attachment, store);
+<a href=#2658 id=2658 data-nosnippet>2658</a>    }
+<a href=#2659 id=2659 data-nosnippet>2659</a>    restore_file(file).map(<span class="prelude-val">Ok</span>)
+<a href=#2660 id=2660 data-nosnippet>2660</a>}
+<a href=#2661 id=2661 data-nosnippet>2661</a>
+<a href=#2662 id=2662 data-nosnippet>2662</a><span class="kw">fn </span>persist_replay(
+<a href=#2663 id=2663 data-nosnippet>2663</a>    artifact: OvenReplayArtifact,
+<a href=#2664 id=2664 data-nosnippet>2664</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
+<a href=#2665 id=2665 data-nosnippet>2665</a>) -&gt; <span class="prelude-ty">Result</span>&lt;NativeReplayArtifact, HistoryError&gt; {
+<a href=#2666 id=2666 data-nosnippet>2666</a>    <span class="kw">let </span>wire_model = binding
+<a href=#2667 id=2667 data-nosnippet>2667</a>        .descriptor
+<a href=#2668 id=2668 data-nosnippet>2668</a>        .provider_metadata
+<a href=#2669 id=2669 data-nosnippet>2669</a>        .get(<span class="string">"cookie_agent.wire_model_id"</span>)
+<a href=#2670 id=2670 data-nosnippet>2670</a>        .and_then(serde_json::Value::as_str)
+<a href=#2671 id=2671 data-nosnippet>2671</a>        .unwrap_or(binding.descriptor.identity.model_id.as_str());
+<a href=#2672 id=2672 data-nosnippet>2672</a>    <span class="kw">let </span>wire_provider = binding
+<a href=#2673 id=2673 data-nosnippet>2673</a>        .descriptor
+<a href=#2674 id=2674 data-nosnippet>2674</a>        .provider_metadata
+<a href=#2675 id=2675 data-nosnippet>2675</a>        .get(<span class="string">"cookie_agent.wire_provider_id"</span>)
+<a href=#2676 id=2676 data-nosnippet>2676</a>        .and_then(serde_json::Value::as_str)
+<a href=#2677 id=2677 data-nosnippet>2677</a>        .unwrap_or(binding.descriptor.identity.provider_id.as_str());
+<a href=#2678 id=2678 data-nosnippet>2678</a>    <span class="kw">if </span>artifact.adapter_id() != <span class="kw-2">&amp;</span>binding.descriptor.adapter_id
+<a href=#2679 id=2679 data-nosnippet>2679</a>        || artifact.scope().provider_id.as_str() != wire_provider
+<a href=#2680 id=2680 data-nosnippet>2680</a>        || artifact.scope().model_id.as_str() != wire_model
+<a href=#2681 id=2681 data-nosnippet>2681</a>    {
+<a href=#2682 id=2682 data-nosnippet>2682</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(HistoryError::Corrupt(
+<a href=#2683 id=2683 data-nosnippet>2683</a>            <span class="string">"native replay artifact does not match its exact frozen model binding"</span>.into(),
+<a href=#2684 id=2684 data-nosnippet>2684</a>        ));
+<a href=#2685 id=2685 data-nosnippet>2685</a>    }
+<a href=#2686 id=2686 data-nosnippet>2686</a>    <span class="kw">let </span>scope = NativeContextScope {
+<a href=#2687 id=2687 data-nosnippet>2687</a>        provider_id: binding.selection.model.provider_id(),
+<a href=#2688 id=2688 data-nosnippet>2688</a>        model_id: binding.selection.model.model_id(),
+<a href=#2689 id=2689 data-nosnippet>2689</a>        resource_id: cookie_agent_protocol::SafeDisplayText::new(
+<a href=#2690 id=2690 data-nosnippet>2690</a>            artifact.scope().resource_id.as_str(),
+<a href=#2691 id=2691 data-nosnippet>2691</a>        )
+<a href=#2692 id=2692 data-nosnippet>2692</a>        .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2693 id=2693 data-nosnippet>2693</a>    };
+<a href=#2694 id=2694 data-nosnippet>2694</a>    NativeReplayArtifact::new(
+<a href=#2695 id=2695 data-nosnippet>2695</a>        cookie_agent_protocol::SafeCode::new(artifact.adapter_id().as_str())
+<a href=#2696 id=2696 data-nosnippet>2696</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2697 id=2697 data-nosnippet>2697</a>        cookie_agent_protocol::Sha256Digest::new(binding.selection_fingerprint.as_str())
+<a href=#2698 id=2698 data-nosnippet>2698</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2699 id=2699 data-nosnippet>2699</a>        scope,
+<a href=#2700 id=2700 data-nosnippet>2700</a>        artifact.payload().clone(),
+<a href=#2701 id=2701 data-nosnippet>2701</a>    )
+<a href=#2702 id=2702 data-nosnippet>2702</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
+<a href=#2703 id=2703 data-nosnippet>2703</a>}
+<a href=#2704 id=2704 data-nosnippet>2704</a>
+<a href=#2705 id=2705 data-nosnippet>2705</a><span class="kw">fn </span>restore_replay(
+<a href=#2706 id=2706 data-nosnippet>2706</a>    artifact: <span class="kw-2">&amp;</span>NativeReplayArtifact,
+<a href=#2707 id=2707 data-nosnippet>2707</a>    resolved_model: <span class="kw-2">&amp;</span>ResolvedModelRef,
+<a href=#2708 id=2708 data-nosnippet>2708</a>    _binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
+<a href=#2709 id=2709 data-nosnippet>2709</a>    source_wire_model_id: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+<a href=#2710 id=2710 data-nosnippet>2710</a>) -&gt; (<span class="prelude-ty">Option</span>&lt;OvenReplayArtifact&gt;, <span class="prelude-ty">Option</span>&lt;ReplayDisposition&gt;) {
+<a href=#2711 id=2711 data-nosnippet>2711</a>    <span class="comment">// Persisted-turn integrity: the artifact must have been recorded by the
+<a href=#2712 id=2712 data-nosnippet>2712</a>    // adapter the turn itself resolved to, before any current-eligibility
+<a href=#2713 id=2713 data-nosnippet>2713</a>    // checks expose its opaque payload. Artifacts record the Oven adapter ID
+<a href=#2714 id=2714 data-nosnippet>2714</a>    // while the persisted turn carries the protocol adapter ID, so compare
+<a href=#2715 id=2715 data-nosnippet>2715</a>    // through the shared family mapping.
+<a href=#2716 id=2716 data-nosnippet>2716</a>    </span><span class="kw">if </span>cookie_agent_models::adapters::wire_adapter_for_protocol(artifact.adapter_id().as_str())
+<a href=#2717 id=2717 data-nosnippet>2717</a>        .is_none()
+<a href=#2718 id=2718 data-nosnippet>2718</a>        || <span class="kw">crate</span>::policy::wire_adapter(artifact.adapter_id().as_str()) != resolved_model.adapter_id
+<a href=#2719 id=2719 data-nosnippet>2719</a>    {
+<a href=#2720 id=2720 data-nosnippet>2720</a>        <span class="kw">return </span>(
+<a href=#2721 id=2721 data-nosnippet>2721</a>            <span class="prelude-val">None</span>,
+<a href=#2722 id=2722 data-nosnippet>2722</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
+<a href=#2723 id=2723 data-nosnippet>2723</a>                reason: safe_replay_reason(
+<a href=#2724 id=2724 data-nosnippet>2724</a>                    <span class="string">"native replay adapter does not match its persisted model turn"</span>,
+<a href=#2725 id=2725 data-nosnippet>2725</a>                ),
+<a href=#2726 id=2726 data-nosnippet>2726</a>            }),
+<a href=#2727 id=2727 data-nosnippet>2727</a>        );
+<a href=#2728 id=2728 data-nosnippet>2728</a>    }
+<a href=#2729 id=2729 data-nosnippet>2729</a>    <span class="kw">if </span>artifact.selection_fingerprint() != <span class="kw-2">&amp;</span>resolved_model.selection_fingerprint
+<a href=#2730 id=2730 data-nosnippet>2730</a>        || artifact.scope().provider_id != resolved_model.provider_id
+<a href=#2731 id=2731 data-nosnippet>2731</a>        || artifact.scope().model_id != resolved_model.model_id
+<a href=#2732 id=2732 data-nosnippet>2732</a>    {
+<a href=#2733 id=2733 data-nosnippet>2733</a>        <span class="kw">return </span>(
+<a href=#2734 id=2734 data-nosnippet>2734</a>            <span class="prelude-val">None</span>,
+<a href=#2735 id=2735 data-nosnippet>2735</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
+<a href=#2736 id=2736 data-nosnippet>2736</a>                reason: safe_replay_reason(
+<a href=#2737 id=2737 data-nosnippet>2737</a>                    <span class="string">"native replay identity does not match its persisted model turn"</span>,
+<a href=#2738 id=2738 data-nosnippet>2738</a>                ),
+<a href=#2739 id=2739 data-nosnippet>2739</a>            }),
+<a href=#2740 id=2740 data-nosnippet>2740</a>        );
+<a href=#2741 id=2741 data-nosnippet>2741</a>    }
+<a href=#2742 id=2742 data-nosnippet>2742</a>    <span class="comment">// Source attribution is integrity data. Target codecs decide block eligibility.
+<a href=#2743 id=2743 data-nosnippet>2743</a>    </span><span class="kw">let </span>scope = <span class="kw">match </span>restore_scope(artifact.scope()) {
+<a href=#2744 id=2744 data-nosnippet>2744</a>        <span class="prelude-val">Ok</span>(scope) =&gt; scope,
+<a href=#2745 id=2745 data-nosnippet>2745</a>        <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#2746 id=2746 data-nosnippet>2746</a>            <span class="kw">return </span>(
+<a href=#2747 id=2747 data-nosnippet>2747</a>                <span class="prelude-val">None</span>,
+<a href=#2748 id=2748 data-nosnippet>2748</a>                <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
+<a href=#2749 id=2749 data-nosnippet>2749</a>                    reason: safe_replay_reason(<span class="kw-2">&amp;</span>error.to_string()),
+<a href=#2750 id=2750 data-nosnippet>2750</a>                }),
+<a href=#2751 id=2751 data-nosnippet>2751</a>            );
+<a href=#2752 id=2752 data-nosnippet>2752</a>        }
+<a href=#2753 id=2753 data-nosnippet>2753</a>    };
+<a href=#2754 id=2754 data-nosnippet>2754</a>    <span class="kw">match </span>OvenReplayArtifact::new(
+<a href=#2755 id=2755 data-nosnippet>2755</a>        AdapterId::new(artifact.adapter_id().as_str()),
+<a href=#2756 id=2756 data-nosnippet>2756</a>        scope,
+<a href=#2757 id=2757 data-nosnippet>2757</a>        artifact.payload().clone(),
+<a href=#2758 id=2758 data-nosnippet>2758</a>    )
+<a href=#2759 id=2759 data-nosnippet>2759</a>    .and_then(|artifact| <span class="kw">match </span>source_wire_model_id {
+<a href=#2760 id=2760 data-nosnippet>2760</a>        <span class="prelude-val">Some</span>(source) =&gt; artifact.with_source_wire_model_id(oven_sdk::ModelId::new(source)),
+<a href=#2761 id=2761 data-nosnippet>2761</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(artifact),
+<a href=#2762 id=2762 data-nosnippet>2762</a>    }) {
+<a href=#2763 id=2763 data-nosnippet>2763</a>        <span class="prelude-val">Ok</span>(artifact) =&gt; (<span class="prelude-val">Some</span>(artifact), <span class="prelude-val">None</span>),
+<a href=#2764 id=2764 data-nosnippet>2764</a>        <span class="prelude-val">Err</span>(error) =&gt; (
+<a href=#2765 id=2765 data-nosnippet>2765</a>            <span class="prelude-val">None</span>,
+<a href=#2766 id=2766 data-nosnippet>2766</a>            <span class="prelude-val">Some</span>(ReplayDisposition::DiscardedInvalidPayload {
+<a href=#2767 id=2767 data-nosnippet>2767</a>                reason: safe_replay_reason(<span class="kw-2">&amp;</span>error.to_string()),
+<a href=#2768 id=2768 data-nosnippet>2768</a>            }),
+<a href=#2769 id=2769 data-nosnippet>2769</a>        ),
+<a href=#2770 id=2770 data-nosnippet>2770</a>    }
+<a href=#2771 id=2771 data-nosnippet>2771</a>}
+<a href=#2772 id=2772 data-nosnippet>2772</a>
+<a href=#2773 id=2773 data-nosnippet>2773</a><span class="kw">fn </span>exact_adapter_code(value: <span class="kw-2">&amp;</span>str) -&gt; SafeCode {
+<a href=#2774 id=2774 data-nosnippet>2774</a>    SafeCode::new(value).unwrap_or_else(|<span class="kw">_</span>| {
+<a href=#2775 id=2775 data-nosnippet>2775</a>        SafeCode::new(<span class="string">"invalid-adapter-id"</span>).expect(<span class="string">"static adapter fallback is valid"</span>)
+<a href=#2776 id=2776 data-nosnippet>2776</a>    })
+<a href=#2777 id=2777 data-nosnippet>2777</a>}
+<a href=#2778 id=2778 data-nosnippet>2778</a>
+<a href=#2779 id=2779 data-nosnippet>2779</a><span class="kw">fn </span>safe_replay_reason(value: <span class="kw-2">&amp;</span>str) -&gt; SafeErrorMessage {
+<a href=#2780 id=2780 data-nosnippet>2780</a>    SafeErrorMessage::new(sanitize_control_free(value, SafeErrorMessage::MAX_BYTES))
+<a href=#2781 id=2781 data-nosnippet>2781</a>        .expect(<span class="string">"sanitized replay reason"</span>)
 <a href=#2782 id=2782 data-nosnippet>2782</a>}
 <a href=#2783 id=2783 data-nosnippet>2783</a>
-<a href=#2784 id=2784 data-nosnippet>2784</a><span class="kw">fn </span>exact_adapter_code(value: <span class="kw-2">&amp;</span>str) -&gt; SafeCode {
-<a href=#2785 id=2785 data-nosnippet>2785</a>    SafeCode::new(value).unwrap_or_else(|<span class="kw">_</span>| {
-<a href=#2786 id=2786 data-nosnippet>2786</a>        SafeCode::new(<span class="string">"invalid-adapter-id"</span>).expect(<span class="string">"static adapter fallback is valid"</span>)
-<a href=#2787 id=2787 data-nosnippet>2787</a>    })
-<a href=#2788 id=2788 data-nosnippet>2788</a>}
-<a href=#2789 id=2789 data-nosnippet>2789</a>
-<a href=#2790 id=2790 data-nosnippet>2790</a><span class="kw">fn </span>safe_replay_reason(value: <span class="kw-2">&amp;</span>str) -&gt; SafeErrorMessage {
-<a href=#2791 id=2791 data-nosnippet>2791</a>    SafeErrorMessage::new(sanitize_control_free(value, SafeErrorMessage::MAX_BYTES))
-<a href=#2792 id=2792 data-nosnippet>2792</a>        .expect(<span class="string">"sanitized replay reason"</span>)
-<a href=#2793 id=2793 data-nosnippet>2793</a>}
-<a href=#2794 id=2794 data-nosnippet>2794</a>
-<a href=#2795 id=2795 data-nosnippet>2795</a><span class="kw">fn </span>restore_scope(scope: <span class="kw-2">&amp;</span>NativeContextScope) -&gt; <span class="prelude-ty">Result</span>&lt;OvenNativeContextScope, HistoryError&gt; {
-<a href=#2796 id=2796 data-nosnippet>2796</a>    OvenNativeContextScope::new(
-<a href=#2797 id=2797 data-nosnippet>2797</a>        ProviderId::new(scope.provider_id.as_str()),
-<a href=#2798 id=2798 data-nosnippet>2798</a>        oven_sdk::ModelId::new(scope.model_id.as_str()),
-<a href=#2799 id=2799 data-nosnippet>2799</a>        ResourceId::new(scope.resource_id.as_str())<span class="question-mark">?</span>,
-<a href=#2800 id=2800 data-nosnippet>2800</a>    )
-<a href=#2801 id=2801 data-nosnippet>2801</a>    .map_err(HistoryError::from)
-<a href=#2802 id=2802 data-nosnippet>2802</a>}
-<a href=#2803 id=2803 data-nosnippet>2803</a>
-<a href=#2804 id=2804 data-nosnippet>2804</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>persist_native_context(
-<a href=#2805 id=2805 data-nosnippet>2805</a>    window: OvenNativeContextWindow,
-<a href=#2806 id=2806 data-nosnippet>2806</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
-<a href=#2807 id=2807 data-nosnippet>2807</a>) -&gt; <span class="prelude-ty">Result</span>&lt;cookie_agent_protocol::NativeContextWindow, HistoryError&gt; {
-<a href=#2808 id=2808 data-nosnippet>2808</a>    cookie_agent_protocol::NativeContextWindow::new(
-<a href=#2809 id=2809 data-nosnippet>2809</a>        exact_adapter_code(window.adapter_id().as_str()),
-<a href=#2810 id=2810 data-nosnippet>2810</a>        binding.blueprint_fingerprint.clone(),
-<a href=#2811 id=2811 data-nosnippet>2811</a>        NativeContextScope {
-<a href=#2812 id=2812 data-nosnippet>2812</a>            provider_id: binding.selection.model.provider_id(),
-<a href=#2813 id=2813 data-nosnippet>2813</a>            model_id: binding.selection.model.model_id(),
-<a href=#2814 id=2814 data-nosnippet>2814</a>            resource_id: cookie_agent_protocol::SafeDisplayText::new(
-<a href=#2815 id=2815 data-nosnippet>2815</a>                window.scope().resource_id.as_str(),
-<a href=#2816 id=2816 data-nosnippet>2816</a>            )
-<a href=#2817 id=2817 data-nosnippet>2817</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
-<a href=#2818 id=2818 data-nosnippet>2818</a>        },
-<a href=#2819 id=2819 data-nosnippet>2819</a>        window.payload().clone(),
-<a href=#2820 id=2820 data-nosnippet>2820</a>    )
-<a href=#2821 id=2821 data-nosnippet>2821</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
-<a href=#2822 id=2822 data-nosnippet>2822</a>}
-<a href=#2823 id=2823 data-nosnippet>2823</a>
-<a href=#2824 id=2824 data-nosnippet>2824</a><span class="kw">fn </span>restore_native_context(
-<a href=#2825 id=2825 data-nosnippet>2825</a>    window: <span class="kw-2">&amp;</span>cookie_agent_protocol::NativeContextWindow,
-<a href=#2826 id=2826 data-nosnippet>2826</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
-<a href=#2827 id=2827 data-nosnippet>2827</a>) -&gt; <span class="prelude-ty">Result</span>&lt;OvenNativeContextWindow, HistoryError&gt; {
-<a href=#2828 id=2828 data-nosnippet>2828</a>    <span class="kw">let </span>identity = |key: <span class="kw-2">&amp;</span>str, fallback: <span class="kw-2">&amp;</span>str| -&gt; <span class="prelude-ty">Result</span>&lt;String, HistoryError&gt; {
-<a href=#2829 id=2829 data-nosnippet>2829</a>        <span class="kw">match </span>binding.descriptor.provider_metadata.get(key) {
-<a href=#2830 id=2830 data-nosnippet>2830</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(fallback.into()),
-<a href=#2831 id=2831 data-nosnippet>2831</a>            <span class="prelude-val">Some</span>(serde_json::Value::String(value)) =&gt; <span class="prelude-val">Ok</span>(value.clone()),
-<a href=#2832 id=2832 data-nosnippet>2832</a>            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(HistoryError::Corrupt(
-<a href=#2833 id=2833 data-nosnippet>2833</a>                <span class="string">"invalid frozen wire identity metadata"</span>.into(),
-<a href=#2834 id=2834 data-nosnippet>2834</a>            )),
-<a href=#2835 id=2835 data-nosnippet>2835</a>        }
-<a href=#2836 id=2836 data-nosnippet>2836</a>    };
-<a href=#2837 id=2837 data-nosnippet>2837</a>    <span class="kw">let </span>scope = OvenNativeContextScope::new(
-<a href=#2838 id=2838 data-nosnippet>2838</a>        ProviderId::new(identity(
-<a href=#2839 id=2839 data-nosnippet>2839</a>            <span class="string">"cookie_agent.wire_provider_id"</span>,
-<a href=#2840 id=2840 data-nosnippet>2840</a>            binding.descriptor.identity.provider_id.as_str(),
-<a href=#2841 id=2841 data-nosnippet>2841</a>        )<span class="question-mark">?</span>),
-<a href=#2842 id=2842 data-nosnippet>2842</a>        oven_sdk::ModelId::new(identity(
-<a href=#2843 id=2843 data-nosnippet>2843</a>            <span class="string">"cookie_agent.wire_model_id"</span>,
-<a href=#2844 id=2844 data-nosnippet>2844</a>            binding.descriptor.identity.model_id.as_str(),
-<a href=#2845 id=2845 data-nosnippet>2845</a>        )<span class="question-mark">?</span>),
-<a href=#2846 id=2846 data-nosnippet>2846</a>        ResourceId::new(window.scope().resource_id.as_str())<span class="question-mark">?</span>,
-<a href=#2847 id=2847 data-nosnippet>2847</a>    )<span class="question-mark">?</span>;
-<a href=#2848 id=2848 data-nosnippet>2848</a>    OvenNativeContextWindow::new(
-<a href=#2849 id=2849 data-nosnippet>2849</a>        AdapterId::new(window.adapter_id().as_str()),
-<a href=#2850 id=2850 data-nosnippet>2850</a>        scope,
-<a href=#2851 id=2851 data-nosnippet>2851</a>        window.payload().clone(),
-<a href=#2852 id=2852 data-nosnippet>2852</a>    )
-<a href=#2853 id=2853 data-nosnippet>2853</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
-<a href=#2854 id=2854 data-nosnippet>2854</a>}
-<a href=#2855 id=2855 data-nosnippet>2855</a>
-<a href=#2856 id=2856 data-nosnippet>2856</a><span class="doccomment">/// Converts adapter usage for persistence. Some gateways report a hard zero
-<a href=#2857 id=2857 data-nosnippet>2857</a>/// reasoning count even when the turn streamed reasoning text; that count is
-<a href=#2858 id=2858 data-nosnippet>2858</a>/// recorded as unknown, along with the text/reasoning split derived from it.
-<a href=#2859 id=2859 data-nosnippet>2859</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>persist_usage(<span class="kw-2">mut </span>usage: oven_sdk::Usage, content: <span class="kw-2">&amp;</span>[AssistantPart]) -&gt; Usage {
-<a href=#2860 id=2860 data-nosnippet>2860</a>    <span class="kw">if </span>usage.output_tokens_reasoning == <span class="prelude-val">Some</span>(<span class="number">0</span>)
-<a href=#2861 id=2861 data-nosnippet>2861</a>        &amp;&amp; content.iter().any(
-<a href=#2862 id=2862 data-nosnippet>2862</a>            |part| <span class="macro">matches!</span>(part, AssistantPart::Reasoning(part) <span class="kw">if </span>!part.text.trim().is_empty()),
-<a href=#2863 id=2863 data-nosnippet>2863</a>        )
-<a href=#2864 id=2864 data-nosnippet>2864</a>    {
-<a href=#2865 id=2865 data-nosnippet>2865</a>        usage.output_tokens_reasoning = <span class="prelude-val">None</span>;
-<a href=#2866 id=2866 data-nosnippet>2866</a>        usage.output_tokens_text = <span class="prelude-val">None</span>;
-<a href=#2867 id=2867 data-nosnippet>2867</a>    }
-<a href=#2868 id=2868 data-nosnippet>2868</a>    Usage {
-<a href=#2869 id=2869 data-nosnippet>2869</a>        input_tokens: usage.input_tokens,
-<a href=#2870 id=2870 data-nosnippet>2870</a>        input_tokens_no_cache: usage.input_tokens_no_cache,
-<a href=#2871 id=2871 data-nosnippet>2871</a>        input_tokens_cache_read: usage.input_tokens_cache_read,
-<a href=#2872 id=2872 data-nosnippet>2872</a>        input_tokens_cache_write: usage.input_tokens_cache_write,
-<a href=#2873 id=2873 data-nosnippet>2873</a>        output_tokens: usage.output_tokens,
-<a href=#2874 id=2874 data-nosnippet>2874</a>        output_tokens_text: usage.output_tokens_text,
-<a href=#2875 id=2875 data-nosnippet>2875</a>        output_tokens_reasoning: usage.output_tokens_reasoning,
-<a href=#2876 id=2876 data-nosnippet>2876</a>    }
-<a href=#2877 id=2877 data-nosnippet>2877</a>}
-<a href=#2878 id=2878 data-nosnippet>2878</a>
-<a href=#2879 id=2879 data-nosnippet>2879</a><span class="kw">fn </span>restore_usage(usage: <span class="kw-2">&amp;</span>Usage) -&gt; oven_sdk::Usage {
-<a href=#2880 id=2880 data-nosnippet>2880</a>    oven_sdk::Usage {
-<a href=#2881 id=2881 data-nosnippet>2881</a>        input_tokens: usage.input_tokens,
-<a href=#2882 id=2882 data-nosnippet>2882</a>        input_tokens_no_cache: usage.input_tokens_no_cache,
-<a href=#2883 id=2883 data-nosnippet>2883</a>        input_tokens_cache_read: usage.input_tokens_cache_read,
-<a href=#2884 id=2884 data-nosnippet>2884</a>        input_tokens_cache_write: usage.input_tokens_cache_write,
-<a href=#2885 id=2885 data-nosnippet>2885</a>        input_tokens_cache_write_by_ttl: Default::default(),
-<a href=#2886 id=2886 data-nosnippet>2886</a>        output_tokens: usage.output_tokens,
-<a href=#2887 id=2887 data-nosnippet>2887</a>        output_tokens_text: usage.output_tokens_text,
-<a href=#2888 id=2888 data-nosnippet>2888</a>        output_tokens_reasoning: usage.output_tokens_reasoning,
-<a href=#2889 id=2889 data-nosnippet>2889</a>        raw: <span class="prelude-val">None</span>,
-<a href=#2890 id=2890 data-nosnippet>2890</a>    }
-<a href=#2891 id=2891 data-nosnippet>2891</a>}
-<a href=#2892 id=2892 data-nosnippet>2892</a>
-<a href=#2893 id=2893 data-nosnippet>2893</a><span class="kw">fn </span>persist_finish_reason(reason: FinishReason) -&gt; ModelFinishReason {
-<a href=#2894 id=2894 data-nosnippet>2894</a>    <span class="kw">match </span>reason {
-<a href=#2895 id=2895 data-nosnippet>2895</a>        FinishReason::Stop =&gt; ModelFinishReason::Stop,
-<a href=#2896 id=2896 data-nosnippet>2896</a>        FinishReason::ToolCalls =&gt; ModelFinishReason::ToolCalls,
-<a href=#2897 id=2897 data-nosnippet>2897</a>        FinishReason::Length =&gt; ModelFinishReason::Length,
-<a href=#2898 id=2898 data-nosnippet>2898</a>        FinishReason::ContentFilter =&gt; ModelFinishReason::ContentFilter,
-<a href=#2899 id=2899 data-nosnippet>2899</a>        FinishReason::Cancelled =&gt; ModelFinishReason::Cancelled,
-<a href=#2900 id=2900 data-nosnippet>2900</a>        FinishReason::Error =&gt; ModelFinishReason::Error,
-<a href=#2901 id=2901 data-nosnippet>2901</a>        FinishReason::Aborted =&gt; ModelFinishReason::Aborted,
-<a href=#2902 id=2902 data-nosnippet>2902</a>        FinishReason::Timeout =&gt; ModelFinishReason::Timeout,
-<a href=#2903 id=2903 data-nosnippet>2903</a>        FinishReason::Refused =&gt; ModelFinishReason::Refused,
-<a href=#2904 id=2904 data-nosnippet>2904</a>        FinishReason::Unknown =&gt; ModelFinishReason::Unknown,
-<a href=#2905 id=2905 data-nosnippet>2905</a>        FinishReason::Other(value) =&gt; ModelFinishReason::Other(value),
-<a href=#2906 id=2906 data-nosnippet>2906</a>    }
-<a href=#2907 id=2907 data-nosnippet>2907</a>}
-<a href=#2908 id=2908 data-nosnippet>2908</a>
-<a href=#2909 id=2909 data-nosnippet>2909</a><span class="kw">fn </span>restore_finish_reason(reason: <span class="kw-2">&amp;</span>ModelFinishReason) -&gt; FinishReason {
-<a href=#2910 id=2910 data-nosnippet>2910</a>    <span class="kw">match </span>reason {
-<a href=#2911 id=2911 data-nosnippet>2911</a>        ModelFinishReason::Stop =&gt; FinishReason::Stop,
-<a href=#2912 id=2912 data-nosnippet>2912</a>        ModelFinishReason::ToolCalls =&gt; FinishReason::ToolCalls,
-<a href=#2913 id=2913 data-nosnippet>2913</a>        ModelFinishReason::Length =&gt; FinishReason::Length,
-<a href=#2914 id=2914 data-nosnippet>2914</a>        ModelFinishReason::ContentFilter =&gt; FinishReason::ContentFilter,
-<a href=#2915 id=2915 data-nosnippet>2915</a>        ModelFinishReason::Cancelled =&gt; FinishReason::Cancelled,
-<a href=#2916 id=2916 data-nosnippet>2916</a>        ModelFinishReason::Error =&gt; FinishReason::Error,
-<a href=#2917 id=2917 data-nosnippet>2917</a>        ModelFinishReason::Aborted =&gt; FinishReason::Aborted,
-<a href=#2918 id=2918 data-nosnippet>2918</a>        ModelFinishReason::Timeout =&gt; FinishReason::Timeout,
-<a href=#2919 id=2919 data-nosnippet>2919</a>        ModelFinishReason::Refused =&gt; FinishReason::Refused,
-<a href=#2920 id=2920 data-nosnippet>2920</a>        ModelFinishReason::Unknown =&gt; FinishReason::Unknown,
-<a href=#2921 id=2921 data-nosnippet>2921</a>        ModelFinishReason::Other(value) =&gt; FinishReason::Other(value.clone()),
-<a href=#2922 id=2922 data-nosnippet>2922</a>    }
-<a href=#2923 id=2923 data-nosnippet>2923</a>}
-<a href=#2924 id=2924 data-nosnippet>2924</a>
-<a href=#2925 id=2925 data-nosnippet>2925</a><span class="comment">// Artifact-backed files need the store only while assembling a live request.
-<a href=#2926 id=2926 data-nosnippet>2926</a></span><span class="kw">fn </span>restore_assistant_part_with_store(
-<a href=#2927 id=2927 data-nosnippet>2927</a>    part: <span class="kw-2">&amp;</span>PersistedAssistantPart,
-<a href=#2928 id=2928 data-nosnippet>2928</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#2929 id=2929 data-nosnippet>2929</a>) -&gt; <span class="prelude-ty">Result</span>&lt;AssistantPart, HistoryError&gt; {
-<a href=#2930 id=2930 data-nosnippet>2930</a>    <span class="kw">match </span>part {
-<a href=#2931 id=2931 data-nosnippet>2931</a>        PersistedAssistantPart::File { file } =&gt; <span class="prelude-val">Ok</span>(<span class="kw">match </span>restore_file_with_store(file, store)<span class="question-mark">? </span>{
-<a href=#2932 id=2932 data-nosnippet>2932</a>            <span class="prelude-val">Ok</span>(file) =&gt; AssistantPart::File(file),
-<a href=#2933 id=2933 data-nosnippet>2933</a>            <span class="prelude-val">Err</span>(note) =&gt; AssistantPart::Text(TextPart::new(note)),
-<a href=#2934 id=2934 data-nosnippet>2934</a>        }),
-<a href=#2935 id=2935 data-nosnippet>2935</a>        PersistedAssistantPart::ToolResult {
-<a href=#2936 id=2936 data-nosnippet>2936</a>            tool_call_id,
-<a href=#2937 id=2937 data-nosnippet>2937</a>            content: PersistedToolContent::Mixed { values },
-<a href=#2938 id=2938 data-nosnippet>2938</a>            is_error,
-<a href=#2939 id=2939 data-nosnippet>2939</a>            metadata,
-<a href=#2940 id=2940 data-nosnippet>2940</a>        } =&gt; {
-<a href=#2941 id=2941 data-nosnippet>2941</a>            <span class="kw">let </span>values = values
-<a href=#2942 id=2942 data-nosnippet>2942</a>                .iter()
-<a href=#2943 id=2943 data-nosnippet>2943</a>                .map(|value| <span class="kw">match </span>value {
-<a href=#2944 id=2944 data-nosnippet>2944</a>                    PersistedContentValue::Text { text } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Text(text.clone())),
-<a href=#2945 id=2945 data-nosnippet>2945</a>                    PersistedContentValue::Json { value } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Json(value.clone())),
-<a href=#2946 id=2946 data-nosnippet>2946</a>                    PersistedContentValue::File { file } =&gt; {
-<a href=#2947 id=2947 data-nosnippet>2947</a>                        <span class="prelude-val">Ok</span>(<span class="kw">match </span>restore_file_with_store(file, store)<span class="question-mark">? </span>{
-<a href=#2948 id=2948 data-nosnippet>2948</a>                            <span class="prelude-val">Ok</span>(file) =&gt; ContentValue::File(file),
-<a href=#2949 id=2949 data-nosnippet>2949</a>                            <span class="prelude-val">Err</span>(note) =&gt; ContentValue::Text(note),
-<a href=#2950 id=2950 data-nosnippet>2950</a>                        })
-<a href=#2951 id=2951 data-nosnippet>2951</a>                    }
-<a href=#2952 id=2952 data-nosnippet>2952</a>                })
-<a href=#2953 id=2953 data-nosnippet>2953</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>;
-<a href=#2954 id=2954 data-nosnippet>2954</a>            <span class="prelude-val">Ok</span>(AssistantPart::ToolResult(ToolResultPart {
-<a href=#2955 id=2955 data-nosnippet>2955</a>                tool_call_id: tool_call_id.to_string(),
-<a href=#2956 id=2956 data-nosnippet>2956</a>                content: ToolContent::Mixed(values),
-<a href=#2957 id=2957 data-nosnippet>2957</a>                is_error: <span class="kw-2">*</span>is_error,
-<a href=#2958 id=2958 data-nosnippet>2958</a>                metadata: metadata.clone(),
-<a href=#2959 id=2959 data-nosnippet>2959</a>            }))
-<a href=#2960 id=2960 data-nosnippet>2960</a>        }
-<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="kw">_ </span>=&gt; restore_assistant_part(part),
-<a href=#2962 id=2962 data-nosnippet>2962</a>    }
-<a href=#2963 id=2963 data-nosnippet>2963</a>}
-<a href=#2964 id=2964 data-nosnippet>2964</a>
-<a href=#2965 id=2965 data-nosnippet>2965</a><span class="kw">fn </span>restore_turn_with_store(
-<a href=#2966 id=2966 data-nosnippet>2966</a>    turn: <span class="kw-2">&amp;</span>PersistedModelTurn,
-<a href=#2967 id=2967 data-nosnippet>2967</a>    resolved_model: <span class="kw-2">&amp;</span>ResolvedModelRef,
-<a href=#2968 id=2968 data-nosnippet>2968</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#2969 id=2969 data-nosnippet>2969</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
-<a href=#2970 id=2970 data-nosnippet>2970</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(CompletedTurn, <span class="prelude-ty">Option</span>&lt;ReplayDisposition&gt;), HistoryError&gt; {
-<a href=#2971 id=2971 data-nosnippet>2971</a>    <span class="kw">let </span>(native_replay, replay_disposition) =
-<a href=#2972 id=2972 data-nosnippet>2972</a>        turn.native_replay
-<a href=#2973 id=2973 data-nosnippet>2973</a>            .as_ref()
-<a href=#2974 id=2974 data-nosnippet>2974</a>            .map_or((<span class="prelude-val">None</span>, <span class="prelude-val">None</span>), |artifact| {
-<a href=#2975 id=2975 data-nosnippet>2975</a>                restore_replay(
-<a href=#2976 id=2976 data-nosnippet>2976</a>                    artifact,
-<a href=#2977 id=2977 data-nosnippet>2977</a>                    resolved_model,
-<a href=#2978 id=2978 data-nosnippet>2978</a>                    binding,
-<a href=#2979 id=2979 data-nosnippet>2979</a>                    turn.provider_metadata
-<a href=#2980 id=2980 data-nosnippet>2980</a>                        .get(<span class="string">"cookie_agent.replay_source_wire_model_id"</span>)
-<a href=#2981 id=2981 data-nosnippet>2981</a>                        .and_then(serde_json::Value::as_str),
-<a href=#2982 id=2982 data-nosnippet>2982</a>                )
-<a href=#2983 id=2983 data-nosnippet>2983</a>            });
-<a href=#2984 id=2984 data-nosnippet>2984</a>    <span class="comment">// A model switch may project normalized reasoning only when the target
-<a href=#2985 id=2985 data-nosnippet>2985</a>    // declares support for replaying provider-authoritative reasoning.
-<a href=#2986 id=2986 data-nosnippet>2986</a>    </span><span class="kw">let </span>preserve_reasoning =
-<a href=#2987 id=2987 data-nosnippet>2987</a>        native_replay.is_some() || binding.descriptor.capabilities.replay.reasoning;
-<a href=#2988 id=2988 data-nosnippet>2988</a>    <span class="prelude-val">Ok</span>((
-<a href=#2989 id=2989 data-nosnippet>2989</a>        CompletedTurn {
-<a href=#2990 id=2990 data-nosnippet>2990</a>            message: AssistantMessage {
-<a href=#2991 id=2991 data-nosnippet>2991</a>                content: turn
-<a href=#2992 id=2992 data-nosnippet>2992</a>                    .content
-<a href=#2993 id=2993 data-nosnippet>2993</a>                    .iter()
-<a href=#2994 id=2994 data-nosnippet>2994</a>                    .filter(|part| {
-<a href=#2995 id=2995 data-nosnippet>2995</a>                        preserve_reasoning
-<a href=#2996 id=2996 data-nosnippet>2996</a>                            || !<span class="macro">matches!</span>(part, PersistedAssistantPart::Reasoning { .. })
-<a href=#2997 id=2997 data-nosnippet>2997</a>                    })
-<a href=#2998 id=2998 data-nosnippet>2998</a>                    .map(|part| restore_assistant_part_with_store(part, store))
-<a href=#2999 id=2999 data-nosnippet>2999</a>                    .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>,
-<a href=#3000 id=3000 data-nosnippet>3000</a>                provider_options: turn.provider_options.clone(),
-<a href=#3001 id=3001 data-nosnippet>3001</a>            },
-<a href=#3002 id=3002 data-nosnippet>3002</a>            finish: Finish {
-<a href=#3003 id=3003 data-nosnippet>3003</a>                usage: restore_usage(<span class="kw-2">&amp;</span>turn.usage),
-<a href=#3004 id=3004 data-nosnippet>3004</a>                finish_reason: restore_finish_reason(<span class="kw-2">&amp;</span>turn.finish_reason),
-<a href=#3005 id=3005 data-nosnippet>3005</a>                response_metadata: turn.response_metadata.clone(),
-<a href=#3006 id=3006 data-nosnippet>3006</a>                provider_metadata: turn.provider_metadata.clone(),
-<a href=#3007 id=3007 data-nosnippet>3007</a>                native_replay,
-<a href=#3008 id=3008 data-nosnippet>3008</a>                reasoning_transformations: Vec::new(),
-<a href=#3009 id=3009 data-nosnippet>3009</a>            },
-<a href=#3010 id=3010 data-nosnippet>3010</a>            warnings: Vec::new(),
-<a href=#3011 id=3011 data-nosnippet>3011</a>        },
-<a href=#3012 id=3012 data-nosnippet>3012</a>        replay_disposition,
-<a href=#3013 id=3013 data-nosnippet>3013</a>    ))
+<a href=#2784 id=2784 data-nosnippet>2784</a><span class="kw">fn </span>restore_scope(scope: <span class="kw-2">&amp;</span>NativeContextScope) -&gt; <span class="prelude-ty">Result</span>&lt;OvenNativeContextScope, HistoryError&gt; {
+<a href=#2785 id=2785 data-nosnippet>2785</a>    OvenNativeContextScope::new(
+<a href=#2786 id=2786 data-nosnippet>2786</a>        ProviderId::new(scope.provider_id.as_str()),
+<a href=#2787 id=2787 data-nosnippet>2787</a>        oven_sdk::ModelId::new(scope.model_id.as_str()),
+<a href=#2788 id=2788 data-nosnippet>2788</a>        ResourceId::new(scope.resource_id.as_str())<span class="question-mark">?</span>,
+<a href=#2789 id=2789 data-nosnippet>2789</a>    )
+<a href=#2790 id=2790 data-nosnippet>2790</a>    .map_err(HistoryError::from)
+<a href=#2791 id=2791 data-nosnippet>2791</a>}
+<a href=#2792 id=2792 data-nosnippet>2792</a>
+<a href=#2793 id=2793 data-nosnippet>2793</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>persist_native_context(
+<a href=#2794 id=2794 data-nosnippet>2794</a>    window: OvenNativeContextWindow,
+<a href=#2795 id=2795 data-nosnippet>2795</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
+<a href=#2796 id=2796 data-nosnippet>2796</a>) -&gt; <span class="prelude-ty">Result</span>&lt;cookie_agent_protocol::NativeContextWindow, HistoryError&gt; {
+<a href=#2797 id=2797 data-nosnippet>2797</a>    cookie_agent_protocol::NativeContextWindow::new(
+<a href=#2798 id=2798 data-nosnippet>2798</a>        exact_adapter_code(window.adapter_id().as_str()),
+<a href=#2799 id=2799 data-nosnippet>2799</a>        binding.blueprint_fingerprint.clone(),
+<a href=#2800 id=2800 data-nosnippet>2800</a>        NativeContextScope {
+<a href=#2801 id=2801 data-nosnippet>2801</a>            provider_id: binding.selection.model.provider_id(),
+<a href=#2802 id=2802 data-nosnippet>2802</a>            model_id: binding.selection.model.model_id(),
+<a href=#2803 id=2803 data-nosnippet>2803</a>            resource_id: cookie_agent_protocol::SafeDisplayText::new(
+<a href=#2804 id=2804 data-nosnippet>2804</a>                window.scope().resource_id.as_str(),
+<a href=#2805 id=2805 data-nosnippet>2805</a>            )
+<a href=#2806 id=2806 data-nosnippet>2806</a>            .map_err(|error| HistoryError::Corrupt(error.to_string()))<span class="question-mark">?</span>,
+<a href=#2807 id=2807 data-nosnippet>2807</a>        },
+<a href=#2808 id=2808 data-nosnippet>2808</a>        window.payload().clone(),
+<a href=#2809 id=2809 data-nosnippet>2809</a>    )
+<a href=#2810 id=2810 data-nosnippet>2810</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
+<a href=#2811 id=2811 data-nosnippet>2811</a>}
+<a href=#2812 id=2812 data-nosnippet>2812</a>
+<a href=#2813 id=2813 data-nosnippet>2813</a><span class="kw">fn </span>restore_native_context(
+<a href=#2814 id=2814 data-nosnippet>2814</a>    window: <span class="kw-2">&amp;</span>cookie_agent_protocol::NativeContextWindow,
+<a href=#2815 id=2815 data-nosnippet>2815</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
+<a href=#2816 id=2816 data-nosnippet>2816</a>) -&gt; <span class="prelude-ty">Result</span>&lt;OvenNativeContextWindow, HistoryError&gt; {
+<a href=#2817 id=2817 data-nosnippet>2817</a>    <span class="kw">let </span>identity = |key: <span class="kw-2">&amp;</span>str, fallback: <span class="kw-2">&amp;</span>str| -&gt; <span class="prelude-ty">Result</span>&lt;String, HistoryError&gt; {
+<a href=#2818 id=2818 data-nosnippet>2818</a>        <span class="kw">match </span>binding.descriptor.provider_metadata.get(key) {
+<a href=#2819 id=2819 data-nosnippet>2819</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(fallback.into()),
+<a href=#2820 id=2820 data-nosnippet>2820</a>            <span class="prelude-val">Some</span>(serde_json::Value::String(value)) =&gt; <span class="prelude-val">Ok</span>(value.clone()),
+<a href=#2821 id=2821 data-nosnippet>2821</a>            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(HistoryError::Corrupt(
+<a href=#2822 id=2822 data-nosnippet>2822</a>                <span class="string">"invalid frozen wire identity metadata"</span>.into(),
+<a href=#2823 id=2823 data-nosnippet>2823</a>            )),
+<a href=#2824 id=2824 data-nosnippet>2824</a>        }
+<a href=#2825 id=2825 data-nosnippet>2825</a>    };
+<a href=#2826 id=2826 data-nosnippet>2826</a>    <span class="kw">let </span>scope = OvenNativeContextScope::new(
+<a href=#2827 id=2827 data-nosnippet>2827</a>        ProviderId::new(identity(
+<a href=#2828 id=2828 data-nosnippet>2828</a>            <span class="string">"cookie_agent.wire_provider_id"</span>,
+<a href=#2829 id=2829 data-nosnippet>2829</a>            binding.descriptor.identity.provider_id.as_str(),
+<a href=#2830 id=2830 data-nosnippet>2830</a>        )<span class="question-mark">?</span>),
+<a href=#2831 id=2831 data-nosnippet>2831</a>        oven_sdk::ModelId::new(identity(
+<a href=#2832 id=2832 data-nosnippet>2832</a>            <span class="string">"cookie_agent.wire_model_id"</span>,
+<a href=#2833 id=2833 data-nosnippet>2833</a>            binding.descriptor.identity.model_id.as_str(),
+<a href=#2834 id=2834 data-nosnippet>2834</a>        )<span class="question-mark">?</span>),
+<a href=#2835 id=2835 data-nosnippet>2835</a>        ResourceId::new(window.scope().resource_id.as_str())<span class="question-mark">?</span>,
+<a href=#2836 id=2836 data-nosnippet>2836</a>    )<span class="question-mark">?</span>;
+<a href=#2837 id=2837 data-nosnippet>2837</a>    OvenNativeContextWindow::new(
+<a href=#2838 id=2838 data-nosnippet>2838</a>        AdapterId::new(window.adapter_id().as_str()),
+<a href=#2839 id=2839 data-nosnippet>2839</a>        scope,
+<a href=#2840 id=2840 data-nosnippet>2840</a>        window.payload().clone(),
+<a href=#2841 id=2841 data-nosnippet>2841</a>    )
+<a href=#2842 id=2842 data-nosnippet>2842</a>    .map_err(|error| HistoryError::Corrupt(error.to_string()))
+<a href=#2843 id=2843 data-nosnippet>2843</a>}
+<a href=#2844 id=2844 data-nosnippet>2844</a>
+<a href=#2845 id=2845 data-nosnippet>2845</a><span class="doccomment">/// Converts adapter usage for persistence. Some gateways report a hard zero
+<a href=#2846 id=2846 data-nosnippet>2846</a>/// reasoning count even when the turn streamed reasoning text; that count is
+<a href=#2847 id=2847 data-nosnippet>2847</a>/// recorded as unknown, along with the text/reasoning split derived from it.
+<a href=#2848 id=2848 data-nosnippet>2848</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>persist_usage(<span class="kw-2">mut </span>usage: oven_sdk::Usage, content: <span class="kw-2">&amp;</span>[AssistantPart]) -&gt; Usage {
+<a href=#2849 id=2849 data-nosnippet>2849</a>    <span class="kw">if </span>usage.output_tokens_reasoning == <span class="prelude-val">Some</span>(<span class="number">0</span>)
+<a href=#2850 id=2850 data-nosnippet>2850</a>        &amp;&amp; content.iter().any(
+<a href=#2851 id=2851 data-nosnippet>2851</a>            |part| <span class="macro">matches!</span>(part, AssistantPart::Reasoning(part) <span class="kw">if </span>!part.text.trim().is_empty()),
+<a href=#2852 id=2852 data-nosnippet>2852</a>        )
+<a href=#2853 id=2853 data-nosnippet>2853</a>    {
+<a href=#2854 id=2854 data-nosnippet>2854</a>        usage.output_tokens_reasoning = <span class="prelude-val">None</span>;
+<a href=#2855 id=2855 data-nosnippet>2855</a>        usage.output_tokens_text = <span class="prelude-val">None</span>;
+<a href=#2856 id=2856 data-nosnippet>2856</a>    }
+<a href=#2857 id=2857 data-nosnippet>2857</a>    Usage {
+<a href=#2858 id=2858 data-nosnippet>2858</a>        input_tokens: usage.input_tokens,
+<a href=#2859 id=2859 data-nosnippet>2859</a>        input_tokens_no_cache: usage.input_tokens_no_cache,
+<a href=#2860 id=2860 data-nosnippet>2860</a>        input_tokens_cache_read: usage.input_tokens_cache_read,
+<a href=#2861 id=2861 data-nosnippet>2861</a>        input_tokens_cache_write: usage.input_tokens_cache_write,
+<a href=#2862 id=2862 data-nosnippet>2862</a>        output_tokens: usage.output_tokens,
+<a href=#2863 id=2863 data-nosnippet>2863</a>        output_tokens_text: usage.output_tokens_text,
+<a href=#2864 id=2864 data-nosnippet>2864</a>        output_tokens_reasoning: usage.output_tokens_reasoning,
+<a href=#2865 id=2865 data-nosnippet>2865</a>    }
+<a href=#2866 id=2866 data-nosnippet>2866</a>}
+<a href=#2867 id=2867 data-nosnippet>2867</a>
+<a href=#2868 id=2868 data-nosnippet>2868</a><span class="kw">fn </span>restore_usage(usage: <span class="kw-2">&amp;</span>Usage) -&gt; oven_sdk::Usage {
+<a href=#2869 id=2869 data-nosnippet>2869</a>    oven_sdk::Usage {
+<a href=#2870 id=2870 data-nosnippet>2870</a>        input_tokens: usage.input_tokens,
+<a href=#2871 id=2871 data-nosnippet>2871</a>        input_tokens_no_cache: usage.input_tokens_no_cache,
+<a href=#2872 id=2872 data-nosnippet>2872</a>        input_tokens_cache_read: usage.input_tokens_cache_read,
+<a href=#2873 id=2873 data-nosnippet>2873</a>        input_tokens_cache_write: usage.input_tokens_cache_write,
+<a href=#2874 id=2874 data-nosnippet>2874</a>        input_tokens_cache_write_by_ttl: Default::default(),
+<a href=#2875 id=2875 data-nosnippet>2875</a>        output_tokens: usage.output_tokens,
+<a href=#2876 id=2876 data-nosnippet>2876</a>        output_tokens_text: usage.output_tokens_text,
+<a href=#2877 id=2877 data-nosnippet>2877</a>        output_tokens_reasoning: usage.output_tokens_reasoning,
+<a href=#2878 id=2878 data-nosnippet>2878</a>        raw: <span class="prelude-val">None</span>,
+<a href=#2879 id=2879 data-nosnippet>2879</a>    }
+<a href=#2880 id=2880 data-nosnippet>2880</a>}
+<a href=#2881 id=2881 data-nosnippet>2881</a>
+<a href=#2882 id=2882 data-nosnippet>2882</a><span class="kw">fn </span>persist_finish_reason(reason: FinishReason) -&gt; ModelFinishReason {
+<a href=#2883 id=2883 data-nosnippet>2883</a>    <span class="kw">match </span>reason {
+<a href=#2884 id=2884 data-nosnippet>2884</a>        FinishReason::Stop =&gt; ModelFinishReason::Stop,
+<a href=#2885 id=2885 data-nosnippet>2885</a>        FinishReason::ToolCalls =&gt; ModelFinishReason::ToolCalls,
+<a href=#2886 id=2886 data-nosnippet>2886</a>        FinishReason::Length =&gt; ModelFinishReason::Length,
+<a href=#2887 id=2887 data-nosnippet>2887</a>        FinishReason::ContentFilter =&gt; ModelFinishReason::ContentFilter,
+<a href=#2888 id=2888 data-nosnippet>2888</a>        FinishReason::Cancelled =&gt; ModelFinishReason::Cancelled,
+<a href=#2889 id=2889 data-nosnippet>2889</a>        FinishReason::Error =&gt; ModelFinishReason::Error,
+<a href=#2890 id=2890 data-nosnippet>2890</a>        FinishReason::Aborted =&gt; ModelFinishReason::Aborted,
+<a href=#2891 id=2891 data-nosnippet>2891</a>        FinishReason::Timeout =&gt; ModelFinishReason::Timeout,
+<a href=#2892 id=2892 data-nosnippet>2892</a>        FinishReason::Refused =&gt; ModelFinishReason::Refused,
+<a href=#2893 id=2893 data-nosnippet>2893</a>        FinishReason::Unknown =&gt; ModelFinishReason::Unknown,
+<a href=#2894 id=2894 data-nosnippet>2894</a>        FinishReason::Other(value) =&gt; ModelFinishReason::Other(value),
+<a href=#2895 id=2895 data-nosnippet>2895</a>    }
+<a href=#2896 id=2896 data-nosnippet>2896</a>}
+<a href=#2897 id=2897 data-nosnippet>2897</a>
+<a href=#2898 id=2898 data-nosnippet>2898</a><span class="kw">fn </span>restore_finish_reason(reason: <span class="kw-2">&amp;</span>ModelFinishReason) -&gt; FinishReason {
+<a href=#2899 id=2899 data-nosnippet>2899</a>    <span class="kw">match </span>reason {
+<a href=#2900 id=2900 data-nosnippet>2900</a>        ModelFinishReason::Stop =&gt; FinishReason::Stop,
+<a href=#2901 id=2901 data-nosnippet>2901</a>        ModelFinishReason::ToolCalls =&gt; FinishReason::ToolCalls,
+<a href=#2902 id=2902 data-nosnippet>2902</a>        ModelFinishReason::Length =&gt; FinishReason::Length,
+<a href=#2903 id=2903 data-nosnippet>2903</a>        ModelFinishReason::ContentFilter =&gt; FinishReason::ContentFilter,
+<a href=#2904 id=2904 data-nosnippet>2904</a>        ModelFinishReason::Cancelled =&gt; FinishReason::Cancelled,
+<a href=#2905 id=2905 data-nosnippet>2905</a>        ModelFinishReason::Error =&gt; FinishReason::Error,
+<a href=#2906 id=2906 data-nosnippet>2906</a>        ModelFinishReason::Aborted =&gt; FinishReason::Aborted,
+<a href=#2907 id=2907 data-nosnippet>2907</a>        ModelFinishReason::Timeout =&gt; FinishReason::Timeout,
+<a href=#2908 id=2908 data-nosnippet>2908</a>        ModelFinishReason::Refused =&gt; FinishReason::Refused,
+<a href=#2909 id=2909 data-nosnippet>2909</a>        ModelFinishReason::Unknown =&gt; FinishReason::Unknown,
+<a href=#2910 id=2910 data-nosnippet>2910</a>        ModelFinishReason::Other(value) =&gt; FinishReason::Other(value.clone()),
+<a href=#2911 id=2911 data-nosnippet>2911</a>    }
+<a href=#2912 id=2912 data-nosnippet>2912</a>}
+<a href=#2913 id=2913 data-nosnippet>2913</a>
+<a href=#2914 id=2914 data-nosnippet>2914</a><span class="comment">// Artifact-backed files need the store only while assembling a live request.
+<a href=#2915 id=2915 data-nosnippet>2915</a></span><span class="kw">fn </span>restore_assistant_part_with_store(
+<a href=#2916 id=2916 data-nosnippet>2916</a>    part: <span class="kw-2">&amp;</span>PersistedAssistantPart,
+<a href=#2917 id=2917 data-nosnippet>2917</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#2918 id=2918 data-nosnippet>2918</a>) -&gt; <span class="prelude-ty">Result</span>&lt;AssistantPart, HistoryError&gt; {
+<a href=#2919 id=2919 data-nosnippet>2919</a>    <span class="kw">match </span>part {
+<a href=#2920 id=2920 data-nosnippet>2920</a>        PersistedAssistantPart::File { file } =&gt; <span class="prelude-val">Ok</span>(<span class="kw">match </span>restore_file_with_store(file, store)<span class="question-mark">? </span>{
+<a href=#2921 id=2921 data-nosnippet>2921</a>            <span class="prelude-val">Ok</span>(file) =&gt; AssistantPart::File(file),
+<a href=#2922 id=2922 data-nosnippet>2922</a>            <span class="prelude-val">Err</span>(note) =&gt; AssistantPart::Text(TextPart::new(note)),
+<a href=#2923 id=2923 data-nosnippet>2923</a>        }),
+<a href=#2924 id=2924 data-nosnippet>2924</a>        PersistedAssistantPart::ToolResult {
+<a href=#2925 id=2925 data-nosnippet>2925</a>            tool_call_id,
+<a href=#2926 id=2926 data-nosnippet>2926</a>            content: PersistedToolContent::Mixed { values },
+<a href=#2927 id=2927 data-nosnippet>2927</a>            is_error,
+<a href=#2928 id=2928 data-nosnippet>2928</a>            metadata,
+<a href=#2929 id=2929 data-nosnippet>2929</a>        } =&gt; {
+<a href=#2930 id=2930 data-nosnippet>2930</a>            <span class="kw">let </span>values = values
+<a href=#2931 id=2931 data-nosnippet>2931</a>                .iter()
+<a href=#2932 id=2932 data-nosnippet>2932</a>                .map(|value| <span class="kw">match </span>value {
+<a href=#2933 id=2933 data-nosnippet>2933</a>                    PersistedContentValue::Text { text } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Text(text.clone())),
+<a href=#2934 id=2934 data-nosnippet>2934</a>                    PersistedContentValue::Json { value } =&gt; <span class="prelude-val">Ok</span>(ContentValue::Json(value.clone())),
+<a href=#2935 id=2935 data-nosnippet>2935</a>                    PersistedContentValue::File { file } =&gt; {
+<a href=#2936 id=2936 data-nosnippet>2936</a>                        <span class="prelude-val">Ok</span>(<span class="kw">match </span>restore_file_with_store(file, store)<span class="question-mark">? </span>{
+<a href=#2937 id=2937 data-nosnippet>2937</a>                            <span class="prelude-val">Ok</span>(file) =&gt; ContentValue::File(file),
+<a href=#2938 id=2938 data-nosnippet>2938</a>                            <span class="prelude-val">Err</span>(note) =&gt; ContentValue::Text(note),
+<a href=#2939 id=2939 data-nosnippet>2939</a>                        })
+<a href=#2940 id=2940 data-nosnippet>2940</a>                    }
+<a href=#2941 id=2941 data-nosnippet>2941</a>                })
+<a href=#2942 id=2942 data-nosnippet>2942</a>                .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, HistoryError&gt;&gt;()<span class="question-mark">?</span>;
+<a href=#2943 id=2943 data-nosnippet>2943</a>            <span class="prelude-val">Ok</span>(AssistantPart::ToolResult(ToolResultPart {
+<a href=#2944 id=2944 data-nosnippet>2944</a>                tool_call_id: tool_call_id.to_string(),
+<a href=#2945 id=2945 data-nosnippet>2945</a>                content: ToolContent::Mixed(values),
+<a href=#2946 id=2946 data-nosnippet>2946</a>                is_error: <span class="kw-2">*</span>is_error,
+<a href=#2947 id=2947 data-nosnippet>2947</a>                metadata: metadata.clone(),
+<a href=#2948 id=2948 data-nosnippet>2948</a>            }))
+<a href=#2949 id=2949 data-nosnippet>2949</a>        }
+<a href=#2950 id=2950 data-nosnippet>2950</a>        <span class="kw">_ </span>=&gt; restore_assistant_part(part),
+<a href=#2951 id=2951 data-nosnippet>2951</a>    }
+<a href=#2952 id=2952 data-nosnippet>2952</a>}
+<a href=#2953 id=2953 data-nosnippet>2953</a>
+<a href=#2954 id=2954 data-nosnippet>2954</a><span class="kw">fn </span>restore_turn_with_store(
+<a href=#2955 id=2955 data-nosnippet>2955</a>    turn: <span class="kw-2">&amp;</span>PersistedModelTurn,
+<a href=#2956 id=2956 data-nosnippet>2956</a>    resolved_model: <span class="kw-2">&amp;</span>ResolvedModelRef,
+<a href=#2957 id=2957 data-nosnippet>2957</a>    store: SessionArtifacts&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#2958 id=2958 data-nosnippet>2958</a>    binding: <span class="kw-2">&amp;</span>FrozenModelBinding,
+<a href=#2959 id=2959 data-nosnippet>2959</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(CompletedTurn, <span class="prelude-ty">Option</span>&lt;ReplayDisposition&gt;), HistoryError&gt; {
+<a href=#2960 id=2960 data-nosnippet>2960</a>    <span class="kw">let </span>(native_replay, replay_disposition) =
+<a href=#2961 id=2961 data-nosnippet>2961</a>        turn.native_replay
+<a href=#2962 id=2962 data-nosnippet>2962</a>            .as_ref()
+<a href=#2963 id=2963 data-nosnippet>2963</a>            .map_or((<span class="prelude-val">None</span>, <span class="prelude-val">None</span>), |artifact| {
+<a href=#2964 id=2964 data-nosnippet>2964</a>                restore_replay(
+<a href=#2965 id=2965 data-nosnippet>2965</a>                    artifact,
+<a href=#2966 id=2966 data-nosnippet>2966</a>                    resolved_model,
+<a href=#2967 id=2967 data-nosnippet>2967</a>                    binding,
+<a href=#2968 id=2968 data-nosnippet>2968</a>                    turn.provider_metadata
+<a href=#2969 id=2969 data-nosnippet>2969</a>                        .get(<span class="string">"cookie_agent.replay_source_wire_model_id"</span>)
+<a href=#2970 id=2970 data-nosnippet>2970</a>                        .and_then(serde_json::Value::as_str),
+<a href=#2971 id=2971 data-nosnippet>2971</a>                )
+<a href=#2972 id=2972 data-nosnippet>2972</a>            });
+<a href=#2973 id=2973 data-nosnippet>2973</a>    <span class="comment">// A model switch may project normalized reasoning only when the target
+<a href=#2974 id=2974 data-nosnippet>2974</a>    // declares support for replaying provider-authoritative reasoning.
+<a href=#2975 id=2975 data-nosnippet>2975</a>    </span><span class="kw">let </span>preserve_reasoning =
+<a href=#2976 id=2976 data-nosnippet>2976</a>        native_replay.is_some() || binding.descriptor.capabilities.replay.reasoning;
+<a href=#2977 id=2977 data-nosnippet>2977</a>    <span class="prelude-val">Ok</span>((
+<a href=#2978 id=2978 data-nosnippet>2978</a>        CompletedTurn {
+<a href=#2979 id=2979 data-nosnippet>2979</a>            message: AssistantMessage {
+<a href=#2980 id=2980 data-nosnippet>2980</a>                content: turn
+<a href=#2981 id=2981 data-nosnippet>2981</a>                    .content
+<a href=#2982 id=2982 data-nosnippet>2982</a>                    .iter()
+<a href=#2983 id=2983 data-nosnippet>2983</a>                    .filter(|part| {
+<a href=#2984 id=2984 data-nosnippet>2984</a>                        preserve_reasoning
+<a href=#2985 id=2985 data-nosnippet>2985</a>                            || !<span class="macro">matches!</span>(part, PersistedAssistantPart::Reasoning { .. })
+<a href=#2986 id=2986 data-nosnippet>2986</a>                    })
+<a href=#2987 id=2987 data-nosnippet>2987</a>                    .map(|part| restore_assistant_part_with_store(part, store))
+<a href=#2988 id=2988 data-nosnippet>2988</a>                    .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>,
+<a href=#2989 id=2989 data-nosnippet>2989</a>                provider_options: turn.provider_options.clone(),
+<a href=#2990 id=2990 data-nosnippet>2990</a>            },
+<a href=#2991 id=2991 data-nosnippet>2991</a>            finish: Finish {
+<a href=#2992 id=2992 data-nosnippet>2992</a>                usage: restore_usage(<span class="kw-2">&amp;</span>turn.usage),
+<a href=#2993 id=2993 data-nosnippet>2993</a>                finish_reason: restore_finish_reason(<span class="kw-2">&amp;</span>turn.finish_reason),
+<a href=#2994 id=2994 data-nosnippet>2994</a>                response_metadata: turn.response_metadata.clone(),
+<a href=#2995 id=2995 data-nosnippet>2995</a>                provider_metadata: turn.provider_metadata.clone(),
+<a href=#2996 id=2996 data-nosnippet>2996</a>                native_replay,
+<a href=#2997 id=2997 data-nosnippet>2997</a>                reasoning_transformations: Vec::new(),
+<a href=#2998 id=2998 data-nosnippet>2998</a>            },
+<a href=#2999 id=2999 data-nosnippet>2999</a>            warnings: Vec::new(),
+<a href=#3000 id=3000 data-nosnippet>3000</a>        },
+<a href=#3001 id=3001 data-nosnippet>3001</a>        replay_disposition,
+<a href=#3002 id=3002 data-nosnippet>3002</a>    ))
+<a href=#3003 id=3003 data-nosnippet>3003</a>}
+<a href=#3004 id=3004 data-nosnippet>3004</a>
+<a href=#3005 id=3005 data-nosnippet>3005</a><span class="kw">fn </span>scope_selection(scope: <span class="kw-2">&amp;</span>OvenNativeContextScope) -&gt; ModelSelection {
+<a href=#3006 id=3006 data-nosnippet>3006</a>    <span class="kw">let </span>provider = cookie_agent_protocol::ProviderId::new(scope.provider_id.as_str())
+<a href=#3007 id=3007 data-nosnippet>3007</a>        .expect(<span class="string">"validated provider id"</span>);
+<a href=#3008 id=3008 data-nosnippet>3008</a>    <span class="kw">let </span>model = cookie_agent_protocol::ProviderModelId::new(scope.model_id.as_str())
+<a href=#3009 id=3009 data-nosnippet>3009</a>        .expect(<span class="string">"validated model id"</span>);
+<a href=#3010 id=3010 data-nosnippet>3010</a>    ModelSelection {
+<a href=#3011 id=3011 data-nosnippet>3011</a>        model: cookie_agent_protocol::ModelKey::new(provider, model).expect(<span class="string">"validated model key"</span>),
+<a href=#3012 id=3012 data-nosnippet>3012</a>        variant: <span class="prelude-val">None</span>,
+<a href=#3013 id=3013 data-nosnippet>3013</a>    }
 <a href=#3014 id=3014 data-nosnippet>3014</a>}
 <a href=#3015 id=3015 data-nosnippet>3015</a>
-<a href=#3016 id=3016 data-nosnippet>3016</a><span class="kw">fn </span>scope_selection(scope: <span class="kw-2">&amp;</span>OvenNativeContextScope) -&gt; ModelSelection {
-<a href=#3017 id=3017 data-nosnippet>3017</a>    <span class="kw">let </span>provider = cookie_agent_protocol::ProviderId::new(scope.provider_id.as_str())
-<a href=#3018 id=3018 data-nosnippet>3018</a>        .expect(<span class="string">"validated provider id"</span>);
-<a href=#3019 id=3019 data-nosnippet>3019</a>    <span class="kw">let </span>model = cookie_agent_protocol::ProviderModelId::new(scope.model_id.as_str())
-<a href=#3020 id=3020 data-nosnippet>3020</a>        .expect(<span class="string">"validated model id"</span>);
-<a href=#3021 id=3021 data-nosnippet>3021</a>    ModelSelection {
-<a href=#3022 id=3022 data-nosnippet>3022</a>        model: cookie_agent_protocol::ModelKey::new(provider, model).expect(<span class="string">"validated model key"</span>),
-<a href=#3023 id=3023 data-nosnippet>3023</a>        variant: <span class="prelude-val">None</span>,
-<a href=#3024 id=3024 data-nosnippet>3024</a>    }
-<a href=#3025 id=3025 data-nosnippet>3025</a>}
-<a href=#3026 id=3026 data-nosnippet>3026</a>
-<a href=#3027 id=3027 data-nosnippet>3027</a><span class="kw">fn </span>sanitize_control_free(value: <span class="kw-2">&amp;</span>str, maximum: usize) -&gt; String {
-<a href=#3028 id=3028 data-nosnippet>3028</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::with_capacity(value.len().min(maximum));
-<a href=#3029 id=3029 data-nosnippet>3029</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
-<a href=#3030 id=3030 data-nosnippet>3030</a>        <span class="kw">if </span>output.len() &gt;= maximum {
-<a href=#3031 id=3031 data-nosnippet>3031</a>            <span class="kw">break</span>;
-<a href=#3032 id=3032 data-nosnippet>3032</a>        }
-<a href=#3033 id=3033 data-nosnippet>3033</a>        <span class="kw">let </span>replacement = <span class="kw">if </span>character.is_control() {
-<a href=#3034 id=3034 data-nosnippet>3034</a>            <span class="string">' '
-<a href=#3035 id=3035 data-nosnippet>3035</a>        </span>} <span class="kw">else </span>{
-<a href=#3036 id=3036 data-nosnippet>3036</a>            character
-<a href=#3037 id=3037 data-nosnippet>3037</a>        };
-<a href=#3038 id=3038 data-nosnippet>3038</a>        <span class="kw">if </span>output.len() + replacement.len_utf8() &gt; maximum {
-<a href=#3039 id=3039 data-nosnippet>3039</a>            <span class="kw">break</span>;
-<a href=#3040 id=3040 data-nosnippet>3040</a>        }
-<a href=#3041 id=3041 data-nosnippet>3041</a>        output.push(replacement);
-<a href=#3042 id=3042 data-nosnippet>3042</a>    }
-<a href=#3043 id=3043 data-nosnippet>3043</a>    <span class="kw">if </span>output.is_empty() {
-<a href=#3044 id=3044 data-nosnippet>3044</a>        <span class="string">"unavailable"</span>.to_owned()
-<a href=#3045 id=3045 data-nosnippet>3045</a>    } <span class="kw">else </span>{
-<a href=#3046 id=3046 data-nosnippet>3046</a>        output
-<a href=#3047 id=3047 data-nosnippet>3047</a>    }
-<a href=#3048 id=3048 data-nosnippet>3048</a>}
-<a href=#3049 id=3049 data-nosnippet>3049</a>
-<a href=#3050 id=3050 data-nosnippet>3050</a><span class="doccomment">/// Normalize a model-supplied identifier into a valid [`SafeCode`].
-<a href=#3051 id=3051 data-nosnippet>3051</a>///
-<a href=#3052 id=3052 data-nosnippet>3052</a>/// Providers can emit tool-call names and custom part kinds that are not valid
-<a href=#3053 id=3053 data-nosnippet>3053</a>/// `SafeCode` values. Stored history cannot represent those, so coerce them to a
-<a href=#3054 id=3054 data-nosnippet>3054</a>/// valid placeholder and record a user-visible warning instead of failing the run.
-<a href=#3055 id=3055 data-nosnippet>3055</a></span><span class="kw">fn </span>normalize_safe_code(
-<a href=#3056 id=3056 data-nosnippet>3056</a>    value: String,
-<a href=#3057 id=3057 data-nosnippet>3057</a>    label: <span class="kw-2">&amp;</span>str,
-<a href=#3058 id=3058 data-nosnippet>3058</a>    warnings: <span class="kw-2">&amp;mut </span>Vec&lt;SafeErrorMessage&gt;,
-<a href=#3059 id=3059 data-nosnippet>3059</a>) -&gt; SafeCode {
-<a href=#3060 id=3060 data-nosnippet>3060</a>    <span class="kw">if </span>is_valid_safe_code(<span class="kw-2">&amp;</span>value) {
-<a href=#3061 id=3061 data-nosnippet>3061</a>        <span class="kw">return </span>SafeCode::new(value).expect(<span class="string">"validated model identifier"</span>);
-<a href=#3062 id=3062 data-nosnippet>3062</a>    }
-<a href=#3063 id=3063 data-nosnippet>3063</a>    <span class="kw">let </span>normalized = normalized_code(<span class="kw-2">&amp;</span>value);
-<a href=#3064 id=3064 data-nosnippet>3064</a>    <span class="kw">let </span>original = sanitize_control_free(<span class="kw-2">&amp;</span>value, SafeErrorMessage::MAX_BYTES);
-<a href=#3065 id=3065 data-nosnippet>3065</a>    warnings.push(
-<a href=#3066 id=3066 data-nosnippet>3066</a>        SafeErrorMessage::new(sanitize_control_free(
-<a href=#3067 id=3067 data-nosnippet>3067</a>            <span class="kw-2">&amp;</span><span class="macro">format!</span>(
-<a href=#3068 id=3068 data-nosnippet>3068</a>                <span class="string">"model {label} \"{original}\" was normalized to \"{normalized}\" because it is not a valid identifier"
-<a href=#3069 id=3069 data-nosnippet>3069</a>            </span>),
-<a href=#3070 id=3070 data-nosnippet>3070</a>            SafeErrorMessage::MAX_BYTES,
-<a href=#3071 id=3071 data-nosnippet>3071</a>        ))
-<a href=#3072 id=3072 data-nosnippet>3072</a>        .expect(<span class="string">"sanitized normalization warning is valid"</span>),
-<a href=#3073 id=3073 data-nosnippet>3073</a>    );
-<a href=#3074 id=3074 data-nosnippet>3074</a>    SafeCode::new(normalized).expect(<span class="string">"normalized model identifier is valid"</span>)
+<a href=#3016 id=3016 data-nosnippet>3016</a><span class="kw">fn </span>sanitize_control_free(value: <span class="kw-2">&amp;</span>str, maximum: usize) -&gt; String {
+<a href=#3017 id=3017 data-nosnippet>3017</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::with_capacity(value.len().min(maximum));
+<a href=#3018 id=3018 data-nosnippet>3018</a>    <span class="kw">for </span>character <span class="kw">in </span>value.chars() {
+<a href=#3019 id=3019 data-nosnippet>3019</a>        <span class="kw">if </span>output.len() &gt;= maximum {
+<a href=#3020 id=3020 data-nosnippet>3020</a>            <span class="kw">break</span>;
+<a href=#3021 id=3021 data-nosnippet>3021</a>        }
+<a href=#3022 id=3022 data-nosnippet>3022</a>        <span class="kw">let </span>replacement = <span class="kw">if </span>character.is_control() {
+<a href=#3023 id=3023 data-nosnippet>3023</a>            <span class="string">' '
+<a href=#3024 id=3024 data-nosnippet>3024</a>        </span>} <span class="kw">else </span>{
+<a href=#3025 id=3025 data-nosnippet>3025</a>            character
+<a href=#3026 id=3026 data-nosnippet>3026</a>        };
+<a href=#3027 id=3027 data-nosnippet>3027</a>        <span class="kw">if </span>output.len() + replacement.len_utf8() &gt; maximum {
+<a href=#3028 id=3028 data-nosnippet>3028</a>            <span class="kw">break</span>;
+<a href=#3029 id=3029 data-nosnippet>3029</a>        }
+<a href=#3030 id=3030 data-nosnippet>3030</a>        output.push(replacement);
+<a href=#3031 id=3031 data-nosnippet>3031</a>    }
+<a href=#3032 id=3032 data-nosnippet>3032</a>    <span class="kw">if </span>output.is_empty() {
+<a href=#3033 id=3033 data-nosnippet>3033</a>        <span class="string">"unavailable"</span>.to_owned()
+<a href=#3034 id=3034 data-nosnippet>3034</a>    } <span class="kw">else </span>{
+<a href=#3035 id=3035 data-nosnippet>3035</a>        output
+<a href=#3036 id=3036 data-nosnippet>3036</a>    }
+<a href=#3037 id=3037 data-nosnippet>3037</a>}
+<a href=#3038 id=3038 data-nosnippet>3038</a>
+<a href=#3039 id=3039 data-nosnippet>3039</a><span class="doccomment">/// Normalize a model-supplied identifier into a valid [`SafeCode`].
+<a href=#3040 id=3040 data-nosnippet>3040</a>///
+<a href=#3041 id=3041 data-nosnippet>3041</a>/// Providers can emit tool-call names and custom part kinds that are not valid
+<a href=#3042 id=3042 data-nosnippet>3042</a>/// `SafeCode` values. Stored history cannot represent those, so coerce them to a
+<a href=#3043 id=3043 data-nosnippet>3043</a>/// valid placeholder and record a user-visible warning instead of failing the run.
+<a href=#3044 id=3044 data-nosnippet>3044</a></span><span class="kw">fn </span>normalize_safe_code(
+<a href=#3045 id=3045 data-nosnippet>3045</a>    value: String,
+<a href=#3046 id=3046 data-nosnippet>3046</a>    label: <span class="kw-2">&amp;</span>str,
+<a href=#3047 id=3047 data-nosnippet>3047</a>    warnings: <span class="kw-2">&amp;mut </span>Vec&lt;SafeErrorMessage&gt;,
+<a href=#3048 id=3048 data-nosnippet>3048</a>) -&gt; SafeCode {
+<a href=#3049 id=3049 data-nosnippet>3049</a>    <span class="kw">if </span>is_valid_safe_code(<span class="kw-2">&amp;</span>value) {
+<a href=#3050 id=3050 data-nosnippet>3050</a>        <span class="kw">return </span>SafeCode::new(value).expect(<span class="string">"validated model identifier"</span>);
+<a href=#3051 id=3051 data-nosnippet>3051</a>    }
+<a href=#3052 id=3052 data-nosnippet>3052</a>    <span class="kw">let </span>normalized = normalized_code(<span class="kw-2">&amp;</span>value);
+<a href=#3053 id=3053 data-nosnippet>3053</a>    <span class="kw">let </span>original = sanitize_control_free(<span class="kw-2">&amp;</span>value, SafeErrorMessage::MAX_BYTES);
+<a href=#3054 id=3054 data-nosnippet>3054</a>    warnings.push(
+<a href=#3055 id=3055 data-nosnippet>3055</a>        SafeErrorMessage::new(sanitize_control_free(
+<a href=#3056 id=3056 data-nosnippet>3056</a>            <span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#3057 id=3057 data-nosnippet>3057</a>                <span class="string">"model {label} \"{original}\" was normalized to \"{normalized}\" because it is not a valid identifier"
+<a href=#3058 id=3058 data-nosnippet>3058</a>            </span>),
+<a href=#3059 id=3059 data-nosnippet>3059</a>            SafeErrorMessage::MAX_BYTES,
+<a href=#3060 id=3060 data-nosnippet>3060</a>        ))
+<a href=#3061 id=3061 data-nosnippet>3061</a>        .expect(<span class="string">"sanitized normalization warning is valid"</span>),
+<a href=#3062 id=3062 data-nosnippet>3062</a>    );
+<a href=#3063 id=3063 data-nosnippet>3063</a>    SafeCode::new(normalized).expect(<span class="string">"normalized model identifier is valid"</span>)
+<a href=#3064 id=3064 data-nosnippet>3064</a>}
+<a href=#3065 id=3065 data-nosnippet>3065</a>
+<a href=#3066 id=3066 data-nosnippet>3066</a><span class="doccomment">/// Mirrors [`SafeCode::new`] without consuming the caller's string, so valid
+<a href=#3067 id=3067 data-nosnippet>3067</a>/// identifiers move into the [`SafeCode`] without an extra allocation.
+<a href=#3068 id=3068 data-nosnippet>3068</a></span><span class="kw">fn </span>is_valid_safe_code(value: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#3069 id=3069 data-nosnippet>3069</a>    (<span class="number">1</span>..=SafeCode::MAX_BYTES).contains(<span class="kw-2">&amp;</span>value.len())
+<a href=#3070 id=3070 data-nosnippet>3070</a>        &amp;&amp; value.bytes().enumerate().all(|(index, byte)| {
+<a href=#3071 id=3071 data-nosnippet>3071</a>            byte.is_ascii_lowercase()
+<a href=#3072 id=3072 data-nosnippet>3072</a>                || byte.is_ascii_digit()
+<a href=#3073 id=3073 data-nosnippet>3073</a>                || (index &gt; <span class="number">0 </span>&amp;&amp; <span class="macro">matches!</span>(byte, <span class="string">b'.' </span>| <span class="string">b'_' </span>| <span class="string">b'-'</span>))
+<a href=#3074 id=3074 data-nosnippet>3074</a>        })
 <a href=#3075 id=3075 data-nosnippet>3075</a>}
 <a href=#3076 id=3076 data-nosnippet>3076</a>
-<a href=#3077 id=3077 data-nosnippet>3077</a><span class="doccomment">/// Mirrors [`SafeCode::new`] without consuming the caller's string, so valid
-<a href=#3078 id=3078 data-nosnippet>3078</a>/// identifiers move into the [`SafeCode`] without an extra allocation.
-<a href=#3079 id=3079 data-nosnippet>3079</a></span><span class="kw">fn </span>is_valid_safe_code(value: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#3080 id=3080 data-nosnippet>3080</a>    (<span class="number">1</span>..=SafeCode::MAX_BYTES).contains(<span class="kw-2">&amp;</span>value.len())
-<a href=#3081 id=3081 data-nosnippet>3081</a>        &amp;&amp; value.bytes().enumerate().all(|(index, byte)| {
-<a href=#3082 id=3082 data-nosnippet>3082</a>            byte.is_ascii_lowercase()
-<a href=#3083 id=3083 data-nosnippet>3083</a>                || byte.is_ascii_digit()
-<a href=#3084 id=3084 data-nosnippet>3084</a>                || (index &gt; <span class="number">0 </span>&amp;&amp; <span class="macro">matches!</span>(byte, <span class="string">b'.' </span>| <span class="string">b'_' </span>| <span class="string">b'-'</span>))
-<a href=#3085 id=3085 data-nosnippet>3085</a>        })
-<a href=#3086 id=3086 data-nosnippet>3086</a>}
-<a href=#3087 id=3087 data-nosnippet>3087</a>
-<a href=#3088 id=3088 data-nosnippet>3088</a><span class="doccomment">/// Deduplicate and bound warnings so the persisted [`PersistedModelTurn`] event
-<a href=#3089 id=3089 data-nosnippet>3089</a>/// satisfies `ModelTurnCommitted`'s 256-warning limit. Identical warnings
-<a href=#3090 id=3090 data-nosnippet>3090</a>/// collapse first; if the remainder still exceeds the cap, keep the earliest
-<a href=#3091 id=3091 data-nosnippet>3091</a>/// warnings and append one deterministic truncation summary.
-<a href=#3092 id=3092 data-nosnippet>3092</a></span><span class="kw">fn </span>coalesce_warnings(warnings: Vec&lt;SafeErrorMessage&gt;) -&gt; Vec&lt;SafeErrorMessage&gt; {
-<a href=#3093 id=3093 data-nosnippet>3093</a>    <span class="kw">const </span>MAX_WARNINGS: usize = <span class="number">256</span>;
-<a href=#3094 id=3094 data-nosnippet>3094</a>    <span class="kw">let </span><span class="kw-2">mut </span>seen = HashSet::new();
-<a href=#3095 id=3095 data-nosnippet>3095</a>    <span class="kw">let </span><span class="kw-2">mut </span>deduped = Vec::with_capacity(warnings.len());
-<a href=#3096 id=3096 data-nosnippet>3096</a>    <span class="kw">for </span>warning <span class="kw">in </span>warnings {
-<a href=#3097 id=3097 data-nosnippet>3097</a>        <span class="kw">if </span>seen.insert(warning.clone()) {
-<a href=#3098 id=3098 data-nosnippet>3098</a>            deduped.push(warning);
-<a href=#3099 id=3099 data-nosnippet>3099</a>        }
-<a href=#3100 id=3100 data-nosnippet>3100</a>    }
-<a href=#3101 id=3101 data-nosnippet>3101</a>    <span class="kw">if </span>deduped.len() &lt;= MAX_WARNINGS {
-<a href=#3102 id=3102 data-nosnippet>3102</a>        <span class="kw">return </span>deduped;
-<a href=#3103 id=3103 data-nosnippet>3103</a>    }
-<a href=#3104 id=3104 data-nosnippet>3104</a>    <span class="kw">let </span>omitted = deduped.len() - (MAX_WARNINGS - <span class="number">1</span>);
-<a href=#3105 id=3105 data-nosnippet>3105</a>    deduped.truncate(MAX_WARNINGS - <span class="number">1</span>);
-<a href=#3106 id=3106 data-nosnippet>3106</a>    deduped.push(
-<a href=#3107 id=3107 data-nosnippet>3107</a>        SafeErrorMessage::new(<span class="macro">format!</span>(<span class="string">"additional warnings truncated ({omitted} omitted)"</span>))
-<a href=#3108 id=3108 data-nosnippet>3108</a>            .expect(<span class="string">"bounded truncation summary is valid"</span>),
-<a href=#3109 id=3109 data-nosnippet>3109</a>    );
-<a href=#3110 id=3110 data-nosnippet>3110</a>    deduped
-<a href=#3111 id=3111 data-nosnippet>3111</a>}
-<a href=#3112 id=3112 data-nosnippet>3112</a>
-<a href=#3113 id=3113 data-nosnippet>3113</a><span class="kw">fn </span>normalized_code(value: <span class="kw-2">&amp;</span>str) -&gt; String {
-<a href=#3114 id=3114 data-nosnippet>3114</a>    <span class="kw">let </span><span class="kw-2">mut </span>code = value
-<a href=#3115 id=3115 data-nosnippet>3115</a>        .bytes()
-<a href=#3116 id=3116 data-nosnippet>3116</a>        .take(SafeCode::MAX_BYTES)
-<a href=#3117 id=3117 data-nosnippet>3117</a>        .map(|byte| {
-<a href=#3118 id=3118 data-nosnippet>3118</a>            <span class="kw">if </span>byte.is_ascii_alphanumeric() {
-<a href=#3119 id=3119 data-nosnippet>3119</a>                char::from(byte.to_ascii_lowercase())
-<a href=#3120 id=3120 data-nosnippet>3120</a>            } <span class="kw">else </span>{
-<a href=#3121 id=3121 data-nosnippet>3121</a>                <span class="string">'_'
-<a href=#3122 id=3122 data-nosnippet>3122</a>            </span>}
-<a href=#3123 id=3123 data-nosnippet>3123</a>        })
-<a href=#3124 id=3124 data-nosnippet>3124</a>        .collect::&lt;String&gt;();
-<a href=#3125 id=3125 data-nosnippet>3125</a>    <span class="kw">if </span>code.is_empty() {
-<a href=#3126 id=3126 data-nosnippet>3126</a>        code.push_str(<span class="string">"unnamed-tool"</span>);
-<a href=#3127 id=3127 data-nosnippet>3127</a>    }
-<a href=#3128 id=3128 data-nosnippet>3128</a>    <span class="kw">if </span>!code.as_bytes()[<span class="number">0</span>].is_ascii_lowercase() &amp;&amp; !code.as_bytes()[<span class="number">0</span>].is_ascii_digit() {
-<a href=#3129 id=3129 data-nosnippet>3129</a>        code.insert(<span class="number">0</span>, <span class="string">'x'</span>);
-<a href=#3130 id=3130 data-nosnippet>3130</a>    }
-<a href=#3131 id=3131 data-nosnippet>3131</a>    code.truncate(SafeCode::MAX_BYTES);
-<a href=#3132 id=3132 data-nosnippet>3132</a>    code
-<a href=#3133 id=3133 data-nosnippet>3133</a>}
-<a href=#3134 id=3134 data-nosnippet>3134</a>
-<a href=#3135 id=3135 data-nosnippet>3135</a><span class="attr">#[cfg(test)]
-<a href=#3136 id=3136 data-nosnippet>3136</a></span><span class="kw">mod </span>tests;
+<a href=#3077 id=3077 data-nosnippet>3077</a><span class="doccomment">/// Deduplicate and bound warnings so the persisted [`PersistedModelTurn`] event
+<a href=#3078 id=3078 data-nosnippet>3078</a>/// satisfies `ModelTurnCommitted`'s 256-warning limit. Identical warnings
+<a href=#3079 id=3079 data-nosnippet>3079</a>/// collapse first; if the remainder still exceeds the cap, keep the earliest
+<a href=#3080 id=3080 data-nosnippet>3080</a>/// warnings and append one deterministic truncation summary.
+<a href=#3081 id=3081 data-nosnippet>3081</a></span><span class="kw">fn </span>coalesce_warnings(warnings: Vec&lt;SafeErrorMessage&gt;) -&gt; Vec&lt;SafeErrorMessage&gt; {
+<a href=#3082 id=3082 data-nosnippet>3082</a>    <span class="kw">const </span>MAX_WARNINGS: usize = <span class="number">256</span>;
+<a href=#3083 id=3083 data-nosnippet>3083</a>    <span class="kw">let </span><span class="kw-2">mut </span>seen = HashSet::new();
+<a href=#3084 id=3084 data-nosnippet>3084</a>    <span class="kw">let </span><span class="kw-2">mut </span>deduped = Vec::with_capacity(warnings.len());
+<a href=#3085 id=3085 data-nosnippet>3085</a>    <span class="kw">for </span>warning <span class="kw">in </span>warnings {
+<a href=#3086 id=3086 data-nosnippet>3086</a>        <span class="kw">if </span>seen.insert(warning.clone()) {
+<a href=#3087 id=3087 data-nosnippet>3087</a>            deduped.push(warning);
+<a href=#3088 id=3088 data-nosnippet>3088</a>        }
+<a href=#3089 id=3089 data-nosnippet>3089</a>    }
+<a href=#3090 id=3090 data-nosnippet>3090</a>    <span class="kw">if </span>deduped.len() &lt;= MAX_WARNINGS {
+<a href=#3091 id=3091 data-nosnippet>3091</a>        <span class="kw">return </span>deduped;
+<a href=#3092 id=3092 data-nosnippet>3092</a>    }
+<a href=#3093 id=3093 data-nosnippet>3093</a>    <span class="kw">let </span>omitted = deduped.len() - (MAX_WARNINGS - <span class="number">1</span>);
+<a href=#3094 id=3094 data-nosnippet>3094</a>    deduped.truncate(MAX_WARNINGS - <span class="number">1</span>);
+<a href=#3095 id=3095 data-nosnippet>3095</a>    deduped.push(
+<a href=#3096 id=3096 data-nosnippet>3096</a>        SafeErrorMessage::new(<span class="macro">format!</span>(<span class="string">"additional warnings truncated ({omitted} omitted)"</span>))
+<a href=#3097 id=3097 data-nosnippet>3097</a>            .expect(<span class="string">"bounded truncation summary is valid"</span>),
+<a href=#3098 id=3098 data-nosnippet>3098</a>    );
+<a href=#3099 id=3099 data-nosnippet>3099</a>    deduped
+<a href=#3100 id=3100 data-nosnippet>3100</a>}
+<a href=#3101 id=3101 data-nosnippet>3101</a>
+<a href=#3102 id=3102 data-nosnippet>3102</a><span class="kw">fn </span>normalized_code(value: <span class="kw-2">&amp;</span>str) -&gt; String {
+<a href=#3103 id=3103 data-nosnippet>3103</a>    <span class="kw">let </span><span class="kw-2">mut </span>code = value
+<a href=#3104 id=3104 data-nosnippet>3104</a>        .bytes()
+<a href=#3105 id=3105 data-nosnippet>3105</a>        .take(SafeCode::MAX_BYTES)
+<a href=#3106 id=3106 data-nosnippet>3106</a>        .map(|byte| {
+<a href=#3107 id=3107 data-nosnippet>3107</a>            <span class="kw">if </span>byte.is_ascii_alphanumeric() {
+<a href=#3108 id=3108 data-nosnippet>3108</a>                char::from(byte.to_ascii_lowercase())
+<a href=#3109 id=3109 data-nosnippet>3109</a>            } <span class="kw">else </span>{
+<a href=#3110 id=3110 data-nosnippet>3110</a>                <span class="string">'_'
+<a href=#3111 id=3111 data-nosnippet>3111</a>            </span>}
+<a href=#3112 id=3112 data-nosnippet>3112</a>        })
+<a href=#3113 id=3113 data-nosnippet>3113</a>        .collect::&lt;String&gt;();
+<a href=#3114 id=3114 data-nosnippet>3114</a>    <span class="kw">if </span>code.is_empty() {
+<a href=#3115 id=3115 data-nosnippet>3115</a>        code.push_str(<span class="string">"unnamed-tool"</span>);
+<a href=#3116 id=3116 data-nosnippet>3116</a>    }
+<a href=#3117 id=3117 data-nosnippet>3117</a>    <span class="kw">if </span>!code.as_bytes()[<span class="number">0</span>].is_ascii_lowercase() &amp;&amp; !code.as_bytes()[<span class="number">0</span>].is_ascii_digit() {
+<a href=#3118 id=3118 data-nosnippet>3118</a>        code.insert(<span class="number">0</span>, <span class="string">'x'</span>);
+<a href=#3119 id=3119 data-nosnippet>3119</a>    }
+<a href=#3120 id=3120 data-nosnippet>3120</a>    code.truncate(SafeCode::MAX_BYTES);
+<a href=#3121 id=3121 data-nosnippet>3121</a>    code
+<a href=#3122 id=3122 data-nosnippet>3122</a>}
+<a href=#3123 id=3123 data-nosnippet>3123</a>
+<a href=#3124 id=3124 data-nosnippet>3124</a><span class="attr">#[cfg(test)]
+<a href=#3125 id=3125 data-nosnippet>3125</a></span><span class="kw">mod </span>tests;
 </code></pre></div></section></main></body></html>

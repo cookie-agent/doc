@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["attached_as_file","name_only_reason","too_large","upload","upload_refusal"],"struct":["AcceptedMedia","RefusedLimits","UploadFailure"]};
+window.SIDEBAR_ITEMS = {"constant":["ATTACHMENT_DELIVERY_MINOR"],"enum":["ChipBadge"],"fn":["attached_as_file","attached_by_name","chip_badge","daemon_answers_delivery","name_only_reason","too_large","upload","upload_refusal"],"struct":["AcceptedMedia","RefusedLimits","UploadFailure"]};
