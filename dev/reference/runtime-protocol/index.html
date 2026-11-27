@@ -3074,6 +3074,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#forwards" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forwards
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5512,6 +5521,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#forwards" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forwards
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5738,7 +5756,7 @@ output declaration's <code>kind</code>, and a skill's <code>source</code>. The c
 plugin protocol adds its own (see
 <a href="../../development/plugins/#compatibility">Plugin development</a>).</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
-<p>The protocol version is a semver string, currently <strong>1.18.0</strong>
+<p>The protocol version is a semver string, currently <strong>1.19.0</strong>
 (<code>cookie_agent_protocol::RUNTIME_PROTOCOL_VERSION</code>). The daemon sends its
 version in <code>runtime/initialize</code> and the runtime answers with its own. Each end
 reads the other's <code>protocol_version</code> from the raw JSON before it decodes
@@ -5839,7 +5857,9 @@ never needs to send one.
 (<a href="../../specs/session-tool-groups/">session tool groups</a> section 11.2).
 1.18.0 added <code>folder</code> to <code>ArtifactRef</code> and the <code>asset</code> display block
 (<a href="../../specs/folder-artifacts/">folder artifacts</a>). Only the daemon makes
-them.</p>
+them.
+1.19.0 added <a href="#forwards">forwards</a>: the optional <code>net</code> of
+<code>runtime/initialize</code>'s result and the <code>net/*</code> messages.</p>
 <h2 id="capabilities-and-instances">Capabilities and instances<a class="headerlink" href="#capabilities-and-instances" title="Permanent link">&para;</a></h2>
 <p>A runtime offers <strong>capabilities</strong>, such as <code>coding</code>. Sessions attach each one
 separately, as <code>{ runtime_id, capability, workspace? }</code>. The daemon opens a
@@ -6314,6 +6334,10 @@ or enables OAuth, which stays with the daemon's global runtime.</p>
 <tr>
 <td><code>files</code></td>
 <td>Optional, default <code>false</code>, since 1.13.0: the runtime answers the <code>fs/*</code> requests of <a href="#transfers">transfers</a>. The coding runtime does.</td>
+</tr>
+<tr>
+<td><code>net</code></td>
+<td>Optional, default <code>false</code>, since 1.19.0: the runtime answers the <code>net/*</code> requests of <a href="#forwards">forwards</a>. The coding runtime does.</td>
 </tr>
 <tr>
 <td><code>mcp_servers</code></td>
@@ -6839,6 +6863,93 @@ runtime.</p>
   rule; closing its <code>to</code> route stops it.</li>
 </ul>
 <p>Failures are <code>fs_failed</code>, with the reason in <code>detail</code>.</p>
+<h3 id="forwards">Forwards<a class="headerlink" href="#forwards" title="Permanent link">&para;</a></h3>
+<p>Since 1.19.0 a runtime that reports <code>net: true</code> takes part in forwards
+(<a href="../../specs/forwards/">spec</a>): the daemon asks it to listen on a port of
+its machine or to connect to one reached from it, and relays the bytes
+between two runtimes, or between a runtime and a browser, over each
+runtime's connection.</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Direction</th>
+<th>Params</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>net/listen</code></td>
+<td>request</td>
+<td><code>protocol</code> (<code>tcp</code> or <code>udp</code>), <code>bind</code>, <code>port</code> (<code>0</code> picks a free one)</td>
+<td><code>listener</code>, and the <code>port</code> it got</td>
+</tr>
+<tr>
+<td><code>net/unlisten</code></td>
+<td>request</td>
+<td><code>listener</code></td>
+<td><code>{}</code>; connections it accepted stay until closed</td>
+</tr>
+<tr>
+<td><code>net/accepted</code></td>
+<td>runtime → daemon</td>
+<td><code>listener</code>, <code>connection</code>, <code>peer</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>net/connect</code></td>
+<td>request</td>
+<td><code>protocol</code>, <code>host</code>, <code>port</code></td>
+<td><code>connection</code></td>
+</tr>
+<tr>
+<td><code>net/data</code></td>
+<td>both</td>
+<td><code>connection</code>, <code>data</code> (base64, at most 64 KiB)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>net/ack</code></td>
+<td>both</td>
+<td><code>connection</code>, <code>bytes</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>net/close</code></td>
+<td>both</td>
+<td><code>connection</code>, <code>reason?</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>net/datagram</code></td>
+<td>both</td>
+<td><code>listener</code> and <code>peer</code>, or <code>connection</code>; <code>data</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Listeners and connections</strong> are numbers the runtime chooses. A TCP
+  connection reads its socket only once the daemon has its number: an
+  accepted one after <code>net/accepted</code>, a connected one after the reply to
+  <code>net/connect</code>.</li>
+<li><strong>Flow control.</strong> Each side has at most 1 MiB sent on a connection and
+  not acknowledged with <code>net/ack</code>, which the receiver sends once it has
+  written the bytes to its socket; it stops reading its socket until acks
+  arrive.</li>
+<li><strong><code>net/close</code></strong> with <code>reason</code> <code>eof</code> ends the sender's direction only, as
+  a socket's shutdown does; any other reason, or none, ends the
+  connection.</li>
+<li><strong>UDP.</strong> A <code>udp</code> listener reports each datagram with its <code>peer</code> and
+  sends one back to a <code>peer</code>; a <code>udp</code> connection sends and receives its
+  datagrams with neither.</li>
+<li><strong>A dropped connection</strong> to the daemon closes every listener and
+  connection of the runtime.</li>
+</ul>
+<p>Failures are <code>net_failed</code>, with the reason in <code>detail</code>: the bind address is
+not one of the machine's, the port is in use, or the target refused the
+connection, was unreachable, or gave no answer in 10 seconds.</p>
 <h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
 <p>Errors follow the scheme of the <a href="../../specs/compatibility-v1/#6-errors">compatibility spec</a>,
 in both directions. A protocol error uses a standard JSON-RPC code; every
